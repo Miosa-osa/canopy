@@ -1,7 +1,7 @@
 # Canopy
 
 > Open-source workspace protocol for AI agent systems.
-> If Claude Code is the employee, Canopy is the office.
+> If OSA/ Claude Code is the employee, Canopy is the office.
 
 Canopy is a folder structure that turns any AI agent into a specialist. Point Claude,
 Codex, Cursor, Gemini, or any agent at a Canopy workspace — it reads the
