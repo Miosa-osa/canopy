@@ -1,0 +1,60 @@
+# Review Workflow — Quality Assurance Cycle
+# Submit, analyze, feedback, revise. Analyst leads.
+
+name: "review"
+description: "Quality review cycle for any deliverable"
+trigger: "manual"
+
+phases:
+  - id: submit
+    name: "Submission"
+    agent: "{{submitter}}"
+    description: "Agent submits deliverable for review"
+    outputs:
+      - deliverable           # The work product to review
+      - self_assessment       # Submitter's quality self-check
+
+  - id: analyze
+    name: "Analysis"
+    agent: analyst
+    description: "Analyst reviews against quality standards"
+    depends_on: [submit]
+    inputs:
+      - deliverable
+      - self_assessment
+    outputs:
+      - review_verdict        # APPROVE | NEEDS CHANGES | BLOCK
+      - issue_list            # Categorized issues with fixes
+      - quality_score         # 0-100 quality score
+
+  - id: revise
+    name: "Revision"
+    agent: "{{submitter}}"
+    description: "Submitter addresses review feedback"
+    depends_on: [analyze]
+    condition: "review_verdict == NEEDS_CHANGES"
+    inputs:
+      - issue_list
+    outputs:
+      - revised_deliverable
+      - revision_notes        # What changed and why
+
+  - id: approve
+    name: "Final Approval"
+    agent: director
+    description: "Director gives final approval for delivery"
+    depends_on: [analyze]
+    condition: "review_verdict == APPROVE or revision complete"
+    outputs:
+      - approval_status       # approved | rejected
+      - delivery_notes        # Any formatting changes for receiver
+
+transitions:
+  submit → analyze: "always"
+  analyze → revise: "if NEEDS_CHANGES"
+  analyze → approve: "if APPROVE"
+  revise → analyze: "re-review revised work"
+  approve → done: "always"
+
+max_revision_cycles: 2
+escalation: "If 2 revision cycles fail, escalate to Director for decision"

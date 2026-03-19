@@ -1,0 +1,57 @@
+# Budget Configuration — Enterprise
+
+# Monthly budget allocation
+monthly_total: 850
+
+# Team budgets
+teams:
+  executive:
+    allocated: 200
+    agents: [cto]
+    priority: "critical"        # Never throttled
+
+  engineering:
+    allocated: 300
+    agents: [engineering-lead, engineer]
+    priority: "high"
+
+  product:
+    allocated: 250
+    agents: [product-lead, analyst]
+    priority: "high"
+
+  security:
+    allocated: 100
+    agents: [security-lead]
+    priority: "critical"        # Never throttled
+
+# Enforcement rules
+enforcement:
+  warning_at: 0.75              # 75% of budget
+  throttle_at: 0.90             # 90% — reduce to critical tasks only
+  hard_stop_at: 1.00            # 100% — stop all non-critical
+
+  # What counts as "critical" when throttled
+  critical_tasks:
+    - "incident response"
+    - "security review"
+    - "compliance requirement"
+    - "client-facing deadline"
+
+# Reallocation rules
+reallocation:
+  allowed: true
+  approver: "cto"
+  max_percent: 0.25             # Max 25% of source budget
+  cannot_reduce: ["security"]   # Security budget is untouchable
+
+# Cost tracking
+tracking:
+  granularity: "per_task"       # Track cost per task, not just per agent
+  billing_codes:
+    - "engineering"
+    - "product"
+    - "security"
+    - "operations"
+    - "incident"
+  report_frequency: "weekly"

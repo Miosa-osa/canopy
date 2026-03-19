@@ -1,0 +1,402 @@
+# OptimalOS Node Topology
+# Defines all nodes, their types, hierarchy, and routing rules.
+# This file is the single source of truth for L1 (Network layer).
+#
+# Node Types: Entity, Domain, Operation, Unit, Endpoint, Agent, Relay, Bridge
+# Autonomy Levels: L1 (Operator), L2 (Collaborator), L3 (Consultant), L4 (Approver), L5 (Autonomous)
+
+entities:
+  acme-corp:
+    name: "Acme Corp"
+    type: entity
+    jurisdiction: "Delaware"
+    formed: "2025-01-15"
+    purpose: "Infrastructure for autonomous AI agents at scale"
+    domains:
+      platform:
+        name: "Platform"
+        type: domain
+        purpose: "Core software development"
+        operations:
+          core-platform:
+            name: "Core Platform"
+            type: operation
+            status: active
+            goal: "Ship production platform before competitors"
+            units:
+              engineering:
+                type: unit
+                endpoints: [operator, tech-partner, frontend-dev, backend-dev, lead-engineer]
+                agents: [osa-agent, architect-agent, debugger-agent]
+
+          compute-engine:
+            name: "Compute Engine"
+            type: operation
+            status: active
+            goal: "Firecracker VM orchestration at scale"
+            units:
+              infra:
+                type: unit
+                endpoints: [tech-partner, infra-eng]
+
+      agency:
+        name: "Agency"
+        type: domain
+        purpose: "Client services — AI implementations for businesses"
+        operations:
+          enterprise-client:
+            name: "Enterprise Client"
+            type: operation
+            status: active
+            goal: "Enterprise AI platform for clients"
+            folder: "06-agency"
+            units:
+              delivery:
+                type: unit
+                endpoints: [operator, course-partner]
+
+          training-program:
+            name: "Training Program"
+            type: operation
+            status: active
+            goal: "Course program — beginner to advanced agentic engineering"
+            folder: "04-training"
+            units:
+              curriculum:
+                type: unit
+                endpoints: [operator, course-partner]
+              sales:
+                type: unit
+                endpoints: [sales-rep]
+              community:
+                type: unit
+                endpoints: [course-partner, sales-rep]
+
+          agency-network:
+            name: "Agency Network"
+            type: operation
+            status: active
+            goal: "Scale AI agency services via partner closers"
+            folder: "06-agency"
+            units:
+              sales:
+                type: unit
+                endpoints: [closer-1, closer-2, content-lead]
+              delivery:
+                type: unit
+                endpoints: [operator, lead-engineer]
+
+      education:
+        name: "Education"
+        type: domain
+        purpose: "Courses, workshops, community learning"
+        operations:
+          accelerator:
+            name: "Accelerator"
+            type: operation
+            status: active
+            goal: "Teach people to build their own operating systems"
+            folder: "12-accelerator"
+            units:
+              curriculum:
+                type: unit
+                endpoints: [operator]
+              community:
+                type: unit
+                endpoints: [operator, content-lead]
+
+      content:
+        name: "Content"
+        type: domain
+        purpose: "Media, podcasts, social, audience building"
+        operations:
+          media-brand:
+            name: "Media Brand"
+            type: operation
+            status: active
+            goal: "Podcast and media brand"
+            folder: "08-content"
+            units:
+              production:
+                type: unit
+                endpoints: [operator, content-creator]
+
+      research:
+        name: "Research"
+        type: domain
+        purpose: "Signal Theory, system architecture, papers"
+        operations:
+          optimal-system:
+            name: "Optimal System"
+            type: operation
+            status: active
+            goal: "7-layer context architecture — this system"
+            folder: "05-research"
+            units:
+              architecture:
+                type: unit
+                endpoints: [operator]
+                agents: [osa-agent]
+
+# --- Endpoints (People) ---
+
+endpoints:
+  operator:
+    name: "The Operator"
+    type: endpoint
+    role: "CEO / Platform Architect / Researcher"
+    bandwidth:
+      technical: high
+      strategic: high
+      operational: high
+    genre_competence: [spec, brief, proposal, plan, report, review, decision-log]
+    channels: [terminal, slack, email, voice]
+    vsm_role: "S3 (Control) + S5 (Policy)"
+    notes: "Primary system operator. Also acts as Relay between all domains."
+
+  tech-partner:
+    name: "Technical Partner"
+    type: endpoint
+    role: "Technical Partner (50/50) — Compute Layer"
+    bandwidth:
+      technical: high
+      strategic: medium
+      operational: low
+    genre_competence: [spec, runbook, postmortem]
+    channels: [slack, voice]
+    vsm_role: "S1 (Operations — compute)"
+    also_type: bridge  # connects Platform <-> Infrastructure
+
+  course-partner:
+    name: "Course Partner"
+    type: endpoint
+    role: "Course Partner — Training Program"
+    bandwidth:
+      technical: medium
+      strategic: high
+      operational: medium
+    genre_competence: [brief, proposal, pitch, email]
+    channels: [slack, email, voice]
+
+  sales-rep:
+    name: "Sales Rep"
+    type: endpoint
+    role: "Sales — Training Program"
+    bandwidth:
+      technical: low
+      strategic: medium
+      operational: high
+    genre_competence: [brief, pitch, email, message]
+    channels: [slack, email]
+    notes: "Salesperson. Brief genre, not spec genre. Path of least resistance."
+
+  frontend-dev:
+    name: "Frontend Developer"
+    type: endpoint
+    role: "Frontend Developer"
+    bandwidth:
+      technical: high
+      strategic: low
+      operational: medium
+    genre_competence: [spec, readme, changelog]
+    channels: [slack, github]
+
+  backend-dev:
+    name: "Backend Developer"
+    type: endpoint
+    role: "Backend Developer"
+    bandwidth:
+      technical: high
+      strategic: low
+      operational: medium
+    genre_competence: [spec, readme, changelog]
+    channels: [slack, github]
+
+  lead-engineer:
+    name: "Lead Engineer"
+    type: endpoint
+    role: "Lead Full-Stack / Integrations"
+    bandwidth:
+      technical: high
+      strategic: low
+      operational: medium
+    genre_competence: [spec, runbook]
+    channels: [slack, github]
+    notes: "Tends to over-engineer. Needs explicit constraints."
+
+  content-lead:
+    name: "Content Lead"
+    type: endpoint
+    role: "Content / Community Manager"
+    bandwidth:
+      technical: medium
+      strategic: low
+      operational: high
+    genre_competence: [brief, pitch, social-post]
+    channels: [slack]
+
+  closer-1:
+    name: "Primary Closer"
+    type: endpoint
+    role: "Primary Sales Closer"
+    bandwidth:
+      technical: low
+      strategic: medium
+      operational: high
+    genre_competence: [brief, pitch, email]
+    channels: [slack, voice]
+
+  closer-2:
+    name: "Secondary Closer"
+    type: endpoint
+    role: "Sales Closer"
+    bandwidth:
+      technical: low
+      strategic: low
+      operational: high
+    genre_competence: [brief, pitch]
+    channels: [slack]
+
+  content-creator:
+    name: "Content Creator"
+    type: endpoint
+    role: "Content — Media Brand"
+    bandwidth:
+      technical: low
+      strategic: low
+      operational: medium
+    genre_competence: [outline, social-post]
+    channels: [slack]
+
+  infra-eng:
+    name: "Infrastructure Engineer"
+    type: endpoint
+    role: "Infrastructure / Compute"
+    bandwidth:
+      technical: high
+      strategic: low
+      operational: low
+    genre_competence: [spec, runbook]
+    channels: [slack]
+
+  strategic-advisor:
+    name: "Strategic Advisor"
+    type: endpoint
+    role: "Strategic Advisor / Mediator"
+    bandwidth:
+      technical: low
+      strategic: high
+      operational: high
+    genre_competence: [brief, proposal, pitch]
+    channels: [voice, slack]
+    also_type: relay  # re-encodes signals between domains
+
+# --- Agents ---
+
+agents:
+  osa-agent:
+    name: "OSA Agent"
+    type: agent
+    autonomy_level: L3  # Consultant
+    scope: [platform, research]
+    capabilities: [code-generation, architecture, research, search, file-management]
+    channels: [terminal]
+
+  architect-agent:
+    name: "@architect"
+    type: agent
+    autonomy_level: L2  # Collaborator
+    scope: [platform]
+    capabilities: [system-design, adr, technical-decisions]
+    channels: [terminal]
+
+  debugger-agent:
+    name: "@debugger"
+    type: agent
+    autonomy_level: L2  # Collaborator
+    scope: [platform]
+    capabilities: [bug-fixing, log-analysis, root-cause]
+    channels: [terminal]
+
+# --- Routing Rules ---
+# Maps signal properties to destination nodes.
+# Evaluated in order. Multiple rules can fire.
+
+routing_rules:
+  - name: "Enterprise client mentions"
+    condition: {entity_mention: ["enterprise client", "client project", "service delivery"]}
+    destination: "agency/enterprise-client"
+    priority: normal
+
+  - name: "Training program mentions"
+    condition: {entity_mention: ["training program", "course", "curriculum"]}
+    destination: "agency/training-program"
+    priority: normal
+
+  - name: "Platform mentions"
+    condition: {entity_mention: ["platform", "core product", "compute"]}
+    destination: "platform/core-platform"
+    priority: normal
+
+  - name: "Compute mentions"
+    condition: {entity_mention: ["Firecracker", "VM", "compute", "envd"]}
+    destination: "platform/compute-engine"
+    priority: normal
+
+  - name: "Decision signals"
+    condition: {signal_type: "decide"}
+    destination: "operator"
+    priority: high
+
+  - name: "Financial signals"
+    condition: {content_pattern: ["\\$\\d+", "revenue", "invoice", "payment", "ARR"]}
+    destination: ["money-revenue", "operator"]
+    priority: normal
+
+  - name: "Algedonic — revenue threat"
+    condition: {content_pattern: ["going broke", "can't pay", "zero revenue"]}
+    destination: "governance/l7-bypass"
+    priority: critical
+
+  - name: "Algedonic — legal threat"
+    condition: {content_pattern: ["lawsuit", "legal action", "cease and desist"]}
+    destination: "governance/l7-bypass"
+    priority: critical
+
+  - name: "Algedonic — competitor launch"
+    condition: {content_pattern: ["launched competing", "beat us to market"]}
+    destination: "governance/l7-bypass"
+    priority: critical
+
+  - name: "Content mentions"
+    condition: {entity_mention: ["media brand", "podcast", "content series"]}
+    destination: "content/media-brand"
+    priority: normal
+
+  - name: "Accelerator mentions"
+    condition: {entity_mention: ["accelerator", "accelerator course"]}
+    destination: "education/accelerator"
+    priority: normal
+
+  - name: "Unclassified fallback"
+    condition: {default: true}
+    destination: "inbox"
+    priority: low
+
+# --- Directory Mapping ---
+# Maps current flat folder structure to hierarchy.
+# Used for migration planning.
+
+directory_mapping:
+  "01-operator":      {entity: acme-corp, domain: null, type: endpoint, node: operator}
+  "02-platform":      {entity: acme-corp, domain: platform, type: domain}
+  "03-services":      {entity: acme-corp, domain: null, type: entity}
+  "04-training":      {entity: acme-corp, domain: agency, type: operation, node: training-program}
+  "05-research":      {entity: acme-corp, domain: research, type: operation, node: optimal-system}
+  "06-agency":        {entity: acme-corp, domain: agency, type: operation, node: agency-network}
+  "07-community":     {entity: acme-corp, domain: agency, type: unit, parent: agency-network}
+  "08-content":       {entity: acme-corp, domain: content, type: domain}
+  "09-inbox":         {entity: acme-corp, domain: null, type: inbox}
+  "10-team":          {entity: acme-corp, domain: null, type: endpoint-registry}
+  "11-money-revenue": {entity: acme-corp, domain: null, type: cross-cutting, scope: entity}
+  "12-accelerator":   {entity: acme-corp, domain: education, type: operation, node: accelerator}

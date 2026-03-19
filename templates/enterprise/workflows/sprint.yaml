@@ -1,0 +1,75 @@
+# Sprint Workflow — Enterprise
+# Multi-team weekly cycle with governance checkpoints.
+
+name: "sprint"
+description: "Weekly sprint with governance and cross-team coordination"
+trigger: "schedule:weekly"
+
+phases:
+  - id: plan
+    name: "Sprint Planning"
+    agent: cto
+    day: "Monday"
+    description: "Set cross-team priorities, allocate budget"
+    outputs:
+      - sprint_plan
+      - budget_allocation
+      - priority_ranking
+
+  - id: team_plan
+    name: "Team Planning"
+    agents: [engineering-lead, product-lead]
+    day: "Monday"
+    depends_on: [plan]
+    description: "Leads break down team tasks from sprint plan"
+    outputs:
+      - engineering_tasks
+      - product_tasks
+
+  - id: execute
+    name: "Execution"
+    agents: [engineer, analyst]
+    day: "Tuesday-Thursday"
+    depends_on: [team_plan]
+    outputs:
+      - deliverables
+      - implementation_notes
+
+  - id: security_review
+    name: "Security Review"
+    agent: security-lead
+    day: "Thursday"
+    depends_on: [execute]
+    condition: "deliverables touch auth/data/infra"
+    outputs:
+      - security_verdict
+
+  - id: review
+    name: "Quality Review"
+    agents: [engineering-lead, product-lead]
+    day: "Thursday-Friday"
+    depends_on: [execute, security_review]
+    outputs:
+      - review_verdicts
+      - quality_metrics
+
+  - id: retrospect
+    name: "Retrospective"
+    agent: cto
+    day: "Friday"
+    depends_on: [review]
+    outputs:
+      - retrospective
+      - next_sprint_seeds
+      - budget_review
+
+transitions:
+  plan → team_plan: "always"
+  team_plan → execute: "always"
+  execute → security_review: "if security-impacting"
+  execute → review: "if not security-impacting"
+  security_review → review: "if approved"
+  security_review → execute: "if needs remediation"
+  review → execute: "if needs changes"
+  review → retrospect: "if approved"
+  retrospect → done: "always"

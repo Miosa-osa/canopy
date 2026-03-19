@@ -1,0 +1,49 @@
+# Company Configuration — Small Operation
+# Replace all {{PLACEHOLDER}} values with your specifics.
+
+name: "{{ORGANIZATION}}"
+mission: "{{MISSION}}"
+domain: "{{DOMAIN}}"
+
+# Budget — monthly USD limits
+budget:
+  total_monthly: 200
+  agents:
+    lead: 120
+    specialist: 80
+  warning_threshold: 0.80    # Warn at 80% spend
+  hard_cap: true              # Stop at 100%, don't overspend
+
+# Governance — lightweight for small teams
+governance:
+  approval_required: false    # No approval gates (small team trust model)
+  audit_logging: true         # Log all agent actions
+  escalation:
+    - condition: "budget > 90%"
+      action: "notify_user"
+    - condition: "agent_error_rate > 0.2"
+      action: "pause_agent"
+
+# Agents
+agents:
+  - id: lead
+    file: agents/lead.md
+    adapter: claude_code
+    budget: 120
+
+  - id: specialist
+    file: agents/specialist.md
+    adapter: claude_code
+    budget: 80
+
+# Workflows
+workflows:
+  - id: default
+    file: workflows/default.yaml
+    trigger: "manual"
+
+# Context loading
+context:
+  l0_budget: 8000             # tokens always loaded
+  l1_budget: 30000            # tokens per task
+  l2_budget: 60000            # tokens per session

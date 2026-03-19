@@ -1,0 +1,55 @@
+name: Sales Engine
+slug: sales-engine
+description: B2B SaaS sales operation — full-cycle pipeline from prospect to closed-won.
+mission: Close $1M+ ARR through disciplined pipeline management, MEDDPICC qualification, and consultative selling.
+
+budget:
+  monthly_usd: 5000
+  per_agent_usd: 800
+  enforcement: warning
+
+governance:
+  board_approval_required:
+    - new_agent_hire
+    - budget_increase_pct: 20
+    - new_workflow_production
+    - discount_above_pct: 15
+  immutable_log: true
+  escalation_chain:
+    - director
+    - board
+
+issue_prefix: "SE-"
+
+goals:
+  initiatives:
+    - id: INI-001
+      title: Build $1M ARR Pipeline
+      projects:
+        - id: PRJ-001
+          title: ICP-Aligned Outbound Campaign
+          milestones:
+            - id: MIL-001
+              title: 200 qualified prospects identified
+              evidence_gate: signal_score
+            - id: MIL-002
+              title: 50 discovery calls booked
+              evidence_gate: human_approval
+            - id: MIL-003
+              title: 20 proposals delivered
+              evidence_gate: review_approved
+        - id: PRJ-002
+          title: Competitive Positioning
+          milestones:
+            - id: MIL-004
+              title: Battlecards for top 5 competitors
+              evidence_gate: review_approved
+    - id: INI-002
+      title: Optimize Deal Velocity
+      projects:
+        - id: PRJ-003
+          title: Pipeline Process Improvement
+          milestones:
+            - id: MIL-005
+              title: Average deal cycle reduced to 45 days
+              evidence_gate: budget_check

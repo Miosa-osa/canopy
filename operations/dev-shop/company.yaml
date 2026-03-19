@@ -1,0 +1,64 @@
+name: Dev Shop
+slug: dev-shop
+description: Software development operation — spec to production with quality-first engineering.
+mission: Ship reliable, maintainable software on time through disciplined engineering, automated testing, and continuous deployment.
+
+budget:
+  monthly_usd: 8000
+  per_agent_usd: 1200
+  enforcement: warning
+
+governance:
+  board_approval_required:
+    - new_agent_hire
+    - budget_increase_pct: 20
+    - new_workflow_production
+    - production_database_migration
+  immutable_log: true
+  escalation_chain:
+    - tech-lead
+    - board
+
+issue_prefix: "DS-"
+
+goals:
+  initiatives:
+    - id: INI-001
+      title: Ship MVP to Production
+      projects:
+        - id: PRJ-001
+          title: Core Platform Build
+          milestones:
+            - id: MIL-001
+              title: Architecture design approved
+              evidence_gate: review_approved
+            - id: MIL-002
+              title: API contracts locked
+              evidence_gate: tests_pass
+            - id: MIL-003
+              title: MVP feature-complete
+              evidence_gate: tests_pass
+            - id: MIL-004
+              title: QA sign-off
+              evidence_gate: review_approved
+            - id: MIL-005
+              title: Production deployment stable
+              evidence_gate: signal_score
+    - id: INI-002
+      title: Engineering Excellence
+      projects:
+        - id: PRJ-002
+          title: Test Coverage & CI/CD
+          milestones:
+            - id: MIL-006
+              title: 80%+ test coverage across all services
+              evidence_gate: tests_pass
+            - id: MIL-007
+              title: Zero-downtime deployment pipeline
+              evidence_gate: tests_pass
+        - id: PRJ-003
+          title: Performance Optimization
+          milestones:
+            - id: MIL-008
+              title: API p95 latency under 200ms
+              evidence_gate: signal_score

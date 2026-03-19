@@ -1,0 +1,74 @@
+# Sprint Workflow — Weekly Execution Cycle
+# Director plans, Engineer builds, Analyst reviews, Writer documents.
+
+name: "sprint"
+description: "Weekly sprint: plan, build, review, document"
+trigger: "schedule:weekly"
+duration: "1 week"
+
+phases:
+  - id: plan
+    name: "Sprint Planning"
+    agent: director
+    day: "Monday"
+    description: "Set priorities, break into tasks, assign to agents"
+    inputs:
+      - "Previous sprint review"
+      - "Backlog priorities"
+    outputs:
+      - sprint_plan           # Tasks assigned to agents with deadlines
+      - priority_ranking      # Top 3 non-negotiables
+
+  - id: build
+    name: "Execution"
+    agent: engineer
+    day: "Tuesday-Thursday"
+    description: "Implement planned tasks"
+    depends_on: [plan]
+    inputs:
+      - sprint_plan
+    outputs:
+      - deliverables          # Code, features, fixes
+      - implementation_notes  # What was built and why
+
+  - id: review
+    name: "Quality Review"
+    agent: analyst
+    day: "Thursday-Friday"
+    description: "Review all deliverables against quality standards"
+    depends_on: [build]
+    inputs:
+      - deliverables
+      - implementation_notes
+    outputs:
+      - review_verdicts       # APPROVE / NEEDS CHANGES / BLOCK per item
+      - quality_metrics       # Coverage, issues found, severity
+
+  - id: document
+    name: "Documentation"
+    agent: writer
+    day: "Friday"
+    description: "Document completed work, update references"
+    depends_on: [review]
+    condition: "review_verdicts contain APPROVE"
+    outputs:
+      - updated_docs          # Changed reference files
+      - sprint_summary        # Human-readable sprint summary
+
+  - id: retrospect
+    name: "Retrospective"
+    agent: director
+    day: "Friday"
+    description: "Review sprint outcomes, plan next sprint priorities"
+    depends_on: [document]
+    outputs:
+      - retrospective_notes   # What went well, what didn't
+      - next_sprint_seeds     # Priorities for next week
+
+transitions:
+  plan → build: "always"
+  build → review: "always"
+  review → build: "if review_verdicts contain NEEDS_CHANGES"
+  review → document: "if review_verdicts all APPROVE"
+  document → retrospect: "always"
+  retrospect → done: "always"

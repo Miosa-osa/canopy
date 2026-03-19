@@ -1,0 +1,113 @@
+# Company Configuration — Enterprise Operation
+
+name: "{{ORGANIZATION}}"
+mission: "{{MISSION}}"
+domain: "{{DOMAIN}}"
+compliance_frameworks: ["SOC2", "GDPR"]  # Customize per org
+
+budget:
+  total_monthly: 850
+  agents:
+    cto: 200
+    engineering-lead: 150
+    product-lead: 150
+    security-lead: 100
+    engineer: 150
+    analyst: 100
+  warning_threshold: 0.75
+  hard_cap: true
+  reallocation_allowed: true       # CTO can move budget between agents
+  reallocation_max_percent: 0.25   # Max 25% of an agent's budget moved
+
+governance:
+  approval_required_above: 5.00
+  security_review_required:
+    - "auth changes"
+    - "data schema changes"
+    - "infrastructure changes"
+    - "external integrations"
+  audit_logging: true
+  audit_retention_days: 365
+  escalation:
+    - condition: "budget > 75%"
+      action: "warn_cto"
+    - condition: "budget > 90%"
+      action: "pause_non_critical"
+    - condition: "agent_error_rate > 0.10"
+      action: "pause_agent"
+    - condition: "consecutive_failures > 3"
+      action: "escalate_to_cto"
+    - condition: "security_issue_detected"
+      action: "alert_security_lead"
+
+teams:
+  engineering:
+    lead: engineering-lead
+    members: [engineer]
+    budget: 300
+
+  product:
+    lead: product-lead
+    members: [analyst]
+    budget: 250
+
+  security:
+    lead: security-lead
+    members: []
+    budget: 100
+
+agents:
+  - id: cto
+    file: agents/cto.md
+    adapter: claude_code
+    budget: 200
+    tier: executive
+
+  - id: engineering-lead
+    file: agents/engineering-lead.md
+    adapter: claude_code
+    budget: 150
+    tier: lead
+
+  - id: product-lead
+    file: agents/product-lead.md
+    adapter: claude_code
+    budget: 150
+    tier: lead
+
+  - id: security-lead
+    file: agents/security-lead.md
+    adapter: claude_code
+    budget: 100
+    tier: lead
+
+  - id: engineer
+    file: agents/engineer.md
+    adapter: claude_code
+    budget: 150
+    tier: executor
+
+  - id: analyst
+    file: agents/analyst.md
+    adapter: claude_code
+    budget: 100
+    tier: executor
+
+workflows:
+  - id: sprint
+    file: workflows/sprint.yaml
+    trigger: "schedule:weekly"
+  - id: review
+    file: workflows/review.yaml
+    trigger: "manual"
+  - id: incident
+    file: workflows/incident.yaml
+    trigger: "event:alert"
+  - id: onboarding
+    file: workflows/onboarding.yaml
+    trigger: "manual"
+
+context:
+  l0_budget: 15000
+  l1_budget: 50000
+  l2_budget: 100000

@@ -1,0 +1,77 @@
+# Incident Workflow — Enterprise
+# Detect → Triage → Respond → Resolve → Postmortem
+
+name: "incident"
+description: "Incident response workflow"
+trigger: "event:alert"
+priority: "P0"
+
+phases:
+  - id: detect
+    name: "Detection"
+    agent: security-lead
+    sla: "5m"
+    description: "Confirm incident, classify severity"
+    outputs:
+      - confirmed: boolean
+      - severity: "P0|P1|P2|P3"
+      - initial_assessment: string
+
+  - id: triage
+    name: "Triage"
+    agent: cto
+    depends_on: [detect]
+    sla: "15m"
+    description: "Assign response team, set priorities"
+    outputs:
+      - response_team: [agent_ids]
+      - containment_plan: string
+
+  - id: contain
+    name: "Containment"
+    agent: engineering-lead
+    depends_on: [triage]
+    sla: "30m"
+    description: "Stop the bleeding — rollback, disable, block"
+    outputs:
+      - containment_actions: [string]
+      - bleeding_stopped: boolean
+
+  - id: investigate
+    name: "Investigation"
+    agents: [engineer, security-lead]
+    depends_on: [contain]
+    description: "Root cause analysis with evidence"
+    outputs:
+      - root_cause: string
+      - evidence: [string]
+      - fix_plan: string
+
+  - id: resolve
+    name: "Resolution"
+    agent: engineer
+    depends_on: [investigate]
+    description: "Fix root cause, verify fix, deploy"
+    outputs:
+      - fix_applied: boolean
+      - verification: string
+
+  - id: postmortem
+    name: "Postmortem"
+    agent: cto
+    depends_on: [resolve]
+    sla: "48h"
+    description: "Timeline, root cause, impact, prevention"
+    outputs:
+      - postmortem_report: string
+      - prevention_actions: [string]
+      - runbook_updates: [string]
+
+transitions:
+  detect → triage: "if confirmed"
+  detect → done: "if false positive"
+  triage → contain: "always"
+  contain → investigate: "if bleeding_stopped"
+  investigate → resolve: "always"
+  resolve → postmortem: "always"
+  postmortem → done: "always"

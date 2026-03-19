@@ -1,0 +1,41 @@
+# Default Workflow — Small Operation
+# A simple triage → execute → deliver pipeline.
+
+name: "default"
+description: "Standard request processing workflow"
+trigger: "manual"
+
+phases:
+  - id: triage
+    name: "Triage"
+    agent: lead
+    description: "Classify the request, determine routing"
+    outputs:
+      - classification        # strategic | tactical | query | out-of-scope
+      - route                 # lead | specialist
+      - priority              # high | normal | low
+
+  - id: execute
+    name: "Execute"
+    agent: "{{route}}"        # Dynamic — routed by triage phase
+    description: "Process the request and produce deliverable"
+    depends_on: [triage]
+    outputs:
+      - deliverable           # The work product
+      - quality_check         # pass | fail
+
+  - id: review
+    name: "Review"
+    agent: lead
+    description: "Review deliverable, format for receiver, deliver"
+    depends_on: [execute]
+    skip_if: "route == 'lead'"  # Skip review if Lead already handled it
+    outputs:
+      - final_output          # Formatted deliverable
+      - delivery_confirmation # Confirmed delivered
+
+transitions:
+  triage → execute: "always"
+  execute → review: "if route == 'specialist'"
+  execute → done: "if route == 'lead'"
+  review → done: "always"

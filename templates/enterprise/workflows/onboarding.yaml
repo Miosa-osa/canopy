@@ -1,0 +1,63 @@
+# Onboarding Workflow — Enterprise
+# Setup → Train → Verify → Certify
+
+name: "onboarding"
+description: "New agent or team member onboarding"
+trigger: "manual"
+
+phases:
+  - id: setup
+    name: "Environment Setup"
+    agent: engineering-lead
+    description: "Provision access, configure workspace, install tools"
+    outputs:
+      - access_granted: [string]
+      - workspace_configured: boolean
+      - tools_installed: [string]
+
+  - id: train
+    name: "Training"
+    agent: product-lead
+    depends_on: [setup]
+    description: "Domain knowledge transfer, process orientation"
+    outputs:
+      - training_materials_delivered: [string]
+      - domain_quiz_score: number
+
+  - id: security_brief
+    name: "Security Briefing"
+    agent: security-lead
+    depends_on: [setup]
+    description: "Security policies, compliance requirements, access rules"
+    outputs:
+      - security_acknowledged: boolean
+      - compliance_training_complete: boolean
+
+  - id: verify
+    name: "Verification"
+    agent: cto
+    depends_on: [train, security_brief]
+    description: "Verify readiness through supervised task execution"
+    outputs:
+      - supervised_task_result: string
+      - readiness_assessment: "ready|needs_more_training|not_suitable"
+
+  - id: certify
+    name: "Certification"
+    agent: cto
+    depends_on: [verify]
+    condition: "readiness_assessment == ready"
+    description: "Grant full permissions, add to team roster"
+    outputs:
+      - certified: boolean
+      - team_assignment: string
+      - start_date: string
+
+transitions:
+  setup → train: "always"
+  setup → security_brief: "parallel with train"
+  train → verify: "after security_brief also complete"
+  security_brief → verify: "after train also complete"
+  verify → train: "if needs_more_training"
+  verify → certify: "if ready"
+  certify → done: "always"

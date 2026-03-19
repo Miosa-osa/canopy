@@ -1,0 +1,61 @@
+name: Content Factory
+slug: content-factory
+description: Content production operation — ideation to published, optimized, multi-platform content.
+mission: Build a content engine that produces 20+ pieces per week across platforms, driving organic traffic growth of 30% MoM and engagement rates above platform benchmarks.
+
+budget:
+  monthly_usd: 4000
+  per_agent_usd: 700
+  enforcement: warning
+
+governance:
+  board_approval_required:
+    - new_agent_hire
+    - budget_increase_pct: 20
+    - new_workflow_production
+    - brand_voice_change
+  immutable_log: true
+  escalation_chain:
+    - editor-in-chief
+    - board
+
+issue_prefix: "CF-"
+
+goals:
+  initiatives:
+    - id: INI-001
+      title: Content-Led Growth Engine
+      projects:
+        - id: PRJ-001
+          title: SEO Content Program
+          milestones:
+            - id: MIL-001
+              title: Keyword universe mapped (200+ terms)
+              evidence_gate: review_approved
+            - id: MIL-002
+              title: 50 blog posts published
+              evidence_gate: signal_score
+            - id: MIL-003
+              title: 10K organic monthly visits
+              evidence_gate: signal_score
+        - id: PRJ-002
+          title: Social Media Growth
+          milestones:
+            - id: MIL-004
+              title: Platform presence established (4 channels)
+              evidence_gate: review_approved
+            - id: MIL-005
+              title: 5K total followers
+              evidence_gate: signal_score
+    - id: INI-002
+      title: Content Operations Excellence
+      projects:
+        - id: PRJ-003
+          title: Editorial Process Optimization
+          milestones:
+            - id: MIL-006
+              title: Idea-to-publish cycle under 48 hours
+              evidence_gate: budget_check
+            - id: MIL-007
+              title: Content repurposing ratio 1:5 (one pillar, five derivatives)
+              evidence_gate: signal_score

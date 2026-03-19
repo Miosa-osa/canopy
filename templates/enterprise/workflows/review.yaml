@@ -1,0 +1,39 @@
+# Review Workflow — Enterprise
+# Multi-stage review with security gate.
+
+name: "review"
+description: "Enterprise quality review with security and governance"
+trigger: "manual"
+
+phases:
+  - id: submit
+    agent: "{{submitter}}"
+    outputs: [deliverable, self_assessment]
+
+  - id: team_review
+    agent: "{{team_lead}}"
+    depends_on: [submit]
+    outputs: [team_verdict, issue_list]
+
+  - id: security_review
+    agent: security-lead
+    depends_on: [team_review]
+    condition: "team_verdict == APPROVE and security_impacting"
+    outputs: [security_verdict]
+
+  - id: final_approval
+    agent: cto
+    depends_on: [team_review, security_review]
+    condition: "all reviews APPROVE"
+    outputs: [approval_status]
+
+transitions:
+  submit → team_review: "always"
+  team_review → submit: "if NEEDS_CHANGES"
+  team_review → security_review: "if APPROVE and security"
+  team_review → final_approval: "if APPROVE and not security"
+  security_review → submit: "if NEEDS_REMEDIATION"
+  security_review → final_approval: "if APPROVED"
+  final_approval → done: "always"
+
+max_revision_cycles: 3

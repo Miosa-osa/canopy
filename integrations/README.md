@@ -1,0 +1,195 @@
+# Integrations
+
+Converted formats and installation scripts for supported agent runtimes.
+
+## Supported Tools
+
+- **[OSA](#osa)** — Native Workspace Protocol support, auto-discovers everything
+- **[Claude Code](#claude-code)** — `.md` agents, use the repo directly
+- **[GitHub Copilot](#github-copilot)** — `.md` agents, use the repo directly
+- **[Antigravity](#antigravity)** — `SKILL.md` per agent in `antigravity/`
+- **[Gemini CLI](#gemini-cli)** — extension + `SKILL.md` files in `gemini-cli/`
+- **[OpenCode](#opencode)** — `.md` agent files in `opencode/`
+- **[OpenClaw](#openclaw)** — `SOUL.md` + `AGENTS.md` + `IDENTITY.md` workspaces
+- **[Cursor](#cursor)** — `.mdc` rule files in `cursor/`
+- **[Aider](#aider)** — `CONVENTIONS.md` in `aider/`
+- **[Windsurf](#windsurf)** — `.windsurfrules` in `windsurf/`
+
+## Quick Install
+
+```bash
+# Install for all detected tools automatically
+./scripts/install.sh
+
+# Install a specific home-scoped tool
+./scripts/install.sh --tool antigravity
+./scripts/install.sh --tool copilot
+./scripts/install.sh --tool openclaw
+./scripts/install.sh --tool claude-code
+
+# Gemini CLI needs generated integration files on a fresh clone
+./scripts/convert.sh --tool gemini-cli
+./scripts/install.sh --tool gemini-cli
+```
+
+For project-scoped tools such as OpenCode, Cursor, Aider, and Windsurf, run
+the installer from your target project root as shown in the tool-specific
+sections below.
+
+## Regenerating Integration Files
+
+If you add or modify agents, regenerate all integration files:
+
+```bash
+./scripts/convert.sh
+```
+
+---
+
+## OSA
+
+OSA natively supports the Workspace Protocol. Point it at any workspace and it
+auto-discovers SYSTEM.md, agents, skills, and reference files. No conversion needed.
+
+```bash
+# Connect to a workspace
+osa connect /path/to/workspace
+
+# Install library agents into your OSA base config
+./scripts/install.sh --tool osa
+```
+
+OSA layers workspace agents and skills on top of your base config at `~/.osa/`.
+When you switch workspaces, the domain context changes but your base config
+(global agents, memory, channels) persists.
+
+See [osa/README.md](osa/README.md) for the full architecture.
+
+---
+
+## Claude Code
+
+Agent definitions were originally designed for Claude Code. Agents work natively
+without conversion.
+
+```bash
+cp -r <category>/*.md ~/.claude/agents/
+# or install everything at once:
+./scripts/install.sh --tool claude-code
+```
+
+See [claude-code/README.md](claude-code/README.md) for details.
+
+---
+
+## GitHub Copilot
+
+Agent definitions also work natively with GitHub Copilot. Agents can be copied
+directly into `~/.github/agents/` and `~/.copilot/agents/` without conversion.
+
+```bash
+./scripts/install.sh --tool copilot
+```
+
+See [github-copilot/README.md](github-copilot/README.md) for details.
+
+---
+
+## Antigravity
+
+Skills are installed to `~/.gemini/antigravity/skills/`. Each agent becomes
+a separate skill prefixed with `agency-` to avoid naming conflicts.
+
+```bash
+./scripts/install.sh --tool antigravity
+```
+
+See [antigravity/README.md](antigravity/README.md) for details.
+
+---
+
+## Gemini CLI
+
+Agents are packaged as a Gemini CLI extension with individual skill files.
+The extension is installed to `~/.gemini/extensions/osa-operations/`.
+Because the Gemini manifest and skill folders are generated artifacts, run
+`./scripts/convert.sh --tool gemini-cli` before installing from a fresh clone.
+
+```bash
+./scripts/convert.sh --tool gemini-cli
+./scripts/install.sh --tool gemini-cli
+```
+
+See [gemini-cli/README.md](gemini-cli/README.md) for details.
+
+---
+
+## OpenCode
+
+Each agent becomes a project-scoped `.md` file in `.opencode/agents/`.
+
+```bash
+cd /your/project && /path/to/osa-operations/scripts/install.sh --tool opencode
+```
+
+See [opencode/README.md](opencode/README.md) for details.
+
+---
+
+## OpenClaw
+
+Each agent becomes an OpenClaw workspace containing `SOUL.md`, `AGENTS.md`,
+and `IDENTITY.md`.
+
+Before installing, generate the OpenClaw workspaces:
+
+```bash
+./scripts/convert.sh --tool openclaw
+```
+
+Then install them:
+
+```bash
+./scripts/install.sh --tool openclaw
+```
+
+See [openclaw/README.md](openclaw/README.md) for details.
+
+---
+
+## Cursor
+
+Each agent becomes a `.mdc` rule file. Rules are project-scoped — run the
+installer from your project root.
+
+```bash
+cd /your/project && /path/to/osa-operations/scripts/install.sh --tool cursor
+```
+
+See [cursor/README.md](cursor/README.md) for details.
+
+---
+
+## Aider
+
+All agents are consolidated into a single `CONVENTIONS.md` file that Aider
+reads automatically when present in your project root.
+
+```bash
+cd /your/project && /path/to/osa-operations/scripts/install.sh --tool aider
+```
+
+See [aider/README.md](aider/README.md) for details.
+
+---
+
+## Windsurf
+
+All agents are consolidated into a single `.windsurfrules` file for your
+project root.
+
+```bash
+cd /your/project && /path/to/osa-operations/scripts/install.sh --tool windsurf
+```
+
+See [windsurf/README.md](windsurf/README.md) for details.

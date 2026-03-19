@@ -1,0 +1,65 @@
+# Company Configuration — Full Operation
+# Replace all {{PLACEHOLDER}} values with your specifics.
+
+name: "{{ORGANIZATION}}"
+mission: "{{MISSION}}"
+domain: "{{DOMAIN}}"
+
+budget:
+  total_monthly: 500
+  agents:
+    director: 150
+    engineer: 150
+    analyst: 100
+    writer: 100
+  warning_threshold: 0.80
+  hard_cap: true
+
+governance:
+  approval_required_above: 5.00    # Tasks estimated > $5 need Director approval
+  audit_logging: true
+  escalation:
+    - condition: "budget > 90%"
+      action: "notify_user"
+    - condition: "agent_error_rate > 0.15"
+      action: "pause_agent"
+    - condition: "task_duration > 30m"
+      action: "notify_director"
+
+agents:
+  - id: director
+    file: agents/director.md
+    adapter: claude_code
+    budget: 150
+    role: orchestrator
+
+  - id: engineer
+    file: agents/engineer.md
+    adapter: claude_code
+    budget: 150
+    role: executor
+
+  - id: analyst
+    file: agents/analyst.md
+    adapter: claude_code
+    budget: 100
+    role: analyst
+
+  - id: writer
+    file: agents/writer.md
+    adapter: claude_code
+    budget: 100
+    role: communicator
+
+workflows:
+  - id: sprint
+    file: workflows/sprint.yaml
+    trigger: "schedule:weekly"
+  - id: review
+    file: workflows/review.yaml
+    trigger: "manual"
+
+context:
+  l0_budget: 12000
+  l1_budget: 40000
+  l2_budget: 80000

@@ -1,0 +1,704 @@
+# OptimalOS Kernel — Invariant Primitives
+# Version: 1.0.0
+# Author: OptimalOS
+# Grounding: Signal Theory S=(M,G,T,F,W) + 10-layer architecture
+#
+# This file is the foundational reference loaded by any AI agent operating
+# within the OptimalOS system. It defines the universal primitives — the
+# invariant concepts that every layer, command, and output depends on.
+#
+# Read this before any task. Violate any primitive = degraded Signal.
+
+meta:
+  system: OptimalOS
+  version: "1.0.0"
+  author: "OptimalOS"
+  grounding: "Signal Theory: The Architecture of Optimal Intent Encoding"
+  purpose: >
+    Invariant kernel — the 15 universal primitives that define all inputs, outputs,
+    storage, retrieval, and agent behavior within OptimalOS. Every layer of the system
+    is an instantiation of these primitives.
+  primitive_count: 15
+  constraint_count: 4
+  encoding_principle_count: 6
+  failure_mode_count: 11
+
+# =============================================================================
+# PART I — THE 15 PRIMITIVES
+# =============================================================================
+primitives:
+
+  # ---------------------------------------------------------------------------
+  # 1. SIGNAL
+  # The atomic unit. Every input and every output is a Signal.
+  # Nothing enters or leaves the system that is not a Signal.
+  # ---------------------------------------------------------------------------
+  signal:
+    id: 1
+    name: signal
+    definition: >
+      The atomic unit of communication in OptimalOS. Every input (the operator speaking,
+      a file ingested, an API response) and every output (a brief, a spec, a CLI
+      response, a context update) is a Signal. A Signal carries exactly 5 dimensions:
+      S = (M, G, T, F, W). Undimensioned output is noise, not Signal.
+    dimensions: [mode, genre, type, format, structure]
+    quality_gate: sn_ratio >= 0.3  # Signals below this threshold are rejected
+    law: "Every output must resolve all 5 dimensions before transmission."
+    examples:
+      - "Operator says 'Partner called about pricing' → S=(linguistic, note, inform, markdown, note-skeleton)"
+      - "Engine returns search results → S=(data, report, inform, JSON, ranked-list)"
+      - "Claude writes a brief for Robert Potter → S=(linguistic, brief, direct, markdown, brief-skeleton)"
+
+  # ---------------------------------------------------------------------------
+  # 2. MODE
+  # How the Signal is perceived by the receiver.
+  # ---------------------------------------------------------------------------
+  mode:
+    id: 2
+    name: mode
+    definition: >
+      The perceptual channel through which the Signal is received. Determines
+      the cognitive processing path at the receiver. Mismatched mode = friction,
+      decoding failure, or information loss.
+    values:
+      linguistic: "Sequential text — prose, bullets, narrative. Best for logic, argument, instruction."
+      visual: "Spatial/relational — diagrams, tables, charts. Best for relationships, hierarchy, comparison."
+      code: "Executable or formal — source code, schemas, configs. Best for precise specification."
+      data: "Structured records — JSON, CSV, YAML, database rows. Best for machine consumption."
+      mixed: "Multiple modes composed. Use when no single mode is sufficient."
+    selection_rule: "Choose the mode the receiver processes most naturally for this content type."
+
+  # ---------------------------------------------------------------------------
+  # 3. GENRE
+  # The conventionalized form the Signal takes.
+  # ---------------------------------------------------------------------------
+  genre:
+    id: 3
+    name: genre
+    definition: >
+      The conventionalized form that encodes sender intent and receiver expectations.
+      Genre is not decoration — it is the contract between sender and receiver about
+      what the Signal contains and how to decode it. Using the wrong genre destroys
+      the contract and degrades S/N.
+    core_genres:
+      brief:
+        audience: "Salespeople, executives, clients, non-technical."
+        goal: "Compel action."
+        skeleton: [objective, key_messages, call_to_action, supporting_materials]
+      spec:
+        audience: "Developers, technical partners."
+        goal: "Define what to build."
+        skeleton: [goal, requirements, constraints, architecture, acceptance_criteria]
+      plan:
+        audience: "The operator's own planning."
+        goal: "Structured execution."
+        skeleton: [objective, non_negotiables, time_blocks, dependencies, success_criteria]
+      transcript:
+        audience: "Post-call processing."
+        goal: "Extract signal from conversation."
+        skeleton: [participants, key_points, decisions_made, action_items, open_questions]
+      note:
+        audience: "Quick capture."
+        goal: "Don't lose the signal."
+        skeleton: [context, content, route]
+      pitch:
+        audience: "Prospects, investors."
+        goal: "Generate interest or commitment."
+      proposal:
+        audience: "Clients, partners."
+        goal: "Specify terms for agreement."
+      report:
+        audience: "Stakeholders needing status."
+        goal: "Inform on outcomes or state."
+      email:
+        audience: "External recipients."
+        goal: "Async communication with record."
+      decision_log:
+        audience: "Future self, team."
+        goal: "Capture decision + rationale for later retrieval."
+    total_genres: 27  # Full catalogue: docs/taxonomy/genres.md
+    selection_rule: "Match genre to receiver's decoding competence and the sender's intended speech act."
+    person_genre_map:
+      # Never violate these. They are receiver contracts, not preferences.
+      "Sales Rep": [brief]              # Sales. Never a spec.
+      "Primary Closer": [brief, pitch]  # Closer. Never technical.
+      "Content Lead": [brief, pitch, social_post]
+      "Strategic Advisor": [brief, proposal]  # Not specs.
+      "Course Partner": [brief, proposal, pitch]
+      "Frontend Dev": [spec, readme, changelog]  # Not strategy.
+      "Backend Dev": [spec, readme, changelog]
+      "Lead Engineer": [spec]           # Always explicit constraints. Over-engineers open reqs.
+      "Technical Partner": [spec, runbook]  # Not fluff.
+      "Content Creator": [outline, social_post]
+
+  # ---------------------------------------------------------------------------
+  # 4. TYPE
+  # The speech act — what the Signal DOES.
+  # ---------------------------------------------------------------------------
+  type:
+    id: 4
+    name: type
+    definition: >
+      The speech act performed by the Signal. Not what it contains — what it DOES
+      to the receiver's state. A Signal that informs does not commit. A Signal that
+      directs demands action. Conflating types creates ambiguity and failed decoding.
+    values:
+      direct: "Compel action. The receiver must do something. Highest urgency encoding."
+      inform: "Transfer state to receiver. No action required unless receiver decides."
+      commit: "Bind sender to a course of action. Creates accountability."
+      decide: "Record a resolved choice and rationale. Immutable once logged."
+      express: "Transfer internal state (perspective, sentiment, value). No action implied."
+    selection_rule: "Match type to the intended outcome for the receiver."
+
+  # ---------------------------------------------------------------------------
+  # 5. FORMAT
+  # The container the Signal travels in.
+  # ---------------------------------------------------------------------------
+  format:
+    id: 5
+    name: format
+    definition: >
+      The physical or digital container the Signal is encoded into for transmission.
+      Format determines rendering, tool compatibility, and retrieval. Wrong format
+      breaks the transmission channel even if content is correct.
+    values:
+      markdown: "Default for all OptimalOS files. Human-readable, engine-indexed."
+      code: "Source files (.ex, .exs, .js, .ts, etc.). Executable content."
+      json: "Structured data exchange. Machine-first. API responses, configs."
+      yaml: "Human-readable structured data. Configs, schemas, kernel definitions."
+      audio: "Voice memos, call recordings."
+      video: "Visual recordings."
+      html: "Web-rendered content."
+    default: markdown
+    selection_rule: "Choose the format native to the channel and tool that will process it."
+
+  # ---------------------------------------------------------------------------
+  # 6. STRUCTURE
+  # The internal skeleton that imposes order on content.
+  # ---------------------------------------------------------------------------
+  structure:
+    id: 6
+    name: structure
+    definition: >
+      The internal skeleton of the Signal — the genre-specific template that organizes
+      content into decodable sections. Raw information is noise. Structure is what
+      transforms information into a Signal. Every genre has a canonical structure.
+      Deviating from it without reason degrades decodability.
+    law: "Always impose structure. Unstructured output = failed Signal."
+    source: "Genre skeletons defined in: docs/taxonomy/genres.md"
+    canonical_example:
+      genre: brief
+      sections:
+        1: "Objective — One sentence. What outcome."
+        2: "Key Messages — 3-5 bullets. Each an atomic claim."
+        3: "Call to Action — Single unambiguous ask + deadline."
+        4: "Supporting Materials — Links, attachments if needed."
+
+  # ---------------------------------------------------------------------------
+  # 7. NODE
+  # The organizational unit of the OptimalOS knowledge base.
+  # ---------------------------------------------------------------------------
+  node:
+    id: 7
+    name: node
+    definition: >
+      A numbered folder representing a distinct decision tree category in the
+      cognitive operating system. Each node is a domain of knowledge, a stream of
+      activity, or a relationship context. Nodes are the top-level routing targets
+      for all signals.
+    schema:
+      id: "Numeric prefix (01-12)"
+      name: "Human-readable label"
+      type: "person | domain | entity | operation | unit | cross-cutting | layer | inbox"
+      files:
+        context_md: "Persistent ground truth. Updated when facts change."
+        signal_md: "Weekly status. Priorities, blockers, fidelity tracking."
+    active_nodes:
+      "01": {name: operator, type: person}
+      "02": {name: platform, type: "domain:product"}
+      "03": {name: services, type: entity}
+      "04": {name: ai-masters, type: "operation:program"}
+      "05": {name: os-architect, type: "operation:research"}
+      "06": {name: agency-accelerants, type: "operation:network"}
+      "07": {name: accelerants-community, type: "unit:community"}
+      "08": {name: content-creators, type: "domain:media"}
+      "09": {name: new-stuff, type: inbox}
+      "10": {name: team, type: registry}
+      "11": {name: money-revenue, type: cross-cutting}
+      "12": {name: os-accelerator, type: "operation:program"}
+    routing_rules:
+      - "Financial data ALWAYS also routes to 11-money-revenue."
+      - "Decisions ALWAYS logged in context.md under Key Decisions."
+      - "People info ALWAYS updated in 10-team/context.md."
+      - "When routing is ambiguous → 09-new-stuff."
+      - "When signal spans multiple nodes → update ALL of them."
+
+  # ---------------------------------------------------------------------------
+  # 8. CONTEXT
+  # A stored cognitive pattern — the unit of knowledge in the library.
+  # ---------------------------------------------------------------------------
+  context:
+    id: 8
+    name: context
+    definition: >
+      A markdown file containing a stored cognitive pattern — a playbook, decision tree,
+      scenario, episodic record, or ground truth fact. Context files are the ROM of
+      the operator's externalized decision library. The engine is how you search them optimally.
+    types:
+      context_md: "Persistent ground truth. The canonical facts about a node."
+      signal_md: "Temporal/episodic. What happened this week."
+      signal_file: "Dated episodic records. YYYY-MM-DD-{slug}.md in signals/ subfolders."
+      playbook: "Pre-computed response tree for a recurring scenario."
+    tiers:
+      L0: {tokens: ~100, content: "Abstract — topic, entities, key facts. Always loaded."}
+      L1: {tokens: ~2000, content: "Overview — summary, key decisions, action items."}
+      L2: {tokens: full, content: "Complete content. Load only when L1 is insufficient."}
+    tiered_loading_rule: "Search → L0 → L1 if needed → full only if necessary. Never read full when L1 suffices."
+    engine_path: "engine/"
+    engine_commands:
+      search: "mix optimal.search <query>"
+      read: "mix optimal.read <path> --tier l0|l1|full"
+      assemble: "mix optimal.assemble <topic>"
+      ingest: "mix optimal.ingest <text>"
+
+  # ---------------------------------------------------------------------------
+  # 9. ENTITY
+  # A named thing extracted from contexts.
+  # ---------------------------------------------------------------------------
+  entity:
+    id: 9
+    name: entity
+    definition: >
+      A named, discrete thing that exists within the OptimalOS knowledge graph.
+      Entities are extracted from contexts and signals. They are the nodes of the
+      knowledge graph. Relationships between entities are edges.
+    types:
+      person: "Named individual (the operator, partners, team members, etc.)"
+      org: "Organization or company"
+      product: "Product or platform"
+      concept: "Abstract idea (Signal Theory, SICA, ReAct loop)"
+      operation: "Named project or program"
+    canonical_source: "10-team/context.md for people. Respective node context.md for others."
+    extraction_rule: "Every ingest pass extracts entities and registers them in the knowledge graph."
+
+  # ---------------------------------------------------------------------------
+  # 10. EDGE
+  # A typed relationship between entities.
+  # ---------------------------------------------------------------------------
+  edge:
+    id: 10
+    name: edge
+    definition: >
+      A typed, directed relationship between two entities in the OptimalOS knowledge graph.
+      Edges encode the structure of the operator's world — who works on what, what relates to
+      what, what supersedes what. The graph is how the engine finds non-obvious connections.
+    types:
+      mentioned_in: "Entity appears in a context file."
+      lives_in: "Entity belongs to a node."
+      works_on: "Person contributes to a product/operation."
+      cross_ref: "Two contexts mutually reference each other."
+      supersedes: "A newer context replaces an older one."
+      reports_to: "Organizational hierarchy."
+      owns: "Person or org is accountable for a product/operation."
+    graph_commands:
+      stats: "mix optimal.graph"
+      triangles: "mix optimal.graph triangles  # Missing B→C when A→B and A→C exist"
+      clusters: "mix optimal.graph clusters    # Isolated knowledge islands"
+      hubs: "mix optimal.graph hubs            # Most-connected entities"
+      reflect: "mix optimal.reflect            # Co-occurring entities without edges"
+
+  # ---------------------------------------------------------------------------
+  # 11. SN_RATIO
+  # Signal-to-noise quality score.
+  # ---------------------------------------------------------------------------
+  sn_ratio:
+    id: 11
+    name: sn_ratio
+    definition: >
+      A scalar quality score from 0.0 to 1.0 measuring the ratio of actionable intent
+      to noise in a Signal. The engine computes this at ingest time. Signals below the
+      threshold are rejected before storage. Every output Claude generates should
+      self-assess against this score.
+    range: [0.0, 1.0]
+    rejection_threshold: 0.3
+    interpretation:
+      "0.0 - 0.29": "Pure noise. Reject. Do not store, do not transmit."
+      "0.30 - 0.59": "Low signal. Store with warning. Flag for review."
+      "0.60 - 0.79": "Acceptable signal. Store and index normally."
+      "0.80 - 0.94": "High signal. Prioritize in retrieval."
+      "0.95 - 1.00": "Maximum signal. Canonical reference quality."
+    noise_sources:
+      - "Filler language and pleasantries"
+      - "Unnecessary hedging and qualifiers"
+      - "Repetition of what the receiver already said"
+      - "Over-explaining obvious things"
+      - "Under-structuring complex things"
+      - "Wrong genre for the situation"
+      - "Unresolved Signal dimensions"
+    self_check: >
+      Before any output: Does every sentence carry actionable intent or necessary context?
+      If not — cut it. Is there hedging? Be direct. Is there repetition? Consolidate.
+
+  # ---------------------------------------------------------------------------
+  # 12. TIER
+  # Loading level for context retrieval.
+  # ---------------------------------------------------------------------------
+  tier:
+    id: 12
+    name: tier
+    definition: >
+      The loading depth applied when retrieving a context from the engine. Tiers
+      exist to protect context window budget. Loading at a higher tier than necessary
+      is a Shannon violation — it consumes bandwidth without proportional signal gain.
+    levels:
+      L0:
+        tokens: ~100
+        content: "Abstract — topic sentence, key entities, 3-5 core facts. Always loaded."
+        use_when: "Scanning, routing decisions, determining if a context is relevant."
+      L1:
+        tokens: ~2000
+        content: "Overview — summary, key decisions, action items, recent status."
+        use_when: "Answering questions, assembling context bundles, responding to queries."
+      L2:
+        tokens: full
+        content: "Complete file content."
+        use_when: "Deep analysis, editing the file, edge cases not covered by L1."
+    protocol:
+      1: "Always start with search (returns L0 abstracts)."
+      2: "Escalate to L1 if L0 is insufficient."
+      3: "Escalate to full only if L1 is insufficient."
+      4: "Never read full when L1 suffices."
+
+  # ---------------------------------------------------------------------------
+  # 13. DECAY
+  # Temporal relevance degradation of stored contexts.
+  # ---------------------------------------------------------------------------
+  decay:
+    id: 13
+    name: decay
+    definition: >
+      The rate at which a stored context loses relevance over time. Decay is
+      exponential and genre-specific. High-decay contexts (signals, notes) become
+      stale quickly. Low-decay contexts (decisions, specs) retain relevance longer.
+      The engine uses decay to weight search results and flag stale contexts.
+    model: exponential
+    genre_half_lives:
+      signal: "7 days"
+      note: "3 days"
+      transcript: "14 days"
+      brief: "30 days"
+      plan: "14 days"
+      report: "21 days"
+      spec: "90 days"
+      decision_log: "365 days"
+      context_md: "indefinite (updated, not decayed)"
+    staleness_check: "mix optimal.reweave <topic> --days <threshold>"
+    decay_failure: >
+      A context that has passed its half-life without being reviewed or superseded.
+      Decay failures degrade retrieval quality. Run mix optimal.health to detect them.
+
+  # ---------------------------------------------------------------------------
+  # 14. OBSERVATION
+  # Captured friction pattern that feeds the learning loop.
+  # ---------------------------------------------------------------------------
+  observation:
+    id: 14
+    name: observation
+    definition: >
+      A captured friction event, recurring pattern, or extracted lesson from system
+      operation. Observations are the inputs to the remember→rethink learning loop.
+      They accumulate evidence toward synthesis — when a category reaches confidence
+      threshold, rethink converts observations into updated system behavior.
+    lifecycle:
+      capture: "mix optimal.remember <observation>  # Explicit capture"
+      contextual: "mix optimal.remember --contextual  # Auto-scan recent signals"
+      accumulate: "Evidence weight builds per category over time"
+      escalate: "mix optimal.remember --escalations  # Categories ready for synthesis"
+      synthesize: "mix optimal.rethink <category>  # Convert to updated behavior"
+    confidence_threshold: 1.5  # Required to trigger rethink
+    categories:
+      - process
+      - people
+      - communication
+      - technical
+      - financial
+    examples:
+      - "Always check for duplicates before inserting"
+      - "Lead engineer over-engineers when requirements are open-ended — always give constraints"
+      - "Sales rep only decodes briefs — specs create friction"
+
+  # ---------------------------------------------------------------------------
+  # 15. RHYTHM
+  # The operating cadence of the system.
+  # ---------------------------------------------------------------------------
+  rhythm:
+    id: 15
+    name: rhythm
+    definition: >
+      The daily and weekly operating cadence that governs when and how the operator
+      engages with each cognitive mode. Rhythm is the temporal architecture of
+      OptimalOS — without it, cognitive modes bleed into each other and throughput
+      collapses. The rhythm/ folder is the operating layer.
+    daily_sequence:
+      boot:
+        time: "~3pm (operator wakes)"
+        action: "Run rhythm/boot.md. Generate rhythm/today.md from week-plan.md."
+      operate:
+        time: "3-5pm"
+        action: "Clear queue — Slack, email, delegate, triage."
+      build_1:
+        time: "5-8pm"
+        action: "Deep work block 1. Single focus. No Slack. Load context first."
+      break:
+        time: "8-9pm"
+        action: "Eat. Move. Mandatory."
+      build_2:
+        time: "9pm-1am"
+        action: "Deep work block 2. Peak hours. Protect this window."
+      flex:
+        time: "1-4am"
+        action: "LEARN, BUILD overflow, content — whatever energy allows."
+      shutdown:
+        time: "~4-5am"
+        action: "Run rhythm/shutdown.md. Capture everything. Seed tomorrow."
+    cognitive_modes:
+      BUILD: "Create — code, write, design."
+      OPERATE: "Clear queue — Slack, email, delegate."
+      LEARN: "Absorb — reading, courses, research."
+      SYNTHESIZE: "Connect patterns across nodes."
+      EXTRACT: "Convert conversation → signal. Run immediately after every call."
+    transition_protocol: "Every block switch: SAVE → CLEAR → LOAD."
+    post_call_rule: "After EVERY call: mode → EXTRACT immediately. Run mix optimal.ingest while memory is fresh."
+    key_files:
+      today: "rhythm/today.md  # THE daily working file."
+      energy: "rhythm/energy.md  # Rolling energy log."
+      pre_call: "01-operator/positioning-playbook.md"
+      troubleshooting: "rhythm/troubleshooting.md"
+
+
+# =============================================================================
+# PART II — THE 4 GOVERNING CONSTRAINTS
+# Violate any one = Signal failure. No exceptions.
+# =============================================================================
+constraints:
+
+  shannon:
+    name: "Shannon — The Capacity Ceiling"
+    law: "Every channel has finite capacity. Don't exceed the receiver's bandwidth."
+    violations:
+      - "500-line explanation when 20 lines suffice"
+      - "Loading full context when L0 suffices"
+      - "Sending specs to salespeople"
+      - "10-point agenda when 3 is the limit"
+    fix: "Reduce, prioritize, batch. Match output density to receiver's decoding capacity."
+
+  ashby:
+    name: "Ashby — The Repertoire Requirement"
+    law: "The controller must have at least as much variety as the system being controlled."
+    violations:
+      - "No genre exists for the situation — defaulting to prose wall"
+      - "Using brief when a decision log is needed"
+      - "No structure skeleton for the content type"
+    fix: "Use the right genre. If none exists, create one. Never default to unstructured prose."
+
+  beer:
+    name: "Beer — The Viable Structure"
+    law: "Maintain coherent structure at every scale — response, file, system."
+    violations:
+      - "Orphaned logic with no section home"
+      - "Context file that references deleted nodes"
+      - "Signal that belongs to two nodes but lives in neither"
+    fix: "Every piece of information has a place. Every structure has integrity. Re-encode with traversal."
+
+  wiener:
+    name: "Wiener — The Feedback Loop"
+    law: "Never broadcast without confirmation. Close every loop."
+    violations:
+      - "Sending a brief without checking if Robert read it"
+      - "Delegating a task without a fidelity tracking entry"
+      - "Making a decision without logging it in context.md"
+      - "Ingesting a signal without confirming it was routed correctly"
+    fix: "Verify the receiver decoded correctly. Ask when ambiguous. Check that the action happened."
+
+
+# =============================================================================
+# PART III — THE 6 ENCODING PRINCIPLES
+# Apply on every output without exception.
+# =============================================================================
+encoding_principles:
+
+  1_mode_message_alignment:
+    name: "Mode-Message Alignment"
+    rule: "Sequential logic → text/code. Relational logic → diagrams/tables. Don't use the wrong logic for the message."
+    example: "Org hierarchy → table. Build sequence → numbered list. API spec → code."
+
+  2_genre_receiver_alignment:
+    name: "Genre-Receiver Alignment"
+    rule: "Match genre to receiver's competence. Developers decode specs. PMs decode briefs."
+    example: "Never send Robert Potter a spec. He decodes briefs. Always."
+
+  3_structure_imposition:
+    name: "Structure Imposition"
+    rule: "Raw information is noise. ALWAYS impose structure. No unstructured output."
+    example: "A transcript without sections (Participants, Decisions, Action Items) is not a transcript — it's a wall of text."
+
+  4_redundancy_proportional_to_noise:
+    name: "Redundancy Proportional to Noise"
+    rule: "High-stakes/complex context → more structure, more explicit intent. Simple context → minimal framing."
+    example: "A quick note needs one line of context. A spec for a lead engineer needs explicit constraints."
+
+  5_entropy_preservation:
+    name: "Entropy Preservation"
+    rule: "Maximum meaning per unit of output. No filler, no hedging, no padding."
+    example: "Cut: 'That's a great question.' Cut: 'Perhaps we could consider...' Be direct."
+
+  6_bandwidth_matching:
+    name: "Bandwidth Matching"
+    rule: "Match output density to receiver's decoding capacity. Never over-encode or under-encode."
+    example: "3 bullets when that's what's needed. Full spec when that's what's needed."
+
+
+# =============================================================================
+# PART IV — THE 11 FAILURE MODES
+# Diagnose these. Fix the root cause. Don't mask symptoms.
+# =============================================================================
+failure_modes:
+
+  # Shannon Violations
+  routing_failure:
+    category: shannon
+    name: "Routing Failure"
+    description: "Signal sent to wrong recipient."
+    symptom: "Receiver can't decode or act. Confusion, no response, wrong action."
+    fix: "Re-route to correct recipient using routing table."
+
+  bandwidth_overload:
+    category: shannon
+    name: "Bandwidth Overload"
+    description: "Too much output. Receiver's decoding capacity exceeded."
+    symptom: "Receiver ignores, skims, or misses key points."
+    fix: "Reduce. Prioritize. Batch. Apply Shannon constraint ruthlessly."
+
+  fidelity_failure:
+    category: shannon
+    name: "Fidelity Failure"
+    description: "Meaning lost in transmission. Receiver decoded different intent than sender encoded."
+    symptom: "Wrong action taken. Misunderstanding. Requires correction loop."
+    fix: "Re-encode with clearer structure. More explicit genre skeleton."
+
+  # Ashby Violations
+  genre_mismatch:
+    category: ashby
+    name: "Genre Mismatch"
+    description: "Wrong conventionalized form used for the situation."
+    symptom: "Receiver reads but doesn't act. Content is there but decodability is low."
+    fix: "Re-encode in correct genre. Consult genre-receiver map."
+
+  variety_failure:
+    category: ashby
+    name: "Variety Failure"
+    description: "No genre exists for this situation. Defaulted to unstructured prose."
+    symptom: "Output looks like a wall of text. No clear structure."
+    fix: "Create a new genre. Or compose from existing genres. Never default to prose."
+
+  structure_failure:
+    category: ashby
+    name: "Structure Failure"
+    description: "No internal skeleton imposed on the content."
+    symptom: "Content is present but disorganized. High decoding effort."
+    fix: "Impose genre skeleton. Every section must have a home."
+
+  # Beer Violations
+  bridge_failure:
+    category: beer
+    name: "Bridge Failure"
+    description: "No shared context between sender and receiver."
+    symptom: "Receiver lacks background to decode. References to unknowns."
+    fix: "Add preamble. Establish shared conventions. Build the bridge first."
+
+  herniation_failure:
+    category: beer
+    name: "Herniation Failure"
+    description: "Incoherence across layers of the system."
+    symptom: "A Signal that makes sense at one level but breaks at another."
+    fix: "Re-encode with proper traversal. Ensure vertical coherence."
+
+  decay_failure:
+    category: beer
+    name: "Decay Failure"
+    description: "Outdated Signal still being treated as current."
+    symptom: "Decisions made on stale context. Actions based on old state."
+    fix: "Audit with mix optimal.reweave. Version or sunset the stale context."
+
+  # Wiener Violations
+  feedback_failure:
+    category: wiener
+    name: "Feedback Failure"
+    description: "No confirmation loop. Broadcast without verification."
+    symptom: "Delegated task not done. Decision not acknowledged. Signal lost."
+    fix: "Close the loop. Verify. Check. Confirm. Add to fidelity tracking."
+
+  # Cross-cutting
+  adversarial_noise:
+    category: cross_cutting
+    name: "Adversarial Noise"
+    description: "Deliberate degradation of Signal quality."
+    symptom: "Input designed to confuse, mislead, or overwhelm the system."
+    fix: "Make noise visible. Escalate. Do not process adversarial Signals uncritically."
+
+
+# =============================================================================
+# PART V — AGENT OPERATING PROTOCOL
+# How Claude (or any AI agent) must behave inside OptimalOS.
+# =============================================================================
+agent_protocol:
+
+  identity: "Signal Processor in the OptimalOS network."
+  receiver: "The Operator"
+  channel: "CLI text + code"
+
+  before_every_output:
+    1: "RECOGNIZE — What does the receiver need? (genre, type, depth, urgency)"
+    2: "DECOMPOSE — Break intent into structured components."
+    3: "STRUCTURE — Apply the appropriate genre skeleton."
+    4: "VERIFY — Check against the 6 encoding principles and 4 constraints."
+    5: "TRANSMIT — Deliver through the optimal channel."
+
+  before_every_task:
+    1: "Search memory for existing patterns: mix optimal.search <query>"
+    2: "Check relevant context.md files for ground truth."
+    3: "Identify the right agent for the task (CLAUDE.md agent map)."
+    4: "Load only what's needed (tier discipline)."
+
+  after_every_task:
+    1: "Verify completion with evidence (test pass, file written, command output)."
+    2: "Ingest any new signals generated during the task."
+    3: "Update context.md if persistent facts changed."
+    4: "Save observations to learning loop if a pattern was encountered."
+
+  noise_to_eliminate:
+    - "Filler phrases: 'Let me think about this...', 'That's a great question...'"
+    - "Unnecessary hedging: 'Perhaps we could consider...'"
+    - "Repeating what the user said back to them"
+    - "Over-explaining obvious things"
+    - "Under-structuring complex things"
+    - "Wrong genre for the situation"
+
+  signal_to_maximize:
+    - "Direct, actionable content"
+    - "Properly structured output using genre skeletons"
+    - "Correct genre for the receiver and situation"
+    - "Evidence and verification (show, don't tell)"
+    - "Bandwidth-appropriate density"
+
+  cardinal_rules:
+    - "Search memory BEFORE solving problems fresh."
+    - "Right agent for right task. Never do backend work in a frontend agent."
+    - "Signal Theory on EVERY output. No exceptions."
+    - "Verify with evidence before claiming done."
+    - "Save learnings. The system must improve."
+    - "Financial data ALWAYS to 11-money-revenue."
+    - "Decisions ALWAYS logged in context.md Key Decisions."
+    - "Never send a salesperson a spec. Always a brief."
+    - "Never give the lead engineer open-ended requirements. Always explicit constraints."
+    - "Persistent facts → context.md. Temporal → signal.md. Never mix."

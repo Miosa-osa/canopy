@@ -1,0 +1,35 @@
+# Team Budget Allocations — Enterprise
+# Breakdown of how team budgets are distributed across task types.
+
+engineering:
+  total: 300
+  allocation:
+    feature_development: 0.50   # 50% → $150
+    bug_fixes: 0.20             # 20% → $60
+    technical_debt: 0.15        # 15% → $45
+    infrastructure: 0.10        # 10% → $30
+    exploration: 0.05           # 5%  → $15
+
+product:
+  total: 250
+  allocation:
+    analysis: 0.40              # 40% → $100
+    planning: 0.25              # 25% → $62.50
+    reporting: 0.20             # 20% → $50
+    research: 0.15              # 15% → $37.50
+
+security:
+  total: 100
+  allocation:
+    code_review: 0.40           # 40% → $40
+    compliance: 0.30            # 30% → $30
+    threat_assessment: 0.20     # 20% → $20
+    incident_response: 0.10     # 10% → $10 (reserve)
+
+executive:
+  total: 200
+  allocation:
+    orchestration: 0.40         # 40% → $80
+    decision_making: 0.25       # 25% → $50
+    external_comms: 0.20        # 20% → $40
+    governance: 0.15            # 15% → $30
