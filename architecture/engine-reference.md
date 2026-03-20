@@ -504,6 +504,371 @@ through function calls, crash isolation per service.
 
 ---
 
+## Knowledge Graph: Triple-Store Architecture
+
+The knowledge graph is built on the MIOSA Knowledge system — a triple-store
+(subject-predicate-object) with 3-way indexing and optional SPARQL querying.
+
+### Why Triples
+
+Every relationship in a workspace is a triple: `("Ed Honour", "works_on", "AI Masters")`.
+Triples are the simplest possible graph representation — they compose into arbitrarily
+complex structures without schema changes. Add a new relationship type? Just assert
+a new triple. No migration needed.
+
+### 3-Way Indexing (SPO / POS / OSP)
+
+The triple-store maintains three indexes for the same data:
+
+```
+SPO index:  (subject, predicate, object)    ← "What does Ed work on?"
+POS index:  (predicate, object, subject)    ← "Who works on AI Masters?"
+OSP index:  (object, subject, predicate)    ← "What relationships mention AI Masters?"
+```
+
+**Automatic index selection** based on which positions are bound:
+
+| Query Pattern | Index Used | Example |
+|--------------|-----------|---------|
+| `(?s, ?p, ?o)` | Full scan (SPO) | "Give me everything" |
+| `(Ed, ?p, ?o)` | SPO | "What do we know about Ed?" |
+| `(?s, works_on, ?o)` | POS | "Who works on what?" |
+| `(?s, ?p, AI Masters)` | OSP | "What connects to AI Masters?" |
+| `(Ed, works_on, ?o)` | SPO | "What does Ed work on?" |
+| `(Ed, works_on, AI Masters)` | SPO | "Does Ed work on AI Masters?" (existence check) |
+
+O(1) or O(log n) for any query pattern. No query is slow regardless of which
+fields you bind.
+
+### Dictionary Encoding (Advanced)
+
+For high-performance knowledge graphs, encode RDF terms as 64-bit integer IDs
+instead of storing raw strings in every triple:
+
+```
+Bits 63-60: Type tag
+  0x1 = URI
+  0x2 = Blank node
+  0x3 = Literal (string)
+  0x4 = Integer (inline — value stored in low 60 bits, NO dictionary lookup)
+  0x5 = DateTime (inline — epoch millis in low 60 bits)
+  0x6 = Decimal (inline — custom float format)
+
+Bits 59-0: Sequence ID (from :atomics counter) or inline value
+```
+
+**Why**: Storing `"Ed Honour"` as a 8-byte integer vs a 10-byte string reduces
+storage 20x when the same entity appears in 100+ triples. Joins on integers
+are 10-50x faster than string comparison. Inline encoding for numbers and dates
+means common values never touch the dictionary at all.
+
+### Quad Store: Named Graphs
+
+The knowledge graph is actually a **quad store** — every triple has an optional
+fourth element: the **graph** it belongs to. This lets you manage multiple
+isolated knowledge graphs in one store.
+
+```
+Triple:  (subject, predicate, object)
+Quad:    (graph, subject, predicate, object)
+```
+
+**Why quads matter for workspaces:**
+- Each workspace section (node) gets its own named graph
+- Agent-specific knowledge stays isolated from shared facts
+- You can query across all graphs OR scope to one
+- Reasoning can be graph-scoped (infer within a domain, not globally)
+
+**Quad indexing** — 4 permutation indices instead of 3:
+
+| Index | Key Order | Answers |
+|-------|----------|---------|
+| GSPO | graph, subject, predicate, object | "What's in this graph?" |
+| GPOS | graph, predicate, object, subject | "Who has this property in this graph?" |
+| SPOG | subject, predicate, object, graph | "Which graphs contain this fact?" |
+| POSG | predicate, object, subject, graph | "Where does this relationship exist?" |
+
+### Implementation Options
+
+| Backend | Storage | Best For | Trade-offs |
+|---------|---------|----------|-----------|
+| **ETS** (in-memory) | 3-4 ordered_set tables | Single-node, fast, <1M triples | Lost on restart. Fast restores from snapshots. Sub-microsecond reads. |
+| **SQLite edges** | 1 table + 3-4 indexes | Persistence without infrastructure | Slightly slower than ETS. Survives restarts. |
+| **RocksDB** | LSM-tree key-value | >100K triples, persistent, large graphs | C NIF. Prefix scans as trie iterators. Best for graphs that don't fit in memory. |
+| **Mnesia** (distributed) | Replicated across nodes | Multi-node BEAM clusters | Complex setup. Worth it for distributed systems. |
+| **Neo4j** | Native graph DB | >1M triples, complex traversals | JVM dependency. Overkill for most workspaces. |
+| **DuckDB** | Embedded OLAP | Analytics over graph data | Great for aggregate queries. Not a graph traversal engine. |
+
+**RocksDB key encoding** (when using dictionary encoding):
+```
+Triple key: 24 bytes (3 × 64-bit big-endian IDs)
+  [subject_id:8][predicate_id:8][object_id:8]
+
+Quad key: 32 bytes (4 × 64-bit big-endian IDs)
+  [graph_id:8][subject_id:8][predicate_id:8][object_id:8]
+
+Value: empty — the key IS the data
+
+Big-endian encoding ensures lexicographic order = numeric order,
+enabling efficient prefix scans for pattern matching.
+```
+
+**Recommendation**: SQLite edges table for most workspaces (it's already in the
+Store). Add ETS overlay for hot-path reads. Use the 3-index pattern on SQLite:
+
+```sql
+CREATE TABLE edges (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  predicate TEXT NOT NULL,
+  target TEXT NOT NULL,
+  weight REAL DEFAULT 1.0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- The 3-way index
+CREATE INDEX idx_edges_spo ON edges(source, predicate, target);
+CREATE INDEX idx_edges_pos ON edges(predicate, target, source);
+CREATE INDEX idx_edges_osp ON edges(target, source, predicate);
+```
+
+### SPARQL (Optional)
+
+For workspaces that need structured graph queries, the engine can include a
+SPARQL 1.1 subset parser + executor:
+
+```sparql
+# Find all people who work on AI Masters and their roles
+SELECT ?person ?role WHERE {
+  ?person works_on ai-masters .
+  ?person has_role ?role .
+}
+
+# Find triangle opportunities (A→B, A→C, but no B→C)
+SELECT ?a ?b ?c WHERE {
+  ?a related_to ?b .
+  ?a related_to ?c .
+  FILTER NOT EXISTS { ?b related_to ?c }
+  FILTER (?b != ?c)
+}
+```
+
+Most workspaces don't need SPARQL — the edge queries in the Graph module handle
+90% of cases. SPARQL is for power users who want complex multi-hop traversals.
+
+### OWL Reasoning (Advanced)
+
+For knowledge-intensive workspaces, the engine can run forward-chaining OWL 2 RL
+rules to materialize inferred triples:
+
+```
+If: (Ed works_on AI-Masters) AND (AI-Masters is_part_of Lunivate)
+Then infer: (Ed works_on Lunivate)    ← transitive closure
+
+If: (Ed reports_to Roberto) AND (reports_to subPropertyOf works_with)
+Then infer: (Ed works_with Roberto)   ← property hierarchy
+```
+
+Semi-naive evaluation: only fires rules on NEW triples from the previous round.
+Runs until fixed-point (no new inferences). 16 built-in rules covering transitivity,
+property hierarchy, class membership, and inverse relationships.
+
+### Advanced Join Strategies
+
+For complex graph queries with 4+ triple patterns sharing variables:
+
+| Strategy | When to Use | How It Works |
+|----------|------------|-------------|
+| **Nested loop** | Small inputs (<100 results per pattern) | For each result in A, scan B for matches. Simple, no setup cost. |
+| **Hash join** | Medium/large with good selectivity | Build hash table on smaller input, probe with larger. O(n+m). |
+| **Leapfrog Triejoin** | 4+ patterns sharing variables | Worst-case optimal multi-way join. Uses sorted iterators (prefix scans on RocksDB, sorted ETS) as tries. Seeks to the next matching position across all iterators simultaneously. |
+
+**Cost-based query optimization** (for engines that need it):
+1. Collect per-predicate statistics: total count, distinct subjects, distinct objects
+2. Estimate cardinality for each triple pattern based on bound positions
+3. Reorder patterns: most selective first (smallest estimated cardinality)
+4. For ≤5 patterns: exhaustive join enumeration
+5. For >5 patterns: DPccp algorithm (Moerkotte & Neumann) for near-optimal ordering
+6. Cache optimized query plans (LRU, invalidated on writes)
+
+Most workspaces don't need this — simple pattern matching handles 95% of queries.
+Add cost-based optimization when you have >10K edges and complex multi-hop queries.
+
+---
+
+## Memory Subsystem: MIOSA Memory Architecture
+
+The memory system is built on MIOSA Memory — a collection-based store with
+episodic recording, context injection, Cortex synthesis, and the SICA learning engine.
+
+### Memory Collections
+
+Memory is organized in named collections with typed entries:
+
+```
+collections/
+├── episodic          ← What happened (sessions, events, calls)
+│   ├── patterns      ← Recurring patterns extracted from episodes
+│   ├── solutions     ← Fix recipes and approaches that worked
+│   └── decisions     ← Choices made with rationale
+├── semantic          ← What's true (facts, entities, relationships)
+├── procedural        ← How to do things (skills, workflows, rules)
+└── workspace         ← Workspace-specific context (per-project)
+```
+
+Each entry:
+```
+{
+  key: "ed-pricing-preference",
+  value: "Ed prefers $2K/seat annual billing, resists monthly",
+  tags: ["ed-honour", "pricing", "ai-masters"],
+  metadata: {
+    category: :project_info,
+    scope: :workspace,
+    created_at: "2026-03-20T...",
+    access_count: 5,
+    relevance_score: 0.85
+  }
+}
+```
+
+### 7-Category Taxonomy
+
+Content is auto-classified into categories using keyword signal matching:
+
+| Category | Triggers (keyword signals) | What It Captures |
+|----------|---------------------------|-----------------|
+| `user_preference` | prefer, like, want, style, always, never | How the user wants things done |
+| `project_info` | project, build, feature, milestone, deadline | Current project state |
+| `project_spec` | spec, requirement, must, constraint, API | Technical specifications |
+| `lesson` | learned, mistake, remember, don't, avoid | Captured corrections |
+| `pattern` | pattern, usually, tends to, often, when | Recurring behaviors |
+| `solution` | fixed, solved, workaround, approach, solution | What worked |
+| `context` | context, background, history, previously | Situational knowledge |
+
+**3 scopes**: `global` (all workspaces), `workspace` (this project), `session` (this conversation).
+
+### Memory Injection: What Gets Surfaced
+
+The Injector decides WHICH memories are relevant to the current conversation.
+Weighted relevance scoring:
+
+```
+relevance = (base_score * 0.3) + (contextual_score * 0.5) + (recency_score * 0.2)
+
+Where:
+  base_score      = category weight (lesson: 0.9, pattern: 0.8, solution: 0.85, ...)
+                  × scope weight (session: 1.0, workspace: 0.8, global: 0.6)
+
+  contextual_score = max of:
+                    - file extension match (working on .ex? boost Elixir memories)
+                    - task keyword match (fixing bug? boost solutions + lessons)
+                    - error message match (seen this error before?)
+                    - session topic match (talking about Ed? boost Ed memories)
+
+  recency_score   = exp(-0.693 * hours_since_access / 48)
+                    Half-life of 48 hours. Recent memories surface first.
+```
+
+**Threshold**: Only inject memories with `relevance >= 0.5`. Below that → noise.
+
+### Context Strategies
+
+When assembling context for the agent, three strategies:
+
+| Strategy | When to Use | How It Works |
+|----------|------------|-------------|
+| **Recent** | Simple tasks, short conversations | Last N messages from session. No memory injection. |
+| **Relevant** | Most tasks | Recent messages + keyword-matched memories injected as system context. The default. |
+| **Summary** | Long sessions approaching token limit | Older messages summarized, recent kept verbatim, memories injected. |
+
+**Token budget compaction** (3 thresholds):
+
+| Threshold | % of Limit | Action |
+|-----------|-----------|--------|
+| **Warn** | 85% | Log warning. Continue normally. |
+| **Compact** | 90% | Summarize older messages. Trim low-relevance memories. |
+| **Hard stop** | 95% | Generate handoff summary. Start fresh session with summary as L0. |
+
+### Cortex: Periodic Synthesis
+
+A background process that periodically distills memory + sessions into a
+structured bulletin:
+
+```
+Every N minutes (configurable):
+  1. Read recent sessions (last 24h)
+  2. Read long-term memory (all collections)
+  3. Extract topic frequencies via keyword analysis
+  4. Build structured prompt for LLM
+  5. Generate bulletin (temperature: 0.2, max_tokens: 500)
+  6. Cache bulletin for fast reads
+```
+
+**Bulletin structure**:
+```markdown
+## Current Focus
+- [what the user is actively working on]
+
+## Pending Items
+- [tasks mentioned but not completed]
+
+## Key Decisions
+- [choices made with rationale]
+
+## Patterns
+- [recurring behaviors or preferences detected]
+
+## Context
+- [background needed for current work]
+```
+
+The Cortex bulletin is injected into L0 when available — it's a synthesized
+"what you need to know right now" snapshot. Costs ~500 tokens. Updated every
+30 minutes or on-demand.
+
+### SICA Learning Engine
+
+The self-improving learning loop:
+
+```
+OBSERVE  → Track every tool call, error, correction, and outcome
+           Record: {type, tool, duration, success, result}
+
+REFLECT  → Detect patterns in observations
+           "This error happened 3 times with the same fix"
+           "User corrected this approach — capture alternative"
+
+PROPOSE  → Generate candidate rules/patterns
+           "When X happens, do Y instead of Z"
+           Confidence scored by evidence count
+
+TEST     → Validate proposed rules against future interactions
+           Does the rule actually help? Track hit rate.
+
+INTEGRATE → Graduate tested rules into procedural memory
+            High-confidence rules → workspace ROM (skills, reference docs)
+            Low-confidence rules → keep testing
+```
+
+**3 memory tiers in the learning engine**:
+
+| Tier | Storage | TTL | What Lives Here |
+|------|---------|-----|----------------|
+| **Working** | In-memory (ETS) | 15 minutes | Raw observations, scratch data |
+| **Episodic** | JSONL files | 30 days | Session recordings, interaction logs |
+| **Semantic** | Permanent store | Forever | Graduated patterns, proven rules, facts |
+
+**Consolidation triggers**:
+- **Incremental**: Every 5 interactions — lightweight pattern scan
+- **Full**: Every 50 interactions — deep analysis across all episodic memory
+
+User corrections get **immediate capture** — when the user says "no, do it this
+way", the correction is stored with high confidence (0.9) and surfaces in future
+similar situations.
+
+---
+
 ## The Scoring Formula
 
 Search results are ranked by a composite score:
@@ -794,11 +1159,26 @@ class SearchEngine {
 
 | Pattern | EverMemOS | Why We Didn't Steal It |
 |---------|-----------|----------------------|
-| **Triple-store** | MongoDB + Elasticsearch + Milvus | Too heavy. SQLite handles all 3 functions for single-user. |
+| **Triple-store infra** | MongoDB + Elasticsearch + Milvus | Too heavy. We have our own triple-store (SPO/POS/OSP) on SQLite/ETS from MIOSA Knowledge. |
 | **MemCell** | Atomic memory container | Our Context struct already serves this role |
-| **Profile synthesis** | Cluster + synthesize user profiles | Our entity system + context.md covers this better |
+| **Profile synthesis** | Cluster + synthesize user profiles | Our Cortex bulletin + entity system covers this better |
+| **Learning engine** | None (they don't have one) | Our SICA loop (Observe→Reflect→Propose→Test→Integrate) is more sophisticated |
 | **Computer use** | Claimed but doesn't exist in OSS repo | Vaporware |
 | **Graph visualization** | Claimed but doesn't exist in OSS repo | Vaporware |
+
+### Where MIOSA Systems Came From
+
+The knowledge graph and memory subsystems in this reference architecture are
+battle-tested — they come from two production Elixir libraries:
+
+| System | Repo | What It Provides |
+|--------|------|-----------------|
+| **MIOSA Knowledge** | `Miosa-osa/miosa-knowledge` | Quad store with 3/4-way indexing, SPARQL parser, OWL 2 RL reasoning, RocksDB persistence, `for_agent/2` context injection |
+| **MIOSA Memory** | `Miosa-osa/miosa-memory` | Collections, episodic recording, Cortex synthesis, SICA learning, taxonomy classification, session persistence, token budget compaction |
+
+Both are pure Elixir, designed for single-node personal systems that scale to
+distributed with backend swaps (ETS → Mnesia → RocksDB → Riak). The patterns are
+language-agnostic — implement in Python, Go, Node, or Rust using the same architecture.
 
 ---
 

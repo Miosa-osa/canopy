@@ -70,26 +70,47 @@ is sufficient. If you need semantic search, start with **sqlite-vec** (embedded)
 |----------|-------|-----------|---------|
 | **Ollama** (local) | nomic-embed-text, mxbai-embed-large | 768-1024 | Privacy, offline, no API costs |
 | **OpenAI** | text-embedding-3-small/large | 1536-3072 | Highest quality, cloud-only |
-| **Cohere** | embed-v3 | 1024 | Multilingual, good quality |
-| **Voyage AI** | voyage-3 | 1024 | Code-aware embeddings |
-| **Local ONNX** | BGE, GTE, E5 | 384-1024 | Fastest local, no GPU needed |
+| **Google Gemini** | gemini-embedding-001 | 768-3072 | Native multimodal (text+images+video), flexible output dims, free tier |
+| **Cohere** | embed-v4 | 1024 | Multilingual, good quality, binary quantization |
+| **Voyage AI** | voyage-3, voyage-code-3 | 1024 | Code-aware embeddings, best for dev workspaces |
+| **Jina AI** | jina-embeddings-v3 | 1024 | Late interaction, multilingual, task-specific adapters |
+| **Local ONNX** | BGE, GTE, E5, Snowflake Arctic | 384-1024 | Fastest local, no GPU needed |
+| **Mixedbread** | mxbai-embed-large-v2 | 1024 | High quality open-source, Matryoshka dimensionality |
 
 **Recommendation**: **Ollama** with nomic-embed-text for local/private workspaces.
+**Google Gemini** gemini-embedding-001 for workspaces that handle mixed content (text + images).
 **OpenAI** text-embedding-3-small for cloud workspaces where quality matters most.
+All three support flexible output dimensions — embed at 256 dims for speed, 1024+ for quality.
 
 ### Knowledge Graph
 
 | Backend | Best For | How It Works | Trade-offs |
 |---------|---------|-------------|-----------|
-| **SQLite edges table** | Most workspaces | Simple table: source, target, relation_type, weight. Self-joins for triangles. | Embedded, simple, handles ~100K edges fine. |
+| **SQLite edges table** | Most workspaces | Simple table: source, target, relation_type, weight. 3-way indexing (SPO/POS/OSP) for O(1) lookups. | Embedded, simple, handles ~100K edges fine. |
+| **ETS** (Erlang/Elixir) | BEAM systems, hot-path reads | In-memory ordered_set tables with 3-way indexing. Sub-microsecond reads. | Lost on restart. Restore from SQLite/files on boot. |
+| **RocksDB** | Persistent graph, >100K edges | LSM-tree key-value store. Prefix scans as trie iterators. Empty values (key IS the triple). Dictionary encoding for compression. | C NIF dependency. Best for large knowledge bases that don't fit in memory. |
 | **Neo4j** | Large-scale graph analysis | Native graph DB. Cypher query language. | Powerful traversals. Requires JVM + server. |
 | **NetworkX** (Python) | Analysis + visualization | In-memory graph library. Export to Graphviz/D3. | Great for analysis. Not a persistent store. |
 | **Apache AGE** | Graph on Postgres | PostgreSQL extension adding Cypher support. | Reuse Postgres. Newer, less mature. |
+| **DuckDB** | Analytics on graph data | Embedded OLAP. Great for aggregate queries over edges. | Not a graph DB, but handles graph analytics well. |
 | **Filesystem** | Tiny workspaces | Markdown files with YAML frontmatter linking to each other. Backlinks as frontmatter arrays. | Zero infrastructure. No traversal queries. Works for <500 entities. |
+
+**Advanced graph techniques** (for engines that need them):
+- **Dictionary encoding** — Map RDF terms to 64-bit IDs with 4-bit type tags. Inline integers/dates in the low 60 bits to skip dictionary lookups entirely. Reduces storage and speeds up joins.
+- **Leapfrog Triejoin** — Worst-case optimal multi-way join for complex graph patterns with 4+ shared variables. Uses sorted iterators (prefix scans on RocksDB, sorted ETS tables) as tries.
+- **Cost-based query optimization** — Predicate histograms + cardinality estimation + DPccp join enumeration. Automatically reorder triple patterns for minimum intermediate result size.
+- **Semi-naive reasoning** — OWL 2 RL forward-chaining that only processes NEW triples each iteration. Delta computation avoids reprocessing the entire graph on small additions.
+- **TBox caching** — Cache schema hierarchies (class/property inheritance) in `:persistent_term` for zero-copy cross-process access.
+
+**Triple vs Quad store**: A triple store holds `(subject, predicate, object)`. A quad
+store adds a fourth element: `(graph, subject, predicate, object)` — this lets you
+isolate knowledge by workspace section, agent, or domain. Use 4 indices (GSPO/GPOS/SPOG/POSG)
+instead of 3. The MIOSA Knowledge engine supports both modes.
 
 **Recommendation**: **SQLite edges table** for most workspaces. Self-join queries
 handle triangle detection, cluster analysis, and hub identification up to ~100K edges.
-Move to Neo4j only if you need complex multi-hop traversals at scale.
+Add **RocksDB** for persistent graphs that don't fit in memory. Move to Neo4j only
+if you need complex multi-hop traversals at scale.
 
 ### Memory Store
 
@@ -135,17 +156,33 @@ at zero cost, with LLM quality for the hard 20%.
 
 | Provider | Models | Best For | Local? |
 |----------|--------|---------|--------|
-| **Ollama** | Llama 3, Mistral, Gemma, Phi, Qwen | Privacy, offline, no API costs | Yes |
-| **Anthropic** | Claude Opus, Sonnet, Haiku | Highest reasoning quality | No |
-| **OpenAI** | GPT-4o, GPT-4o-mini | Broad capability, fast | No |
-| **Google** | Gemini Pro, Flash | Multimodal (images, video) | No |
-| **Groq** | Llama 3, Mixtral | Fastest inference (cloud) | No |
+| **Ollama** | Llama 3.3, Mistral, Gemma 3, Phi-4, Qwen 3 | Privacy, offline, no API costs | Yes |
+| **Anthropic** | Claude Opus 4, Sonnet 4, Haiku 3.5 | Highest reasoning quality | No |
+| **OpenAI** | GPT-4.1, GPT-4o-mini, o3/o4-mini | Broad capability, reasoning models | No |
+| **Google** | Gemini 2.5 Pro/Flash, gemini-embedding-001 | Multimodal (images, video, audio), native embeddings | No |
+| **Groq** | Llama 3.3, Mixtral, DeepSeek | Fastest inference (cloud), free tier | No |
+| **DeepSeek** | DeepSeek-V3, DeepSeek-R1 | Cheap, strong reasoning, open-weight | No |
+| **xAI** | Grok 3, Grok 3 Mini | Fast, large context (131K), real-time data | No |
+| **Cerebras** | Llama 3.3, Qwen 3 | Ultra-fast inference (>2K tokens/sec) | No |
 | **Local GGUF** | Any quantized model via llama.cpp | Full control, no network | Yes |
+| **MLX** (Apple Silicon) | Any model via mlx-lm | Fast local inference on Mac, no GPU needed | Yes |
 
 **Recommendation**: **Ollama** for local workspaces (graceful degradation when offline).
-**Claude** for highest quality when API is available. The engine should support
-**multiple providers** — use cheap/fast models for classification and summarization,
-expensive/smart models for generation and analysis.
+**Claude** for highest quality when API is available. **Gemini** for multimodal workspaces
+(analyzing screenshots, images, video). The engine should support **multiple providers** —
+use cheap/fast models for classification and summarization, expensive/smart models for
+generation and analysis.
+
+**Model tiering pattern** (use different models for different engine functions):
+
+| Function | Cheap/Fast Model | Quality Model | Why |
+|----------|-----------------|---------------|-----|
+| Classification | Ollama/llama3, Haiku | — | Runs on every ingest. Must be cheap. |
+| Summarization | Ollama/llama3, Flash | — | High volume. L0/L1 generation. |
+| Embeddings | Ollama/nomic, Gemini | OpenAI text-3-large | Batch operation. Quality matters for search. |
+| Entity extraction | Ollama/llama3, Haiku | Sonnet | Moderate volume. Accuracy important. |
+| Generation | — | Opus, GPT-4.1, Gemini Pro | User-facing output. Quality is everything. |
+| Reasoning/Rethink | — | Opus, o3, DeepSeek-R1 | Complex synthesis. Worth the cost. |
 
 ---
 
