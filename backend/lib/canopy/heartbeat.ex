@@ -19,6 +19,7 @@ defmodule Canopy.Heartbeat do
   alias Canopy.Repo
   alias Canopy.Schemas.{Agent, Session, SessionEvent, Workspace, WorkProduct}
   import Ecto.Changeset, only: [change: 2]
+  import Ecto.Query, only: [from: 2]
 
   @doc """
   Run a heartbeat for the given agent.
@@ -57,14 +58,20 @@ defmodule Canopy.Heartbeat do
       })
 
       if issue_id do
-        case Repo.get(Canopy.Schemas.Issue, issue_id) do
-          nil ->
-            Logger.warning("[Heartbeat] Issue #{issue_id} not found, skipping checkout")
+        Repo.transaction(fn ->
+          case Repo.one(from i in Canopy.Schemas.Issue, where: i.id == ^issue_id, lock: "FOR UPDATE") do
+            nil ->
+              Logger.warning("[Heartbeat] Issue #{issue_id} not found, skipping checkout")
 
-          issue ->
-            issue |> change(status: "in_progress", checked_out_by: agent.id) |> Repo.update!()
-            Logger.info("[Heartbeat] Checked out issue #{issue_id} for agent #{agent.name}")
-        end
+            %{checked_out_by: existing} when not is_nil(existing) ->
+              Logger.warning("[Heartbeat] Issue #{issue_id} already checked out by #{existing}, skipping")
+              Repo.rollback(:already_checked_out)
+
+            issue ->
+              issue |> change(status: "in_progress", checked_out_by: agent.id) |> Repo.update!()
+              Logger.info("[Heartbeat] Checked out issue #{issue_id} for agent #{agent.name}")
+          end
+        end)
       end
 
       workspace = resolve_workspace(agent)
@@ -97,14 +104,16 @@ defmodule Canopy.Heartbeat do
             agent |> change(status: "error") |> Repo.update!()
 
             if issue_id do
-              case Repo.get(Canopy.Schemas.Issue, issue_id) do
-                nil ->
-                  :ok
+              Repo.transaction(fn ->
+                case Repo.one(from i in Canopy.Schemas.Issue, where: i.id == ^issue_id, lock: "FOR UPDATE") do
+                  nil ->
+                    :ok
 
-                issue ->
-                  issue |> change(status: "backlog", checked_out_by: nil) |> Repo.update!()
-                  Logger.info("[Heartbeat] Rolled back issue #{issue_id} to backlog after failure")
-              end
+                  issue ->
+                    issue |> change(status: "backlog", checked_out_by: nil) |> Repo.update!()
+                    Logger.info("[Heartbeat] Rolled back issue #{issue_id} to backlog after failure")
+                end
+              end)
             end
 
             broadcast_workspace(agent, %{event: "run.failed", agent_id: agent.id, session_id: session.id, error: Exception.message(e)})
@@ -253,10 +262,15 @@ defmodule Canopy.Heartbeat do
           }
         )
 
-        tokens = event[:tokens] || 0
-        cost = estimate_cost(tokens, agent.model)
+        # Adapters emit tokens_input and tokens_output (or legacy :tokens)
+        input_tokens = event[:tokens_input] || event[:tokens] || 0
+        output_tokens = event[:tokens_output] || 0
 
-        %{acc | input: acc.input + tokens, cost: acc.cost + cost}
+        new_input = acc.input + input_tokens
+        new_output = acc.output + output_tokens
+        cost = estimate_cost(new_input, new_output, agent.model)
+
+        %{acc | input: new_input, output: new_output, cost: cost}
       end)
     rescue
       e ->
@@ -277,7 +291,7 @@ defmodule Canopy.Heartbeat do
       session_id: session.id,
       event_type: event.event_type,
       data: event.data,
-      tokens: event[:tokens] || 0,
+      tokens: (event[:tokens_input] || event[:tokens] || 0) + (event[:tokens_output] || 0),
       inserted_at: now
     })
     |> Repo.insert!()
@@ -287,18 +301,26 @@ defmodule Canopy.Heartbeat do
     Canopy.EventBus.broadcast(Canopy.EventBus.workspace_topic(agent.workspace_id), payload)
   end
 
-  # Rough cost estimation in cents per 1K tokens.
-  # Input/output are billed differently in practice; this uses a blended rate
-  # for simplicity. Adjust when per-direction token counts are available.
-  defp estimate_cost(tokens, model) do
-    rate =
-      case model do
-        m when m in ["claude-opus-4-6", "claude-opus-4-20250514"] -> 1.5
-        m when m in ["claude-sonnet-4-6", "claude-sonnet-4-20250514"] -> 0.3
-        m when m in ["claude-haiku-4-5", "claude-haiku-4-5-20251001"] -> 0.08
-        _ -> 0.3
-      end
+  # Cost estimation in cents using per-direction pricing.
+  # Rates are cents per 1K tokens based on Anthropic API pricing (March 2026).
+  # Returns a float — caller stores as integer cents after final accumulation.
+  defp estimate_cost(input_tokens, output_tokens, model) do
+    {input_rate, output_rate} = model_rates(model)
 
-    round(tokens / 1000 * rate)
+    input_cost = input_tokens / 1000 * input_rate
+    output_cost = output_tokens / 1000 * output_rate
+
+    # Use ceil to avoid rounding small sessions to $0
+    ceil(input_cost + output_cost)
+  end
+
+  # Rates in cents per 1K tokens: {input, output}
+  defp model_rates(model) do
+    case model do
+      m when m in ["claude-opus-4-6", "claude-opus-4-20250514"] -> {1.5, 7.5}
+      m when m in ["claude-sonnet-4-6", "claude-sonnet-4-20250514"] -> {0.3, 1.5}
+      m when m in ["claude-haiku-4-5", "claude-haiku-4-5-20251001"] -> {0.08, 0.4}
+      _ -> {0.3, 1.5}
+    end
   end
 end

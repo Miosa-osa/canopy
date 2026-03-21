@@ -36,8 +36,8 @@
       try {
         const wsList = await workspaces.list();
         if (wsList.length > 0) {
-          // Check if any workspace has agents
-          const agentList = await agents.list();
+          // Check if any workspace has agents (scoped to first workspace)
+          const agentList = await agents.list(wsList[0].id);
           if (agentList.length > 0) {
             localStorage.setItem('canopy-onboarding-complete', 'true');
             localStorage.setItem(

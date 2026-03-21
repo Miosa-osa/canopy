@@ -75,7 +75,7 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
         try {
           const wsList = await workspaces.list();
           if (wsList.length > 0) {
-            const agentList = await agents.list();
+            const agentList = await agents.list(wsList[0].id);
             if (agentList.length > 0) {
               localStorage.setItem('canopy-onboarding-complete', 'true');
               localStorage.setItem(
@@ -174,15 +174,6 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   const user = $derived(userName ? { name: userName, email: '' } : null);
 </script>
 
-<!-- Tauri drag region -->
-{#if isTauri() && isMacOS()}
-  <div
-    class="tauri-drag"
-    data-tauri-drag-region
-    aria-hidden="true"
-  ></div>
-{/if}
-
 <!-- App shell with sidebar + main content -->
 <div class="app-shell" class:has-titlebar={isTauri() && isMacOS()}>
   <Sidebar bind:isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} {user} />
@@ -198,16 +189,6 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
 <ActivityWidget />
 
 <style>
-  .tauri-drag {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 28px;
-    z-index: 99999;
-    -webkit-app-region: drag;
-    app-region: drag;
-  }
   .app-shell {
     height: 100dvh; width: 100vw; display: flex; overflow: hidden;
     background: var(--bg-primary); position: relative;

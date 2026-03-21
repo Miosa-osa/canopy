@@ -92,10 +92,13 @@ defmodule Canopy.Adapters.ClaudeCode do
 
             adapter_events =
               Enum.map(events, fn event ->
+                {input, output} = extract_usage(event)
+
                 %{
                   event_type: map_claude_event_type(event),
                   data: event,
-                  tokens: get_in(event, ["usage", "input_tokens"]) || 0
+                  tokens_input: input,
+                  tokens_output: output
                 }
               end)
 
@@ -134,6 +137,17 @@ defmodule Canopy.Adapters.ClaudeCode do
 
     {events, last}
   end
+
+  # Extract token usage from Claude stream-json events.
+  # The "result" event contains the final summary with all token counts.
+  # Intermediate events may have partial usage in their "usage" field.
+  defp extract_usage(%{"usage" => usage}) when is_map(usage) do
+    input = (usage["input_tokens"] || 0) + (usage["cache_read_input_tokens"] || 0) + (usage["cache_creation_input_tokens"] || 0)
+    output = usage["output_tokens"] || 0
+    {input, output}
+  end
+
+  defp extract_usage(_event), do: {0, 0}
 
   defp map_claude_event_type(%{"type" => "assistant"}), do: "run.output"
   defp map_claude_event_type(%{"type" => "tool_use"}), do: "run.tool_call"

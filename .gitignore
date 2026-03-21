@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+desktop/build/
+desktop/.svelte-kit/
+desktop/src-tauri/target/
+backend/_build/
+backend/deps/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Tauri
+desktop/src-tauri/gen/schemas/
+
+# Elixir
+*.ez
+*.beam
+backend/erl_crash.dump
+
+# Duplicate artifacts (macOS Finder)
+*\ 2
+*\ 2.*
+
+# Superset
+.superset/

@@ -122,7 +122,7 @@ class WorkspaceStore {
     this.#persist();
   }
 
-  /** Set active workspace and reload all workspace-scoped data */
+  /** Set active workspace — page $effects are the single source of data refresh */
   async setActiveWorkspace(id: string): Promise<void> {
     this.activeWorkspaceId = id;
     this.#persist();
@@ -141,47 +141,14 @@ class WorkspaceStore {
     const { clearCache } = await import("$api/client");
     clearCache();
 
-    // 3. Try Tauri filesystem scan first (desktop app only)
+    // 3. Try Tauri filesystem scan first (desktop app only).
+    //    NOTE: Store fetches are intentionally omitted here. Each page component
+    //    has a $effect watching activeWorkspaceId that triggers the appropriate
+    //    fetch. Calling fetches here as well would cause a double-fetch on every
+    //    workspace switch.
     const ws = this.workspaces.find((w) => w.id === id);
     if (ws) {
       await this.scanAndLoadAgents(ws.path);
-    }
-
-    // 4. Re-fetch all workspace-scoped stores in parallel.
-    //    The previous code only fetched agents when agents.length === 0, so
-    //    switching workspaces when agents were already loaded was a no-op.
-    //    Now every store always reloads its data for the newly active workspace.
-    const [
-      { agentsStore },
-      { sessionsStore },
-      { schedulesStore },
-      { issuesStore },
-      { projectsStore },
-      { dashboardStore },
-    ] = await Promise.all([
-      import("./agents.svelte"),
-      import("./sessions.svelte"),
-      import("./schedules.svelte"),
-      import("./issues.svelte"),
-      import("./projects.svelte"),
-      import("./dashboard.svelte"),
-    ]);
-
-    await Promise.all([
-      agentsStore.fetchAgents(id),
-      sessionsStore.fetch(id),
-      schedulesStore.fetchSchedules(id),
-      issuesStore.fetchIssues(id),
-      projectsStore.fetchProjects(id),
-      dashboardStore.fetch(),
-    ]);
-
-    // 5. Clear project-scoped goals — they belong to the old project context
-    const { goalsStore } = await import("./goals.svelte");
-    if (projectsStore.selected) {
-      await goalsStore.fetchGoals(projectsStore.selected.id);
-    } else {
-      goalsStore.setActiveProject("");
     }
   }
 
@@ -266,39 +233,7 @@ class WorkspaceStore {
       this.activeWorkspaceId = this.workspaces[0]?.id ?? null;
     }
     this.#persist();
-
-    // Reload all workspace-scoped stores for the new active workspace, or
-    // clear them if there is no workspace left.
-    const [
-      { agentsStore },
-      { sessionsStore },
-      { schedulesStore },
-      { issuesStore },
-      { projectsStore },
-    ] = await Promise.all([
-      import("./agents.svelte"),
-      import("./sessions.svelte"),
-      import("./schedules.svelte"),
-      import("./issues.svelte"),
-      import("./projects.svelte"),
-    ]);
-
-    if (this.activeWorkspaceId) {
-      await Promise.all([
-        agentsStore.fetchAgents(this.activeWorkspaceId),
-        sessionsStore.fetch(this.activeWorkspaceId),
-        schedulesStore.fetchSchedules(this.activeWorkspaceId),
-        issuesStore.fetchIssues(this.activeWorkspaceId),
-        projectsStore.fetchProjects(this.activeWorkspaceId),
-      ]);
-    } else {
-      agentsStore.agents = [];
-      sessionsStore.sessions = [];
-      schedulesStore.schedules = [];
-      issuesStore.issues = [];
-      projectsStore.projects = [];
-      projectsStore.selected = null;
-    }
+    // Page $effects watching activeWorkspaceId handle data refresh.
   }
 
   /** Sync workspaces from the backend and set the active one */
