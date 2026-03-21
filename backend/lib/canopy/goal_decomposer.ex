@@ -86,7 +86,7 @@ defmodule Canopy.GoalDecomposer do
   end
 
   defp run_claude_prompt(prompt, cwd) do
-    claude_path = find_claude_binary()
+    claude_path = Canopy.ClaudeBinary.find()
 
     case System.cmd(
            claude_path,
@@ -100,26 +100,6 @@ defmodule Canopy.GoalDecomposer do
       {output, code} ->
         Logger.error("[GoalDecomposer] Claude exited #{code}: #{String.slice(output, 0, 200)}")
         {:error, {:claude_failed, code}}
-    end
-  end
-
-  defp find_claude_binary do
-    case System.find_executable("claude") do
-      nil ->
-        home = System.get_env("HOME") || "/Users/symac"
-
-        known_paths = [
-          Path.join([home, ".superset", "bin", "claude"]),
-          Path.join([home, ".nvm", "versions", "node", "current", "bin", "claude"]),
-          Path.join([home, ".local", "bin", "claude"]),
-          "/usr/local/bin/claude",
-          "/opt/homebrew/bin/claude"
-        ]
-
-        Enum.find(known_paths, "/usr/local/bin/claude", &File.exists?/1)
-
-      path ->
-        path
     end
   end
 

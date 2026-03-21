@@ -90,14 +90,14 @@ defmodule Canopy.IssueDispatcher do
   # ── Private ───────────────────────────────────────────────────────────────────
 
   defp do_dispatch(issue_id, agent_id) do
-    with %Issue{} = issue <- Repo.get(Issue, issue_id) |> Repo.preload([:goal]),
-         %Agent{} = agent <- Repo.get(Agent, agent_id),
+    with %Issue{} = issue <- Repo.get(Issue, issue_id) |> Repo.preload([:workspace, goal: :project]),
+         %Agent{} = agent <- Repo.get(Agent, agent_id) |> Repo.preload(:workspace),
          :ok <- validate_agent(agent),
          :ok <- validate_issue(issue) do
-      context = build_context(issue, agent)
+      context = Canopy.IssueContext.build_context(issue, agent)
 
       Task.Supervisor.start_child(Canopy.HeartbeatRunner, fn ->
-        Canopy.Heartbeat.run(agent_id, context: context)
+        Canopy.Heartbeat.run(agent_id, context: context, issue_id: issue_id)
       end)
 
       Logger.info("[IssueDispatcher] Dispatched agent #{agent.name} for issue: #{issue.title}")
@@ -118,30 +118,4 @@ defmodule Canopy.IssueDispatcher do
   defp validate_issue(%Issue{checked_out_by: nil}), do: :ok
   defp validate_issue(%Issue{}), do: {:error, :already_checked_out}
 
-  # Builds a plain-text context string passed to Heartbeat as the `:context` opt.
-  # Incorporates issue title, description, priority, status, and the linked goal
-  # when present.
-  defp build_context(%Issue{} = issue, %Agent{} = _agent) do
-    goal_section =
-      case issue.goal do
-        %{title: title, description: desc} when is_binary(title) ->
-          goal_desc = if is_binary(desc) and desc != "", do: "\nGoal description: #{desc}", else: ""
-          "\n\nGoal: #{title}#{goal_desc}"
-
-        _ ->
-          ""
-      end
-
-    """
-    You have been assigned the following issue.
-
-    Title: #{issue.title}
-    Priority: #{issue.priority}
-    Status: #{issue.status}
-    #{if issue.description && issue.description != "", do: "Description: #{issue.description}", else: ""}#{goal_section}
-
-    Please work on this issue and complete it to the best of your ability.
-    """
-    |> String.trim()
-  end
 end

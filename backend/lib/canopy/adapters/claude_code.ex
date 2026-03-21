@@ -64,7 +64,7 @@ defmodule Canopy.Adapters.ClaudeCode do
       fn ->
         port =
           Port.open(
-            {:spawn_executable, find_claude_binary()},
+            {:spawn_executable, Canopy.ClaudeBinary.find()},
             [
               :binary,
               :exit_status,
@@ -116,27 +116,6 @@ defmodule Canopy.Adapters.ClaudeCode do
         end
       end
     )
-  end
-
-  defp find_claude_binary do
-    # Try multiple known paths since Erlang's PATH may differ from shell
-    case System.find_executable("claude") do
-      nil ->
-        home = System.get_env("HOME") || "/Users/symac"
-
-        known_paths = [
-          Path.join([home, ".superset", "bin", "claude"]),
-          Path.join([home, ".nvm", "versions", "node", "current", "bin", "claude"]),
-          Path.join([home, ".local", "bin", "claude"]),
-          "/usr/local/bin/claude",
-          "/opt/homebrew/bin/claude"
-        ]
-
-        Enum.find(known_paths, "/usr/local/bin/claude", &File.exists?/1)
-
-      path ->
-        path
-    end
   end
 
   defp parse_stream_json(buffer) do

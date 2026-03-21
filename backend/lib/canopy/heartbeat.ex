@@ -214,7 +214,7 @@ defmodule Canopy.Heartbeat do
     workspace_path =
       case Repo.get(Workspace, agent.workspace_id) do
         %Workspace{path: path} when is_binary(path) and path != "" -> path
-        _ -> "."
+        _ -> raise "No workspace path found for agent #{agent.id} (workspace_id: #{inspect(agent.workspace_id)}). Cannot execute without a valid workspace."
       end
 
     Logger.info("[Heartbeat] Resolved workspace path: #{workspace_path} for agent #{agent.id}")

@@ -171,8 +171,20 @@ defmodule CanopyWeb.IssueController do
       {:ok, :dispatched} ->
         json(conn, %{ok: true, message: "Agent dispatched"})
 
-      {:error, reason} ->
-        conn |> put_status(422) |> json(%{error: inspect(reason)})
+      {:error, :not_found} ->
+        conn |> put_status(404) |> json(%{error: "Issue not found"})
+
+      {:error, :not_assigned} ->
+        conn |> put_status(422) |> json(%{error: "Issue is not assigned to an agent"})
+
+      {:error, :already_checked_out} ->
+        conn |> put_status(409) |> json(%{error: "Issue is already being worked on"})
+
+      {:error, {:agent_not_ready, _}} ->
+        conn |> put_status(422) |> json(%{error: "Assigned agent is not ready"})
+
+      {:error, _reason} ->
+        conn |> put_status(422) |> json(%{error: "Dispatch failed"})
     end
   end
 

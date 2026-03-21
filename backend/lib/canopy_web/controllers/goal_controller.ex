@@ -100,8 +100,14 @@ defmodule CanopyWeb.GoalController do
   end
 
   def decompose(conn, %{"goal_id" => goal_id} = params) do
+    max_issues =
+      case Integer.parse(params["max_issues"] || "10") do
+        {n, ""} when n in 1..50 -> n
+        _ -> 10
+      end
+
     opts = [
-      max_issues: String.to_integer(params["max_issues"] || "10"),
+      max_issues: max_issues,
       auto_assign: params["auto_assign"] != "false"
     ]
 
@@ -112,7 +118,7 @@ defmodule CanopyWeb.GoalController do
         |> json(%{issues: Enum.map(issues, &serialize/1), count: length(issues)})
 
       {:error, reason} ->
-        conn |> put_status(422) |> json(%{error: inspect(reason)})
+        conn |> put_status(422) |> json(%{error: humanize_error(reason)})
     end
   end
 
@@ -160,6 +166,12 @@ defmodule CanopyWeb.GoalController do
       updated_at: i.updated_at
     }
   end
+
+  defp humanize_error(reason) when is_binary(reason), do: reason
+  defp humanize_error(:not_found), do: "Goal not found"
+  defp humanize_error(:no_workspace), do: "Goal has no workspace"
+  defp humanize_error(:decompose_failed), do: "Decomposition failed"
+  defp humanize_error(_reason), do: "An error occurred"
 
   defp format_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
