@@ -1,6 +1,5 @@
 <!-- src/routes/app/agents/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import AgentRosterHeader from '$lib/components/agents/AgentRosterHeader.svelte';
   import AgentCard from '$lib/components/agents/AgentCard.svelte';
@@ -8,9 +7,12 @@
   import HireAgentDialog from '$lib/components/agents/HireAgentDialog.svelte';
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
-  onMount(() => {
-    void agentsStore.fetchAgents();
+  // Re-fetch whenever the active workspace changes (including after backend sync)
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void agentsStore.fetchAgents(wsId);
   });
 
   let showHireDialog = $state(false);

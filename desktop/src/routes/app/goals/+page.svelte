@@ -1,22 +1,26 @@
 <!-- src/routes/app/goals/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { Goal } from '$api/types';
 
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import GoalHierarchy from '$lib/components/goals/GoalHierarchy.svelte';
   import GoalForm from '$lib/components/goals/GoalForm.svelte';
   import { goalsStore } from '$lib/stores/goals.svelte';
-  import { workspaceStore } from '$lib/stores/workspace.svelte';
+  import { projectsStore } from '$lib/stores/projects.svelte';
 
   let showForm = $state(false);
 
-  // Use first available project as context
-  let activeProjectId = $derived(workspaceStore.workspaces[0]?.id ?? 'default');
+  // Derive the active project ID from the selected project, not from workspaces
+  let activeProjectId = $derived(projectsStore.selected?.id ?? null);
 
-  onMount(async () => {
+  // Re-fetch goals whenever the active project changes.
+  // This covers initial mount, workspace switches (which reset projectsStore.selected
+  // via workspaceStore.setActiveWorkspace), and in-page project selection changes.
+  $effect(() => {
     if (activeProjectId) {
-      await goalsStore.fetchGoals(activeProjectId);
+      void goalsStore.fetchGoals(activeProjectId);
+    } else {
+      goalsStore.setActiveProject('');
     }
   });
 

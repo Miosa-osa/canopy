@@ -3,11 +3,7 @@
 // falls back to empty state gracefully (endpoint is optional on the backend).
 
 import type { Document, DocumentTreeNode } from "$api/types";
-
-const BASE_URL =
-  typeof window !== "undefined"
-    ? (import.meta.env.VITE_API_URL ?? "http://127.0.0.1:9089")
-    : "";
+import { documents as documentsApi } from "$api/client";
 
 class DocumentsStore {
   documents = $state<Document[]>([]);
@@ -19,24 +15,13 @@ class DocumentsStore {
   async fetchDocuments(): Promise<void> {
     this.loading = true;
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/documents`, {
-        headers: { Accept: "application/json" },
-      });
-      if (res.ok) {
-        const data = (await res.json()) as {
-          documents?: Document[];
-          tree?: DocumentTreeNode[];
-        };
-        this.documents = data.documents ?? [];
-        this.tree = data.tree ?? [];
-      } else {
-        // Non-fatal: endpoint not yet available on the backend
-        this.documents = [];
-        this.tree = [];
-      }
+      const data = await documentsApi.list();
+      this.documents = data.documents;
+      this.tree = data.tree;
       this.error = null;
     } catch {
-      // Network unavailable — stay empty silently
+      // Non-fatal: endpoint may not yet be available on the backend.
+      // Stay empty silently.
       this.documents = [];
       this.tree = [];
       this.error = null;

@@ -14,27 +14,16 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
   import ActivityWidget from '$lib/components/activity/ActivityWidget.svelte';
   import { activityStore } from '$lib/stores/activity.svelte';
+  import { isTauri, isMacOS } from '$lib/utils/platform';
+  import { initializeAuth, getToken, isMockEnabled, workspaces, agents } from '$api/client';
 
   let { children } = $props();
 
   // ─── Onboarding guard ────────────────────────────────────────────────────
-  onMount(() => {
-    const raw = localStorage.getItem('canopy-onboarding');
-    const completed = raw ? (JSON.parse(raw) as { completed?: boolean }).completed : false;
-    if (!completed) {
-      // Fall back to legacy key
-      const legacy = localStorage.getItem('canopy-onboarding-complete');
-      if (legacy !== 'true') {
-        goto('/onboarding');
-        return;
-      }
-    }
-    const savedName = localStorage.getItem('canopy-display-name');
-    if (savedName) {
-      // Available for use by child components if needed
-      void savedName;
-    }
-  });
+  // NOTE: This guard runs inside initializeAuth().then() (see the second
+  // onMount below) so that _token is already set before we check it.
+  // A separate early-mount guard here would fire before auth resolves and
+  // always see an empty token, causing spurious redirects to /onboarding.
 
   // Initialize theme
   $effect(() => { void themeStore.resolved; });
@@ -56,28 +45,105 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   const NAV_ROUTES = ['/app', '/app/inbox', '/app/office'];
 
   onMount(() => {
-    // Load workspaces from localStorage, then scan active + start watcher
-    workspaceStore.fetchWorkspaces();
+    // Capture stopPolling in outer scope so the cleanup return can call it.
+    let stopPolling: (() => void) | null = null;
 
-    // If we have an active workspace, scan it for agents; otherwise fall back to API
-    const ws = workspaceStore.activeWorkspace;
-    if (ws) {
-      workspaceStore.scanAndLoadAgents(ws.path).then(() => {
-        workspaceStore.watchActive();
-      });
-    } else {
-      void agentsStore.fetchAgents();
-    }
+    // 1. Run auth initialization first: probes backend, disables mock if reachable,
+    //    auto-logs in with dev credentials if set, then loads everything else.
+    //
+    //    IMPORTANT: connection polling and all data fetching must start AFTER
+    //    initializeAuth() resolves. Starting polling before auth completes causes
+    //    connectionStore.check() → health.get() to set useMock=false while _token
+    //    is still null, so every subsequent API request fires without an
+    //    Authorization header and receives 401 "unauthorized".
+    initializeAuth().then(async () => {
+      // ── Onboarding guard (runs after auth resolves) ───────────────────────
+      // If the backend is reachable and the user has a valid token, they
+      // already have a running setup — skip onboarding entirely.
+      let onboardingDone = false;
+
+      if (!isMockEnabled() && getToken()) {
+        // Valid authenticated session → treat as fully onboarded.
+        localStorage.setItem('canopy-onboarding-complete', 'true');
+        localStorage.setItem(
+          'canopy-onboarding',
+          JSON.stringify({ completed: true }),
+        );
+        onboardingDone = true;
+      } else if (!isMockEnabled()) {
+        // Backend reachable but no token yet — check for existing data.
+        try {
+          const wsList = await workspaces.list();
+          if (wsList.length > 0) {
+            const agentList = await agents.list();
+            if (agentList.length > 0) {
+              localStorage.setItem('canopy-onboarding-complete', 'true');
+              localStorage.setItem(
+                'canopy-onboarding',
+                JSON.stringify({ completed: true }),
+              );
+              onboardingDone = true;
+            }
+          }
+        } catch {
+          // Non-fatal: fall through to localStorage check
+        }
+      }
+
+      if (!onboardingDone) {
+        // Offline / mock mode — honour localStorage flags.
+        const raw = localStorage.getItem('canopy-onboarding');
+        const completed = raw
+          ? (JSON.parse(raw) as { completed?: boolean }).completed
+          : false;
+        if (!completed) {
+          const legacy = localStorage.getItem('canopy-onboarding-complete');
+          if (legacy !== 'true') {
+            goto('/onboarding');
+            return;
+          }
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      // 2. Start connection polling now that _token is set (or mock is active).
+      //    Do NOT start polling before auth resolves: health.get() bypasses
+      //    request() and can flip useMock=false while _token is still null.
+      stopPolling = connectionStore.startPolling(30_000);
+
+      // 3. Subscribe to the activity SSE stream after auth so the token is
+      //    available when the Authorization header is attached.
+      activityStore.subscribe();
+
+      // 4. Load workspaces from localStorage
+      workspaceStore.fetchWorkspaces();
+
+      // 5. Sync workspace list from backend (sets activeWorkspaceId to backend's active workspace)
+      await workspaceStore.syncFromBackend();
+
+      // 6. Load agents: try Tauri filesystem scan first, fall back to API/mock
+      const ws = workspaceStore.activeWorkspace;
+      const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+      if (ws) {
+        workspaceStore.scanAndLoadAgents(ws.path).then(() => {
+          workspaceStore.watchActive();
+          // If scan didn't load any agents (browser mode / empty scan), fall back to API
+          if (agentsStore.agents.length === 0) {
+            void agentsStore.fetchAgents(wsId);
+          }
+        });
+      } else {
+        void agentsStore.fetchAgents(wsId);
+      }
+    });
 
     // Load adapter choice and miosaCloud setting from Tauri secure store
     // (written during onboarding; no-op in browser dev mode)
     void settingsStore.loadFromTauriStore();
 
-    const stopPolling = connectionStore.startPolling(30_000);
-    activityStore.subscribe();
     paletteStore.registerBuiltins(goto, {});
     return () => {
-      stopPolling();
+      stopPolling?.();
       activityStore.unsubscribe();
     };
   });
@@ -108,8 +174,17 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   const user = $derived(userName ? { name: userName, email: '' } : null);
 </script>
 
+<!-- Tauri drag region -->
+{#if isTauri() && isMacOS()}
+  <div
+    class="tauri-drag"
+    data-tauri-drag-region
+    aria-hidden="true"
+  ></div>
+{/if}
+
 <!-- App shell with sidebar + main content -->
-<div class="app-shell">
+<div class="app-shell" class:has-titlebar={isTauri() && isMacOS()}>
   <Sidebar bind:isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} {user} />
   <main class="main-content" id="main-content">
     {@render children()}
@@ -123,10 +198,24 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
 <ActivityWidget />
 
 <style>
+  .tauri-drag {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    z-index: 99999;
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
   .app-shell {
     height: 100dvh; width: 100vw; display: flex; overflow: hidden;
     background: var(--bg-primary); position: relative;
     background-image: radial-gradient(ellipse at 20% 0%, rgba(255,255,255,0.015) 0%, transparent 60%);
+  }
+  .app-shell.has-titlebar {
+    padding-top: 28px;
+    height: calc(100dvh - 28px);
   }
   .main-content {
     flex: 1; height: 100%; display: flex; flex-direction: column;

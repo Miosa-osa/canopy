@@ -660,6 +660,7 @@ export interface Workspace {
   name: string;
   description: string | null;
   directory: string;
+  path?: string;
   agent_count: number;
   project_count: number;
   skill_count: number;

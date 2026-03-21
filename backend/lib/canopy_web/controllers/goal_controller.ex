@@ -99,6 +99,23 @@ defmodule CanopyWeb.GoalController do
     end
   end
 
+  def decompose(conn, %{"goal_id" => goal_id} = params) do
+    opts = [
+      max_issues: String.to_integer(params["max_issues"] || "10"),
+      auto_assign: params["auto_assign"] != "false"
+    ]
+
+    case Canopy.GoalDecomposer.decompose(goal_id, opts) do
+      {:ok, issues} ->
+        conn
+        |> put_status(201)
+        |> json(%{issues: Enum.map(issues, &serialize/1), count: length(issues)})
+
+      {:error, reason} ->
+        conn |> put_status(422) |> json(%{error: inspect(reason)})
+    end
+  end
+
   # --- Private helpers ---
 
   defp build_ancestry(%Goal{parent_id: nil} = goal, acc) do
@@ -123,6 +140,24 @@ defmodule CanopyWeb.GoalController do
       parent_id: g.parent_id,
       inserted_at: g.inserted_at,
       updated_at: g.updated_at
+    }
+  end
+
+  # decompose/2 returns Issue structs; provide a matching clause so the response
+  # serializes correctly instead of raising a FunctionClauseError.
+  defp serialize(%Issue{} = i) do
+    %{
+      id: i.id,
+      title: i.title,
+      description: i.description,
+      status: i.status,
+      priority: i.priority,
+      workspace_id: i.workspace_id,
+      project_id: i.project_id,
+      goal_id: i.goal_id,
+      assignee_id: i.assignee_id,
+      inserted_at: i.inserted_at,
+      updated_at: i.updated_at
     }
   end
 

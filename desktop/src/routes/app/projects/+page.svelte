@@ -1,12 +1,14 @@
 <!-- src/routes/app/projects/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import { projectsStore } from '$lib/stores/projects.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
   import type { ProjectStatus } from '$api/types';
 
-  onMount(() => {
-    void projectsStore.fetchProjects();
+  // Re-fetch whenever the active workspace changes (covers onMount + workspace switches)
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void projectsStore.fetchProjects(wsId);
   });
 
   // Status filter options
@@ -93,7 +95,7 @@
   {:else if projectsStore.error && projectsStore.projects.length === 0}
     <div class="proj-error" role="alert">
       <p>Failed to load projects: {projectsStore.error}</p>
-      <button onclick={() => void projectsStore.fetchProjects()}>Retry</button>
+      <button onclick={() => void projectsStore.fetchProjects(workspaceStore.activeWorkspaceId ?? undefined)}>Retry</button>
     </div>
   {:else if projectsStore.filteredProjects.length === 0}
     <div class="proj-empty" role="status">

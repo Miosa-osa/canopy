@@ -235,10 +235,76 @@ const AGENTS: CanopyAgent[] = [
   },
 ];
 
-export function mockAgents(): CanopyAgent[] {
+// ── Workspace-scoped agent storage ──────────────────────────────────────────
+// Deployed templates persist here so agents survive app restarts & HMR reloads.
+// Uses localStorage as backing store, in-memory Map as read cache.
+
+const STORAGE_KEY = "canopy-workspace-agents";
+
+function loadFromStorage(): Map<string, CanopyAgent[]> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return new Map();
+    const entries = JSON.parse(raw) as Array<[string, CanopyAgent[]]>;
+    return new Map(entries);
+  } catch {
+    return new Map();
+  }
+}
+
+function saveToStorage(map: Map<string, CanopyAgent[]>): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...map.entries()]));
+  } catch {
+    // Storage full or unavailable — in-memory still works
+  }
+}
+
+// Hydrate from localStorage on module load
+const workspaceAgents: Map<string, CanopyAgent[]> = loadFromStorage();
+
+export function setMockWorkspaceAgents(
+  workspaceId: string,
+  agents: CanopyAgent[],
+): void {
+  workspaceAgents.set(workspaceId, agents);
+  saveToStorage(workspaceAgents);
+}
+
+export function getMockWorkspaceAgents(
+  workspaceId: string,
+): CanopyAgent[] | undefined {
+  return workspaceAgents.get(workspaceId);
+}
+
+export function clearMockWorkspaceAgents(workspaceId: string): void {
+  workspaceAgents.delete(workspaceId);
+  saveToStorage(workspaceAgents);
+}
+
+/**
+ * Flush every workspace's agents from both the in-memory map and localStorage.
+ * Call this when the real backend is confirmed reachable so that no mock
+ * agent data leaks into live workspace views.
+ */
+export function clearAllMockWorkspaceAgents(): void {
+  workspaceAgents.clear();
+  saveToStorage(workspaceAgents);
+}
+
+export function mockAgents(workspaceId?: string): CanopyAgent[] {
+  // When a workspace is specified, return only its agents (empty if none deployed)
+  if (workspaceId) {
+    return workspaceAgents.get(workspaceId) ?? [];
+  }
+  // No workspace context — return default dev agents
   return AGENTS;
 }
 
-export function mockAgentById(id: string): CanopyAgent | undefined {
-  return AGENTS.find((a) => a.id === id);
+export function mockAgentById(
+  id: string,
+  workspaceId?: string,
+): CanopyAgent | undefined {
+  const pool = mockAgents(workspaceId);
+  return pool.find((a) => a.id === id);
 }

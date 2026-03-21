@@ -14,20 +14,17 @@ defmodule CanopyWeb.SpawnController do
       agent_id: agent_id,
       model: model,
       status: "active",
-      started_at: DateTime.utc_now()
+      started_at: DateTime.utc_now() |> DateTime.truncate(:second)
     }
 
     changeset = Session.changeset(%Session{}, session_params)
 
     case Repo.insert(changeset) do
       {:ok, session} ->
-        Canopy.EventBus.broadcast(
-          Canopy.EventBus.agent_topic(agent_id),
-          %{event: "run.started", session_id: session.id, context: context}
-        )
-
+        # Pass the pre-created session_id so Heartbeat.run/2 reuses this row
+        # instead of inserting a second one.
         Task.Supervisor.start_child(Canopy.HeartbeatRunner, fn ->
-          Canopy.Heartbeat.run(agent_id, context: context)
+          Canopy.Heartbeat.run(agent_id, context: context, session_id: session.id)
         end)
 
         conn
@@ -65,7 +62,7 @@ defmodule CanopyWeb.SpawnController do
       session ->
         {:ok, _} =
           session
-          |> Ecto.Changeset.change(status: "cancelled", completed_at: DateTime.utc_now())
+          |> Ecto.Changeset.change(status: "cancelled", completed_at: DateTime.utc_now() |> DateTime.truncate(:second))
           |> Repo.update()
 
         json(conn, %{ok: true})

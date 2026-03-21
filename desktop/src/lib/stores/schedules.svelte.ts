@@ -94,10 +94,10 @@ class SchedulesStore {
   enabledCount = $derived(this.schedules.filter((s) => s.enabled).length);
   totalCount = $derived(this.schedules.length);
 
-  async fetchSchedules(): Promise<void> {
+  async fetchSchedules(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.schedules = await schedulesApi.list();
+      this.schedules = await schedulesApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

@@ -133,11 +133,11 @@ class SessionsStore {
 
   // ── List operations ────────────────────────────────────────────────────────
 
-  async fetch(): Promise<void> {
+  async fetch(workspaceId?: string): Promise<void> {
     this.loading = true;
     this.error = null;
     try {
-      this.sessions = await sessionsApi.list();
+      this.sessions = await sessionsApi.list(workspaceId);
     } catch (e) {
       const msg = (e as Error).message;
       this.error = msg;

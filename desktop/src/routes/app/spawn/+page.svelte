@@ -9,6 +9,7 @@
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
   import { spawnStore } from '$lib/stores/spawn.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
   let formRef: SpawnForm | undefined = $state();
 
@@ -24,8 +25,13 @@
     await spawnStore.createSpawn(data);
   }
 
+  // Re-fetch agents whenever the active workspace changes (covers onMount + workspace switches)
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void agentsStore.fetchAgents(wsId);
+  });
+
   onMount(() => {
-    agentsStore.fetchAgents();
     return spawnStore.startPolling(5_000);
   });
 </script>

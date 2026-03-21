@@ -57,15 +57,28 @@
           {#if ws.path}
             <div class="ws-path">{ws.path}</div>
           {/if}
-          {#if !isActive}
+          <div class="ws-actions">
+            {#if !isActive}
+              <button
+                class="ws-activate-btn"
+                onclick={() => workspaceStore.setActiveWorkspace(ws.id)}
+                aria-label="Activate workspace {ws.name}"
+              >
+                Activate
+              </button>
+            {/if}
             <button
-              class="ws-activate-btn"
-              onclick={() => workspaceStore.setActiveWorkspace(ws.id)}
-              aria-label="Activate workspace {ws.name}"
+              class="ws-delete-btn"
+              onclick={() => {
+                if (confirm(`Delete workspace "${ws.name}"? This cannot be undone.`)) {
+                  workspaceStore.removeWorkspace(ws.id);
+                }
+              }}
+              aria-label="Delete workspace {ws.name}"
             >
-              Activate
+              Delete
             </button>
-          {/if}
+          </div>
         </article>
       {/each}
     </div>
@@ -114,10 +127,17 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     padding-top: 8px; border-top: 1px solid var(--dbd);
   }
+  .ws-actions { display: flex; gap: 8px; align-items: center; }
   .ws-activate-btn {
-    align-self: flex-start; padding: 5px 12px; border-radius: 6px; font-size: 12px;
+    padding: 5px 12px; border-radius: 6px; font-size: 12px;
     border: 1px solid var(--dbd); background: var(--dbg3); color: var(--dt2);
     cursor: pointer; transition: all 120ms ease;
   }
   .ws-activate-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+  .ws-delete-btn {
+    padding: 5px 12px; border-radius: 6px; font-size: 12px;
+    border: 1px solid rgba(239, 68, 68, 0.2); background: transparent; color: var(--dt4);
+    cursor: pointer; transition: all 120ms ease;
+  }
+  .ws-delete-btn:hover { border-color: rgba(239, 68, 68, 0.5); color: #f87171; background: rgba(239, 68, 68, 0.08); }
 </style>

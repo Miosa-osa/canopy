@@ -2,12 +2,12 @@ import type { Goal, GoalTreeNode } from "../types";
 
 const MOCK_GOALS: Goal[] = [
   {
-    id: "goal-launch-mvp",
-    title: "Launch MVP",
+    id: "goal-q1-milestone",
+    title: "Q1 Milestone",
     description:
-      "Ship the first production-ready release of Canopy with core agent management features.",
+      "Complete the first quarter milestone with core features shipped and tested.",
     parent_id: null,
-    project_id: "proj-canopy",
+    project_id: "proj-alpha",
     status: "active",
     priority: "high",
     progress: 40,
@@ -16,12 +16,12 @@ const MOCK_GOALS: Goal[] = [
     updated_at: "2026-03-01T00:00:00Z",
   },
   {
-    id: "goal-adapter",
-    title: "Implement Adapter System",
+    id: "goal-integration",
+    title: "Integration Layer",
     description:
-      "Build the pluggable adapter layer supporting osa, claude-code, bash, http, and codex adapters.",
-    parent_id: "goal-launch-mvp",
-    project_id: "proj-canopy",
+      "Build the pluggable integration layer supporting all target adapters.",
+    parent_id: "goal-q1-milestone",
+    project_id: "proj-alpha",
     status: "active",
     priority: "high",
     progress: 20,
@@ -30,12 +30,11 @@ const MOCK_GOALS: Goal[] = [
     updated_at: "2026-03-01T00:00:00Z",
   },
   {
-    id: "goal-cicd",
-    title: "Setup CI/CD",
-    description:
-      "Automated build, test, and deployment pipeline via GitHub Actions.",
+    id: "goal-infra",
+    title: "Infrastructure Setup",
+    description: "Automated build, test, and deployment pipeline.",
     parent_id: null,
-    project_id: "proj-infra",
+    project_id: "proj-beta",
     status: "active",
     priority: "medium",
     progress: 10,
@@ -45,11 +44,11 @@ const MOCK_GOALS: Goal[] = [
   },
   {
     id: "goal-security",
-    title: "Security Audit",
+    title: "Security Hardening",
     description:
-      "OWASP Top 10 review, JWT hardening, tenant isolation validation.",
+      "OWASP Top 10 review, authentication hardening, and isolation validation.",
     parent_id: null,
-    project_id: "proj-infra",
+    project_id: "proj-beta",
     status: "active",
     priority: "high",
     progress: 5,
@@ -60,9 +59,9 @@ const MOCK_GOALS: Goal[] = [
 ];
 
 const ISSUE_COUNTS: Record<string, number> = {
-  "goal-launch-mvp": 4,
-  "goal-adapter": 2,
-  "goal-cicd": 1,
+  "goal-q1-milestone": 4,
+  "goal-integration": 2,
+  "goal-infra": 1,
   "goal-security": 1,
 };
 

@@ -11,6 +11,23 @@
 
   let { issues }: Props = $props();
 
+  // Track per-issue dispatch loading state
+  let dispatching = $state<Record<string, boolean>>({});
+
+  function canDispatch(issue: Issue): boolean {
+    return (
+      issue.assignee_id !== null &&
+      (issue.status === 'backlog' || issue.status === 'todo')
+    );
+  }
+
+  async function handleDispatch(e: MouseEvent, issue: Issue) {
+    e.stopPropagation();
+    dispatching[issue.id] = true;
+    await issuesStore.dispatch(issue.id);
+    dispatching[issue.id] = false;
+  }
+
   const PRIORITY_ICONS: Record<string, { path: string; color: string }> = {
     low:      { path: 'M5 15l7-7 7 7', color: '#3b82f6' },
     medium:   { path: 'M8 12h8', color: '#f59e0b' },
@@ -118,6 +135,31 @@
         <span class="il-updated">
           <TimeAgo date={issue.updated_at} />
         </span>
+
+        <!-- Dispatch -->
+        <span class="il-dispatch-cell">
+          {#if canDispatch(issue)}
+            <button
+              class="il-dispatch-btn"
+              class:il-dispatch-btn--loading={dispatching[issue.id]}
+              onclick={(e) => handleDispatch(e, issue)}
+              disabled={dispatching[issue.id]}
+              aria-label="Dispatch issue to {issue.assignee_name}"
+              type="button"
+            >
+              {#if dispatching[issue.id]}
+                <span class="il-dispatch-spinner" aria-hidden="true"></span>
+              {:else}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+                <span class="il-dispatch-agent">{issue.assignee_name}</span>
+              {/if}
+            </button>
+          {:else}
+            <span></span>
+          {/if}
+        </span>
       </button>
     {/each}
   {/if}
@@ -139,7 +181,7 @@
 
   .il-row {
     display: grid;
-    grid-template-columns: 20px 1fr auto auto auto auto auto;
+    grid-template-columns: 20px 1fr auto auto auto auto auto auto;
     align-items: center;
     gap: 10px;
     height: 40px;
@@ -258,5 +300,71 @@
   .il-updated {
     flex-shrink: 0;
     text-align: right;
+  }
+
+  .il-dispatch-cell {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .il-dispatch-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px;
+    background: transparent;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-xs);
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  }
+
+  .il-dispatch-btn:hover:not(:disabled) {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: rgba(34, 197, 94, 0.8);
+  }
+
+  .il-dispatch-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+
+  .il-dispatch-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .il-dispatch-btn--loading {
+    min-width: 50px;
+    justify-content: center;
+  }
+
+  .il-dispatch-agent {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .il-dispatch-spinner {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: il-spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes il-spin {
+    to { transform: rotate(360deg); }
   }
 </style>

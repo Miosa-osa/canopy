@@ -1,15 +1,17 @@
 <!-- src/routes/app/sessions/+page.svelte -->
 <!-- Sessions observability page: filterable list of all agent sessions -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import SessionList from '$lib/components/sessions/SessionList.svelte';
   import { sessionsStore } from '$lib/stores/sessions.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
   import type { Session } from '$api/types';
 
-  onMount(() => {
-    void sessionsStore.fetch();
+  // Re-fetch whenever the active workspace changes (covers onMount + workspace switches)
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void sessionsStore.fetch(wsId);
   });
 
   function handleSelect(session: Session) {

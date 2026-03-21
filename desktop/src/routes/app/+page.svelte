@@ -8,8 +8,21 @@
   import QuickActions from '$lib/components/dashboard/QuickActions.svelte';
   import SystemHealthBar from '$lib/components/dashboard/SystemHealthBar.svelte';
   import { dashboardStore } from '$lib/stores/dashboard.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
   onMount(() => dashboardStore.startAutoRefresh(30_000));
+
+  // Re-fetch dashboard whenever the active workspace changes.
+  // setActiveWorkspace() already triggers this, but the $effect here ensures
+  // the dashboard page also reacts if the workspace is changed from another
+  // entry point (e.g. WorkspaceSwitcher in the sidebar, syncFromBackend, etc.).
+  $effect(() => {
+    // Track activeWorkspaceId so this effect re-runs on workspace switches.
+    // setActiveWorkspace() calls dashboardStore.fetch() directly, but this
+    // $effect also covers external workspace changes (syncFromBackend, etc.).
+    void workspaceStore.activeWorkspaceId;
+    void dashboardStore.fetch();
+  });
 </script>
 
 <PageShell title="Dashboard">

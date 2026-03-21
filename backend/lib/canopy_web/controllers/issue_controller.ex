@@ -166,6 +166,16 @@ defmodule CanopyWeb.IssueController do
     end
   end
 
+  def dispatch(conn, %{"issue_id" => issue_id}) do
+    case Canopy.IssueDispatcher.dispatch(issue_id) do
+      {:ok, :dispatched} ->
+        json(conn, %{ok: true, message: "Agent dispatched"})
+
+      {:error, reason} ->
+        conn |> put_status(422) |> json(%{error: inspect(reason)})
+    end
+  end
+
   # --- Private helpers ---
 
   defp serialize(%Issue{} = i) do

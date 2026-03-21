@@ -7,9 +7,36 @@
     getLibraryCompanyDetail,
     type LibraryOperation,
   } from '$lib/api/mock/library';
+  import { deployTemplate } from '$lib/services/template-deploy';
+  import { toastStore } from '$lib/stores/toasts.svelte';
 
   const id = $derived(page.params.id ?? '');
   const company = $derived<LibraryOperation | null>(id ? getLibraryCompanyDetail(id) : null);
+
+  let deploying = $state(false);
+  let deployed = $state(false);
+
+  async function handleDeploy() {
+    if (!company || deploying) return;
+    deploying = true;
+    try {
+      const result = await deployTemplate(company.id, company.name);
+      if (result.success) {
+        deployed = true;
+        toastStore.success(
+          `${company.emoji} ${company.name} deployed`,
+          `${result.agentCount} agents provisioned.`,
+        );
+        goto('/app');
+      } else {
+        toastStore.error('Deploy failed', result.error ?? 'Unknown error');
+      }
+    } catch (e) {
+      toastStore.error('Deploy failed', (e as Error).message);
+    } finally {
+      deploying = false;
+    }
+  }
 
   function formatNumber(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -199,10 +226,18 @@
 
             <button
               class="ldc-deploy-btn"
-              onclick={() => {/* deploy handler */}}
+              class:ldc-deploy-btn--loading={deploying}
+              onclick={handleDeploy}
+              disabled={deploying || deployed}
               aria-label="Deploy {company.name} company"
             >
-              Deploy Company
+              {#if deployed}
+                Deployed
+              {:else if deploying}
+                Deploying...
+              {:else}
+                Deploy Company
+              {/if}
             </button>
           </div>
         </aside>
@@ -595,7 +630,16 @@
     color: #fbcfe8;
   }
 
-  .ldc-deploy-btn:active {
+  .ldc-deploy-btn:active:not(:disabled) {
     background: rgba(244, 114, 182, 0.25);
+  }
+
+  .ldc-deploy-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .ldc-deploy-btn--loading {
+    cursor: wait;
   }
 </style>

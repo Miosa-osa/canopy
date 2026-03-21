@@ -1,14 +1,15 @@
 <!-- src/routes/app/inbox/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
-
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import InboxFilters from '$lib/components/inbox/InboxFilters.svelte';
   import InboxFeed from '$lib/components/inbox/InboxFeed.svelte';
   import { inboxStore } from '$lib/stores/inbox.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
-  onMount(async () => {
-    await inboxStore.fetchItems();
+  // Re-fetch whenever the active workspace changes (covers onMount + workspace switches)
+  $effect(() => {
+    void workspaceStore.activeWorkspaceId;
+    void inboxStore.fetchItems();
   });
 </script>
 

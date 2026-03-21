@@ -9,6 +9,7 @@ defmodule Canopy.Application do
       Canopy.Repo,
       Canopy.BudgetEnforcer,
       {Phoenix.PubSub, name: Canopy.PubSub},
+      Canopy.IssueDispatcher,
       Canopy.Scheduler,
       {DynamicSupervisor, name: Canopy.AdapterSupervisor, strategy: :one_for_one},
       {Task.Supervisor, name: Canopy.HeartbeatRunner},

@@ -47,10 +47,10 @@ class AgentsStore {
     return result;
   });
 
-  async fetchAgents(): Promise<void> {
+  async fetchAgents(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.agents = await agentsApi.list();
+      this.agents = await agentsApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

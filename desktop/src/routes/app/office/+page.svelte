@@ -5,11 +5,12 @@
   import VirtualOffice from '$lib/components/office/VirtualOffice.svelte';
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
   let viewMode = $state<'2d' | '3d'>('2d');
 
   onMount(() => {
-    void agentsStore.fetchAgents();
+    void agentsStore.fetchAgents(workspaceStore.activeWorkspaceId ?? undefined);
   });
 </script>
 
@@ -33,7 +34,7 @@
         <p class="op-error-msg">Failed to load agents: {agentsStore.error}</p>
         <button
           class="op-retry-btn"
-          onclick={() => void agentsStore.fetchAgents()}
+          onclick={() => void agentsStore.fetchAgents(workspaceStore.activeWorkspaceId ?? undefined)}
         >
           Retry
         </button>

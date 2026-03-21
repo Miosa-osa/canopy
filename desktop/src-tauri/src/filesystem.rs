@@ -11,6 +11,11 @@ pub struct CanopyWorkspace {
     pub agents: Vec<CanopyAgentDef>,
     pub projects: Vec<CanopyProjectDef>,
     pub schedules: Vec<CanopyScheduleDef>,
+    pub skills: Vec<CanopySkillDef>,
+    /// Raw contents of .canopy/SYSTEM.md (if present)
+    pub system_md: Option<String>,
+    /// Raw contents of .canopy/COMPANY.md (if present)
+    pub company_md: Option<String>,
     pub scanned_at: String,
 }
 
@@ -49,6 +54,16 @@ pub struct CanopyScheduleDef {
     pub file_path: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CanopySkillDef {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub category: String,
+    pub version: Option<String>,
+    pub file_path: String,
+}
+
 // ── IPC Commands ─────────────────────────────────────────────────────────────
 
 /// Scan a .canopy/ directory and return the full workspace definition
@@ -65,9 +80,20 @@ pub async fn scan_canopy_dir(path: String) -> Result<CanopyWorkspace, String> {
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "Unknown".to_string());
 
+    // Read optional top-level markdown files
+    let system_md = std::fs::read_to_string(canopy_path.join("SYSTEM.md")).ok();
+    let company_md = std::fs::read_to_string(canopy_path.join("COMPANY.md")).ok();
+
+    // Prefer the name from SYSTEM.md frontmatter over the directory name
+    let name = system_md
+        .as_deref()
+        .and_then(|s| parse_frontmatter_name(s))
+        .unwrap_or(name);
+
     let agents = list_agents_internal(&canopy_path)?;
     let projects = list_projects_internal(&canopy_path)?;
     let schedules = list_schedules_internal(&canopy_path)?;
+    let skills = list_skills_internal(&canopy_path)?;
 
     Ok(CanopyWorkspace {
         path,
@@ -75,6 +101,9 @@ pub async fn scan_canopy_dir(path: String) -> Result<CanopyWorkspace, String> {
         agents,
         projects,
         schedules,
+        skills,
+        system_md,
+        company_md,
         scanned_at: chrono_now(),
     })
 }
@@ -311,6 +340,40 @@ fn list_schedules_internal(canopy_path: &Path) -> Result<Vec<CanopyScheduleDef>,
     Ok(schedules)
 }
 
+fn list_skills_internal(canopy_path: &Path) -> Result<Vec<CanopySkillDef>, String> {
+    let skills_dir = canopy_path.join("skills");
+    if !skills_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut skills = Vec::new();
+    for entry in WalkDir::new(&skills_dir).max_depth(2).into_iter().flatten() {
+        let path = entry.path();
+        if path.extension().map_or(false, |ext| ext == "md" || ext == "yaml" || ext == "yml") {
+            if let Ok(content) = std::fs::read_to_string(path) {
+                if let Some(skill) = parse_skill_frontmatter(&content, path) {
+                    skills.push(skill);
+                }
+            }
+        }
+    }
+    Ok(skills)
+}
+
+/// Extract the `name` field from YAML frontmatter of a markdown file
+fn parse_frontmatter_name(content: &str) -> Option<String> {
+    let trimmed = content.trim();
+    if !trimmed.starts_with("---") {
+        return None;
+    }
+    let after_first = &trimmed[3..];
+    let end = after_first.find("---")?;
+    let yaml_str = &after_first[..end];
+    let yaml: serde_yaml::Value = serde_yaml::from_str(yaml_str).ok()?;
+    let map = yaml.as_mapping()?;
+    get_str(map, "name")
+}
+
 /// Parse YAML frontmatter from a markdown agent definition file
 fn parse_agent_frontmatter(content: &str, path: &Path) -> Option<CanopyAgentDef> {
     // Extract YAML between --- markers
@@ -340,6 +403,33 @@ fn parse_agent_frontmatter(content: &str, path: &Path) -> Option<CanopyAgentDef>
         system_prompt: get_str(map, "system_prompt"),
         skills: get_str_list(map, "skills"),
         schedule: get_str(map, "schedule"),
+        file_path: path.to_string_lossy().to_string(),
+    })
+}
+
+fn parse_skill_frontmatter(content: &str, path: &Path) -> Option<CanopySkillDef> {
+    let trimmed = content.trim();
+    if !trimmed.starts_with("---") {
+        return None;
+    }
+    let after_first = &trimmed[3..];
+    let end = after_first.find("---")?;
+    let yaml_str = &after_first[..end];
+
+    let yaml: serde_yaml::Value = serde_yaml::from_str(yaml_str).ok()?;
+    let map = yaml.as_mapping()?;
+
+    let id = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    Some(CanopySkillDef {
+        id,
+        name: get_str(map, "name").unwrap_or_else(|| "Unknown".to_string()),
+        description: get_str(map, "description").unwrap_or_default(),
+        category: get_str(map, "category").unwrap_or_else(|| "general".to_string()),
+        version: get_str(map, "version"),
         file_path: path.to_string_lossy().to_string(),
     })
 }

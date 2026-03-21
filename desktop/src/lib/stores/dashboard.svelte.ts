@@ -18,24 +18,12 @@ class DashboardStore {
     total_agents: 0,
     live_runs: 0,
     open_issues: 0,
-    budget_remaining_pct: 100,
+    budget_remaining_pct: 0,
   });
   liveRuns = $state<LiveRun[]>([]);
   recentActivity = $state<ActivityEvent[]>([]);
-  financeSummary = $state<FinanceSummary>({
-    today_cents: 0,
-    week_cents: 0,
-    month_cents: 0,
-    daily_limit_cents: 0,
-    cache_savings_pct: 0,
-  });
-  systemHealth = $state<SystemHealth>({
-    backend: "ok",
-    primary_gateway: null,
-    gateway_status: "healthy",
-    memory_mb: 0,
-    cpu_pct: 0,
-  });
+  financeSummary = $state<FinanceSummary | null>(null);
+  systemHealth = $state<SystemHealth | null>(null);
 
   #refreshTimer: ReturnType<typeof setInterval> | null = null;
 

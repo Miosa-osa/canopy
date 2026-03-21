@@ -84,10 +84,10 @@ class IssuesStore {
 
   openCount = $derived(this.issues.filter((i) => i.status !== "done").length);
 
-  async fetchIssues(): Promise<void> {
+  async fetchIssues(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.issues = await issuesApi.list();
+      this.issues = await issuesApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;
@@ -162,6 +162,18 @@ class IssuesStore {
       const msg = (e as Error).message;
       this.error = msg;
       toastStore.error("Failed to delete issue", msg);
+    }
+  }
+
+  async dispatch(issueId: string): Promise<boolean> {
+    try {
+      const result = await issuesApi.dispatch(issueId);
+      toastStore.success("Issue dispatched", result.message);
+      return result.ok;
+    } catch (e) {
+      const msg = (e as Error).message;
+      toastStore.error("Failed to dispatch issue", msg);
+      return false;
     }
   }
 

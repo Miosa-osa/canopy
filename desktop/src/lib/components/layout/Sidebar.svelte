@@ -25,6 +25,17 @@
 
   let currentPath = $derived($page.url.pathname as string);
 
+  // Division display config
+  const DIVISION_META: Record<string, { emoji: string; label: string; order: number }> = {
+    core:        { emoji: '🧭', label: 'Core',        order: 0 },
+    foundations:  { emoji: '🔍', label: 'Foundations',  order: 1 },
+    marketing:   { emoji: '📣', label: 'Marketing',   order: 2 },
+    nurture:     { emoji: '✉️', label: 'Nurture',     order: 3 },
+    sales:       { emoji: '💰', label: 'Sales',       order: 4 },
+    launch:      { emoji: '🚀', label: 'Launch',      order: 5 },
+    scale:       { emoji: '📈', label: 'Scale',       order: 6 },
+  };
+
   function isActive(href: string): boolean {
     if (href === '/app') return currentPath === '/app';
     return currentPath.startsWith(href);
@@ -164,21 +175,48 @@
       <div class="sb-divider" aria-hidden="true"></div>
 
       <!-- TEAM -->
-      <SidebarSection label="Team">
+      <SidebarSection label="Team" badge={agentsStore.agents.length || undefined}>
         {#if agentsStore.agents.length === 0}
           <div class="sb-empty">No agents</div>
         {:else}
-          {#each agentsStore.agents.slice(0, 8) as agent (agent.id)}
-            <SidebarNavItem
-              href="/app/agents/{agent.id}"
-              label={agent.avatar_emoji ? `${agent.avatar_emoji} ${agent.name}` : agent.name}
-              icon={ICONS.agent}
-              active={isActive(`/app/agents/${agent.id}`)}
-            />
-          {/each}
-          {#if agentsStore.agents.length > 8}
-            <SidebarNavItem href="/app/agents" label="View all ({agentsStore.agents.length})" icon={ICONS.agent} active={false} />
+          {@const grouped = (() => {
+            const groups = new Map<string, import('$api/types').CanopyAgent[]>();
+            for (const agent of agentsStore.agents) {
+              const div = (agent.config?.division as string) || 'team';
+              const list = groups.get(div) ?? [];
+              list.push(agent);
+              groups.set(div, list);
+            }
+            return [...groups.entries()]
+              .sort(([a], [b]) => (DIVISION_META[a]?.order ?? 99) - (DIVISION_META[b]?.order ?? 99));
+          })()}
+          {#if grouped.length > 1}
+            <!-- Division-grouped view -->
+            {#each grouped as [divKey, divAgents] (divKey)}
+              {@const meta = DIVISION_META[divKey]}
+              <SidebarSection label="{meta?.emoji ?? '📁'} {meta?.label ?? divKey}" badge={divAgents.length} defaultOpen={divKey === 'core'}>
+                {#each divAgents as agent (agent.id)}
+                  <SidebarNavItem
+                    href="/app/agents/{agent.id}"
+                    label={agent.display_name || agent.name}
+                    icon={ICONS.agent}
+                    active={isActive(`/app/agents/${agent.id}`)}
+                  />
+                {/each}
+              </SidebarSection>
+            {/each}
+          {:else}
+            <!-- Flat list (single group or no divisions) -->
+            {#each agentsStore.agents.slice(0, 8) as agent (agent.id)}
+              <SidebarNavItem
+                href="/app/agents/{agent.id}"
+                label={agent.display_name || agent.name}
+                icon={ICONS.agent}
+                active={isActive(`/app/agents/${agent.id}`)}
+              />
+            {/each}
           {/if}
+          <SidebarNavItem href="/app/agents" label="View all ({agentsStore.agents.length})" icon={ICONS.agent} active={currentPath === '/app/agents'} />
         {/if}
         <button class="sb-inline-action" onclick={() => goto('/app/agents?hire=1')}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

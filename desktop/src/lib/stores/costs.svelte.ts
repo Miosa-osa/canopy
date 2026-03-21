@@ -136,42 +136,21 @@ class CostsStore {
     }
   }
 
-  fetchTrends(): void {
-    // Produces a synthetic trend series from available summary data.
-    // Replace with a real API call when /costs/trends is available.
-    const days =
-      this.dateRange === "7d" ? 7 : this.dateRange === "90d" ? 90 : 30;
-    const avgDaily =
-      this.summary.week_cents > 0
-        ? this.summary.week_cents / 7
-        : this.summary.today_cents || 50;
-
-    const now = new Date();
-    const points: DailyCostPoint[] = [];
-
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const date = d.toISOString().slice(0, 10);
-      const cost_cents =
-        i === 0
-          ? this.summary.today_cents
-          : Math.max(0, Math.round(avgDaily * (0.55 + Math.random() * 0.9)));
-      points.push({ date, cost_cents });
-    }
-
-    this.dailyTrend = points;
+  async fetchTrends(): Promise<void> {
+    // No trends API is available yet — clear any previously-held data so the
+    // chart shows a genuine empty state rather than synthesised random values.
+    this.dailyTrend = [];
   }
 
   async fetchAll(): Promise<void> {
     await this.fetch();
-    this.fetchTrends();
+    await this.fetchTrends();
     await this.fetchPolicies();
   }
 
   setDateRange(range: DateRange): void {
     this.dateRange = range;
-    this.fetchTrends();
+    void this.fetchTrends();
   }
 }
 

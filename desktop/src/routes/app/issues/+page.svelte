@@ -1,6 +1,5 @@
 <!-- src/routes/app/issues/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import type { Issue } from '$api/types';
@@ -13,6 +12,7 @@
   import IssueForm from '$lib/components/issues/IssueForm.svelte';
   import { issuesStore } from '$lib/stores/issues.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
   type ViewMode = 'kanban' | 'list' | 'table';
   let viewMode = $state<ViewMode>('kanban');
@@ -23,10 +23,12 @@
     showForm = $page.url.searchParams.get('new') === '1';
   });
 
-  onMount(async () => {
-    await Promise.all([
-      issuesStore.fetchIssues(),
-      agentsStore.fetchAgents(),
+  // Re-fetch whenever the active workspace changes (covers onMount + workspace switches)
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void Promise.all([
+      issuesStore.fetchIssues(wsId),
+      agentsStore.fetchAgents(wsId),
     ]);
   });
 

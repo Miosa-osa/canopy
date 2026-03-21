@@ -71,6 +71,7 @@ defmodule Canopy.Adapters.ClaudeCode do
               :stderr_to_stdout,
               args: [
                 "--print",
+                "--verbose",
                 "--output-format",
                 "stream-json",
                 "--model",
@@ -118,9 +119,23 @@ defmodule Canopy.Adapters.ClaudeCode do
   end
 
   defp find_claude_binary do
+    # Try multiple known paths since Erlang's PATH may differ from shell
     case System.find_executable("claude") do
-      nil -> "/usr/local/bin/claude"
-      path -> path
+      nil ->
+        home = System.get_env("HOME") || "/Users/symac"
+
+        known_paths = [
+          Path.join([home, ".superset", "bin", "claude"]),
+          Path.join([home, ".nvm", "versions", "node", "current", "bin", "claude"]),
+          Path.join([home, ".local", "bin", "claude"]),
+          "/usr/local/bin/claude",
+          "/opt/homebrew/bin/claude"
+        ]
+
+        Enum.find(known_paths, "/usr/local/bin/claude", &File.exists?/1)
+
+      path ->
+        path
     end
   end
 

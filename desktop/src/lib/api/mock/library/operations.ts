@@ -6,6 +6,16 @@ import { enrichOperation } from "./enrichment";
 
 const RAW_OPERATIONS: RawOperation[] = [
   {
+    id: "growth-os",
+    name: "Growth OS",
+    emoji: "🚀",
+    description:
+      "Creator business growth operating system — 36 agents across 6 modes covering research, content, outreach, sales, and analytics.",
+    agent_count: 36,
+    skill_count: 42,
+    category: "growth",
+  },
+  {
     id: "sales-engine",
     name: "Sales Engine",
     emoji: "💼",

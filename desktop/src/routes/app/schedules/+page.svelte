@@ -1,6 +1,5 @@
 <!-- src/routes/app/schedules/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import ScheduleTimeline from '$lib/components/schedules/ScheduleTimeline.svelte';
   import ScheduleCard from '$lib/components/schedules/ScheduleCard.svelte';
@@ -10,6 +9,7 @@
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
   import { schedulesStore } from '$lib/stores/schedules.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
   import type { Schedule } from '$api/types';
 
   // Modal state
@@ -60,15 +60,18 @@
     closeModal();
   }
 
-  onMount(async () => {
-    await Promise.all([
-      schedulesStore.fetchSchedules(),
-      agentsStore.fetchAgents(),
-    ]);
-    // Fetch run history for each schedule
-    for (const schedule of schedulesStore.schedules) {
-      schedulesStore.fetchRunHistory(schedule.id);
-    }
+  // Re-fetch whenever the active workspace changes (covers onMount + workspace switches)
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void Promise.all([
+      schedulesStore.fetchSchedules(wsId),
+      agentsStore.fetchAgents(wsId),
+    ]).then(() => {
+      // Fetch run history for each schedule after the schedule list has loaded
+      for (const schedule of schedulesStore.schedules) {
+        schedulesStore.fetchRunHistory(schedule.id);
+      }
+    });
   });
 </script>
 

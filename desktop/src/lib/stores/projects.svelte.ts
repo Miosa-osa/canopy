@@ -35,10 +35,10 @@ class ProjectsStore {
   );
   totalCount = $derived(this.projects.length);
 
-  async fetchProjects(): Promise<void> {
+  async fetchProjects(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.projects = await projectsApi.list();
+      this.projects = await projectsApi.list(workspaceId);
       // Auto-select first active project if nothing selected
       if (!this.selected && this.projects.length > 0) {
         this.selected =

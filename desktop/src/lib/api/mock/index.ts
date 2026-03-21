@@ -2,7 +2,14 @@
 // Mock API router — intercepts requests in dev mode when backend is unavailable
 
 import { mockDashboard } from "./dashboard";
-import { mockAgents, mockAgentById } from "./agents";
+import {
+  mockAgents,
+  mockAgentById,
+  setMockWorkspaceAgents,
+  getMockWorkspaceAgents,
+  clearMockWorkspaceAgents,
+  clearAllMockWorkspaceAgents,
+} from "./agents";
 import { mockSchedules } from "./schedules";
 import { mockIssues } from "./issues";
 import { mockCosts } from "./costs";
@@ -106,9 +113,14 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
   {
     // GET /agents + POST /agents
     pattern: /^\/agents$/,
-    handler: (_path, options) => {
+    handler: (_path, options, rawPath) => {
+      const wsId =
+        new URLSearchParams((rawPath ?? "").split("?")[1] ?? "").get(
+          "workspace_id",
+        ) ?? undefined;
+
       if ((options.method ?? "GET").toUpperCase() === "POST") {
-        const agents = mockAgents();
+        const agents = mockAgents(wsId);
         const base = agents[0];
         try {
           const body = JSON.parse(
@@ -144,7 +156,7 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
           return base;
         }
       }
-      const agents = mockAgents();
+      const agents = mockAgents(wsId);
       return { agents, count: agents.length };
     },
   },
@@ -559,6 +571,28 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
         };
       }
       return { workspaces: defaultWorkspaces };
+    },
+  },
+
+  // ── Workspace activate ────────────────────────────────────────────────────────
+  {
+    pattern: /^\/workspaces\/[^/]+\/activate$/,
+    handler: (path) => {
+      const id = path.split("/")[2];
+      return {
+        workspace: {
+          id,
+          name: "Workspace",
+          description: "",
+          directory: `~/.canopy/${id}`,
+          agent_count: 0,
+          project_count: 0,
+          skill_count: 0,
+          status: "active" as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      };
     },
   },
 
@@ -1010,16 +1044,181 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
   },
 ];
 
+// ── Re-export workspace agent helpers for use by deploy service ────────────────
+export {
+  setMockWorkspaceAgents,
+  getMockWorkspaceAgents,
+  clearMockWorkspaceAgents,
+  clearAllMockWorkspaceAgents,
+};
+
+// ── Mock-enabled guard ─────────────────────────────────────────────────────────
+// handleRequest must only be called when useMock === true in client.ts.
+// This flag mirrors that state so the mock module can reject accidental calls
+// that slip through when the real backend is reachable.
+
+let _mockAllowed = true;
+
+/** Called by client.ts whenever it enables mock mode. */
+export function notifyMockEnabled(): void {
+  _mockAllowed = true;
+}
+
+/** Called by client.ts whenever it disables mock mode (backend is reachable). */
+export function notifyMockDisabled(): void {
+  _mockAllowed = false;
+}
+
+// ── Mock data purge ────────────────────────────────────────────────────────────
+// All localStorage keys written exclusively by the mock layer. This list must
+// stay in sync with any new keys added to mock sub-modules.
+const MOCK_STORAGE_KEYS = [
+  "canopy-workspace-agents", // mock/agents.ts — deployed template agents
+  "canopy-active-workspace", // mock/index.ts — fresh-workspace detection
+] as const;
+
+/**
+ * Remove every localStorage key that the mock layer writes and flush the
+ * in-memory workspace-agents map.
+ * Call this when transitioning from mock → real backend so that stale
+ * in-browser mock data cannot bleed into live requests.
+ */
+export function clearAllMockData(): void {
+  try {
+    for (const key of MOCK_STORAGE_KEYS) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // localStorage unavailable (SSR, sandboxed env) — nothing to do
+  }
+  // Flush the in-memory map so the cleared state takes effect immediately
+  // without waiting for a module reload.
+  clearAllMockWorkspaceAgents();
+}
+
+// ── Fresh workspace detection ─────────────────────────────────────────────────
+// When a user-created workspace is active, operational endpoints return empty
+// data instead of the default OSA demo data. This keeps new workspaces clean.
+
+/** Returns the active workspace ID from localStorage, or null if none. */
+function getActiveWorkspaceId(): string | null {
+  try {
+    return localStorage.getItem("canopy-active-workspace");
+  } catch {
+    return null;
+  }
+}
+
+/** Returns true if a user-created workspace is active (not the initial empty state). */
+function isFreshWorkspace(): boolean {
+  return getActiveWorkspaceId() !== null;
+}
+
+/**
+ * Empty responses for operational endpoints when a fresh workspace is active.
+ * Routes NOT listed here (health, config, settings, workspaces, library,
+ * templates, adapters, users, organizations) pass through to their normal
+ * handlers since they are workspace-independent.
+ */
+const FRESH_WORKSPACE_OVERRIDES: Record<string, unknown> = {
+  "/dashboard": {
+    kpis: {
+      active_agents: 0,
+      total_agents: 0,
+      live_runs: 0,
+      open_issues: 0,
+      budget_remaining_pct: 100,
+    },
+    live_runs: [],
+    recent_activity: [],
+    finance_summary: {
+      today_cents: 0,
+      week_cents: 0,
+      month_cents: 0,
+      daily_limit_cents: 2000,
+      daily_used_cents: 0,
+      cache_hit_rate: 0,
+    },
+    system_health: {
+      status: "operational",
+      uptime_seconds: 0,
+      checks: [],
+    },
+  },
+  "/activity": { events: [], total: 0 },
+  "/issues": { issues: [] },
+  "/inbox": { items: [], count: 0 },
+  "/sessions": { sessions: [], count: 0 },
+  "/schedules": { schedules: [] },
+  "/costs/summary": {
+    total_cents: 0,
+    today_cents: 0,
+    week_cents: 0,
+    month_cents: 0,
+    trend: [],
+  },
+  "/costs/by-agent": { agents: [] },
+  "/costs/by-model": { models: [] },
+  "/costs/daily": { days: [] },
+  "/budgets": { policies: [] },
+  "/budgets/incidents": { incidents: [] },
+  "/sidebar-badges": {
+    inbox: 0,
+    issues: 0,
+    approvals: 0,
+    sessions: 0,
+    agents: 0,
+  },
+  "/goals": { goals: [], count: 0 },
+  "/goals/tree": { tree: [] },
+  "/projects": { projects: [], count: 0 },
+  "/documents": { documents: [], count: 0 },
+  "/documents/tree": { tree: [] },
+  "/skills": { skills: [] },
+  "/webhooks": { webhooks: [] },
+  "/alerts/rules": { rules: [] },
+  "/alerts": { rules: [] },
+  "/signals/feed": { signals: [] },
+  "/signals": { signals: [] },
+  "/approvals": { approvals: [] },
+  "/secrets": { secrets: [] },
+  "/labels": { labels: [] },
+  "/plugins": { plugins: [] },
+  "/memory": { entries: [], count: 0 },
+  "/memory/namespaces": { namespaces: [] },
+  "/audit": { entries: [] },
+  "/logs": { entries: [] },
+  "/spawn/active": { instances: [], count: 0 },
+  "/spawn": { instances: [], count: 0 },
+};
+
 // ── Request handler ────────────────────────────────────────────────────────────
 
 export async function handleRequest<T>(
   path: string,
   _options: RequestInit,
 ): Promise<T> {
+  // Defence-in-depth: refuse to serve mock data when the backend is reachable.
+  // client.ts controls _mockAllowed via notifyMockEnabled/notifyMockDisabled.
+  if (!_mockAllowed) {
+    throw new Error(
+      `[mock] handleRequest invoked while mock mode is disabled (path: ${path}). ` +
+        "This is a bug — useMock must be true before calling handleRequest.",
+    );
+  }
+
   await delay();
 
   // Strip query params for matching
   const cleanPath = path.split("?")[0];
+
+  // Fresh workspace override: return empty data for operational endpoints
+  if (isFreshWorkspace()) {
+    const override = FRESH_WORKSPACE_OVERRIDES[cleanPath];
+    if (override !== undefined) {
+      return override as T;
+    }
+  }
 
   for (const route of routes) {
     if (route.pattern.test(cleanPath)) {

@@ -57,7 +57,10 @@
 
   const teamAgents = $derived(TEMPLATE_AGENTS[teamTemplate]);
 
-  const canContinue = $derived(() => {
+  // $derived evaluates to a boolean directly so Svelte tracks every reactive
+  // read (step, selectedProviderSlug, providerKeys, workspacePath) and
+  // recomputes whenever any of them change.
+  const canContinue = $derived((() => {
     if (step === 1) {
       if (!selectedProviderSlug) return false;
       const allProviders = [
@@ -74,12 +77,12 @@
     }
     if (step === 3) return workspacePath.trim().length > 0;
     return true;
-  });
+  })());
 
   // ─── Navigation ───────────────────────────────────────────────────────────
 
   function next() {
-    if (!canContinue()) return;
+    if (!canContinue) return;
     syncToStore();
     onboardingStore.nextStep();
     step = onboardingStore.currentStep;
@@ -281,7 +284,7 @@
       <button
         class="ob-btn ob-btn--primary"
         onclick={next}
-        disabled={!canContinue()}
+        disabled={!canContinue}
         aria-label="Continue to next step"
       >
         {step === 0 ? 'Get Started' : 'Continue'}

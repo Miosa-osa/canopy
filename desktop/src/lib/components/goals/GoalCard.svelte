@@ -2,6 +2,7 @@
 <!-- Single goal card with progress bar -->
 <script lang="ts">
   import type { GoalTreeNode } from '$api/types';
+  import { goalsStore } from '$lib/stores/goals.svelte';
 
   interface Props {
     goal: GoalTreeNode;
@@ -9,6 +10,15 @@
   }
 
   let { goal, onSelect }: Props = $props();
+
+  let decomposing = $state(false);
+
+  async function handleDecompose(e: MouseEvent) {
+    e.stopPropagation();
+    decomposing = true;
+    await goalsStore.decompose(goal.id);
+    decomposing = false;
+  }
 
   const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
     active:      { bg: 'rgba(59,130,246,0.12)',  text: '#93c5fd', label: 'Active'      },
@@ -98,6 +108,25 @@
         <span class="gc-avatar" aria-hidden="true">A</span>
       </span>
     {/if}
+
+    <button
+      class="gc-decompose-btn"
+      class:gc-decompose-btn--loading={decomposing}
+      onclick={handleDecompose}
+      disabled={decomposing}
+      aria-label="Decompose goal into issues"
+      type="button"
+    >
+      {#if decomposing}
+        <span class="gc-decompose-spinner" aria-hidden="true"></span>
+        Decomposing…
+      {:else}
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+        </svg>
+        Decompose
+      {/if}
+    </button>
   </footer>
 </article>
 
@@ -214,5 +243,58 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .gc-decompose-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    height: 22px;
+    padding: 0 8px;
+    background: transparent;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-xs);
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+  }
+
+  .gc-decompose-btn:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #c4b5fd;
+  }
+
+  .gc-decompose-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+
+  .gc-decompose-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .gc-decompose-btn--loading {
+    color: var(--text-tertiary);
+  }
+
+  .gc-decompose-spinner {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: gc-spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes gc-spin {
+    to { transform: rotate(360deg); }
   }
 </style>

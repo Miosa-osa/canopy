@@ -338,7 +338,7 @@ defmodule CanopyWeb.AgentController do
       slug: a.slug,
       name: a.name,
       display_name: a.name,
-      avatar_emoji: "🤖",
+      avatar_emoji: a.avatar_emoji || "🤖",
       role: a.role,
       adapter: a.adapter,
       model: a.model,

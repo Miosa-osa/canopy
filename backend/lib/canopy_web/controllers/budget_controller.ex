@@ -76,7 +76,7 @@ defmodule CanopyWeb.BudgetController do
       incident ->
         {:ok, updated} =
           incident
-          |> Ecto.Changeset.change(resolved: true, resolved_at: DateTime.utc_now())
+          |> Ecto.Changeset.change(resolved: true, resolved_at: DateTime.utc_now() |> DateTime.truncate(:second))
           |> Repo.update()
 
         Canopy.EventBus.broadcast(

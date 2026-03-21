@@ -12,14 +12,16 @@
     return '$' + (cents / 100).toFixed(2);
   }
 
-  const todayDollars    = $derived(centsToDisplay(dashboardStore.financeSummary.today_cents));
-  const weekDollars     = $derived(centsToDisplay(dashboardStore.financeSummary.week_cents));
-  const monthDollars    = $derived(centsToDisplay(dashboardStore.financeSummary.month_cents));
-  const cacheSavingsPct = $derived(dashboardStore.financeSummary.cache_savings_pct);
+  const finance = $derived(dashboardStore.financeSummary);
+
+  const todayDollars    = $derived(finance ? centsToDisplay(finance.today_cents) : '—');
+  const weekDollars     = $derived(finance ? centsToDisplay(finance.week_cents) : '—');
+  const monthDollars    = $derived(finance ? centsToDisplay(finance.month_cents) : '—');
+  const cacheSavingsPct = $derived(finance ? finance.cache_savings_pct : null);
 
   // BudgetBar uses fmt(n) = n.toFixed(2), so pass dollar values (cents / 100)
-  const todaySpentDollars = $derived(dashboardStore.financeSummary.today_cents / 100);
-  const dailyLimitDollars = $derived(dashboardStore.financeSummary.daily_limit_cents / 100);
+  const todaySpentDollars = $derived(finance ? finance.today_cents / 100 : 0);
+  const dailyLimitDollars = $derived(finance ? finance.daily_limit_cents / 100 : 0);
 </script>
 
 <article class="fs-card {className}" aria-label="Finance summary">
@@ -27,51 +29,62 @@
     <span class="fs-title">Finance</span>
   </header>
 
-  <div class="fs-columns" role="group" aria-label="Spending breakdown">
-    <div class="fs-col" aria-label="Today's spend: {todayDollars}">
-      <span class="fs-amount">{todayDollars}</span>
-      <span class="fs-period">Today</span>
+  {#if dashboardStore.isLoading && !finance}
+    <div class="fs-skeleton-group" aria-hidden="true">
+      <div class="fs-skeleton fs-skeleton--amount"></div>
+      <div class="fs-skeleton fs-skeleton--bar"></div>
+    </div>
+  {:else if !finance}
+    <div class="fs-empty">No finance data available</div>
+  {:else}
+    <div class="fs-columns" role="group" aria-label="Spending breakdown">
+      <div class="fs-col" aria-label="Today's spend: {todayDollars}">
+        <span class="fs-amount">{todayDollars}</span>
+        <span class="fs-period">Today</span>
+      </div>
+
+      <div class="fs-divider" aria-hidden="true"></div>
+
+      <div class="fs-col" aria-label="This week's spend: {weekDollars}">
+        <span class="fs-amount">{weekDollars}</span>
+        <span class="fs-period">This Week</span>
+      </div>
+
+      <div class="fs-divider" aria-hidden="true"></div>
+
+      <div class="fs-col" aria-label="This month's spend: {monthDollars}">
+        <span class="fs-amount">{monthDollars}</span>
+        <span class="fs-period">This Month</span>
+      </div>
     </div>
 
-    <div class="fs-divider" aria-hidden="true"></div>
-
-    <div class="fs-col" aria-label="This week's spend: {weekDollars}">
-      <span class="fs-amount">{weekDollars}</span>
-      <span class="fs-period">This Week</span>
+    <div class="fs-budget-row">
+      <BudgetBar
+        spent={todaySpentDollars}
+        limit={dailyLimitDollars}
+        currency="$"
+        warningPct={80}
+        label="Daily limit"
+      />
     </div>
 
-    <div class="fs-divider" aria-hidden="true"></div>
-
-    <div class="fs-col" aria-label="This month's spend: {monthDollars}">
-      <span class="fs-amount">{monthDollars}</span>
-      <span class="fs-period">This Month</span>
-    </div>
-  </div>
-
-  <div class="fs-budget-row">
-    <BudgetBar
-      spent={todaySpentDollars}
-      limit={dailyLimitDollars}
-      currency="$"
-      warningPct={80}
-      label="Daily limit"
-    />
-  </div>
-
-  <div class="fs-savings" aria-label="Cache savings: {cacheSavingsPct} percent">
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      aria-hidden="true"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-    <span>Cache savings: <strong>{cacheSavingsPct}%</strong></span>
-  </div>
+    {#if cacheSavingsPct !== null}
+      <div class="fs-savings" aria-label="Cache savings: {cacheSavingsPct} percent">
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <span>Cache savings: <strong>{cacheSavingsPct}%</strong></span>
+      </div>
+    {/if}
+  {/if}
 </article>
 
 <style>
@@ -163,5 +176,44 @@
 
   .fs-savings strong {
     font-weight: 600;
+  }
+
+  .fs-empty {
+    padding: var(--space-4) 0;
+    text-align: center;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+
+  .fs-skeleton-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .fs-skeleton {
+    border-radius: var(--radius-sm);
+    background: linear-gradient(
+      90deg,
+      var(--bg-surface) 0%,
+      var(--bg-elevated) 50%,
+      var(--bg-surface) 100%
+    );
+    background-size: 200% 100%;
+    animation: fs-shimmer 1.6s ease-in-out infinite;
+    border: 1px solid var(--border-default);
+  }
+
+  .fs-skeleton--amount { height: 48px; }
+  .fs-skeleton--bar    { height: 28px; }
+
+  @keyframes fs-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fs-skeleton { animation: none; }
   }
 </style>

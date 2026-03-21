@@ -31,21 +31,7 @@ class GatewaysStore {
   async createGateway(data: Partial<Gateway>): Promise<Gateway | null> {
     this.loading = true;
     try {
-      // The gateways API only has list() right now — extend when backend supports it.
-      // For now, re-fetch after creation attempt to keep the list fresh.
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:9089"}/api/v1/gateways`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify(data),
-        },
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const created = (await response.json()) as Gateway;
+      const created = await gatewaysApi.create(data);
       this.gateways = [created, ...this.gateways];
       this.error = null;
       toastStore.success("Gateway created", data.name ?? "");
@@ -64,11 +50,7 @@ class GatewaysStore {
     const previous = this.gateways;
     this.gateways = this.gateways.filter((g) => g.id !== id);
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:9089"}/api/v1/gateways/${id}`,
-        { method: "DELETE", headers: { Accept: "application/json" } },
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await gatewaysApi.delete(id);
       this.error = null;
       toastStore.success("Gateway deleted");
     } catch (e) {
@@ -81,12 +63,7 @@ class GatewaysStore {
 
   async probeGateway(id: string): Promise<Gateway | null> {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:9089"}/api/v1/gateways/${id}/probe`,
-        { method: "POST", headers: { Accept: "application/json" } },
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const probed = (await response.json()) as Gateway;
+      const probed = await gatewaysApi.probe(id);
       this.gateways = this.gateways.map((g) => (g.id === id ? probed : g));
       this.error = null;
       toastStore.success(

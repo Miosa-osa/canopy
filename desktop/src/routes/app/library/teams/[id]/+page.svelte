@@ -7,9 +7,36 @@
     getLibraryTeamDetail,
     type LibraryTemplate,
   } from '$lib/api/mock/library';
+  import { deployTemplate } from '$lib/services/template-deploy';
+  import { toastStore } from '$lib/stores/toasts.svelte';
 
   const id = $derived(page.params.id ?? '');
   const team = $derived<LibraryTemplate | null>(id ? getLibraryTeamDetail(id) : null);
+
+  let deploying = $state(false);
+  let deployed = $state(false);
+
+  async function handleDeploy() {
+    if (!team || deploying) return;
+    deploying = true;
+    try {
+      const result = await deployTemplate(team.id, team.name);
+      if (result.success) {
+        deployed = true;
+        toastStore.success(
+          `${team.emoji} ${team.name} deployed`,
+          `${result.agentCount} agents provisioned.`,
+        );
+        goto('/app');
+      } else {
+        toastStore.error('Deploy failed', result.error ?? 'Unknown error');
+      }
+    } catch (e) {
+      toastStore.error('Deploy failed', (e as Error).message);
+    } finally {
+      deploying = false;
+    }
+  }
 
   function formatNumber(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -182,10 +209,18 @@
 
             <button
               class="ldt-deploy-btn"
-              onclick={() => {/* deploy handler */}}
+              class:ldt-deploy-btn--loading={deploying}
+              onclick={handleDeploy}
+              disabled={deploying || deployed}
               aria-label="Deploy {team.name} team"
             >
-              Deploy Team
+              {#if deployed}
+                Deployed
+              {:else if deploying}
+                Deploying...
+              {:else}
+                Deploy Team
+              {/if}
             </button>
           </div>
         </aside>
@@ -565,7 +600,16 @@
     color: #6ee7b7;
   }
 
-  .ldt-deploy-btn:active {
+  .ldt-deploy-btn:active:not(:disabled) {
     background: rgba(52, 211, 153, 0.28);
+  }
+
+  .ldt-deploy-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .ldt-deploy-btn--loading {
+    cursor: wait;
   }
 </style>

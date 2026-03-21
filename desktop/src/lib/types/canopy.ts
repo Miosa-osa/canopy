@@ -6,7 +6,7 @@
 export interface CanopyWorkspace {
   /** Absolute path to the .canopy/ directory */
   path: string;
-  /** Human-readable workspace name (from .canopy/workspace.yaml or directory name) */
+  /** Human-readable workspace name (from SYSTEM.md frontmatter or directory name) */
   name: string;
   /** Agents discovered in .canopy/agents/ */
   agents: CanopyAgentDef[];
@@ -16,6 +16,10 @@ export interface CanopyWorkspace {
   schedules: CanopyScheduleDef[];
   /** Skills discovered in .canopy/skills/ */
   skills: CanopySkillDef[];
+  /** Raw contents of .canopy/SYSTEM.md (workspace system prompt / config) */
+  system_md: string | null;
+  /** Raw contents of .canopy/COMPANY.md (organization context) */
+  company_md: string | null;
   /** Last scan timestamp */
   scanned_at: string;
 }

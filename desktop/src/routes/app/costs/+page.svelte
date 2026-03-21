@@ -3,7 +3,14 @@
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import CostDashboard from '$lib/components/costs/CostDashboard.svelte';
   import { costsStore } from '$lib/stores/costs.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
   import type { DateRange } from '$lib/stores/costs.svelte';
+
+  // Re-fetch all cost data whenever the active workspace changes (covers onMount + workspace switches)
+  $effect(() => {
+    void workspaceStore.activeWorkspaceId;
+    void costsStore.fetchAll();
+  });
 
   const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
     { value: '7d', label: '7 days' },

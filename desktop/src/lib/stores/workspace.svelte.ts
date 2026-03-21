@@ -1,6 +1,37 @@
 // src/lib/stores/workspace.svelte.ts
 import { browser } from "$app/environment";
 import { isTauri } from "$lib/utils/platform";
+import type { Workspace as BackendWorkspace } from "$api/types";
+
+/**
+ * Extract the `description` field from YAML frontmatter in a markdown file.
+ * Returns undefined if the file has no frontmatter or no description key.
+ */
+function parseSystemMdDescription(content: string): string | undefined {
+  const trimmed = content.trim();
+  if (!trimmed.startsWith("---")) return undefined;
+  const afterFirst = trimmed.slice(3);
+  const end = afterFirst.indexOf("---");
+  if (end === -1) return undefined;
+  const yaml = afterFirst.slice(0, end);
+  const match = yaml.match(/^description:\s*(.+)$/m);
+  return match?.[1]?.trim() || undefined;
+}
+
+/** Resolve ~ to actual home directory path */
+async function resolveHomePath(p: string): Promise<string> {
+  if (!p.startsWith("~")) return p;
+  if (isTauri()) {
+    try {
+      const { homeDir } = await import("@tauri-apps/api/path");
+      const home = await homeDir();
+      return p.replace("~", home.replace(/\/$/, ""));
+    } catch {
+      // fallback
+    }
+  }
+  return p;
+}
 
 export interface LocalWorkspace {
   id: string;
@@ -16,6 +47,11 @@ interface CanopyWorkspaceScan {
   agents: any[];
   projects: any[];
   schedules: any[];
+  skills: any[];
+  /** Raw contents of .canopy/SYSTEM.md */
+  system_md: string | null;
+  /** Raw contents of .canopy/COMPANY.md */
+  company_md: string | null;
   scanned_at: string;
 }
 
@@ -86,21 +122,101 @@ class WorkspaceStore {
     this.#persist();
   }
 
-  /** Set active workspace and scan it */
+  /** Set active workspace and reload all workspace-scoped data */
   async setActiveWorkspace(id: string): Promise<void> {
     this.activeWorkspaceId = id;
     this.#persist();
 
+    // 1. Tell the backend which workspace is now active so it scopes
+    //    subsequent queries (agents, sessions, issues, etc.) correctly.
+    try {
+      const { workspaces: workspacesApi } = await import("$api/client");
+      await workspacesApi.activate(id);
+    } catch {
+      // Non-fatal: backend may be unavailable or workspace may not exist there
+    }
+
+    // 2. Bust the response cache so stale data for the previous workspace is
+    //    not served to the new workspace's API calls.
+    const { clearCache } = await import("$api/client");
+    clearCache();
+
+    // 3. Try Tauri filesystem scan first (desktop app only)
     const ws = this.workspaces.find((w) => w.id === id);
     if (ws) {
       await this.scanAndLoadAgents(ws.path);
     }
+
+    // 4. Re-fetch all workspace-scoped stores in parallel.
+    //    The previous code only fetched agents when agents.length === 0, so
+    //    switching workspaces when agents were already loaded was a no-op.
+    //    Now every store always reloads its data for the newly active workspace.
+    const [
+      { agentsStore },
+      { sessionsStore },
+      { schedulesStore },
+      { issuesStore },
+      { projectsStore },
+      { dashboardStore },
+    ] = await Promise.all([
+      import("./agents.svelte"),
+      import("./sessions.svelte"),
+      import("./schedules.svelte"),
+      import("./issues.svelte"),
+      import("./projects.svelte"),
+      import("./dashboard.svelte"),
+    ]);
+
+    await Promise.all([
+      agentsStore.fetchAgents(id),
+      sessionsStore.fetch(id),
+      schedulesStore.fetchSchedules(id),
+      issuesStore.fetchIssues(id),
+      projectsStore.fetchProjects(id),
+      dashboardStore.fetch(),
+    ]);
+
+    // 5. Clear project-scoped goals — they belong to the old project context
+    const { goalsStore } = await import("./goals.svelte");
+    if (projectsStore.selected) {
+      await goalsStore.fetchGoals(projectsStore.selected.id);
+    } else {
+      goalsStore.setActiveProject("");
+    }
   }
 
-  /** Scan workspace and load agents into agents store */
+  /** Scan workspace and load agents, skills, and context files into stores */
   async scanAndLoadAgents(path: string): Promise<void> {
     const scan = await this.scanWorkspace(path);
-    if (!scan || scan.agents.length === 0) return;
+    if (!scan) return;
+
+    // Update the active workspace's name/description from SYSTEM.md frontmatter
+    if (scan.name || scan.system_md) {
+      const ws = this.workspaces.find(
+        (w) => w.path === path || path.startsWith(w.path),
+      );
+      if (ws) {
+        const descFromSystem = scan.system_md
+          ? parseSystemMdDescription(scan.system_md)
+          : undefined;
+        const nameChanged = scan.name && ws.name !== scan.name;
+        const descChanged = descFromSystem && ws.description !== descFromSystem;
+        if (nameChanged || descChanged) {
+          this.workspaces = this.workspaces.map((w) =>
+            w.path === ws.path
+              ? {
+                  ...w,
+                  name: scan.name || w.name,
+                  description: descFromSystem ?? w.description,
+                }
+              : w,
+          );
+          this.#persist();
+        }
+      }
+    }
+
+    if (scan.agents.length === 0) return;
 
     // Dynamic import to avoid circular deps
     const { canopyDefToAgent } = await import("$lib/utils/agents");
@@ -136,12 +252,104 @@ class WorkspaceStore {
   }
 
   /** Remove a workspace */
-  removeWorkspace(id: string): void {
+  async removeWorkspace(id: string): Promise<void> {
+    // Clean up deployed agents for this workspace
+    try {
+      const { clearMockWorkspaceAgents } = await import("$api/mock/agents");
+      clearMockWorkspaceAgents(id);
+    } catch {
+      // Mock module may not be available
+    }
+
     this.workspaces = this.workspaces.filter((w) => w.id !== id);
     if (this.activeWorkspaceId === id) {
       this.activeWorkspaceId = this.workspaces[0]?.id ?? null;
     }
     this.#persist();
+
+    // Reload all workspace-scoped stores for the new active workspace, or
+    // clear them if there is no workspace left.
+    const [
+      { agentsStore },
+      { sessionsStore },
+      { schedulesStore },
+      { issuesStore },
+      { projectsStore },
+    ] = await Promise.all([
+      import("./agents.svelte"),
+      import("./sessions.svelte"),
+      import("./schedules.svelte"),
+      import("./issues.svelte"),
+      import("./projects.svelte"),
+    ]);
+
+    if (this.activeWorkspaceId) {
+      await Promise.all([
+        agentsStore.fetchAgents(this.activeWorkspaceId),
+        sessionsStore.fetch(this.activeWorkspaceId),
+        schedulesStore.fetchSchedules(this.activeWorkspaceId),
+        issuesStore.fetchIssues(this.activeWorkspaceId),
+        projectsStore.fetchProjects(this.activeWorkspaceId),
+      ]);
+    } else {
+      agentsStore.agents = [];
+      sessionsStore.sessions = [];
+      schedulesStore.schedules = [];
+      issuesStore.issues = [];
+      projectsStore.projects = [];
+      projectsStore.selected = null;
+    }
+  }
+
+  /** Sync workspaces from the backend and set the active one */
+  async syncFromBackend(): Promise<void> {
+    try {
+      const { workspaces: workspacesApi, clearMockData } =
+        await import("$api/client");
+      const backendWorkspaces: BackendWorkspace[] = await workspacesApi.list();
+      if (!backendWorkspaces || backendWorkspaces.length === 0) return;
+
+      // Backend responded with real workspace data — purge any mock agents or
+      // other mock state that may have been persisted to localStorage during a
+      // prior offline session. This must happen before any agents store fetch
+      // so that stale mock agents cannot be merged with real backend agents.
+      await clearMockData();
+
+      // Prefer the first "active" workspace, fall back to the first in the list
+      const activeBackendWs =
+        backendWorkspaces.find((w) => w.status === "active") ??
+        backendWorkspaces[0];
+
+      // Register any backend workspaces not yet in local store
+      for (const bws of backendWorkspaces) {
+        if (!this.workspaces.some((w) => w.id === bws.id)) {
+          const localWs: LocalWorkspace = {
+            id: bws.id,
+            name: bws.name,
+            path:
+              bws.path ??
+              bws.directory ??
+              `~/.canopy/${bws.name.toLowerCase().replace(/\s+/g, "-")}`,
+            addedAt: bws.created_at ?? new Date().toISOString(),
+          };
+          this.workspaces = [...this.workspaces, localWs];
+        }
+      }
+      this.#persist();
+
+      // Point the active workspace at the backend's active one.
+      // If this differs from what we had locally, bust the cache so that
+      // subsequent data fetches (agents, dashboard, etc.) reflect the correct
+      // workspace — not stale data from a previously active workspace.
+      if (this.activeWorkspaceId !== activeBackendWs.id) {
+        const { clearCache } = await import("$api/client");
+        clearCache();
+      }
+      this.activeWorkspaceId = activeBackendWs.id;
+      this.#persist();
+    } catch {
+      // Backend not available — keep existing local workspaces
+    }
   }
 
   /** Create workspace (for API compatibility) */
@@ -149,9 +357,12 @@ class WorkspaceStore {
     name: string,
     directory?: string,
   ): Promise<LocalWorkspace | null> {
+    const rawPath =
+      directory ?? `~/.canopy/${name.toLowerCase().replace(/\s+/g, "-")}`;
+    const resolvedPath = await resolveHomePath(rawPath);
     const ws: LocalWorkspace = {
       id: crypto.randomUUID(),
-      path: directory ?? `~/.canopy/${name.toLowerCase().replace(/\s+/g, "-")}`,
+      path: resolvedPath,
       name,
       addedAt: new Date().toISOString(),
     };

@@ -117,7 +117,7 @@ defmodule CanopyWeb.ScheduleController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       schedule ->
-        now = DateTime.utc_now()
+        now = DateTime.utc_now() |> DateTime.truncate(:second)
 
         {:ok, updated} =
           schedule

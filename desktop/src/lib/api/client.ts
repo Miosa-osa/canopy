@@ -70,6 +70,38 @@ async function getMock() {
   return mockModule;
 }
 
+/**
+ * Enable mock mode and notify the mock module so its internal guard allows
+ * handleRequest calls. Also clears the response cache to prevent stale real
+ * data from being served after a reconnect cycle.
+ */
+async function setMockEnabled(enabled: boolean): Promise<void> {
+  useMock = enabled;
+  // Best-effort: notify the mock module. The module may not be loaded yet when
+  // mock mode is first activated on startup — that is fine because _mockAllowed
+  // defaults to true inside the mock module.
+  if (mockModule) {
+    if (enabled) {
+      mockModule.notifyMockEnabled();
+    } else {
+      mockModule.notifyMockDisabled();
+      // Wipe mock-sourced localStorage so real data is never polluted by
+      // leftover mock agents, sessions, etc.
+      mockModule.clearAllMockData();
+    }
+  } else if (!enabled) {
+    // Mock module not loaded yet but we're disabling mock — eagerly load it
+    // just to clear localStorage so stale data doesn't survive.
+    try {
+      const mod = await getMock();
+      mod.notifyMockDisabled();
+      mod.clearAllMockData();
+    } catch {
+      // Non-fatal
+    }
+  }
+}
+
 // ── Token Store ───────────────────────────────────────────────────────────────
 
 let _token: string | null = null;
@@ -79,6 +111,21 @@ export function getToken(): string | null {
 }
 export function setToken(token: string | null): void {
   _token = token;
+}
+
+// ── Auth Gate ─────────────────────────────────────────────────────────────────
+// All API requests wait for auth to complete before firing.
+
+let _authResolve: (() => void) | null = null;
+const _authPromise: Promise<void> = new Promise<void>((resolve) => {
+  _authResolve = resolve;
+});
+
+function resolveAuthGate(): void {
+  if (_authResolve) {
+    _authResolve();
+    _authResolve = null;
+  }
 }
 
 // ── Auth Initialization ───────────────────────────────────────────────────────
@@ -99,7 +146,11 @@ async function saveTokenToStore(token: string): Promise<void> {
 
 async function verifyToken(token: string): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}${API_PREFIX}/health`, {
+    // Use /agents (requires auth) rather than /health (no auth required).
+    // /health returns 200 for any request regardless of token validity, so
+    // using it here would make verifyToken() return true for stale or
+    // invalid tokens, skipping re-login and sending unauthenticated requests.
+    const res = await fetch(`${BASE_URL}${API_PREFIX}/agents`, {
       headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
     });
     return res.ok;
@@ -125,14 +176,18 @@ export async function initializeAuth(): Promise<void> {
   // 0. Probe backend — if it responds, disable mock mode
   try {
     const probe = await fetch(`${BASE_URL}${API_PREFIX}/health`, {
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(3000),
     });
     if (probe.ok) {
-      useMock = false;
+      // setMockEnabled(false) clears the response cache, purges all mock
+      // localStorage keys, and notifies the mock module — one call does all.
+      clearCache();
+      await setMockEnabled(false);
     }
   } catch {
     // Backend not running — stay in mock mode
-    useMock = true;
+    await setMockEnabled(true);
+    resolveAuthGate();
     return;
   }
 
@@ -152,7 +207,10 @@ export async function initializeAuth(): Promise<void> {
   // 2. If we have a token, verify it is still valid
   if (_token) {
     const valid = await verifyToken(_token);
-    if (valid) return;
+    if (valid) {
+      resolveAuthGate();
+      return;
+    }
     _token = null;
   }
 
@@ -166,11 +224,18 @@ export async function initializeAuth(): Promise<void> {
       await saveTokenToStore(token);
     } catch {
       // Backend not ready or credentials rejected — fall back to mock mode
-      useMock = true;
+      await setMockEnabled(true);
     }
+  } else {
+    // No dev credentials and no stored token — fall back to mock mode so that
+    // API calls don't fire unauthenticated requests and receive 401 responses.
+    // The app can prompt for credentials and call setToken() + disableMock()
+    // once the user logs in.
+    await setMockEnabled(true);
   }
-  // If no dev credentials but backend is up, useMock stays false —
-  // the app will show the login page for the user to enter credentials
+
+  // Open the auth gate so queued API requests can proceed
+  resolveAuthGate();
 }
 
 // ── Typed Error ───────────────────────────────────────────────────────────────
@@ -339,10 +404,24 @@ async function doFetch<T>(
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  // If mock mode, route through mock layer
+  // Wait for auth to finish before making any API call.
+  // Re-read useMock AFTER the promise resolves — initializeAuth() may have
+  // flipped it from true → false while this call was queued, which is the
+  // race condition that caused mock data to bleed into live sessions.
+  await _authPromise;
+
+  // Guard: re-check useMock after the auth gate opens so a flip that happened
+  // concurrently during initializeAuth() is always visible here.
   if (useMock) {
     const mock = await getMock();
-    return mock.handleRequest<T>(path, options);
+    // Second guard: useMock could flip again between the check above and
+    // getMock() completing (getMock() is async). Only dispatch to mock when
+    // the flag is still true at call time.
+    if (!useMock) {
+      // Fall through to the real fetch path below
+    } else {
+      return mock.handleRequest<T>(path, options);
+    }
   }
 
   const method = (options.method ?? "GET").toUpperCase();
@@ -357,7 +436,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch (error) {
       // Fall back to mock on network error
       if (!(error instanceof ApiError)) {
-        useMock = true;
+        await setMockEnabled(true);
         const mock = await getMock();
         return mock.handleRequest<T>(path, options);
       }
@@ -383,20 +462,25 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const health = {
   get: async (): Promise<HealthResponse> => {
-    if (useMock) {
-      const mock = await getMock();
-      return mock.handleRequest<HealthResponse>("/health", {});
-    }
+    // Always attempt a real probe first — this is how mock mode gets cleared
     try {
       const res = await fetch(`${BASE_URL}${API_PREFIX}/health`, {
         headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(3000),
       });
       if (!res.ok) throw new ApiError(res.status, "Health check failed");
+      // Backend is reachable — disable mock mode so subsequent requests go to
+      // the real API. setMockEnabled(false) purges localStorage mock data and
+      // clears the response cache in one call.
+      if (useMock) {
+        clearCache();
+        await setMockEnabled(false);
+      }
       return res.json() as Promise<HealthResponse>;
     } catch (error) {
       if (error instanceof ApiError) throw error;
       // Network error — backend unreachable, activate mock mode
-      useMock = true;
+      await setMockEnabled(true);
       const mock = await getMock();
       return mock.handleRequest<HealthResponse>("/health", {});
     }
@@ -412,9 +496,10 @@ export const dashboard = {
 // ── Agents ────────────────────────────────────────────────────────────────────
 
 export const agents = {
-  list: async (): Promise<CanopyAgent[]> => {
+  list: async (workspaceId?: string): Promise<CanopyAgent[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
     const data = await request<{ agents: CanopyAgent[]; count: number }>(
-      "/agents",
+      `/agents${qs}`,
     );
     return data.agents ?? [];
   },
@@ -438,9 +523,10 @@ export const agents = {
 // ── Sessions ──────────────────────────────────────────────────────────────────
 
 export const sessions = {
-  list: async (): Promise<Session[]> => {
+  list: async (workspaceId?: string): Promise<Session[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
     const data = await request<{ sessions: Session[]; count: number }>(
-      "/sessions",
+      `/sessions${qs}`,
     );
     return data.sessions ?? [];
   },
@@ -474,8 +560,9 @@ export const messages = {
 // ── Schedules ─────────────────────────────────────────────────────────────────
 
 export const schedules = {
-  list: async (): Promise<Schedule[]> => {
-    const data = await request<{ schedules: Schedule[] }>("/schedules");
+  list: async (workspaceId?: string): Promise<Schedule[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    const data = await request<{ schedules: Schedule[] }>(`/schedules${qs}`);
     return data.schedules ?? [];
   },
   get: (id: string) => request<Schedule>(`/schedules/${id}`),
@@ -503,8 +590,9 @@ export const schedules = {
 // ── Issues ────────────────────────────────────────────────────────────────────
 
 export const issues = {
-  list: async (): Promise<Issue[]> => {
-    const data = await request<{ issues: Issue[] }>("/issues");
+  list: async (workspaceId?: string): Promise<Issue[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    const data = await request<{ issues: Issue[] }>(`/issues${qs}`);
     return data.issues ?? [];
   },
   get: (id: string) => request<Issue>(`/issues/${id}`),
@@ -516,6 +604,10 @@ export const issues = {
       body: JSON.stringify(body),
     }),
   delete: (id: string) => request<void>(`/issues/${id}`, { method: "DELETE" }),
+  dispatch: (issueId: string) =>
+    request<{ ok: boolean; message: string }>(`/issues/${issueId}/dispatch`, {
+      method: "POST",
+    }),
 };
 
 // ── Goals ─────────────────────────────────────────────────────────────────────
@@ -537,13 +629,22 @@ export const goals = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+  decompose: (
+    goalId: string,
+    opts?: { max_issues?: number; auto_assign?: boolean },
+  ) =>
+    request<{ issues: Issue[]; count: number }>(`/goals/${goalId}/decompose`, {
+      method: "POST",
+      body: JSON.stringify(opts ?? {}),
+    }),
 };
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export const projects = {
-  list: async (): Promise<Project[]> => {
-    const data = await request<{ projects: Project[] }>("/projects");
+  list: async (workspaceId?: string): Promise<Project[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    const data = await request<{ projects: Project[] }>(`/projects${qs}`);
     return data.projects ?? [];
   },
   get: (id: string) => request<Project>(`/projects/${id}`),
@@ -664,6 +765,30 @@ export const gateways = {
     const data = await request<{ gateways: Gateway[] }>("/gateways");
     return data.gateways ?? [];
   },
+  create: (body: Partial<Gateway>) =>
+    request<Gateway>("/gateways", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  delete: (id: string) =>
+    request<void>(`/gateways/${id}`, { method: "DELETE" }),
+  probe: (id: string) =>
+    request<Gateway>(`/gateways/${id}/probe`, { method: "POST" }),
+};
+
+// ── Documents ─────────────────────────────────────────────────────────────────
+
+export const documents = {
+  list: async (): Promise<{
+    documents: import("./types").Document[];
+    tree: import("./types").DocumentTreeNode[];
+  }> => {
+    const data = await request<{
+      documents: import("./types").Document[];
+      tree: import("./types").DocumentTreeNode[];
+    }>("/documents");
+    return { documents: data.documents ?? [], tree: data.tree ?? [] };
+  },
 };
 
 // ── Workspaces ────────────────────────────────────────────────────────────────
@@ -681,6 +806,11 @@ export const workspaces = {
       method: "POST",
       body: JSON.stringify(params),
     });
+  },
+  activate: async (id: string): Promise<Workspace> => {
+    return request<{ workspace: Workspace }>(`/workspaces/${id}/activate`, {
+      method: "POST",
+    }).then((data) => (data as { workspace: Workspace }).workspace ?? data);
   },
 };
 
@@ -967,13 +1097,33 @@ export const templates = {
 };
 
 // ── Enable/Disable Mock ──────────────────────────────────────────────────────
+// These are async because disabling mock purges localStorage and notifies the
+// mock module, both of which are best-effort async operations.
 
-export function enableMock(): void {
-  useMock = true;
+export async function enableMock(): Promise<void> {
+  await setMockEnabled(true);
 }
-export function disableMock(): void {
-  useMock = false;
+export async function disableMock(): Promise<void> {
+  await setMockEnabled(false);
 }
 export function isMockEnabled(): boolean {
   return useMock;
+}
+
+/**
+ * Purge all mock-related localStorage keys and flush in-memory mock state.
+ * Safe to call at any time — no-ops when the mock module isn't loaded yet.
+ */
+export async function clearMockData(): Promise<void> {
+  try {
+    const mod = await getMock();
+    mod.clearAllMockData();
+  } catch {
+    // Mock module not available — clear the well-known key directly
+    try {
+      localStorage.removeItem("canopy-workspace-agents");
+    } catch {
+      // localStorage unavailable
+    }
+  }
 }

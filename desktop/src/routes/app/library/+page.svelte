@@ -6,6 +6,7 @@
   import LibraryOperationCard from '$lib/components/library/LibraryOperationCard.svelte';
   import LibraryTemplateCard from '$lib/components/library/LibraryTemplateCard.svelte';
   import { goto } from '$app/navigation';
+  import { deployTemplate } from '$lib/services/template-deploy';
   import {
     getLibraryAgents,
     getLibrarySkills,
@@ -214,12 +215,26 @@
     notify(`${skill.name} toggled`);
   }
 
-  function handleOperationUse(op: LibraryOperation) {
-    notify(`Creating workspace from "${op.name}"…`);
+  async function handleOperationUse(op: LibraryOperation) {
+    notify(`Deploying "${op.name}"…`);
+    const result = await deployTemplate(op.id, op.name);
+    if (result.success) {
+      notify(`${op.emoji} ${op.name} deployed — ${result.agentCount} agents`);
+      goto('/app');
+    } else {
+      notify(`Deploy failed: ${result.error ?? 'unknown error'}`);
+    }
   }
 
-  function handleTemplateCreate(tmpl: LibraryTemplate) {
-    notify(`Creating "${tmpl.name}" workspace…`);
+  async function handleTemplateCreate(tmpl: LibraryTemplate) {
+    notify(`Deploying "${tmpl.name}"…`);
+    const result = await deployTemplate(tmpl.id, tmpl.name);
+    if (result.success) {
+      notify(`${tmpl.emoji} ${tmpl.name} deployed — ${result.agentCount} agents`);
+      goto('/app');
+    } else {
+      notify(`Deploy failed: ${result.error ?? 'unknown error'}`);
+    }
   }
 
   // ── Count helper for category chips ────────────────────────────────────────

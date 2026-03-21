@@ -10,7 +10,7 @@ export type ConnectionStatus =
   | "mock";
 
 class ConnectionStore {
-  status = $state<ConnectionStatus>("mock");
+  status = $state<ConnectionStatus>("connecting");
   lastChecked = $state<Date | null>(null);
   lastConnectedAt = $state<Date | null>(null);
   error = $state<string | null>(null);
@@ -29,7 +29,7 @@ class ConnectionStore {
   }
 
   get isReady(): boolean {
-    return true;
+    return this.status === "connected" || this.status === "mock";
   }
 
   async check(): Promise<void> {
@@ -130,7 +130,9 @@ class ConnectionStore {
   async #syncOnReconnect(): Promise<void> {
     const { flushOfflineQueue, clearCache, disableMock } =
       await import("$api/client");
-    disableMock();
+    // disableMock() is now async — it notifies the mock module and purges
+    // all mock localStorage keys before any live requests are made.
+    await disableMock();
     clearCache();
     const result = await flushOfflineQueue();
     this.offlineQueueSize = 0;

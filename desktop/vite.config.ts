@@ -30,6 +30,11 @@ export default defineConfig({
       },
     },
     host: "127.0.0.1",
+    hmr: {
+      host: "127.0.0.1",
+      port: TAURI_DEV_PORT,
+      protocol: "ws",
+    },
   },
   build: {
     target: isTauriDev ? "esnext" : ["chrome105", "safari15"],

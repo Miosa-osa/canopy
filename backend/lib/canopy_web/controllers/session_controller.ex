@@ -92,7 +92,7 @@ defmodule CanopyWeb.SessionController do
       session ->
         {:ok, updated} =
           session
-          |> Ecto.Changeset.change(status: "cancelled", completed_at: DateTime.utc_now())
+          |> Ecto.Changeset.change(status: "cancelled", completed_at: DateTime.utc_now() |> DateTime.truncate(:second))
           |> Repo.update()
 
         Canopy.EventBus.broadcast(
