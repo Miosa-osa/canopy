@@ -53,8 +53,11 @@
       assignee_name: assignee?.display_name ?? null,
       labels,
     };
-    onSubmit(data);
-    submitting = false;
+    try {
+      await onSubmit(data);
+    } finally {
+      submitting = false;
+    }
   }
 
   const PRIORITIES: IssuePriority[] = ['low', 'medium', 'high', 'critical'];

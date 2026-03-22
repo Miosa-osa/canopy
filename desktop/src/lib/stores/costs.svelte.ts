@@ -22,6 +22,8 @@ class CostsStore {
   lastFetched = $state<Date | null>(null);
 
   dateRange = $state<DateRange>("30d");
+  // Tracks the active workspace so date-range changes can re-fetch scoped data
+  private _workspaceId: string | undefined = undefined;
 
   summary = $state<CostSummary>({
     today_cents: 0,
@@ -99,14 +101,14 @@ class CostsStore {
 
   // ── Methods ────────────────────────────────────────────────────────────────
 
-  async fetch(): Promise<void> {
+  async fetch(workspaceId?: string): Promise<void> {
     this.isLoading = true;
     this.error = null;
     try {
       const [summaryData, agentData, modelData] = await Promise.all([
-        costsApi.summary(),
-        costsApi.byAgent(),
-        costsApi.byModel(),
+        costsApi.summary(workspaceId),
+        costsApi.byAgent(workspaceId),
+        costsApi.byModel(workspaceId),
       ]);
       this.summary = summaryData;
       this.agentBreakdown = agentData.agents ?? [];
@@ -121,11 +123,11 @@ class CostsStore {
     }
   }
 
-  async fetchPolicies(): Promise<void> {
+  async fetchPolicies(workspaceId?: string): Promise<void> {
     try {
       const [policiesData, incidentsData] = await Promise.all([
-        costsApi.policies(),
-        costsApi.incidents(),
+        costsApi.policies(workspaceId),
+        costsApi.incidents(workspaceId),
       ]);
       this.policies = policiesData.policies ?? [];
       this.incidents = incidentsData.incidents ?? [];
@@ -136,7 +138,7 @@ class CostsStore {
     }
   }
 
-  async fetchTrends(): Promise<void> {
+  async fetchTrends(workspaceId?: string): Promise<void> {
     try {
       const to = new Date();
       const daysBack =
@@ -144,7 +146,11 @@ class CostsStore {
       const from = new Date(to);
       from.setDate(from.getDate() - daysBack);
       const fmt = (d: Date) => d.toISOString().slice(0, 10);
-      const data = await costsApi.daily({ from: fmt(from), to: fmt(to) });
+      const data = await costsApi.daily({
+        from: fmt(from),
+        to: fmt(to),
+        workspace_id: workspaceId,
+      });
       this.dailyTrend = data.points ?? [];
     } catch {
       // Endpoint may not exist yet — fail silently with empty trend
@@ -152,15 +158,16 @@ class CostsStore {
     }
   }
 
-  async fetchAll(): Promise<void> {
-    await this.fetch();
-    await this.fetchTrends();
-    await this.fetchPolicies();
+  async fetchAll(workspaceId?: string): Promise<void> {
+    this._workspaceId = workspaceId;
+    await this.fetch(workspaceId);
+    await this.fetchTrends(workspaceId);
+    await this.fetchPolicies(workspaceId);
   }
 
   setDateRange(range: DateRange): void {
     this.dateRange = range;
-    void this.fetchTrends();
+    void this.fetchTrends(this._workspaceId);
   }
 }
 

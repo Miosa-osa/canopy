@@ -215,6 +215,8 @@ export interface CanopyAgent {
 export interface AgentCreateRequest {
   name: string;
   display_name: string;
+  slug?: string;
+  workspace_id?: string;
   avatar_emoji?: string;
   role: string;
   adapter: AdapterType;
@@ -373,6 +375,7 @@ export interface Project {
   name: string;
   description: string | null;
   status: ProjectStatus;
+  workspace_id?: string;
   workspace_path: string | null;
   goal_count: number;
   issue_count: number;

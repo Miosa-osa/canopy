@@ -14,6 +14,7 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
   import ActivityWidget from '$lib/components/activity/ActivityWidget.svelte';
   import { activityStore } from '$lib/stores/activity.svelte';
+  import { sessionsStore } from '$lib/stores/sessions.svelte';
   import { isTauri, isMacOS } from '$lib/utils/platform';
   import { initializeAuth, getToken, isMockEnabled, workspaces, agents } from '$api/client';
 
@@ -27,6 +28,16 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
 
   // Initialize theme
   $effect(() => { void themeStore.resolved; });
+
+  // Forward session-related activity events to the sessions store so the
+  // session list stays current during live execution without a full refetch.
+  let _lastForwardedActivityId = $state<string | null>(null);
+  $effect(() => {
+    const latest = activityStore.events[0];
+    if (!latest || latest.id === _lastForwardedActivityId) return;
+    _lastForwardedActivityId = latest.id;
+    sessionsStore.handleActivityEvent(latest);
+  });
 
   // Sidebar collapsed state — persisted to localStorage
   let sidebarCollapsed = $state(false);

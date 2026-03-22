@@ -84,9 +84,21 @@ async function getMock() {
  * Enable mock mode and notify the mock module so its internal guard allows
  * handleRequest calls. Also clears the response cache to prevent stale real
  * data from being served after a reconnect cycle.
+ *
+ * When transitioning FROM mock TO real mode, a transition gate is raised so
+ * in-flight requests are held until the cache is cleared and re-auth completes,
+ * preventing a mixed mock/real state.
  */
 async function setMockEnabled(enabled: boolean): Promise<void> {
+  const wasInMock = useMock;
   useMock = enabled;
+
+  // If we're switching from mock → real, erect the transition gate BEFORE
+  // clearing caches so no racing request sneaks through with stale data.
+  if (wasInMock && !enabled) {
+    beginTransition();
+  }
+
   // Best-effort: notify the mock module. The module may not be loaded yet when
   // mock mode is first activated on startup — that is fine because _mockAllowed
   // defaults to true inside the mock module.
@@ -110,17 +122,34 @@ async function setMockEnabled(enabled: boolean): Promise<void> {
       // Non-fatal
     }
   }
+
+  // If we just started the transition, clear the cache and lower the gate.
+  // The gate was raised above to prevent requests from racing through before
+  // clearCache() completes.
+  if (wasInMock && !enabled) {
+    clearCache();
+    endTransition();
+  }
 }
 
 // ── Token Store ───────────────────────────────────────────────────────────────
 
 let _token: string | null = null;
+let _firstRun: boolean = false;
 
 export function getToken(): string | null {
   return _token;
 }
 export function setToken(token: string | null): void {
   _token = token;
+}
+
+/**
+ * Returns true if the backend reported no users exist (first-run state).
+ * Only meaningful after initializeAuth() has resolved.
+ */
+export function isFirstRun(): boolean {
+  return _firstRun;
 }
 
 // ── Auth Gate ─────────────────────────────────────────────────────────────────
@@ -137,6 +166,50 @@ function resolveAuthGate(): void {
     _authResolve = null;
   }
 }
+
+// ── Transition Gate ────────────────────────────────────────────────────────────
+// When the backend comes online and we flip from mock to real mode, in-flight
+// requests must not proceed with stale mock data. The transition gate blocks
+// all new requests while the mode switch (cache clear + re-auth) completes.
+// A 5-second timeout prevents a stuck transition from hanging the app forever.
+
+const TRANSITION_TIMEOUT_MS = 5_000;
+let _transitionResolve: (() => void) | null = null;
+let _transitionPromise: Promise<void> | null = null;
+let _transitioning = false;
+
+function beginTransition(): void {
+  if (_transitioning) return;
+  _transitioning = true;
+  _transitionPromise = new Promise<void>((resolve) => {
+    _transitionResolve = resolve;
+    // Safety: auto-resolve after timeout so requests are never blocked forever
+    setTimeout(() => {
+      if (_transitionResolve) {
+        _transitionResolve();
+        _transitionResolve = null;
+        _transitioning = false;
+      }
+    }, TRANSITION_TIMEOUT_MS);
+  });
+}
+
+function endTransition(): void {
+  if (_transitionResolve) {
+    _transitionResolve();
+    _transitionResolve = null;
+  }
+  _transitioning = false;
+  _transitionPromise = null;
+}
+
+// Tracks the in-flight (or completed) initializeAuth() promise so that
+// concurrent or repeated callers all await the same single execution.
+// Without this guard a second call — e.g. from +layout.svelte after
+// +page.svelte already ran initializeAuth() and redirected to /app —
+// would re-probe /health, call clearCache(), and re-verify the token,
+// wasting two extra network requests and wiping freshly-cached responses.
+let _initPromise: Promise<void> | null = null;
 
 // ── Auth Initialization ───────────────────────────────────────────────────────
 
@@ -182,8 +255,18 @@ export async function login(email: string, password: string): Promise<string> {
   return data.token;
 }
 
-export async function initializeAuth(): Promise<void> {
-  // 0. Probe backend — if it responds, disable mock mode
+export function initializeAuth(): Promise<void> {
+  // Return the in-flight or completed promise so concurrent / repeated callers
+  // (e.g. +page.svelte then +layout.svelte on the same navigation) share one
+  // execution and avoid redundant health probes, cache clearing, and token
+  // verification requests.
+  if (_initPromise) return _initPromise;
+  _initPromise = _doInitializeAuth();
+  return _initPromise;
+}
+
+async function _doInitializeAuth(): Promise<void> {
+  // 0. Probe backend health — if it responds, disable mock mode
   try {
     const probe = await fetch(`${BASE_URL}${API_PREFIX}/health`, {
       signal: AbortSignal.timeout(3000),
@@ -201,7 +284,31 @@ export async function initializeAuth(): Promise<void> {
     return;
   }
 
-  // 1. Check Tauri store for a saved token
+  // 0b. Check auth status to determine first-run state
+  try {
+    const statusRes = await fetch(`${BASE_URL}${API_PREFIX}/auth/status`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (statusRes.ok) {
+      const status = (await statusRes.json()) as {
+        has_users: boolean;
+        registration_open: boolean;
+      };
+      _firstRun = !status.has_users;
+    }
+  } catch {
+    // Non-fatal: assume users exist, proceed normally
+    _firstRun = false;
+  }
+
+  // 1. If no users exist yet (first run), open gate and return immediately.
+  //    The root page will redirect to /auth for registration.
+  if (_firstRun) {
+    resolveAuthGate();
+    return;
+  }
+
+  // 2. Check Tauri store for a saved token
   try {
     const { load: loadStore } = await import("@tauri-apps/plugin-store");
     const store = await loadStore("store.json", {
@@ -211,10 +318,20 @@ export async function initializeAuth(): Promise<void> {
     const stored = await store.get<string>("authToken");
     if (stored) _token = stored;
   } catch {
-    // Not in Tauri or store unavailable
+    // Not in Tauri or store unavailable — try localStorage
   }
 
-  // 2. If we have a token, verify it is still valid
+  // 3. Fall back to localStorage token if Tauri store had nothing
+  if (!_token) {
+    try {
+      const stored = localStorage.getItem("canopy-auth-token");
+      if (stored) _token = stored;
+    } catch {
+      // localStorage unavailable (SSR / blocked)
+    }
+  }
+
+  // 4. If we have a token, verify it is still valid
   if (_token) {
     const valid = await verifyToken(_token);
     if (valid) {
@@ -224,7 +341,7 @@ export async function initializeAuth(): Promise<void> {
     _token = null;
   }
 
-  // 3. No valid token — try dev auto-login (credentials from env only)
+  // 5. No valid stored token — try dev auto-login as FALLBACK (dev mode only)
   const devEmail = import.meta.env.VITE_DEV_EMAIL;
   const devPassword = import.meta.env.VITE_DEV_PASSWORD;
   if (devEmail && devPassword) {
@@ -232,17 +349,18 @@ export async function initializeAuth(): Promise<void> {
       const token = await login(devEmail, devPassword);
       _token = token;
       await saveTokenToStore(token);
+      try {
+        localStorage.setItem("canopy-auth-token", token);
+      } catch {
+        // Non-fatal
+      }
     } catch {
-      // Backend not ready or credentials rejected — fall back to mock mode
-      await setMockEnabled(true);
+      // Dev credentials rejected — no token, will redirect to /auth for login
     }
-  } else {
-    // No dev credentials and no stored token — fall back to mock mode so that
-    // API calls don't fire unauthenticated requests and receive 401 responses.
-    // The app can prompt for credentials and call setToken() + disableMock()
-    // once the user logs in.
-    await setMockEnabled(true);
   }
+  // If still no token after dev login attempt, the root page will redirect
+  // to /auth for manual login. We do NOT fall back to mock mode here so that
+  // real API calls work once the user provides credentials.
 
   // Open the auth gate so queued API requests can proceed
   resolveAuthGate();
@@ -331,7 +449,42 @@ export function clearCache(): void {
 
 // ── Offline Queue ───────────────────────────────────────────────────────────
 
-const offlineQueue: QueuedRequest[] = [];
+const OFFLINE_QUEUE_KEY = "canopy-offline-queue";
+const OFFLINE_QUEUE_MAX = 100;
+const OFFLINE_QUEUE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function loadQueueFromStorage(): QueuedRequest[] {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as QueuedRequest[];
+    const cutoff = Date.now() - OFFLINE_QUEUE_TTL_MS;
+    return parsed.filter((r) => r.timestamp > cutoff);
+  } catch {
+    return [];
+  }
+}
+
+function saveQueueToStorage(queue: QueuedRequest[]): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  } catch {
+    // Storage full or unavailable — non-fatal
+  }
+}
+
+function clearQueueFromStorage(): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.removeItem(OFFLINE_QUEUE_KEY);
+  } catch {
+    // Non-fatal
+  }
+}
+
+const offlineQueue: QueuedRequest[] = loadQueueFromStorage();
 export function getOfflineQueue(): readonly QueuedRequest[] {
   return offlineQueue;
 }
@@ -359,10 +512,20 @@ export async function flushOfflineQueue(): Promise<{
       break;
     }
   }
+  // Clear storage only when the queue drained completely
+  if (offlineQueue.length === 0) {
+    clearQueueFromStorage();
+  } else {
+    saveQueueToStorage(offlineQueue);
+  }
   return { succeeded, failed };
 }
 
 function queueForOffline(method: string, path: string, body?: unknown): void {
+  if (offlineQueue.length >= OFFLINE_QUEUE_MAX) {
+    // Discard the oldest item to make room
+    offlineQueue.shift();
+  }
   offlineQueue.push({
     id: crypto.randomUUID(),
     method,
@@ -370,6 +533,7 @@ function queueForOffline(method: string, path: string, body?: unknown): void {
     body,
     timestamp: Date.now(),
   });
+  saveQueueToStorage(offlineQueue);
 }
 
 // ── Core Request ──────────────────────────────────────────────────────────────
@@ -420,6 +584,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   // race condition that caused mock data to bleed into live sessions.
   await _authPromise;
 
+  // If a mock→real transition is in progress, wait for it to complete so we
+  // never send a request while the cache is being cleared and re-auth is
+  // running. The transition promise is null when no transition is active.
+  if (_transitionPromise) await _transitionPromise;
+
   // Guard: re-check useMock after the auth gate opens so a flip that happened
   // concurrently during initializeAuth() is always visible here.
   if (useMock) {
@@ -435,6 +604,21 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   const method = (options.method ?? "GET").toUpperCase();
+
+  // For mutating requests, generate an idempotency key once so retries reuse
+  // the same key and the backend can deduplicate them.
+  if (method !== "GET") {
+    const existingHeaders = (options.headers ?? {}) as Record<string, string>;
+    if (!existingHeaders["Idempotency-Key"]) {
+      options = {
+        ...options,
+        headers: {
+          ...existingHeaders,
+          "Idempotency-Key": crypto.randomUUID(),
+        },
+      };
+    }
+  }
 
   if (method === "GET") {
     const cached = getCached<T>(path);
@@ -465,6 +649,134 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       queueForOffline(method, path, body);
     }
     throw error;
+  }
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface AuthStatus {
+  has_users: boolean;
+  registration_open: boolean;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthWorkspace {
+  id: string;
+  name: string;
+}
+
+export interface RegisterResponse {
+  token: string;
+  user: AuthUser;
+  workspace: AuthWorkspace;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: AuthUser;
+}
+
+export const auth = {
+  status: async (): Promise<AuthStatus> => {
+    const res = await fetch(`${BASE_URL}${API_PREFIX}/auth/status`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) throw new ApiError(res.status, "Failed to fetch auth status");
+    return res.json() as Promise<AuthStatus>;
+  },
+
+  register: async (data: {
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<RegisterResponse> => {
+    const res = await fetch(`${BASE_URL}${API_PREFIX}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      let body: unknown;
+      try {
+        body = await res.json();
+      } catch {
+        body = await res.text();
+      }
+      const message =
+        typeof body === "object" && body !== null && "error" in body
+          ? String((body as Record<string, unknown>).error)
+          : "Registration failed";
+      throw new ApiError(res.status, message, body);
+    }
+    return res.json() as Promise<RegisterResponse>;
+  },
+
+  login: async (data: {
+    email: string;
+    password: string;
+  }): Promise<LoginResponse> => {
+    const res = await fetch(`${BASE_URL}${API_PREFIX}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      let body: unknown;
+      try {
+        body = await res.json();
+      } catch {
+        body = await res.text();
+      }
+      const message =
+        typeof body === "object" && body !== null && "error" in body
+          ? String((body as Record<string, unknown>).error)
+          : "Login failed";
+      throw new ApiError(res.status, message, body);
+    }
+    return res.json() as Promise<LoginResponse>;
+  },
+};
+
+/**
+ * Persist an auth token to both Tauri store and localStorage.
+ * Safe to call in browser-only context (Tauri path will no-op gracefully).
+ */
+export async function persistToken(token: string): Promise<void> {
+  _token = token;
+  await saveTokenToStore(token);
+  try {
+    localStorage.setItem("canopy-auth-token", token);
+  } catch {
+    // Non-fatal
+  }
+}
+
+/**
+ * Clear the stored auth token from all persistence layers.
+ */
+export async function clearToken(): Promise<void> {
+  _token = null;
+  try {
+    const { load: loadStore } = await import("@tauri-apps/plugin-store");
+    const store = await loadStore("store.json", {
+      autoSave: true,
+      defaults: {},
+    });
+    await store.delete("authToken");
+    await store.save();
+  } catch {
+    // Not in Tauri or store unavailable
+  }
+  try {
+    localStorage.removeItem("canopy-auth-token");
+  } catch {
+    // Non-fatal
   }
 }
 
@@ -714,16 +1026,31 @@ export const projects = {
 // ── Costs ─────────────────────────────────────────────────────────────────────
 
 export const costs = {
-  summary: () => request<CostSummary>("/costs/summary"),
-  byAgent: () => request<{ agents: AgentCostBreakdown[] }>("/costs/by-agent"),
-  byModel: () => request<{ models: ModelCostBreakdown[] }>("/costs/by-model"),
-  policies: () => request<{ policies: BudgetPolicy[] }>("/budgets"),
-  incidents: () =>
-    request<{ incidents: BudgetIncident[] }>("/budgets/incidents"),
-  daily: (params?: { from?: string; to?: string }) => {
+  summary: (workspaceId?: string) => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    return request<CostSummary>(`/costs/summary${qs}`);
+  },
+  byAgent: (workspaceId?: string) => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    return request<{ agents: AgentCostBreakdown[] }>(`/costs/by-agent${qs}`);
+  },
+  byModel: (workspaceId?: string) => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    return request<{ models: ModelCostBreakdown[] }>(`/costs/by-model${qs}`);
+  },
+  policies: (workspaceId?: string) => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    return request<{ policies: BudgetPolicy[] }>(`/budgets${qs}`);
+  },
+  incidents: (workspaceId?: string) => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    return request<{ incidents: BudgetIncident[] }>(`/budgets/incidents${qs}`);
+  },
+  daily: (params?: { from?: string; to?: string; workspace_id?: string }) => {
     const qs = new URLSearchParams();
     if (params?.from) qs.set("from", params.from);
     if (params?.to) qs.set("to", params.to);
+    if (params?.workspace_id) qs.set("workspace_id", params.workspace_id);
     const query = qs.toString() ? `?${qs.toString()}` : "";
     return request<{ points: Array<{ date: string; cost_cents: number }> }>(
       `/costs/daily${query}`,
@@ -1475,6 +1802,18 @@ export async function disableMock(): Promise<void> {
 }
 export function isMockEnabled(): boolean {
   return useMock;
+}
+
+/**
+ * Reset the singleton initializeAuth() promise so that the next call to
+ * initializeAuth() re-probes the backend and re-reads the token.
+ *
+ * Call this after a successful login or registration so that the /app layout
+ * guard sees the freshly-persisted token instead of the cached "no-token"
+ * state from the first run of initializeAuth().
+ */
+export function resetInitPromise(): void {
+  _initPromise = null;
 }
 
 /**

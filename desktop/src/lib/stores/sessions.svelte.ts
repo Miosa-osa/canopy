@@ -1,7 +1,7 @@
 // src/lib/stores/sessions.svelte.ts
 // Observability store for session list, detail, and live transcript streaming
 
-import type { Session, Message } from "$api/types";
+import type { Session, Message, ActivityEvent } from "$api/types";
 import { sessions as sessionsApi, messages as messagesApi } from "$api/client";
 import { connectSSE, type StreamController } from "$api/sse";
 import { toastStore } from "./toasts.svelte";
@@ -272,6 +272,81 @@ class SessionsStore {
     if (!session) {
       this.transcript = [];
       this.stopLiveStream();
+    }
+  }
+
+  // ── Live activity event handling ────────────────────────────────────────────
+  // Called from the app layout whenever the activity store emits an event.
+  // Keeps the session list in sync during live agent execution without
+  // requiring a full refetch.
+
+  handleActivityEvent(event: ActivityEvent): void {
+    const meta = event.metadata as Record<string, unknown>;
+    const sessionId =
+      typeof meta.session_id === "string" ? meta.session_id : null;
+
+    if (event.type === "session_started") {
+      if (!sessionId) return;
+      // Add a new active session entry if we don't already have it
+      const exists = this.sessions.some((s) => s.id === sessionId);
+      if (!exists) {
+        const newSession: Session = {
+          id: sessionId,
+          agent_id: event.agent_id ?? "",
+          agent_name: event.agent_name ?? "",
+          title: typeof meta.title === "string" ? meta.title : null,
+          status: "active",
+          message_count: 0,
+          token_usage: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
+          cost_cents: 0,
+          started_at: event.created_at,
+          completed_at: null,
+          created_at: event.created_at,
+        };
+        this.sessions = [newSession, ...this.sessions];
+      } else {
+        // Already in list — just mark as active
+        this.sessions = this.sessions.map((s) =>
+          s.id === sessionId ? { ...s, status: "active" as const } : s,
+        );
+      }
+      return;
+    }
+
+    if (
+      event.type === "session_completed" ||
+      event.type === "heartbeat_completed" ||
+      event.type === "heartbeat_failed"
+    ) {
+      if (!sessionId) return;
+      const finalStatus: Session["status"] =
+        event.type === "session_completed" ||
+        event.type === "heartbeat_completed"
+          ? "completed"
+          : "failed";
+      this.sessions = this.sessions.map((s) =>
+        s.id === sessionId
+          ? {
+              ...s,
+              status: finalStatus,
+              completed_at:
+                typeof meta.completed_at === "string"
+                  ? meta.completed_at
+                  : new Date().toISOString(),
+            }
+          : s,
+      );
+      // Sync detail view if this is the currently selected session
+      if (this.selectedSession?.id === sessionId) {
+        this.selectedSession = {
+          ...this.selectedSession,
+          status: finalStatus,
+          completed_at:
+            typeof meta.completed_at === "string"
+              ? meta.completed_at
+              : new Date().toISOString(),
+        };
+      }
     }
   }
 }
