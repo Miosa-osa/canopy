@@ -15,6 +15,7 @@ defmodule Canopy.Application do
       {Task.Supervisor, name: Canopy.HeartbeatRunner},
       {Task.Supervisor, name: Canopy.TaskSupervisor},
       Canopy.AlertEvaluator,
+      Canopy.StaleCleanup,
       CanopyWeb.Endpoint
     ]
 

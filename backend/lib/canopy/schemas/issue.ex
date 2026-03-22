@@ -16,6 +16,7 @@ defmodule Canopy.Schemas.Issue do
     belongs_to :goal, Canopy.Schemas.Goal
     belongs_to :assignee, Canopy.Schemas.Agent
     belongs_to :checked_out_by_agent, Canopy.Schemas.Agent, foreign_key: :checked_out_by
+    field :checked_out_at, :utc_datetime
     has_many :comments, Canopy.Schemas.Comment
     many_to_many :labels, Canopy.Schemas.Label, join_through: "issue_labels"
 

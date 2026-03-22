@@ -53,7 +53,7 @@ defmodule CanopyWeb.DocumentController do
           conn |> put_status(404) |> json(%{error: "not_found"})
 
         {:error, reason} ->
-          conn |> put_status(500) |> json(%{error: inspect(reason)})
+          conn |> put_status(500) |> json(%{error: friendly_error(reason)})
       end
     else
       false ->
@@ -75,7 +75,7 @@ defmodule CanopyWeb.DocumentController do
         conn |> put_status(201) |> json(%{ok: true, path: relative_path})
       else
         {:error, reason} ->
-          conn |> put_status(500) |> json(%{error: inspect(reason)})
+          conn |> put_status(500) |> json(%{error: friendly_error(reason)})
       end
     else
       false ->
@@ -115,7 +115,7 @@ defmodule CanopyWeb.DocumentController do
         json(conn, %{ok: true, path: relative_path})
       else
         {:error, reason} ->
-          conn |> put_status(500) |> json(%{error: inspect(reason)})
+          conn |> put_status(500) |> json(%{error: friendly_error(reason)})
       end
     else
       false ->
@@ -138,7 +138,7 @@ defmodule CanopyWeb.DocumentController do
           conn |> put_status(404) |> json(%{error: "not_found"})
 
         {:error, reason} ->
-          conn |> put_status(500) |> json(%{error: inspect(reason)})
+          conn |> put_status(500) |> json(%{error: friendly_error(reason)})
       end
     else
       false ->
@@ -189,6 +189,12 @@ defmodule CanopyWeb.DocumentController do
   end
 
   # --- Private helpers ---
+
+  defp friendly_error(:enoent), do: "File not found"
+  defp friendly_error(:eacces), do: "Permission denied"
+  defp friendly_error(:eisdir), do: "Path is a directory"
+  defp friendly_error(:enospc), do: "No space left on device"
+  defp friendly_error(_other), do: "Operation failed"
 
   defp resolve_reference_dir(%{"workspace_id" => workspace_id}) when is_binary(workspace_id) do
     case Repo.get(Workspace, workspace_id) do

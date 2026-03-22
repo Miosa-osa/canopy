@@ -23,5 +23,17 @@ defmodule Canopy.Schemas.Goal do
     goal
     |> cast(attrs, [:title, :description, :status, :workspace_id, :project_id, :parent_id])
     |> validate_required([:title, :workspace_id])
+    |> validate_not_self_parent()
+  end
+
+  defp validate_not_self_parent(changeset) do
+    parent_id = get_field(changeset, :parent_id)
+    id = get_field(changeset, :id)
+
+    if parent_id && parent_id == id do
+      add_error(changeset, :parent_id, "cannot be the same as the goal's own ID")
+    else
+      changeset
+    end
   end
 end
