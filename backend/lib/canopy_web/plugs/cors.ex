@@ -21,7 +21,7 @@ defmodule CanopyWeb.Plugs.CORS do
     |> put_resp_header("access-control-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
     |> put_resp_header(
       "access-control-allow-headers",
-      "authorization, content-type, accept, cache-control, x-accel-buffering"
+      "authorization, content-type, accept, cache-control, x-accel-buffering, idempotency-key"
     )
     |> put_resp_header("access-control-max-age", "86400")
   end

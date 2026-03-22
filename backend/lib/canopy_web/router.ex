@@ -9,6 +9,7 @@ defmodule CanopyWeb.Router do
   pipeline :authenticated do
     plug CanopyWeb.Plugs.Auth
     plug CanopyWeb.Plugs.WorkspaceAuth
+    plug CanopyWeb.Plugs.Idempotency
     plug CanopyWeb.Plugs.Audit
   end
 
@@ -24,6 +25,8 @@ defmodule CanopyWeb.Router do
     get "/health", HealthController, :show
     post "/auth/login", AuthController, :login
     post "/auth/refresh", AuthController, :refresh
+    post "/auth/register", AuthController, :register
+    get "/auth/status", AuthController, :status
   end
 
   # Authenticated API routes
