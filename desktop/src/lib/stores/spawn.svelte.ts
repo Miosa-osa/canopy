@@ -87,14 +87,12 @@ class SpawnStore {
       const fresh = await spawnApi.list();
       // Merge fresh data — preserve ordering of existing instances
       const freshMap = new Map(fresh.map((i) => [i.id, i]));
-      this.instances = this.instances.map((i) => freshMap.get(i.id) ?? i);
-      // Append any new instances not yet in our list
+      const merged = this.instances.map((i) => freshMap.get(i.id) ?? i);
+      // Collect truly new instances not yet in our list (snapshot existingIds
+      // before any mutation to avoid checking against partially-updated state)
       const existingIds = new Set(this.instances.map((i) => i.id));
-      for (const f of fresh) {
-        if (!existingIds.has(f.id)) {
-          this.instances = [f, ...this.instances];
-        }
-      }
+      const newInstances = fresh.filter((f) => !existingIds.has(f.id));
+      this.instances = [...newInstances, ...merged];
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

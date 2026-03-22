@@ -2,6 +2,16 @@
 import type { Issue, IssueStatus, IssuePriority } from "$api/types";
 import { issues as issuesApi } from "$api/client";
 import { toastStore } from "./toasts.svelte";
+import { agentsStore } from "./agents.svelte";
+
+export function resolveAssigneeName(issue: Issue): string {
+  if (issue.assignee_name) return issue.assignee_name;
+  if (issue.assignee_id) {
+    const agent = agentsStore.agents.find((a) => a.id === issue.assignee_id);
+    return agent?.display_name ?? agent?.name ?? "Unknown Agent";
+  }
+  return "Unassigned";
+}
 
 type SortField = "created_at" | "updated_at" | "priority" | "title";
 type SortDirection = "asc" | "desc";

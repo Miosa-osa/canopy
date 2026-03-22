@@ -2,7 +2,7 @@
 <!-- Sortable data table view for issues -->
 <script lang="ts">
   import type { Issue } from '$api/types';
-  import { issuesStore } from '$lib/stores/issues.svelte';
+  import { issuesStore, resolveAssigneeName } from '$lib/stores/issues.svelte';
   import TimeAgo from '$lib/components/shared/TimeAgo.svelte';
 
   let dispatching = $state<Record<string, boolean>>({});
@@ -133,6 +133,7 @@
       </thead>
       <tbody>
         {#each sorted as issue (issue.id)}
+          {@const assigneeName = resolveAssigneeName(issue)}
           <tr
             class="it-row"
             class:it-row--selected={issuesStore.selected?.id === issue.id}
@@ -157,10 +158,10 @@
               <span class="it-status-text">{STATUS_LABELS[issue.status] ?? issue.status}</span>
             </td>
             <td class="it-td">
-              {#if issue.assignee_name}
+              {#if issue.assignee_id}
                 <div class="it-assignee">
-                  <span class="it-avatar" aria-hidden="true">{issue.assignee_name[0].toUpperCase()}</span>
-                  <span class="it-assignee-name">{issue.assignee_name}</span>
+                  <span class="it-avatar" aria-hidden="true">{assigneeName[0].toUpperCase()}</span>
+                  <span class="it-assignee-name">{assigneeName}</span>
                 </div>
               {:else}
                 <span class="it-none">—</span>
@@ -192,7 +193,7 @@
                   class:it-dispatch-btn--loading={dispatching[issue.id]}
                   onclick={(e) => handleDispatch(e, issue)}
                   disabled={dispatching[issue.id]}
-                  aria-label="Dispatch issue to {issue.assignee_name}"
+                  aria-label="Dispatch issue to {assigneeName}"
                   type="button"
                 >
                   {#if dispatching[issue.id]}
@@ -201,7 +202,7 @@
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                       <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                     </svg>
-                    <span class="it-dispatch-agent">{issue.assignee_name}</span>
+                    <span class="it-dispatch-agent">{assigneeName}</span>
                   {/if}
                 </button>
               {/if}
