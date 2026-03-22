@@ -16,6 +16,7 @@ defmodule CanopyWeb.Plugs.WorkspaceAuth do
   """
   import Plug.Conn
   import Phoenix.Controller, only: [json: 2]
+  import Ecto.Query
 
   alias Canopy.Repo
   alias Canopy.Schemas.Workspace
@@ -24,19 +25,23 @@ defmodule CanopyWeb.Plugs.WorkspaceAuth do
 
   def call(conn, _opts) do
     workspace_id = conn.params["workspace_id"]
+    user = conn.assigns[:current_user]
 
     cond do
-      # No workspace_id in params — pass through (not workspace-scoped)
+      # No workspace_id in params — scope to all workspaces owned by the current user
       is_nil(workspace_id) or workspace_id == "" ->
-        conn
+        user_workspace_ids =
+          Repo.all(from w in Workspace, where: w.owner_id == ^user.id, select: w.id)
 
-      # Validate ownership
+        assign(conn, :user_workspace_ids, user_workspace_ids)
+
+      # Validate ownership when workspace_id is present
       true ->
-        user = conn.assigns[:current_user]
-
         case Repo.get(Workspace, workspace_id) do
-          %Workspace{owner_id: owner_id} when owner_id == user.id ->
-            assign(conn, :workspace, Repo.get!(Workspace, workspace_id))
+          %Workspace{owner_id: owner_id} = workspace when owner_id == user.id ->
+            conn
+            |> assign(:workspace, workspace)
+            |> assign(:user_workspace_ids, [workspace_id])
 
           %Workspace{} ->
             conn

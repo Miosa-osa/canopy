@@ -7,13 +7,16 @@ defmodule CanopyWeb.DashboardController do
 
   def show(conn, params) do
     workspace_id = params["workspace_id"]
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
 
     agents_query = from a in Agent, select: %{status: a.status, id: a.id}
 
     agents_query =
-      if workspace_id,
-        do: where(agents_query, [a], a.workspace_id == ^workspace_id),
-        else: agents_query
+      cond do
+        workspace_id -> where(agents_query, [a], a.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(agents_query, [a], a.workspace_id in ^user_workspace_ids)
+        true -> agents_query
+      end
 
     agents = Repo.all(agents_query)
     active_count = Enum.count(agents, &(&1.status in ["active", "working"]))
@@ -38,9 +41,11 @@ defmodule CanopyWeb.DashboardController do
         order_by: [desc: s.started_at]
 
     live_runs_query =
-      if workspace_id,
-        do: where(live_runs_query, [s], s.workspace_id == ^workspace_id),
-        else: live_runs_query
+      cond do
+        workspace_id -> where(live_runs_query, [s, a], a.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(live_runs_query, [s, a], a.workspace_id in ^user_workspace_ids)
+        true -> live_runs_query
+      end
 
     live_runs = Repo.all(live_runs_query)
 
@@ -63,9 +68,11 @@ defmodule CanopyWeb.DashboardController do
         }
 
     recent_activity_query =
-      if workspace_id,
-        do: where(recent_activity_query, [e], e.workspace_id == ^workspace_id),
-        else: recent_activity_query
+      cond do
+        workspace_id -> where(recent_activity_query, [e], e.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(recent_activity_query, [e], e.workspace_id in ^user_workspace_ids)
+        true -> recent_activity_query
+      end
 
     recent_activity = Repo.all(recent_activity_query)
 
@@ -78,15 +85,23 @@ defmodule CanopyWeb.DashboardController do
     beginning_of_month =
       DateTime.new!(Date.new!(today.year, today.month, 1), ~T[00:00:00], "Etc/UTC")
 
-    # CostEvent has no workspace_id — join through Agent to scope costs when workspace_id present
+    # CostEvent has no workspace_id — join through Agent to scope costs
     cost_base_query =
-      if workspace_id do
-        from ce in Canopy.Schemas.CostEvent,
-          join: a in Agent,
-          on: ce.agent_id == a.id,
-          where: a.workspace_id == ^workspace_id
-      else
-        from ce in Canopy.Schemas.CostEvent
+      cond do
+        workspace_id ->
+          from ce in Canopy.Schemas.CostEvent,
+            join: a in Agent,
+            on: ce.agent_id == a.id,
+            where: a.workspace_id == ^workspace_id
+
+        user_workspace_ids != [] ->
+          from ce in Canopy.Schemas.CostEvent,
+            join: a in Agent,
+            on: ce.agent_id == a.id,
+            where: a.workspace_id in ^user_workspace_ids
+
+        true ->
+          from ce in Canopy.Schemas.CostEvent
       end
 
     today_cost =
@@ -114,9 +129,11 @@ defmodule CanopyWeb.DashboardController do
       from i in Issue, where: i.status in ["backlog", "in_progress"]
 
     open_issues_query =
-      if workspace_id,
-        do: where(open_issues_query, [i], i.workspace_id == ^workspace_id),
-        else: open_issues_query
+      cond do
+        workspace_id -> where(open_issues_query, [i], i.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(open_issues_query, [i], i.workspace_id in ^user_workspace_ids)
+        true -> open_issues_query
+      end
 
     open_issues = Repo.aggregate(open_issues_query, :count)
 
@@ -127,9 +144,11 @@ defmodule CanopyWeb.DashboardController do
         limit: 1
 
     workspace_policy_query =
-      if workspace_id,
-        do: where(workspace_policy_query, [bp], bp.scope_id == ^workspace_id),
-        else: workspace_policy_query
+      cond do
+        workspace_id -> where(workspace_policy_query, [bp], bp.scope_id == ^workspace_id)
+        user_workspace_ids != [] -> where(workspace_policy_query, [bp], bp.scope_id in ^user_workspace_ids)
+        true -> workspace_policy_query
+      end
 
     workspace_policy = Repo.one(workspace_policy_query)
 

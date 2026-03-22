@@ -154,7 +154,7 @@ defmodule CanopyWeb.SessionController do
           id: e.id,
           session_id: session_id,
           role: role,
-          content: content,
+          content: sanitize_content(content),
           timestamp: e.inserted_at
         }
       end)
@@ -221,4 +221,12 @@ defmodule CanopyWeb.SessionController do
         end
     end
   end
+
+  defp sanitize_content(nil), do: ""
+
+  defp sanitize_content(content) when is_binary(content) do
+    String.replace(content, ~r/[\x00-\x08\x0B\x0C\x0E-\x1F]/, "")
+  end
+
+  defp sanitize_content(other), do: inspect(other)
 end
