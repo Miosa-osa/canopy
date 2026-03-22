@@ -2,6 +2,7 @@
 <!-- Compact issue card for kanban/list with HTML5 drag-and-drop -->
 <script lang="ts">
   import type { Issue } from '$api/types';
+  import { resolveAssigneeName } from '$lib/stores/issues.svelte';
   import TimeAgo from '$lib/components/shared/TimeAgo.svelte';
 
   interface Props {
@@ -34,6 +35,7 @@
   }
 
   let priorityColor = $derived(PRIORITY_COLORS[issue.priority] ?? '#666');
+  let assigneeName = $derived(resolveAssigneeName(issue));
 </script>
 
 <article
@@ -63,10 +65,10 @@
   {/if}
 
   <footer class="ic-footer">
-    {#if issue.assignee_name}
-      <span class="ic-assignee" aria-label="Assigned to {issue.assignee_name}">
-        <span class="ic-avatar" aria-hidden="true">{issue.assignee_name[0].toUpperCase()}</span>
-        <span class="ic-assignee-name">{issue.assignee_name}</span>
+    {#if issue.assignee_id}
+      <span class="ic-assignee" aria-label="Assigned to {assigneeName}">
+        <span class="ic-avatar" aria-hidden="true">{assigneeName[0].toUpperCase()}</span>
+        <span class="ic-assignee-name">{assigneeName}</span>
       </span>
     {:else}
       <span class="ic-unassigned" aria-label="Unassigned">Unassigned</span>

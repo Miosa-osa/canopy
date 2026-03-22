@@ -13,13 +13,7 @@ class DashboardStore {
   error = $state<string | null>(null);
   lastFetched = $state<Date | null>(null);
 
-  kpis = $state<DashboardKpis>({
-    active_agents: 0,
-    total_agents: 0,
-    live_runs: 0,
-    open_issues: 0,
-    budget_remaining_pct: 0,
-  });
+  kpis = $state<DashboardKpis | null>(null);
   liveRuns = $state<LiveRun[]>([]);
   recentActivity = $state<ActivityEvent[]>([]);
   financeSummary = $state<FinanceSummary | null>(null);

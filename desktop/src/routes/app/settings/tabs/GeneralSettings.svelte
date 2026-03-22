@@ -1,6 +1,24 @@
 <!-- src/routes/app/settings/tabs/GeneralSettings.svelte -->
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { settingsStore } from '$lib/stores/settings.svelte';
+  import { clearToken, clearCache } from '$api/client';
+
+  let loggingOut = $state(false);
+
+  async function handleLogout() {
+    loggingOut = true;
+    await clearToken();
+    clearCache();
+    try {
+      localStorage.removeItem('canopy-workspaces');
+      localStorage.removeItem('canopy-active-workspace');
+      localStorage.removeItem('canopy-onboarding');
+      localStorage.removeItem('canopy-onboarding-complete');
+      localStorage.removeItem('canopy-offline-queue');
+    } catch { /* non-fatal */ }
+    goto('/');
+  }
 
   const ADAPTER_OPTIONS: { value: string; label: string }[] = [
     { value: 'osa',         label: 'OSA (default)' },
@@ -63,6 +81,22 @@
         oninput={(e) => settingsStore.update('default_model', (e.target as HTMLInputElement).value)}
       />
     </div>
+  </div>
+</section>
+
+<section class="stg-logout-section">
+  <div class="stg-logout-card">
+    <div class="stg-logout-info">
+      <span class="stg-logout-title">Log Out</span>
+      <span class="stg-logout-desc">Sign out of your account and clear all local session data.</span>
+    </div>
+    <button
+      class="stg-logout-btn"
+      onclick={handleLogout}
+      disabled={loggingOut}
+    >
+      {loggingOut ? 'Logging out...' : 'Log Out'}
+    </button>
   </div>
 </section>
 
@@ -142,4 +176,54 @@
   }
 
   .stg-select:focus { border-color: var(--border-focus); }
+
+  .stg-logout-section {
+    max-width: 640px;
+    margin-top: 32px;
+  }
+
+  .stg-logout-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-danger, #ef4444);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .stg-logout-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .stg-logout-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .stg-logout-desc {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.5;
+  }
+
+  .stg-logout-btn {
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    background: var(--color-danger, #ef4444);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity var(--transition-fast);
+  }
+
+  .stg-logout-btn:hover { opacity: 0.9; }
+  .stg-logout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

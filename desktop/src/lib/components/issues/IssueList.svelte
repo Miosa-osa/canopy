@@ -2,7 +2,7 @@
 <!-- Flat list view of issues with compact 40px rows -->
 <script lang="ts">
   import type { Issue } from '$api/types';
-  import { issuesStore } from '$lib/stores/issues.svelte';
+  import { issuesStore, resolveAssigneeName } from '$lib/stores/issues.svelte';
   import TimeAgo from '$lib/components/shared/TimeAgo.svelte';
 
   interface Props {
@@ -74,6 +74,7 @@
     {#each issues as issue (issue.id)}
       {@const priority = PRIORITY_ICONS[issue.priority]}
       {@const statusInfo = STATUS_LABELS[issue.status]}
+      {@const assigneeName = resolveAssigneeName(issue)}
       <button
         class="il-row"
         class:il-row--selected={issuesStore.selected?.id === issue.id}
@@ -112,10 +113,10 @@
         </span>
 
         <!-- Assignee -->
-        <span class="il-assignee" aria-label={issue.assignee_name ? 'Assigned to ' + issue.assignee_name : 'Unassigned'}>
-          {#if issue.assignee_name}
-            <span class="il-avatar" aria-hidden="true">{issue.assignee_name[0].toUpperCase()}</span>
-            <span class="il-assignee-name">{issue.assignee_name}</span>
+        <span class="il-assignee" aria-label={issue.assignee_id ? 'Assigned to ' + assigneeName : 'Unassigned'}>
+          {#if issue.assignee_id}
+            <span class="il-avatar" aria-hidden="true">{assigneeName[0].toUpperCase()}</span>
+            <span class="il-assignee-name">{assigneeName}</span>
           {:else}
             <span class="il-no-assignee">—</span>
           {/if}
@@ -144,7 +145,7 @@
               class:il-dispatch-btn--loading={dispatching[issue.id]}
               onclick={(e) => handleDispatch(e, issue)}
               disabled={dispatching[issue.id]}
-              aria-label="Dispatch issue to {issue.assignee_name}"
+              aria-label="Dispatch issue to {assigneeName}"
               type="button"
             >
               {#if dispatching[issue.id]}
@@ -153,7 +154,7 @@
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                   <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                 </svg>
-                <span class="il-dispatch-agent">{issue.assignee_name}</span>
+                <span class="il-dispatch-agent">{assigneeName}</span>
               {/if}
             </button>
           {:else}
