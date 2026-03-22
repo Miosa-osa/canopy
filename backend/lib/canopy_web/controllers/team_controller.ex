@@ -143,13 +143,24 @@ defmodule CanopyWeb.TeamController do
           role: role
         })
 
-      case Repo.insert(changeset) do
-        {:ok, membership} ->
-          # Sync agent.team_id denormalized FK
-          Repo.get!(Agent, agent_id)
-          |> Ecto.Changeset.change(team_id: team_id)
-          |> Repo.update!()
+      txn_result =
+        Repo.transaction(fn ->
+          case Repo.insert(changeset) do
+            {:ok, membership} ->
+              # Sync agent.team_id denormalized FK
+              Repo.get!(Agent, agent_id)
+              |> Ecto.Changeset.change(team_id: team_id)
+              |> Repo.update!()
 
+              membership
+
+            {:error, changeset} ->
+              Repo.rollback({:validation_failed, changeset})
+          end
+        end)
+
+      case txn_result do
+        {:ok, membership} ->
           Canopy.EventBus.broadcast(
             "team:#{team_id}",
             %{event: "team.member_added", team_id: team_id, agent_id: agent_id, role: role}
@@ -160,10 +171,15 @@ defmodule CanopyWeb.TeamController do
 
           conn |> put_status(201) |> json(%{membership: serialize_membership(membership)})
 
-        {:error, changeset} ->
+        {:error, {:validation_failed, changeset}} ->
           conn
           |> put_status(422)
           |> json(%{error: "validation_failed", details: format_errors(changeset)})
+
+        {:error, reason} ->
+          conn
+          |> put_status(422)
+          |> json(%{error: "transaction_failed", details: inspect(reason)})
       end
     else
       :team_not_found ->
@@ -183,25 +199,36 @@ defmodule CanopyWeb.TeamController do
         conn |> put_status(404) |> json(%{error: "membership_not_found"})
 
       membership ->
-        Repo.delete!(membership)
+        txn_result =
+          Repo.transaction(fn ->
+            Repo.delete!(membership)
 
-        # Clear agent.team_id denormalized FK
-        case Repo.get(Agent, agent_id) do
-          %Agent{} = agent ->
-            agent |> Ecto.Changeset.change(team_id: nil) |> Repo.update!()
+            # Clear agent.team_id denormalized FK
+            case Repo.get(Agent, agent_id) do
+              %Agent{} = agent ->
+                agent |> Ecto.Changeset.change(team_id: nil) |> Repo.update!()
 
-          nil ->
-            :ok
+              nil ->
+                :ok
+            end
+          end)
+
+        case txn_result do
+          {:ok, _} ->
+            Canopy.EventBus.broadcast(
+              "team:#{team_id}",
+              %{event: "team.member_removed", team_id: team_id, agent_id: agent_id}
+            )
+
+            Canopy.BudgetEnforcer.invalidate_hierarchy(agent_id)
+
+            json(conn, %{ok: true})
+
+          {:error, reason} ->
+            conn
+            |> put_status(422)
+            |> json(%{error: "transaction_failed", details: inspect(reason)})
         end
-
-        Canopy.EventBus.broadcast(
-          "team:#{team_id}",
-          %{event: "team.member_removed", team_id: team_id, agent_id: agent_id}
-        )
-
-        Canopy.BudgetEnforcer.invalidate_hierarchy(agent_id)
-
-        json(conn, %{ok: true})
     end
   end
 

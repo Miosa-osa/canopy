@@ -93,7 +93,7 @@ defmodule Canopy.IssueDispatcher do
     with %Issue{} = issue <- Repo.get(Issue, issue_id) |> Repo.preload([:workspace, goal: :project]),
          %Agent{} = agent <- Repo.get(Agent, agent_id) |> Repo.preload(:workspace),
          :ok <- validate_agent(agent),
-         :ok <- validate_issue(issue) do
+         {:ok, _checked_out_issue} <- Canopy.Work.checkout_issue(issue_id, agent_id) do
       context = Canopy.IssueContext.build_context(issue, agent)
 
       Task.Supervisor.start_child(Canopy.HeartbeatRunner, fn ->
@@ -114,8 +114,5 @@ defmodule Canopy.IssueDispatcher do
 
   defp validate_agent(%Agent{status: status}) when status in ["idle", "active"], do: :ok
   defp validate_agent(%Agent{status: status}), do: {:error, {:agent_not_ready, status}}
-
-  defp validate_issue(%Issue{checked_out_by: nil}), do: :ok
-  defp validate_issue(%Issue{}), do: {:error, :already_checked_out}
 
 end
