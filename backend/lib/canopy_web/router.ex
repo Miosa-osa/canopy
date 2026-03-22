@@ -121,9 +121,11 @@ defmodule CanopyWeb.Router do
 
     # Activity + Logs
     get "/activity", ActivityController, :index
+    get "/logs", LogController, :index
 
     # Memory
     get "/memory/search", MemoryController, :search
+    get "/memory/namespaces", MemoryController, :namespaces
     resources "/memory", MemoryController, except: [:new, :edit]
 
     # Signals

@@ -96,10 +96,35 @@ defmodule CanopyWeb.GatewayController do
   defp build_auth_headers(%Gateway{token: nil}), do: []
   defp build_auth_headers(%Gateway{token: token}), do: [{"authorization", "Bearer #{token}"}]
 
+  defp derive_provider(url) when is_binary(url) do
+    cond do
+      String.contains?(url, "anthropic") -> "Anthropic"
+      String.contains?(url, "openai") -> "OpenAI"
+      String.contains?(url, "localhost") or String.contains?(url, "127.0.0.1") -> "Local"
+      true -> "Custom"
+    end
+  end
+
+  defp derive_provider(_), do: "Custom"
+
+  defp derive_name(url) when is_binary(url) do
+    case URI.parse(url) do
+      %URI{host: host} when is_binary(host) -> host
+      _ -> url
+    end
+  end
+
+  defp derive_name(_), do: "Gateway"
+
   defp serialize(%Gateway{} = g) do
     %{
       id: g.id,
+      name: derive_name(g.url),
+      provider: derive_provider(g.url),
+      endpoint: g.url,
       url: g.url,
+      models: [],
+      api_key_set: not is_nil(g.token) and g.token != "",
       status: g.status,
       latency_ms: g.latency_ms,
       is_primary: g.is_primary,

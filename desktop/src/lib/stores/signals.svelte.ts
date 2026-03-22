@@ -1,11 +1,15 @@
 // src/lib/stores/signals.svelte.ts
-import type { Signal } from "$api/types";
+import type { Signal, SignalPattern, SignalStats } from "$api/types";
 import { signals as signalsApi } from "$api/client";
 import { toastStore } from "./toasts.svelte";
 
 class SignalsStore {
   signals = $state<Signal[]>([]);
+  patterns = $state<SignalPattern[]>([]);
+  stats = $state<SignalStats | null>(null);
   loading = $state(false);
+  patternsLoading = $state(false);
+  statsLoading = $state(false);
   error = $state<string | null>(null);
   searchQuery = $state("");
   filterChannel = $state<string | "all">("all");
@@ -47,6 +51,36 @@ class SignalsStore {
     } finally {
       this.loading = false;
     }
+  }
+
+  async fetchPatterns(): Promise<void> {
+    this.patternsLoading = true;
+    try {
+      this.patterns = await signalsApi.patterns();
+    } catch (e) {
+      toastStore.error("Failed to load signal patterns", (e as Error).message);
+    } finally {
+      this.patternsLoading = false;
+    }
+  }
+
+  async fetchStats(): Promise<void> {
+    this.statsLoading = true;
+    try {
+      this.stats = await signalsApi.stats();
+    } catch (e) {
+      toastStore.error("Failed to load signal stats", (e as Error).message);
+    } finally {
+      this.statsLoading = false;
+    }
+  }
+
+  async fetchAll(limit = 100): Promise<void> {
+    await Promise.all([
+      this.fetchSignals(limit),
+      this.fetchPatterns(),
+      this.fetchStats(),
+    ]);
   }
 
   setSearch(q: string): void {

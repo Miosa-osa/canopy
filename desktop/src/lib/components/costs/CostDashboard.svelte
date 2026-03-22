@@ -1,6 +1,5 @@
 <!-- src/lib/components/costs/CostDashboard.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { costsStore } from '$lib/stores/costs.svelte';
   import AnomalyAlert from './AnomalyAlert.svelte';
   import CostSummaryCards from './CostSummaryCards.svelte';
@@ -10,10 +9,6 @@
   import CacheSavings from './CacheSavings.svelte';
   import BudgetPolicyTable from './BudgetPolicyTable.svelte';
   import BudgetIncidentLog from './BudgetIncidentLog.svelte';
-
-  onMount(() => {
-    void costsStore.fetchAll();
-  });
 </script>
 
 <div class="cd-root">

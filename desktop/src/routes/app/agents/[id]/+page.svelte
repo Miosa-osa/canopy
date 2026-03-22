@@ -42,11 +42,14 @@
   function statusToDot(s: AgentStatus): 'online' | 'idle' | 'busy' | 'error' | 'offline' | 'sleeping' {
     switch (s) {
       case 'running':    return 'busy';
+      case 'active':     return 'busy';
+      case 'working':    return 'busy';
       case 'idle':       return 'idle';
       case 'sleeping':   return 'sleeping';
       case 'paused':     return 'offline';
       case 'error':      return 'error';
       case 'terminated': return 'offline';
+      default:           return 'offline';
     }
   }
 
@@ -54,6 +57,7 @@
     const labels: Record<AgentStatus, string> = {
       running: 'Running', idle: 'Idle', sleeping: 'Sleeping',
       paused: 'Paused', error: 'Error', terminated: 'Terminated',
+      active: 'Active', working: 'Working',
     };
     return labels[s];
   }
@@ -162,7 +166,7 @@
           </button>
         {/if}
         {#if agent.status === 'paused'}
-          <button class="ad-btn ad-btn--primary" onclick={() => handleAction('wake')} aria-label="Resume paused agent">
+          <button class="ad-btn ad-btn--primary" onclick={() => handleAction('resume')} aria-label="Resume paused agent">
             Resume
           </button>
         {/if}

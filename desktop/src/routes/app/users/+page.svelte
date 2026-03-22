@@ -72,6 +72,7 @@
   {:else}
     <div class="usr-list" role="list" aria-label="Users">
       {#each usersStore.filteredUsers as user (user.id)}
+        {@const joinDate = user.created_at || user.inserted_at || ''}
         <div
           class="usr-row"
           role="listitem"
@@ -93,8 +94,8 @@
             <div class="usr-email">{user.email}</div>
           </div>
           <span class="usr-role {roleClass(user.role)}">{user.role}</span>
-          <time class="usr-joined" datetime={user.created_at}>
-            Joined {new Date(user.created_at).toLocaleDateString()}
+          <time class="usr-joined" datetime={joinDate}>
+            Joined {joinDate ? new Date(joinDate).toLocaleDateString() : '—'}
           </time>
         </div>
       {/each}

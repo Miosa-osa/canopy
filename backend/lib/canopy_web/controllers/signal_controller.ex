@@ -2,7 +2,7 @@ defmodule CanopyWeb.SignalController do
   use CanopyWeb, :controller
 
   alias Canopy.Repo
-  alias Canopy.Schemas.ActivityEvent
+  alias Canopy.Schemas.{ActivityEvent, Agent}
   import Ecto.Query
 
   # Signal Theory: S = (M, G, T, F, W)
@@ -25,25 +25,60 @@ defmodule CanopyWeb.SignalController do
 
     query =
       from e in ActivityEvent,
+        left_join: a in Agent,
+        on: a.id == e.agent_id,
         where: e.level in ["warn", "error"],
         order_by: [desc: e.inserted_at],
-        limit: ^limit
+        limit: ^limit,
+        select: {e, a.name}
 
     query = if workspace_id, do: where(query, [e], e.workspace_id == ^workspace_id), else: query
 
-    events = Repo.all(query)
+    rows = Repo.all(query)
 
     signals =
-      Enum.map(events, fn e ->
+      Enum.map(rows, fn {e, agent_name} ->
+        channel =
+          case String.split(e.event_type || "", ".") do
+            [prefix | _] -> prefix
+            _ -> "system"
+          end
+
+        mode =
+          cond do
+            String.starts_with?(e.event_type || "", "agent.") -> "EXECUTE"
+            String.starts_with?(e.event_type || "", "budget.") -> "ANALYZE"
+            true -> "MAINTAIN"
+          end
+
+        weight =
+          case e.level do
+            "error" -> 0.9
+            "warn" -> 0.6
+            _ -> 0.3
+          end
+
+        failure_mode = if e.level == "error", do: "Fidelity Failure", else: nil
+
         %{
           id: e.id,
+          session_id: nil,
+          channel: channel,
+          mode: mode,
+          genre: "INFORM",
+          tier: "sonnet",
+          weight: weight,
+          agent_name: agent_name,
+          input_preview: e.message |> to_string() |> String.slice(0, 200),
+          failure_mode: failure_mode,
+          created_at: e.inserted_at,
+          # legacy fields kept for compatibility
           type: e.event_type,
           event_type: e.event_type,
           message: e.message,
           level: e.level,
           workspace_id: e.workspace_id,
           agent_id: e.agent_id,
-          created_at: e.inserted_at,
           inserted_at: e.inserted_at,
           signal_type: level_to_signal_type(e.level)
         }

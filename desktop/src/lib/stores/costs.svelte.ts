@@ -137,9 +137,13 @@ class CostsStore {
   }
 
   async fetchTrends(): Promise<void> {
-    // No trends API is available yet — clear any previously-held data so the
-    // chart shows a genuine empty state rather than synthesised random values.
-    this.dailyTrend = [];
+    try {
+      const data = await costsApi.daily();
+      this.dailyTrend = data.points ?? [];
+    } catch {
+      // Endpoint may not exist yet — fail silently with empty trend
+      this.dailyTrend = [];
+    }
   }
 
   async fetchAll(): Promise<void> {

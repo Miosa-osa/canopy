@@ -94,6 +94,22 @@ defmodule CanopyWeb.MemoryController do
     end
   end
 
+  def namespaces(conn, params) do
+    workspace_id = params["workspace_id"]
+
+    query = from m in MemoryEntry, select: {m.category, count(m.id)}, group_by: m.category
+    query = if workspace_id, do: where(query, [m], m.workspace_id == ^workspace_id), else: query
+
+    results = Repo.all(query)
+
+    json(conn, %{
+      namespaces:
+        Enum.map(results, fn {name, count} ->
+          %{name: name || "default", count: count}
+        end)
+    })
+  end
+
   def search(conn, params) do
     q = params["q"] || ""
     workspace_id = params["workspace_id"]
@@ -119,6 +135,7 @@ defmodule CanopyWeb.MemoryController do
       id: e.id,
       key: e.key,
       content: e.content,
+      value: e.content,
       type: e.category,
       category: e.category,
       tags: e.tags || [],

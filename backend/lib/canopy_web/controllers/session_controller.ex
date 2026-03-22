@@ -11,10 +11,17 @@ defmodule CanopyWeb.SessionController do
     agent_id = params["agent_id"]
     status = params["status"]
 
+    message_count_subquery =
+      from e in SessionEvent,
+        group_by: e.session_id,
+        select: %{session_id: e.session_id, count: count(e.id)}
+
     query =
       from s in Session,
         join: a in Agent,
         on: s.agent_id == a.id,
+        left_join: mc in subquery(message_count_subquery),
+        on: mc.session_id == s.id,
         order_by: [desc: s.started_at],
         limit: ^limit,
         offset: ^offset,
@@ -25,7 +32,7 @@ defmodule CanopyWeb.SessionController do
           title: a.name,
           model: s.model,
           status: s.status,
-          message_count: 0,
+          message_count: coalesce(mc.count, 0),
           token_usage: %{
             input: s.tokens_input,
             output: s.tokens_output,
@@ -55,6 +62,12 @@ defmodule CanopyWeb.SessionController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       session ->
+        message_count =
+          Repo.aggregate(
+            from(e in SessionEvent, where: e.session_id == ^session.id),
+            :count
+          )
+
         json(conn, %{
           session: %{
             id: session.id,
@@ -63,7 +76,7 @@ defmodule CanopyWeb.SessionController do
             title: session.agent.name,
             model: session.model,
             status: session.status,
-            message_count: 0,
+            message_count: message_count,
             token_usage: %{
               input: session.tokens_input,
               output: session.tokens_output,
@@ -109,17 +122,37 @@ defmodule CanopyWeb.SessionController do
       Repo.all(
         from e in SessionEvent,
           where: e.session_id == ^session_id,
-          order_by: [asc: e.id],
-          select: %{
-            id: e.id,
-            event_type: e.event_type,
-            data: e.data,
-            tokens: e.tokens,
-            inserted_at: e.inserted_at
-          }
+          order_by: [asc: e.id]
       )
 
-    json(conn, %{events: events})
+    messages =
+      Enum.map(events, fn e ->
+        role =
+          case e.event_type do
+            t when t in ["run.output", "assistant"] -> "assistant"
+            "user_message" -> "user"
+            t when t in ["run.tool_call", "run.tool_result"] -> "tool"
+            _ -> "system"
+          end
+
+        content =
+          cond do
+            is_map(e.data) and is_binary(e.data["content"]) -> e.data["content"]
+            is_map(e.data) and is_binary(e.data["text"]) -> e.data["text"]
+            is_map(e.data) and is_binary(e.data["body"]) -> e.data["body"]
+            true -> Jason.encode!(e.data)
+          end
+
+        %{
+          id: e.id,
+          session_id: session_id,
+          role: role,
+          content: content,
+          timestamp: e.inserted_at
+        }
+      end)
+
+    json(conn, %{messages: messages})
   end
 
   def message(conn, %{"session_id" => session_id} = params) do

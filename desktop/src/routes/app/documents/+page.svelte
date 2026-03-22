@@ -1,14 +1,17 @@
 <!-- src/routes/app/documents/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
-
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import DocumentTree from '$lib/components/documents/DocumentTree.svelte';
   import DocumentViewer from '$lib/components/documents/DocumentViewer.svelte';
   import { documentsStore } from '$lib/stores/documents.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
-  onMount(async () => {
-    await documentsStore.fetchDocuments();
+  // Re-fetch whenever the active workspace changes (covers initial mount too).
+  // Referencing activeWorkspaceId registers it as a reactive dependency so the
+  // effect re-runs on every workspace switch.
+  $effect(() => {
+    void workspaceStore.activeWorkspaceId;
+    documentsStore.fetchDocuments();
   });
 </script>
 

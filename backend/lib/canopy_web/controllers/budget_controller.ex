@@ -9,7 +9,7 @@ defmodule CanopyWeb.BudgetController do
     policies =
       Repo.all(from p in BudgetPolicy, order_by: [asc: p.scope_type, asc: p.scope_id])
 
-    json(conn, %{budgets: Enum.map(policies, &serialize/1)})
+    json(conn, %{policies: Enum.map(policies, &serialize/1)})
   end
 
   def upsert(conn, %{"scope_type" => scope_type, "scope_id" => scope_id} = params) do

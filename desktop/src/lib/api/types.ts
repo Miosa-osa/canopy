@@ -32,6 +32,7 @@ export interface User {
   role: UserRole;
   avatar_url?: string;
   created_at: string;
+  inserted_at?: string;
 }
 
 export type UserRole = "admin" | "member" | "viewer";
@@ -177,12 +178,15 @@ export type AgentStatus =
   | "sleeping"
   | "paused"
   | "error"
-  | "terminated";
+  | "terminated"
+  | "active"
+  | "working";
 export type AgentLifecycleAction =
   | "wake"
   | "sleep"
   | "focus"
   | "pause"
+  | "resume"
   | "terminate";
 
 export interface CanopyAgent {
@@ -592,6 +596,7 @@ export interface AlertRule {
   id: string;
   name: string;
   entity_type: "agent" | "budget" | "schedule" | "system";
+  entity?: "agent" | "budget" | "schedule" | "system";
   field: string;
   operator: "eq" | "neq" | "gt" | "lt" | "gte" | "lte" | "contains";
   value: string;
@@ -646,7 +651,7 @@ export interface Gateway {
   endpoint: string;
   api_key_set: boolean;
   is_primary: boolean;
-  status: "healthy" | "degraded" | "down";
+  status: "healthy" | "degraded" | "down" | "connected" | "error";
   latency_ms: number | null;
   last_probe_at: string | null;
   models: string[];
@@ -738,6 +743,24 @@ export interface Signal {
   input_preview: string;
   failure_mode: string | null;
   created_at: string;
+}
+
+export interface SignalPattern {
+  pattern: string;
+  count: number;
+  avg_weight: number;
+  channels: string[];
+  failure_rate: number;
+}
+
+export interface SignalStats {
+  total: number;
+  by_mode: Record<string, number>;
+  by_tier: Record<string, number>;
+  by_channel: Record<string, number>;
+  failure_count: number;
+  avg_weight: number;
+  period_hours: number;
 }
 
 // ── Audit ─────────────────────────────────────────────────────────────────────

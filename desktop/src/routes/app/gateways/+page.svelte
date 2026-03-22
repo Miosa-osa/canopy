@@ -7,6 +7,41 @@
   onMount(() => {
     void gatewaysStore.fetchGateways();
   });
+
+  // Create form state
+  let showForm = $state(false);
+  let formName = $state('');
+  let formEndpoint = $state('');
+  let formApiKey = $state('');
+  let creating = $state(false);
+  let formError = $state<string | null>(null);
+
+  async function handleCreate() {
+    if (!formName.trim() || !formEndpoint.trim()) return;
+    creating = true;
+    formError = null;
+    const created = await gatewaysStore.createGateway({
+      name: formName.trim(),
+      endpoint: formEndpoint.trim(),
+      // api_key is write-only; the store/API will handle it
+      // We pass it under a loose partial since Gateway type tracks api_key_set (bool)
+      ...(formApiKey.trim() ? { api_key: formApiKey.trim() } : {}),
+    } as Parameters<typeof gatewaysStore.createGateway>[0]);
+    creating = false;
+    if (created) {
+      resetForm();
+    } else {
+      formError = gatewaysStore.error;
+    }
+  }
+
+  function resetForm() {
+    showForm = false;
+    formName = '';
+    formEndpoint = '';
+    formApiKey = '';
+    formError = null;
+  }
 </script>
 
 <PageShell
@@ -14,6 +49,17 @@
   subtitle="{gatewaysStore.healthyCount} healthy"
   badge={gatewaysStore.totalCount > 0 ? gatewaysStore.totalCount : undefined}
 >
+  {#snippet actions()}
+    <button
+      class="gw-create-btn"
+      onclick={() => showForm = true}
+      type="button"
+      aria-label="Create gateway"
+    >
+      + Create
+    </button>
+  {/snippet}
+
   {#if gatewaysStore.loading && gatewaysStore.gateways.length === 0}
     <div class="gw-loading" role="status" aria-live="polite">
       <div class="gw-spinner" aria-hidden="true"></div>
@@ -74,7 +120,78 @@
   {/if}
 </PageShell>
 
+<!-- Create gateway dialog -->
+{#if showForm}
+  <div
+    class="gw-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Create gateway"
+    onclick={(e) => { if (e.target === e.currentTarget) resetForm(); }}
+  >
+    <div class="gw-dialog">
+      <h2 class="gw-dialog-title">New Gateway</h2>
+
+      <div class="gw-field">
+        <label class="gw-label" for="gw-name-input">Name</label>
+        <input
+          id="gw-name-input"
+          class="gw-input"
+          type="text"
+          placeholder="My LLM Gateway"
+          bind:value={formName}
+          autofocus
+        />
+      </div>
+
+      <div class="gw-field">
+        <label class="gw-label" for="gw-endpoint-input">Endpoint URL</label>
+        <input
+          id="gw-endpoint-input"
+          class="gw-input"
+          type="url"
+          placeholder="https://api.example.com/v1"
+          bind:value={formEndpoint}
+        />
+      </div>
+
+      <div class="gw-field">
+        <label class="gw-label" for="gw-apikey-input">API Key</label>
+        <input
+          id="gw-apikey-input"
+          class="gw-input"
+          type="password"
+          placeholder="sk-…"
+          bind:value={formApiKey}
+          autocomplete="new-password"
+        />
+      </div>
+
+      {#if formError}
+        <p class="gw-form-error" role="alert">{formError}</p>
+      {/if}
+
+      <div class="gw-dialog-actions">
+        <button class="gw-btn-ghost" onclick={resetForm} disabled={creating}>Cancel</button>
+        <button
+          class="gw-btn-primary"
+          onclick={handleCreate}
+          disabled={creating || !formName.trim() || !formEndpoint.trim()}
+        >
+          {creating ? 'Creating…' : 'Create Gateway'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
+  .gw-create-btn {
+    height: 28px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
+    background: #6366f1; border: none; color: white; cursor: pointer; transition: background 120ms ease;
+  }
+  .gw-create-btn:hover { background: #4f46e5; }
+
   .gw-loading, .gw-empty, .gw-error {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 12px; height: 200px;
@@ -109,4 +226,35 @@
     transition: all 120ms ease;
   }
   .gw-probe-btn:hover { background: var(--dbg3); border-color: var(--dbd2); }
+
+  /* Dialog */
+  .gw-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .gw-dialog {
+    background: var(--dbg2); border: 1px solid var(--dbd); border-radius: 12px;
+    padding: 24px; width: 440px; max-width: calc(100vw - 40px);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .gw-dialog-title { font-size: 16px; font-weight: 600; color: var(--dt); margin: 0; }
+  .gw-field { display: flex; flex-direction: column; gap: 6px; }
+  .gw-label { font-size: 12px; font-weight: 500; color: var(--dt2); }
+  .gw-input {
+    height: 34px; padding: 0 10px; border-radius: 6px; font-size: 13px;
+    background: var(--dbg3); border: 1px solid var(--dbd); color: var(--dt);
+    width: 100%; box-sizing: border-box;
+  }
+  .gw-input:focus { outline: none; border-color: #6366f1; }
+  .gw-form-error { font-size: 12px; color: #fca5a5; margin: 0; }
+  .gw-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .gw-btn-ghost, .gw-btn-primary {
+    padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 120ms ease;
+  }
+  .gw-btn-ghost { background: transparent; border: 1px solid var(--dbd); color: var(--dt3); }
+  .gw-btn-ghost:hover:not(:disabled) { background: var(--dbg3); color: var(--dt2); }
+  .gw-btn-primary { background: #6366f1; border: none; color: #fff; }
+  .gw-btn-primary:hover:not(:disabled) { background: #4f46e5; }
+  .gw-btn-ghost:disabled, .gw-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

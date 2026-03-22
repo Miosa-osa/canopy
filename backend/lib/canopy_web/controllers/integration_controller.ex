@@ -138,6 +138,7 @@ defmodule CanopyWeb.IntegrationController do
       name: i.name,
       category: i.category,
       connected: i.connected,
+      status: if(i.connected, do: "connected", else: "disconnected"),
       last_synced_at: i.last_synced_at,
       workspace_id: i.workspace_id,
       inserted_at: i.inserted_at,

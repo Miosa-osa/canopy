@@ -7,9 +7,57 @@
   onMount(() => {
     void webhooksStore.fetchWebhooks();
   });
+
+  // Create form state
+  let showForm = $state(false);
+  let formName = $state('');
+  let formUrl = $state('');
+  let formEvents = $state('');
+  let formSecret = $state('');
+  let creating = $state(false);
+  let formError = $state<string | null>(null);
+
+  async function handleCreate() {
+    if (!formName.trim() || !formUrl.trim()) return;
+    creating = true;
+    formError = null;
+    const events = formEvents.split(',').map((e) => e.trim()).filter(Boolean);
+    const created = await webhooksStore.createWebhook({
+      name: formName.trim(),
+      url: formUrl.trim(),
+      events,
+      secret: formSecret.trim() || null,
+    });
+    creating = false;
+    if (created) {
+      resetForm();
+    } else {
+      formError = webhooksStore.error;
+    }
+  }
+
+  function resetForm() {
+    showForm = false;
+    formName = '';
+    formUrl = '';
+    formEvents = '';
+    formSecret = '';
+    formError = null;
+  }
 </script>
 
 <PageShell title="Webhooks" badge={webhooksStore.totalCount > 0 ? webhooksStore.totalCount : undefined}>
+  {#snippet actions()}
+    <button
+      class="wh-create-btn"
+      onclick={() => showForm = true}
+      type="button"
+      aria-label="Create webhook"
+    >
+      + Create
+    </button>
+  {/snippet}
+
   {#if webhooksStore.loading && webhooksStore.webhooks.length === 0}
     <div class="wh-loading" role="status" aria-live="polite">
       <div class="wh-spinner" aria-hidden="true"></div>
@@ -56,7 +104,88 @@
   {/if}
 </PageShell>
 
+<!-- Create webhook dialog -->
+{#if showForm}
+  <div
+    class="wh-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Create webhook"
+    onclick={(e) => { if (e.target === e.currentTarget) resetForm(); }}
+  >
+    <div class="wh-dialog">
+      <h2 class="wh-dialog-title">New Webhook</h2>
+
+      <div class="wh-field">
+        <label class="wh-label" for="wh-name-input">Name</label>
+        <input
+          id="wh-name-input"
+          class="wh-input"
+          type="text"
+          placeholder="My webhook"
+          bind:value={formName}
+          autofocus
+        />
+      </div>
+
+      <div class="wh-field">
+        <label class="wh-label" for="wh-url-input">URL</label>
+        <input
+          id="wh-url-input"
+          class="wh-input"
+          type="url"
+          placeholder="https://example.com/hook"
+          bind:value={formUrl}
+        />
+      </div>
+
+      <div class="wh-field">
+        <label class="wh-label" for="wh-events-input">Events <span class="wh-label-hint">(comma-separated)</span></label>
+        <input
+          id="wh-events-input"
+          class="wh-input"
+          type="text"
+          placeholder="agent.woke, session.completed"
+          bind:value={formEvents}
+        />
+      </div>
+
+      <div class="wh-field">
+        <label class="wh-label" for="wh-secret-input">Secret <span class="wh-label-hint">(optional)</span></label>
+        <input
+          id="wh-secret-input"
+          class="wh-input"
+          type="password"
+          placeholder="Signing secret"
+          bind:value={formSecret}
+        />
+      </div>
+
+      {#if formError}
+        <p class="wh-form-error" role="alert">{formError}</p>
+      {/if}
+
+      <div class="wh-dialog-actions">
+        <button class="wh-btn-ghost" onclick={resetForm} disabled={creating}>Cancel</button>
+        <button
+          class="wh-btn-primary"
+          onclick={handleCreate}
+          disabled={creating || !formName.trim() || !formUrl.trim()}
+        >
+          {creating ? 'Creating…' : 'Create Webhook'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
+  .wh-create-btn {
+    height: 28px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
+    background: #6366f1; border: none; color: white; cursor: pointer; transition: background 120ms ease;
+  }
+  .wh-create-btn:hover { background: #4f46e5; }
+
   .wh-loading, .wh-empty, .wh-error {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 12px; height: 200px;
@@ -88,4 +217,36 @@
     transition: all 120ms ease;
   }
   .wh-delete:hover { border-color: rgba(239,68,68,0.4); color: #fca5a5; background: rgba(239,68,68,0.08); }
+
+  /* Dialog */
+  .wh-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .wh-dialog {
+    background: var(--dbg2); border: 1px solid var(--dbd); border-radius: 12px;
+    padding: 24px; width: 440px; max-width: calc(100vw - 40px);
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .wh-dialog-title { font-size: 16px; font-weight: 600; color: var(--dt); margin: 0; }
+  .wh-field { display: flex; flex-direction: column; gap: 6px; }
+  .wh-label { font-size: 12px; font-weight: 500; color: var(--dt2); }
+  .wh-label-hint { font-weight: 400; color: var(--dt4); }
+  .wh-input {
+    height: 34px; padding: 0 10px; border-radius: 6px; font-size: 13px;
+    background: var(--dbg3); border: 1px solid var(--dbd); color: var(--dt);
+    width: 100%; box-sizing: border-box;
+  }
+  .wh-input:focus { outline: none; border-color: #6366f1; }
+  .wh-form-error { font-size: 12px; color: #fca5a5; margin: 0; }
+  .wh-dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .wh-btn-ghost, .wh-btn-primary {
+    padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;
+    transition: all 120ms ease;
+  }
+  .wh-btn-ghost { background: transparent; border: 1px solid var(--dbd); color: var(--dt3); }
+  .wh-btn-ghost:hover:not(:disabled) { background: var(--dbg3); color: var(--dt2); }
+  .wh-btn-primary { background: #6366f1; border: none; color: #fff; }
+  .wh-btn-primary:hover:not(:disabled) { background: #4f46e5; }
+  .wh-btn-ghost:disabled, .wh-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

@@ -31,14 +31,29 @@ defmodule CanopyWeb.TemplateController do
     end
   end
 
+  defp first_agent_field(agents, field, default) do
+    case agents do
+      [first | _] when is_map(first) -> Map.get(first, field) || Map.get(first, to_string(field)) || default
+      _ -> default
+    end
+  end
+
   defp serialize(%Template{} = t) do
+    agents = t.agents || []
+    skills = t.skills || []
+
     %{
       id: t.id,
       name: t.name,
       description: t.description,
       category: t.category,
-      agents: t.agents,
-      skills: t.skills,
+      adapter: first_agent_field(agents, :adapter, "osa"),
+      model: first_agent_field(agents, :model, nil),
+      downloads: 0,
+      agent_count: length(agents),
+      skill_count: length(skills),
+      agents: agents,
+      skills: skills,
       schedules: t.schedules,
       is_builtin: t.is_builtin,
       inserted_at: t.inserted_at,

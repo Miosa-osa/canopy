@@ -1,7 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import MemoryBrowser from '$lib/components/memory/MemoryBrowser.svelte';
   import { memoryStore } from '$lib/stores/memory.svelte';
+
+  onMount(() => { memoryStore.fetch(); });
 </script>
 
 <PageShell

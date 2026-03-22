@@ -1,6 +1,42 @@
 defmodule CanopyWeb.LogController do
   use CanopyWeb, :controller
 
+  import Ecto.Query
+  alias Canopy.Repo
+
+  def index(conn, params) do
+    limit = min(String.to_integer(params["limit"] || "200"), 500)
+    offset = String.to_integer(params["offset"] || "0")
+
+    query =
+      from e in Canopy.Schemas.ActivityEvent,
+        left_join: a in Canopy.Schemas.Agent, on: e.agent_id == a.id,
+        order_by: [desc: e.inserted_at],
+        limit: ^limit,
+        offset: ^offset,
+        select: %{
+          id: e.id,
+          level: e.level,
+          source: e.event_type,
+          message: e.message,
+          agent_id: e.agent_id,
+          agent_name: a.name,
+          metadata: e.metadata,
+          created_at: e.inserted_at
+        }
+
+    query = if params["workspace_id"],
+      do: where(query, [e], e.workspace_id == ^params["workspace_id"]),
+      else: query
+
+    query = if params["level"],
+      do: where(query, [e], e.level == ^params["level"]),
+      else: query
+
+    entries = Repo.all(query)
+    json(conn, %{entries: entries})
+  end
+
   def stream(conn, params) do
     level = params["level"]
     source = params["source"]

@@ -15,22 +15,28 @@
   function statusToDot(s: AgentStatus): 'online' | 'idle' | 'busy' | 'error' | 'offline' | 'sleeping' {
     switch (s) {
       case 'running':    return 'busy';
+      case 'active':     return 'busy';
+      case 'working':    return 'busy';
       case 'idle':       return 'idle';
       case 'sleeping':   return 'sleeping';
       case 'paused':     return 'offline';
       case 'error':      return 'error';
       case 'terminated': return 'offline';
+      default:           return 'offline';
     }
   }
 
   function statusLabel(s: AgentStatus): string {
     switch (s) {
       case 'running':    return 'Running';
+      case 'active':     return 'Active';
+      case 'working':    return 'Working';
       case 'idle':       return 'Idle';
       case 'sleeping':   return 'Sleeping';
       case 'paused':     return 'Paused';
       case 'error':      return 'Error';
       case 'terminated': return 'Terminated';
+      default:           return s;
     }
   }
 

@@ -3,11 +3,40 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import PageShell from '$lib/components/layout/PageShell.svelte';
-  import { getProjectById } from '$lib/api/mock/projects';
+  import { projectsStore } from '$lib/stores/projects.svelte';
   import type { Project } from '$lib/api/types';
 
   const id = $derived(page.params.id ?? '');
-  const project = $derived<Project | null>(id ? (getProjectById(id) ?? null) : null);
+
+  // Local state for the resolved project and loading
+  let project = $state<Project | null>(null);
+  let notFound = $state(false);
+
+  $effect(() => {
+    if (!id) return;
+    // Check store first (may already be loaded from list page)
+    const cached = projectsStore.projects.find((p) => p.id === id) ?? null;
+    if (cached) {
+      project = cached;
+      notFound = false;
+    } else {
+      // Fetch from API
+      void projectsStore.fetchProject(id).then((fetched) => {
+        if (fetched) {
+          project = fetched;
+          notFound = false;
+        } else {
+          notFound = true;
+        }
+      });
+    }
+  });
+
+  // Keep project in sync with store updates (e.g. optimistic updates)
+  $effect(() => {
+    const updated = projectsStore.projects.find((p) => p.id === id) ?? null;
+    if (updated) project = updated;
+  });
 
   function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US', {
@@ -23,7 +52,12 @@
 </svelte:head>
 
 <PageShell title={project?.name ?? 'Project'} subtitle={project ? project.status : undefined}>
-  {#if !project}
+  {#if projectsStore.loading && !project}
+    <div class="pjd-loading" role="status" aria-live="polite">
+      <div class="pjd-spinner" aria-hidden="true"></div>
+      <span>Loading project…</span>
+    </div>
+  {:else if notFound || (!project && !projectsStore.loading)}
     <div class="pjd-not-found" role="main">
       <span class="pjd-not-found-icon" aria-hidden="true">📁</span>
       <p class="pjd-not-found-text">Project not found.</p>
@@ -35,7 +69,7 @@
         ← Back to projects
       </button>
     </div>
-  {:else}
+  {:else if project}
     <div class="pjd-page">
 
       <!-- Top bar -->
@@ -72,14 +106,19 @@
               {/if}
             </div>
             <div class="pjd-hero-actions" role="group" aria-label="Project actions">
-              <button class="pjd-btn-ghost" onclick={() => {}} aria-label="Edit project">
+              <button
+                class="pjd-btn-ghost"
+                onclick={() => void projectsStore.updateProject(project!.id, { status: project!.status })}
+                aria-label="Edit project"
+              >
                 Edit
               </button>
-              <button class="pjd-btn-ghost" onclick={() => {}} aria-label="Archive project">
+              <button
+                class="pjd-btn-ghost"
+                onclick={() => void projectsStore.updateProject(project!.id, { status: 'archived' })}
+                aria-label="Archive project"
+              >
                 Archive
-              </button>
-              <button class="pjd-btn-danger" onclick={() => {}} aria-label="Delete project">
-                Delete
               </button>
             </div>
           </div>
@@ -185,6 +224,29 @@
 </PageShell>
 
 <style>
+  /* Loading */
+  .pjd-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 200px;
+    color: var(--dt3, var(--text-tertiary));
+    font-size: 13px;
+  }
+
+  .pjd-spinner {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--dbd, var(--border-default));
+    border-top-color: var(--dt2, var(--text-secondary));
+    animation: pjd-spin 0.8s linear infinite;
+  }
+
+  @keyframes pjd-spin { to { transform: rotate(360deg); } }
+
   /* Not found */
   .pjd-not-found {
     display: flex;
@@ -353,25 +415,6 @@
   .pjd-btn-ghost:hover {
     background: var(--bg-elevated);
     color: var(--text-primary);
-  }
-
-  .pjd-btn-danger {
-    height: 30px;
-    padding: 0 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    background: transparent;
-    color: #f87171;
-    font-size: 12px;
-    font-weight: 500;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    transition: all 120ms ease;
-  }
-
-  .pjd-btn-danger:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: rgba(239, 68, 68, 0.5);
   }
 
   /* Status badge */

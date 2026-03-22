@@ -10,7 +10,12 @@ class IntegrationsStore {
 
   totalCount = $derived(this.integrations.length);
   connectedCount = $derived(
-    this.integrations.filter((i) => i.status === "connected").length,
+    this.integrations.filter((i) => {
+      if (i.status === "connected") return true;
+      if ("connected" in i && (i as Record<string, unknown>).connected === true)
+        return true;
+      return false;
+    }).length,
   );
 
   async fetchIntegrations(): Promise<void> {

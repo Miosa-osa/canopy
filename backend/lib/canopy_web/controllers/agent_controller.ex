@@ -2,7 +2,7 @@ defmodule CanopyWeb.AgentController do
   use CanopyWeb, :controller
 
   alias Canopy.Repo
-  alias Canopy.Schemas.{Agent, ActivityEvent, CostEvent, Session, Schedule}
+  alias Canopy.Schemas.{Agent, Approval, CostEvent, Session, Schedule}
   import Ecto.Query
 
   def index(conn, params) do
@@ -12,7 +12,54 @@ defmodule CanopyWeb.AgentController do
     query = if workspace_id, do: where(query, [a], a.workspace_id == ^workspace_id), else: query
 
     agents = Repo.all(query)
-    serialized = Enum.map(agents, &serialize_with_skills/1)
+
+    agent_ids = Enum.map(agents, & &1.id)
+
+    # Batch skill lookup
+    skills_map =
+      Repo.all(
+        from as_ in "agent_skills",
+          where: as_.agent_id in ^agent_ids,
+          select: {type(as_.agent_id, :binary_id), type(as_.skill_id, :binary_id)}
+      )
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    # Batch today's cost stats
+    today = Date.utc_today()
+    beginning_of_today = DateTime.new!(today, ~T[00:00:00], "Etc/UTC")
+
+    cost_stats_map =
+      Repo.all(
+        from ce in CostEvent,
+          where: ce.agent_id in ^agent_ids and ce.inserted_at >= ^beginning_of_today,
+          group_by: ce.agent_id,
+          select: {ce.agent_id, %{
+            cost_cents: coalesce(sum(ce.cost_cents), 0),
+            tokens_input: coalesce(sum(ce.tokens_input), 0),
+            tokens_output: coalesce(sum(ce.tokens_output), 0),
+            tokens_cache: coalesce(sum(ce.tokens_cache), 0)
+          }}
+      )
+      |> Map.new()
+
+    # Batch last active
+    last_active_map =
+      Repo.all(
+        from s in Session,
+          where: s.agent_id in ^agent_ids,
+          group_by: s.agent_id,
+          select: {s.agent_id, max(s.updated_at)}
+      )
+      |> Map.new()
+
+    serialized =
+      Enum.map(agents, fn agent ->
+        skill_ids = Map.get(skills_map, agent.id, [])
+        today_stats = Map.get(cost_stats_map, agent.id)
+        last_active = Map.get(last_active_map, agent.id)
+        serialize(agent, today_stats, last_active) |> Map.put(:skills, skill_ids)
+      end)
+
     json(conn, %{agents: serialized, count: length(serialized)})
   end
 
@@ -118,7 +165,7 @@ defmodule CanopyWeb.AgentController do
   # --- Lifecycle actions ---
 
   def wake(conn, %{"agent_id" => id}) do
-    transition_status(conn, id, "active", "agent.heartbeat_started")
+    transition_status(conn, id, "idle", "agent.heartbeat_started")
   end
 
   def sleep(conn, %{"agent_id" => id}) do
@@ -151,7 +198,7 @@ defmodule CanopyWeb.AgentController do
   end
 
   def focus(conn, %{"agent_id" => id}) do
-    transition_status(conn, id, "working", "agent.focused")
+    transition_status(conn, id, "running", "agent.focused")
   end
 
   def terminate(conn, %{"agent_id" => id}) do
@@ -168,14 +215,20 @@ defmodule CanopyWeb.AgentController do
 
   # --- Queries ---
 
-  def runs(conn, %{"agent_id" => id}) do
+  def runs(conn, %{"agent_id" => id} = params) do
+    limit = min(String.to_integer(params["limit"] || "50"), 200)
+    offset = String.to_integer(params["offset"] || "0")
+
     sessions =
       Repo.all(
         from s in Session,
           where: s.agent_id == ^id,
           order_by: [desc: s.started_at],
-          limit: 50
+          limit: ^limit,
+          offset: ^offset
       )
+
+    total = Repo.aggregate(from(s in Session, where: s.agent_id == ^id), :count)
 
     json(conn, %{
       runs:
@@ -190,49 +243,42 @@ defmodule CanopyWeb.AgentController do
             tokens_output: s.tokens_output,
             cost_cents: s.cost_cents
           }
-        end)
+        end),
+      total: total
     })
   end
 
   def inbox(conn, %{"agent_id" => id} = params) do
-    unread_only = params["unread"] == "true"
+    status_filter = params["status"]
     limit = min(String.to_integer(params["limit"] || "50"), 200)
     offset = String.to_integer(params["offset"] || "0")
 
-    query =
-      from e in ActivityEvent,
-        where: e.agent_id == ^id and e.level == "notification",
-        order_by: [desc: e.inserted_at],
+    # Primary inbox: approval requests made by this agent awaiting human review
+    approval_query =
+      from a in Approval,
+        where: a.requested_by == ^id,
+        order_by: [desc: a.inserted_at],
         limit: ^limit,
         offset: ^offset
 
-    query =
-      if unread_only do
-        where(
-          query,
-          [e],
-          fragment("COALESCE((?->>'read')::boolean, false) = false", e.metadata)
-        )
+    approval_query =
+      if status_filter do
+        where(approval_query, [a], a.status == ^status_filter)
       else
-        query
+        approval_query
       end
 
-    messages = Repo.all(query)
+    approvals = Repo.all(approval_query)
 
-    unread_count =
+    pending_count =
       Repo.aggregate(
-        from(e in ActivityEvent,
-          where:
-            e.agent_id == ^id and
-              e.level == "notification" and
-              fragment("COALESCE((?->>'read')::boolean, false) = false", e.metadata)
-        ),
+        from(a in Approval, where: a.requested_by == ^id and a.status == "pending"),
         :count
       )
 
     json(conn, %{
-      messages: Enum.map(messages, &serialize_inbox_message/1),
-      unread_count: unread_count
+      items: Enum.map(approvals, &serialize_inbox_item/1),
+      pending_count: pending_count
     })
   end
 
@@ -361,22 +407,22 @@ defmodule CanopyWeb.AgentController do
     }
   end
 
-  defp serialize_inbox_message(%ActivityEvent{} = e) do
+  defp serialize_inbox_item(%Approval{} = a) do
     %{
-      id: e.id,
-      type: e.event_type,
-      event_type: e.event_type,
-      message: e.message,
-      title: e.message,
-      body: e.message,
-      level: e.level,
-      metadata: e.metadata,
-      agent_id: e.agent_id,
-      workspace_id: e.workspace_id,
-      read: get_in(e.metadata || %{}, ["read"]) == true,
-      status: if(get_in(e.metadata || %{}, ["read"]) == true, do: "read", else: "unread"),
-      created_at: e.inserted_at,
-      inserted_at: e.inserted_at
+      id: a.id,
+      type: "approval",
+      title: a.title,
+      description: a.description,
+      status: a.status,
+      decision: a.decision,
+      decision_comment: a.decision_comment,
+      context: a.context,
+      requested_by: a.requested_by,
+      reviewer_id: a.reviewer_id,
+      workspace_id: a.workspace_id,
+      expires_at: a.expires_at,
+      created_at: a.inserted_at,
+      updated_at: a.updated_at
     }
   end
 

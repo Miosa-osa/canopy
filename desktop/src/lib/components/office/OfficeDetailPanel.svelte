@@ -14,6 +14,8 @@
 
   const STATUS_COLORS: Record<AgentStatus, string> = {
     running:    'rgba(34, 197, 94, 0.7)',
+    active:     'rgba(34, 197, 94, 0.7)',
+    working:    'rgba(34, 197, 94, 0.7)',
     idle:       '#6366f1',
     sleeping:   '#64748b',
     paused:     '#f59e0b',
@@ -23,6 +25,8 @@
 
   const STATUS_LABELS: Record<AgentStatus, string> = {
     running:    'Running',
+    active:     'Active',
+    working:    'Working',
     idle:       'Idle',
     sleeping:   'Sleeping',
     paused:     'Paused',
@@ -84,6 +88,7 @@
     sleep:     'Sleep',
     focus:     'Focus',
     pause:     'Pause',
+    resume:    'Resume',
     terminate: 'Terminate',
   };
 

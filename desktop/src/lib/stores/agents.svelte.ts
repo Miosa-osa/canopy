@@ -112,6 +112,7 @@ class AgentsStore {
       sleep: "sleeping",
       focus: "running",
       pause: "paused",
+      resume: "running",
       terminate: "terminated",
     };
     this.agents = this.agents.map((a) =>
@@ -121,7 +122,10 @@ class AgentsStore {
       this.selected = { ...this.selected, status: optimisticStatus[action] };
     }
     try {
-      const updated = await agentsApi.action(id, action);
+      const updated =
+        action === "resume"
+          ? await agentsApi.resume(id)
+          : await agentsApi.action(id, action);
       this.agents = this.agents.map((a) => (a.id === id ? updated : a));
       if (this.selected?.id === id) {
         this.selected = updated;

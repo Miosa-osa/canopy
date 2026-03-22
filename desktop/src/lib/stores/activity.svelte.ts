@@ -84,12 +84,24 @@ class ActivityStore {
           this.connected = false;
         },
         onEvent: (event) => {
-          // Activity stream sends SystemEvents with activity payloads
-          if (event.type === "system_event" && event.event === "activity") {
-            const payload = event.payload as ActivityEvent | undefined;
-            if (payload && payload.id) {
-              this.#prependEvent(payload);
-            }
+          // Backend sends raw event objects with {event: "event.type", ...metadata}
+          // Convert to ActivityEvent shape for the store
+          const raw = event as unknown as Record<string, unknown>;
+          if (raw.event && typeof raw.event === "string") {
+            const activityEvent: ActivityEvent = {
+              id: (raw.id as string) || crypto.randomUUID(),
+              type: raw.event as ActivityEventType,
+              agent_id: (raw.agent_id as string) || null,
+              agent_name: (raw.agent_name as string) || null,
+              title: (raw.event as string).replace(/\./g, " "),
+              detail: (raw.message as string) || null,
+              level:
+                (raw.level as "info" | "warning" | "error" | "success") ||
+                "info",
+              metadata: raw,
+              created_at: new Date().toISOString(),
+            };
+            this.#prependEvent(activityEvent);
           }
         },
         onError: (err) => {

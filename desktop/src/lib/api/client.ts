@@ -37,6 +37,8 @@ import type {
   SendMessageRequest,
   SendMessageResponse,
   Signal,
+  SignalPattern,
+  SignalStats,
   BudgetIncident,
   Secret,
   SecretCreateRequest,
@@ -53,6 +55,9 @@ import type {
   SidebarBadges,
   User,
   AgentTemplate,
+  Document,
+  DocumentTreeNode,
+  DocumentRevision,
 } from "./types";
 
 // ── Configuration ─────────────────────────────────────────────────────────────
@@ -516,6 +521,8 @@ export const agents = {
     }),
   action: (id: string, action: string) =>
     request<CanopyAgent>(`/agents/${id}/${action}`, { method: "POST" }),
+  resume: (id: string) =>
+    request<CanopyAgent>(`/agents/${id}/resume`, { method: "POST" }),
   terminate: (id: string) =>
     request<void>(`/agents/${id}`, { method: "DELETE" }),
 };
@@ -669,6 +676,10 @@ export const costs = {
   policies: () => request<{ policies: BudgetPolicy[] }>("/budgets"),
   incidents: () =>
     request<{ incidents: BudgetIncident[] }>("/budgets/incidents"),
+  daily: () =>
+    request<{ points: Array<{ date: string; cost_cents: number }> }>(
+      "/costs/daily",
+    ),
 };
 
 // ── Activity ──────────────────────────────────────────────────────────────────
@@ -779,17 +790,67 @@ export const gateways = {
 // ── Documents ─────────────────────────────────────────────────────────────────
 
 export const documents = {
-  list: async (): Promise<{
-    documents: import("./types").Document[];
-    tree: import("./types").DocumentTreeNode[];
+  list: async (
+    workspaceId?: string,
+  ): Promise<{
+    documents: Document[];
+    tree: DocumentTreeNode[];
   }> => {
+    const qs = workspaceId
+      ? `?workspace_id=${encodeURIComponent(workspaceId)}`
+      : "";
     const data = await request<{
-      documents: import("./types").Document[];
-      tree: import("./types").DocumentTreeNode[];
-    }>("/documents");
+      documents: Document[];
+      tree: DocumentTreeNode[];
+    }>(`/documents${qs}`);
     return { documents: data.documents ?? [], tree: data.tree ?? [] };
   },
+
+  get: async (path: string): Promise<Document> => {
+    return request<Document>(`/documents/${encodeDocPath(path)}`);
+  },
+
+  create: async (doc: {
+    title: string;
+    path: string;
+    content: string;
+    format?: Document["format"];
+    project_id?: string | null;
+  }): Promise<Document> => {
+    return request<Document>("/documents", {
+      method: "POST",
+      body: JSON.stringify(doc),
+    });
+  },
+
+  update: async (
+    path: string,
+    updates: { content?: string; title?: string; format?: Document["format"] },
+  ): Promise<Document> => {
+    return request<Document>(`/documents/${encodeDocPath(path)}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    });
+  },
+
+  delete: async (path: string): Promise<void> => {
+    await request<void>(`/documents/${encodeDocPath(path)}`, {
+      method: "DELETE",
+    });
+  },
+
+  revisions: async (documentId: string): Promise<DocumentRevision[]> => {
+    const data = await request<{ revisions: DocumentRevision[] }>(
+      `/document-revisions?document_id=${encodeURIComponent(documentId)}`,
+    );
+    return data.revisions ?? [];
+  },
 };
+
+/** Encode a document path for use in URL segments (preserves slashes). */
+function encodeDocPath(path: string): string {
+  return path.split("/").map(encodeURIComponent).join("/");
+}
 
 // ── Workspaces ────────────────────────────────────────────────────────────────
 
@@ -817,9 +878,9 @@ export const workspaces = {
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 export const settings = {
-  get: () => request<Settings>("/settings"),
+  get: () => request<Settings>("/config"),
   update: (body: Partial<Settings>) =>
-    request<Settings>("/settings", {
+    request<Settings>("/config", {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
@@ -904,6 +965,15 @@ export const signals = {
       `/signals/feed?limit=${limit}`,
     );
     return data.signals ?? [];
+  },
+  patterns: async (): Promise<SignalPattern[]> => {
+    const data = await request<{ patterns: SignalPattern[] }>(
+      "/signals/patterns",
+    );
+    return data.patterns ?? [];
+  },
+  stats: async (): Promise<SignalStats> => {
+    return request<SignalStats>("/signals/stats");
   },
 };
 

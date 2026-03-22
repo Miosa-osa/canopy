@@ -11,12 +11,38 @@ defmodule CanopyWeb.WorkspaceController do
         order_by: [desc: w.inserted_at]
     )
 
+    workspace_ids = Enum.map(workspaces, & &1.id)
+
+    # Batch all three counts in 3 queries (not 3×N)
+    agent_counts =
+      Repo.all(
+        from a in Agent,
+          where: a.workspace_id in ^workspace_ids,
+          group_by: a.workspace_id,
+          select: {a.workspace_id, count(a.id)}
+      )
+      |> Map.new()
+
+    skill_counts =
+      Repo.all(
+        from s in Skill,
+          where: s.workspace_id in ^workspace_ids,
+          group_by: s.workspace_id,
+          select: {s.workspace_id, count(s.id)}
+      )
+      |> Map.new()
+
+    project_counts =
+      Repo.all(
+        from p in Project,
+          where: p.workspace_id in ^workspace_ids,
+          group_by: p.workspace_id,
+          select: {p.workspace_id, count(p.id)}
+      )
+      |> Map.new()
+
     workspaces_with_counts =
       Enum.map(workspaces, fn w ->
-        agent_count = Repo.aggregate(from(a in Agent, where: a.workspace_id == ^w.id), :count)
-        skill_count = Repo.aggregate(from(s in Skill, where: s.workspace_id == ^w.id), :count)
-        project_count = Repo.aggregate(from(p in Project, where: p.workspace_id == ^w.id), :count)
-
         %{
           id: w.id,
           name: w.name,
@@ -25,9 +51,9 @@ defmodule CanopyWeb.WorkspaceController do
           path: w.path,
           status: w.status,
           owner_id: w.owner_id,
-          agent_count: agent_count,
-          project_count: project_count,
-          skill_count: skill_count,
+          agent_count: Map.get(agent_counts, w.id, 0),
+          project_count: Map.get(project_counts, w.id, 0),
+          skill_count: Map.get(skill_counts, w.id, 0),
           created_at: w.inserted_at,
           inserted_at: w.inserted_at,
           updated_at: w.updated_at

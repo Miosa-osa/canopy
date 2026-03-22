@@ -10,7 +10,9 @@ class GatewaysStore {
 
   totalCount = $derived(this.gateways.length);
   healthyCount = $derived(
-    this.gateways.filter((g) => g.status === "healthy").length,
+    this.gateways.filter(
+      (g) => g.status === "healthy" || g.status === "connected",
+    ).length,
   );
   primaryGateway = $derived(this.gateways.find((g) => g.is_primary) ?? null);
 
