@@ -11,6 +11,13 @@ const INITIAL_DELAY_MS = 1_000;
 const MAX_DELAY_MS = 30_000;
 const BACKOFF_FACTOR = 2;
 
+/** Append JWT as query param so native EventSource / browser fetch works without headers. */
+function appendTokenParam(url: string, token: string | null): string {
+  if (!token) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}token=${encodeURIComponent(token)}`;
+}
+
 export interface SSECallbacks {
   onEvent: (event: StreamEvent) => void;
   onConnect?: () => void;
@@ -109,10 +116,11 @@ export function streamMessage(options: ChatStreamOptions): StreamController {
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
     try {
-      const streamResponse = await fetch(
+      const streamUrl = appendTokenParam(
         `${BASE_URL}${API_PREFIX}/sessions/${options.sessionId}/stream`,
-        { headers, signal },
+        token,
       );
+      const streamResponse = await fetch(streamUrl, { headers, signal });
       if (!streamResponse.ok)
         throw new Error(`Stream HTTP ${streamResponse.status}`);
       const msgHeaders: Record<string, string> = {
@@ -160,10 +168,11 @@ export function subscribeToActivityStream(
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
     try {
-      const response = await fetch(`${BASE_URL}${API_PREFIX}/activity/stream`, {
-        headers,
-        signal,
-      });
+      const activityUrl = appendTokenParam(
+        `${BASE_URL}${API_PREFIX}/activity/stream`,
+        token,
+      );
+      const response = await fetch(activityUrl, { headers, signal });
       if (!response.ok || !response.body)
         throw new Error(`HTTP ${response.status}`);
       delayMs = INITIAL_DELAY_MS;
@@ -210,10 +219,8 @@ export function connectSSE(
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
     try {
-      const response = await fetch(`${BASE_URL}${API_PREFIX}${path}`, {
-        headers,
-        signal,
-      });
+      const sseUrl = appendTokenParam(`${BASE_URL}${API_PREFIX}${path}`, token);
+      const response = await fetch(sseUrl, { headers, signal });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       attempt = 0;
       delayMs = INITIAL_DELAY_MS;

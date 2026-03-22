@@ -2,7 +2,7 @@ defmodule Canopy.Agents do
   @moduledoc "Agent management context."
 
   alias Canopy.Repo
-  alias Canopy.Schemas.{Agent, Session, Schedule}
+  alias Canopy.Schemas.{Agent, Session, Schedule, ActivityEvent}
   import Ecto.Query
 
   def list_agents(opts \\ []) do
@@ -23,6 +23,8 @@ defmodule Canopy.Agents do
           Canopy.EventBus.workspace_topic(agent.workspace_id),
           %{event: "agent.hired", agent_id: agent.id, name: agent.name}
         )
+
+        persist_activity_event(agent, "agent.hired", "Agent #{agent.name} was hired")
 
         {:ok, agent}
 
@@ -45,6 +47,8 @@ defmodule Canopy.Agents do
           %{event: "agent.terminated", agent_id: agent.id}
         )
 
+        persist_activity_event(agent, "agent.terminated", "Agent #{agent.name} was terminated")
+
       _ ->
         :ok
     end
@@ -65,6 +69,8 @@ defmodule Canopy.Agents do
         to: new_status
       }
     )
+
+    persist_activity_event(updated, "agent.status_changed", "Agent #{updated.name} status changed from #{old_status} to #{new_status}", %{from: old_status, to: new_status})
 
     {:ok, updated}
   end
@@ -128,6 +134,35 @@ defmodule Canopy.Agents do
         where: s.agent_id == ^agent_id,
         order_by: [desc: s.started_at],
         limit: ^limit
+    )
+  end
+
+  defp persist_activity_event(agent, event_type, message, metadata \\ %{}) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    %ActivityEvent{}
+    |> ActivityEvent.changeset(%{
+      event_type: event_type,
+      message: message,
+      metadata: metadata,
+      level: "info",
+      workspace_id: agent.workspace_id,
+      agent_id: agent.id
+    })
+    |> Ecto.Changeset.put_change(:inserted_at, now)
+    |> Repo.insert()
+
+    Canopy.EventBus.broadcast(
+      Canopy.EventBus.activity_topic(),
+      %{
+        event: event_type,
+        agent_id: agent.id,
+        agent_name: agent.name,
+        message: message,
+        workspace_id: agent.workspace_id,
+        metadata: metadata,
+        created_at: now
+      }
     )
   end
 end

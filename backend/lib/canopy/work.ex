@@ -80,15 +80,18 @@ defmodule Canopy.Work do
     {:ok, updated}
   end
 
-  def checkout_issue(%Issue{checked_out_by: existing} = _issue, _agent_id)
-      when not is_nil(existing) do
-    {:error, :already_checked_out}
-  end
+  def checkout_issue(issue_id, agent_id) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-  def checkout_issue(%Issue{} = issue, agent_id) do
-    issue
-    |> Ecto.Changeset.change(checked_out_by: agent_id, status: "in_progress")
-    |> Repo.update()
+    case Repo.update_all(
+      from(i in Issue,
+        where: i.id == ^issue_id and is_nil(i.checked_out_by)
+      ),
+      set: [checked_out_by: agent_id, status: "in_progress", updated_at: now]
+    ) do
+      {1, _} -> {:ok, Repo.get!(Issue, issue_id)}
+      {0, _} -> {:error, :already_checked_out}
+    end
   end
 
   def create_comment(issue_id, attrs) do
@@ -155,18 +158,19 @@ defmodule Canopy.Work do
   def delete_goal(%Goal{} = g), do: Repo.delete(g)
 
   def get_goal_ancestry(goal_id) do
-    case Repo.get(Goal, goal_id) do
-      nil -> {:error, :not_found}
-      goal -> {:ok, build_ancestry(goal, [])}
-    end
+    build_ancestry(goal_id, MapSet.new())
   end
 
-  defp build_ancestry(%Goal{parent_id: nil} = goal, acc), do: [goal | acc]
+  defp build_ancestry(nil, _visited), do: []
 
-  defp build_ancestry(%Goal{parent_id: pid} = goal, acc) do
-    case Repo.get(Goal, pid) do
-      nil -> [goal | acc]
-      parent -> build_ancestry(parent, [goal | acc])
+  defp build_ancestry(goal_id, visited) do
+    if MapSet.member?(visited, goal_id) do
+      []  # Break cycle
+    else
+      case Repo.get(Goal, goal_id) do
+        nil -> []
+        goal -> [goal | build_ancestry(goal.parent_id, MapSet.put(visited, goal_id))]
+      end
     end
   end
 end
