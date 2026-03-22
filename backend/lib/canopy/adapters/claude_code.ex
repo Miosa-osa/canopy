@@ -122,20 +122,36 @@ defmodule Canopy.Adapters.ClaudeCode do
   end
 
   defp parse_stream_json(buffer) do
-    lines = String.split(buffer, "\n")
-    {complete, [last]} = Enum.split(lines, -1)
+    {events, remaining} = extract_json_objects(buffer, [], 0, "")
+    {events, remaining}
+  end
 
-    events =
-      complete
-      |> Enum.reject(&(&1 == ""))
-      |> Enum.flat_map(fn line ->
-        case Jason.decode(line) do
-          {:ok, event} -> [event]
-          _ -> []
+  defp extract_json_objects("", acc, 0, ""), do: {Enum.reverse(acc), ""}
+  defp extract_json_objects("", acc, _depth, partial), do: {Enum.reverse(acc), partial}
+
+  defp extract_json_objects(<<char, rest::binary>>, acc, depth, partial) do
+    new_partial = partial <> <<char>>
+
+    cond do
+      char == ?{ ->
+        extract_json_objects(rest, acc, depth + 1, new_partial)
+
+      char == ?} and depth == 1 ->
+        case Jason.decode(new_partial) do
+          {:ok, event} -> extract_json_objects(rest, [event | acc], 0, "")
+          _ -> extract_json_objects(rest, acc, 0, "")
         end
-      end)
 
-    {events, last}
+      char == ?} ->
+        extract_json_objects(rest, acc, depth - 1, new_partial)
+
+      depth > 0 ->
+        extract_json_objects(rest, acc, depth, new_partial)
+
+      true ->
+        # Outside any JSON object, skip whitespace/newlines
+        extract_json_objects(rest, acc, depth, "")
+    end
   end
 
   # Extract token usage from Claude stream-json events.

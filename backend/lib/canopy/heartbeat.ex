@@ -17,7 +17,7 @@ defmodule Canopy.Heartbeat do
   require Logger
 
   alias Canopy.Repo
-  alias Canopy.Schemas.{Agent, Session, SessionEvent, Workspace, WorkProduct}
+  alias Canopy.Schemas.{Agent, Session, SessionEvent, Workspace, WorkProduct, ActivityEvent}
   import Ecto.Changeset, only: [change: 2]
   import Ecto.Query, only: [from: 2]
 
@@ -69,6 +69,8 @@ defmodule Canopy.Heartbeat do
         session_id: session.id,
         agent_name: agent.name
       })
+
+      persist_activity_event(agent, "run.started", "Agent #{agent.name} started a heartbeat run", %{session_id: session.id})
 
       if issue_id do
         Repo.transaction(fn ->
@@ -128,6 +130,7 @@ defmodule Canopy.Heartbeat do
             end
 
             broadcast_workspace(agent, %{event: "run.failed", agent_id: agent.id, session_id: session.id, error: Exception.message(e)})
+            persist_activity_event(agent, "run.failed", "Agent #{agent.name} run failed: #{Exception.message(e)}", %{session_id: session.id})
             raise e
         end
 
@@ -172,6 +175,7 @@ defmodule Canopy.Heartbeat do
           model: agent.model,
           tokens_input: totals.input,
           tokens_output: totals.output,
+          tokens_cache: totals.cache,
           cost_cents: totals.cost
         })
       end
@@ -183,6 +187,8 @@ defmodule Canopy.Heartbeat do
         agent_name: agent.name,
         cost_cents: totals.cost
       })
+
+      persist_activity_event(agent, "run.completed", "Agent #{agent.name} completed run (cost: #{totals.cost}\u00A2)", %{session_id: session.id, cost_cents: totals.cost})
 
       {:ok, session.id}
     else
@@ -282,7 +288,7 @@ defmodule Canopy.Heartbeat do
         new_input = acc.input + input_tokens
         new_output = acc.output + output_tokens
         new_cache = acc.cache + cache_tokens
-        cost = estimate_cost(new_input, new_output, agent.model)
+        cost = estimate_cost(new_input, new_output, new_cache, agent.model)
 
         %{acc | input: new_input, output: new_output, cache: new_cache, cost: cost}
       end)
@@ -317,24 +323,61 @@ defmodule Canopy.Heartbeat do
 
   # Cost estimation in cents using per-direction pricing.
   # Rates are cents per 1K tokens based on Anthropic API pricing (March 2026).
-  # Returns a float — caller stores as integer cents after final accumulation.
-  defp estimate_cost(input_tokens, output_tokens, model) do
-    {input_rate, output_rate} = model_rates(model)
+  # Includes separate cache token rate (cache reads are ~10x cheaper than input).
+  # Returns an integer — cents.
+  defp estimate_cost(input_tokens, output_tokens, cache_tokens, model) do
+    {input_rate, output_rate, cache_rate} = model_rates(model)
 
     input_cost = input_tokens / 1000 * input_rate
     output_cost = output_tokens / 1000 * output_rate
+    cache_cost = cache_tokens / 1000 * cache_rate
 
     # Use ceil to avoid rounding small sessions to $0
-    ceil(input_cost + output_cost)
+    ceil(input_cost + output_cost + cache_cost)
   end
 
-  # Rates in cents per 1K tokens: {input, output}
-  defp model_rates(model) do
-    case model do
-      m when m in ["claude-opus-4-6", "claude-opus-4-20250514"] -> {1.5, 7.5}
-      m when m in ["claude-sonnet-4-6", "claude-sonnet-4-20250514"] -> {0.3, 1.5}
-      m when m in ["claude-haiku-4-5", "claude-haiku-4-5-20251001"] -> {0.08, 0.4}
-      _ -> {0.3, 1.5}
+  # Rates in cents per 1K tokens: {input, output, cache_read}
+  # Uses String.contains? to match both full model IDs ("claude-opus-4-6")
+  # and short names ("opus", "sonnet") that agents typically use.
+  defp model_rates(model) when is_binary(model) do
+    normalized = String.downcase(model)
+
+    cond do
+      String.contains?(normalized, "opus") -> {1.5, 7.5, 0.15}
+      String.contains?(normalized, "haiku") -> {0.08, 0.4, 0.008}
+      String.contains?(normalized, "sonnet") -> {0.3, 1.5, 0.03}
+      true -> {0.3, 1.5, 0.03}
     end
+  end
+
+  defp model_rates(_), do: {0.3, 1.5, 0.03}
+
+  defp persist_activity_event(agent, event_type, message, metadata) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    %ActivityEvent{}
+    |> ActivityEvent.changeset(%{
+      event_type: event_type,
+      message: message,
+      metadata: metadata,
+      level: if(String.contains?(event_type, "failed"), do: "error", else: "info"),
+      workspace_id: agent.workspace_id,
+      agent_id: agent.id
+    })
+    |> Ecto.Changeset.put_change(:inserted_at, now)
+    |> Repo.insert()
+
+    Canopy.EventBus.broadcast(
+      Canopy.EventBus.activity_topic(),
+      %{
+        event: event_type,
+        agent_id: agent.id,
+        agent_name: agent.name,
+        message: message,
+        workspace_id: agent.workspace_id,
+        metadata: metadata,
+        created_at: now
+      }
+    )
   end
 end
