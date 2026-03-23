@@ -1,6 +1,6 @@
 import type { Project } from "../types";
 
-const MOCK_PROJECTS: Project[] = [
+let mockProjects: Project[] = [
   {
     id: "proj-alpha",
     name: "Alpha Project",
@@ -29,9 +29,33 @@ const MOCK_PROJECTS: Project[] = [
 ];
 
 export function getProjects(): Project[] {
-  return MOCK_PROJECTS;
+  return mockProjects;
 }
 
 export function getProjectById(id: string): Project | undefined {
-  return MOCK_PROJECTS.find((p) => p.id === id);
+  return mockProjects.find((p) => p.id === id);
+}
+
+export function addProject(project: Project): void {
+  mockProjects = [project, ...mockProjects];
+}
+
+export function updateProject(
+  id: string,
+  data: Partial<Project>,
+): Project | undefined {
+  const idx = mockProjects.findIndex((p) => p.id === id);
+  if (idx === -1) return undefined;
+  mockProjects[idx] = {
+    ...mockProjects[idx],
+    ...data,
+    updated_at: new Date().toISOString(),
+  };
+  return mockProjects[idx];
+}
+
+export function deleteProject(id: string): boolean {
+  const len = mockProjects.length;
+  mockProjects = mockProjects.filter((p) => p.id !== id);
+  return mockProjects.length < len;
 }

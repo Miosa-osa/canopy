@@ -1,5 +1,6 @@
 <!-- src/routes/app/projects/+page.svelte -->
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import { projectsStore } from '$lib/stores/projects.svelte';
   import { workspaceStore } from '$lib/stores/workspace.svelte';
@@ -112,7 +113,7 @@
         >
           <button
             class="proj-card-btn"
-            onclick={() => projectsStore.selectProject(project)}
+            onclick={() => { projectsStore.selectProject(project); goto(`/app/projects/${project.id}`); }}
             aria-pressed={projectsStore.selected?.id === project.id}
             aria-label="Select project {project.name}"
           >

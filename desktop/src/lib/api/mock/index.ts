@@ -16,9 +16,22 @@ import { mockCosts } from "./costs";
 import { mockActivity } from "./activity";
 import { mockSessions } from "./sessions";
 import { getInbox, performInboxAction } from "./inbox";
-import { getGoals, getGoalTree, getGoalById } from "./goals";
+import {
+  getGoals,
+  getGoalTree,
+  getGoalById,
+  addGoal,
+  updateGoal,
+  deleteGoal,
+} from "./goals";
 import { getDocuments, getDocumentTree, getDocumentById } from "./documents";
-import { getProjects, getProjectById } from "./projects";
+import {
+  getProjects,
+  getProjectById,
+  addProject,
+  updateProject,
+  deleteProject,
+} from "./projects";
 import { getSpawnInstances, createSpawnInstance } from "./spawn";
 import { getMockMessages } from "./chat";
 import {
@@ -46,7 +59,15 @@ import { mockPlugins, mockPluginLogs } from "./plugins";
 import { mockSignals } from "./signals";
 import { mockAudit } from "./audit";
 import { mockLogs } from "./logs";
-import type { CanopyAgent, Schedule, HeartbeatRun, Issue } from "../types";
+import type {
+  CanopyAgent,
+  Schedule,
+  HeartbeatRun,
+  Issue,
+  Goal,
+  GoalStatus,
+  GoalPriority,
+} from "../types";
 
 // Simulated network delay (kept minimal for responsiveness)
 function delay(ms = 30): Promise<void> {
@@ -120,24 +141,27 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
         ) ?? undefined;
 
       if ((options.method ?? "GET").toUpperCase() === "POST") {
-        const agents = mockAgents(wsId);
-        const base = agents[0];
         try {
           const body = JSON.parse(
             typeof options.body === "string"
               ? options.body
               : JSON.stringify(options.body ?? {}),
-          ) as Partial<CanopyAgent>;
+          ) as Partial<CanopyAgent> & { slug?: string; workspace_id?: string };
+          const now = new Date().toISOString();
           const newAgent: CanopyAgent = {
-            ...base,
             id: `agent-new-${Date.now()}`,
             name: body.name ?? "new-agent",
-            display_name: body.display_name ?? "New Agent",
+            display_name: body.display_name ?? body.name ?? "New Agent",
             avatar_emoji: body.avatar_emoji ?? "🤖",
             role: body.role ?? "General",
             adapter: body.adapter ?? "osa",
             model: body.model ?? "claude-sonnet-4-6",
             system_prompt: body.system_prompt ?? "",
+            config: body.config ?? {},
+            skills: body.skills ?? [],
+            team_id: body.team_id ?? null,
+            schedule_id: null,
+            budget_policy_id: null,
             status: "idle",
             current_task: null,
             last_active_at: null,
@@ -148,12 +172,18 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
               cache_write: 0,
             },
             cost_today_cents: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            created_at: now,
+            updated_at: now,
           };
+          // Persist the created agent so subsequent GET /agents returns it
+          const targetWs = body.workspace_id ?? wsId;
+          if (targetWs) {
+            const existing = mockAgents(targetWs);
+            setMockWorkspaceAgents(targetWs, [...existing, newAgent]);
+          }
           return newAgent;
         } catch {
-          return base;
+          return {} as CanopyAgent;
         }
       }
       const agents = mockAgents(wsId);
@@ -352,7 +382,35 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
   },
   {
     pattern: /^\/projects\/([^/]+)\/goals$/,
-    handler: () => ({ goals: getGoalTree() }),
+    handler: (path, options) => {
+      const projectId = path.split("/")[2];
+      const method = (options.method ?? "GET").toUpperCase();
+      if (method === "POST") {
+        let body: Record<string, unknown> = {};
+        try {
+          body = JSON.parse(options.body as string);
+        } catch {
+          /* ignore */
+        }
+        const newGoal: Goal = {
+          id: `goal-${Date.now()}`,
+          title: (body.title as string) ?? "New Goal",
+          description: (body.description as string | null) ?? null,
+          parent_id: (body.parent_id as string | null) ?? null,
+          project_id: projectId,
+          status: ((body.status as GoalStatus) ?? "active") as GoalStatus,
+          priority: ((body.priority as GoalPriority) ??
+            "medium") as GoalPriority,
+          progress: 0,
+          assignee_id: (body.assignee_id as string | null) ?? null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        addGoal(newGoal);
+        return newGoal;
+      }
+      return { goals: getGoalTree(projectId) };
+    },
   },
 
   // ── Goals (standalone — legacy or direct access) ──────────────────────────────
@@ -382,23 +440,85 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
     },
   },
   {
+    // GET/PATCH/PUT/DELETE /goals/:id
     pattern: /^\/goals\/([^/]+)$/,
-    handler: (path) => {
+    handler: (path, options) => {
       const id = path.split("/")[2];
-      return { goal: getGoalById(id) };
+      const method = (options.method ?? "GET").toUpperCase();
+      if (method === "PATCH" || method === "PUT") {
+        let body: Record<string, unknown> = {};
+        try {
+          body = JSON.parse(options.body as string);
+        } catch {
+          /* ignore */
+        }
+        const updated = updateGoal(id, body as Partial<Goal>);
+        return updated ?? { error: "not_found" };
+      }
+      if (method === "DELETE") {
+        deleteGoal(id);
+        return { ok: true };
+      }
+      return getGoalById(id) ?? { error: "not_found" };
     },
   },
   {
+    // GET /goals + POST /goals
     pattern: /^\/goals$/,
-    handler: () => ({ goals: getGoals(), count: getGoals().length }),
+    handler: (_path, options) => {
+      const method = (options.method ?? "GET").toUpperCase();
+      if (method === "POST") {
+        let body: Record<string, unknown> = {};
+        try {
+          body = JSON.parse(options.body as string);
+        } catch {
+          /* ignore */
+        }
+        const newGoal: Goal = {
+          id: `goal-${Date.now()}`,
+          title: (body.title as string) ?? "New Goal",
+          description: (body.description as string | null) ?? null,
+          parent_id: (body.parent_id as string | null) ?? null,
+          project_id: (body.project_id as string) ?? "",
+          status: ((body.status as GoalStatus) ?? "active") as GoalStatus,
+          priority: ((body.priority as GoalPriority) ??
+            "medium") as GoalPriority,
+          progress: 0,
+          assignee_id: (body.assignee_id as string | null) ?? null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        addGoal(newGoal);
+        return newGoal;
+      }
+      return { goals: getGoals(), count: getGoals().length };
+    },
   },
 
   // ── Projects ──────────────────────────────────────────────────────────────────
   {
-    // GET/PATCH /projects/:id
+    // GET/PATCH/PUT/DELETE /projects/:id
     pattern: /^\/projects\/([^/]+)$/,
-    handler: (path) => {
+    handler: (path, options) => {
       const id = path.split("/")[2];
+      const method = (options.method ?? "GET").toUpperCase();
+      if (method === "PATCH" || method === "PUT") {
+        let body: Record<string, unknown> = {};
+        try {
+          body = JSON.parse(options.body as string);
+        } catch {
+          /* ignore */
+        }
+        const updated = updateProject(
+          id,
+          body as Partial<import("../types").Project>,
+        );
+        return updated ?? { error: "not_found" };
+      }
+      if (method === "DELETE") {
+        deleteProject(id);
+        return { ok: true };
+      }
       return getProjectById(id);
     },
   },
@@ -406,30 +526,29 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
     // GET /projects + POST /projects
     pattern: /^\/projects$/,
     handler: (_path, options) => {
-      if ((options.method ?? "GET").toUpperCase() === "POST") {
+      const method = (options.method ?? "GET").toUpperCase();
+      if (method === "POST") {
         let body: Record<string, unknown> = {};
         try {
-          body =
-            typeof options.body === "string"
-              ? JSON.parse(options.body)
-              : (options.body ?? {});
+          body = JSON.parse(options.body as string);
         } catch {
           /* ignore */
         }
-        return {
+        const newProject: import("../types").Project = {
           id: `proj-${Date.now()}`,
           name: (body.name as string) ?? "New Project",
-          description: (body.description as string) ?? "",
+          description: (body.description as string | null) ?? null,
           status: "active",
           workspace_path:
             (body.workspace_path as string) ?? "~/.canopy/projects",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          agent_count: 0,
-          session_count: 0,
           goal_count: 0,
           issue_count: 0,
+          agent_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
+        addProject(newProject);
+        return newProject;
       }
       return { projects: getProjects(), count: getProjects().length };
     },

@@ -62,6 +62,16 @@ class GoalsStore {
     this.activeProjectId = projectId;
     try {
       this.goals = await goalsApi.list(projectId);
+      // Refresh selected from the new tree so stale references don't keep
+      // the GoalDetail backdrop rendered and blocking the page.
+      if (this.selected) {
+        const flat = (nodes: GoalTreeNode[]): GoalTreeNode[] =>
+          nodes.flatMap((n) => [n, ...flat(n.children)]);
+        const refreshed = flat(this.goals).find(
+          (g) => g.id === this.selected!.id,
+        );
+        this.selected = refreshed ?? null;
+      }
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;
@@ -80,7 +90,6 @@ class GoalsStore {
       );
       return null;
     }
-    this.loading = true;
     try {
       // Inject workspace_id from the workspace store
       const { workspaceStore } = await import("./workspace.svelte");
@@ -89,7 +98,8 @@ class GoalsStore {
         workspace_id: workspaceStore.activeWorkspaceId ?? undefined,
       };
       const created = await goalsApi.create(this.activeProjectId, enriched);
-      // Re-fetch the full tree to get correct children/issue_count
+      // Re-fetch the full tree to get correct children/issue_count.
+      // fetchGoals manages loading state, so we don't duplicate it here.
       await this.fetchGoals(this.activeProjectId);
       this.error = null;
       toastStore.success("Goal created", created.title);
@@ -99,8 +109,6 @@ class GoalsStore {
       this.error = msg;
       toastStore.error("Failed to create goal", msg);
       return null;
-    } finally {
-      this.loading = false;
     }
   }
 

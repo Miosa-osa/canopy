@@ -1,6 +1,6 @@
 import type { Goal, GoalTreeNode } from "../types";
 
-const MOCK_GOALS: Goal[] = [
+let mockGoals: Goal[] = [
   {
     id: "goal-q1-milestone",
     title: "Q1 Milestone",
@@ -76,19 +76,45 @@ function buildTree(goals: Goal[], parentId: string | null): GoalTreeNode[] {
 }
 
 export function getGoals(): Goal[] {
-  return MOCK_GOALS;
+  return mockGoals;
 }
 
-export function getGoalTree(): GoalTreeNode[] {
-  return buildTree(MOCK_GOALS, null);
+export function getGoalsByProject(projectId: string): Goal[] {
+  return mockGoals.filter((g) => g.project_id === projectId);
+}
+
+export function getGoalTree(projectId?: string): GoalTreeNode[] {
+  const goals = projectId ? getGoalsByProject(projectId) : mockGoals;
+  return buildTree(goals, null);
 }
 
 export function getGoalById(id: string): GoalTreeNode | undefined {
-  const goal = MOCK_GOALS.find((g) => g.id === id);
+  const goal = mockGoals.find((g) => g.id === id);
   if (!goal) return undefined;
   return {
     ...goal,
-    children: buildTree(MOCK_GOALS, goal.id),
+    children: buildTree(mockGoals, goal.id),
     issue_count: ISSUE_COUNTS[goal.id] ?? 0,
   };
+}
+
+export function addGoal(goal: Goal): void {
+  mockGoals = [goal, ...mockGoals];
+}
+
+export function updateGoal(id: string, data: Partial<Goal>): Goal | undefined {
+  const idx = mockGoals.findIndex((g) => g.id === id);
+  if (idx === -1) return undefined;
+  mockGoals[idx] = {
+    ...mockGoals[idx],
+    ...data,
+    updated_at: new Date().toISOString(),
+  };
+  return mockGoals[idx];
+}
+
+export function deleteGoal(id: string): boolean {
+  const len = mockGoals.length;
+  mockGoals = mockGoals.filter((g) => g.id !== id);
+  return mockGoals.length < len;
 }
