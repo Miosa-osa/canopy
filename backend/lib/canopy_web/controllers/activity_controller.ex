@@ -22,7 +22,15 @@ defmodule CanopyWeb.ActivityController do
         offset: ^offset,
         select: {e, a.name}
 
-    query = if workspace_id, do: where(query, [e], e.workspace_id == ^workspace_id), else: query
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
+
+    query =
+      cond do
+        workspace_id -> where(query, [e], e.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(query, [e], e.workspace_id in ^user_workspace_ids)
+        true -> query
+      end
+
     query = if agent_id, do: where(query, [e], e.agent_id == ^agent_id), else: query
     query = if event_type, do: where(query, [e], e.event_type == ^event_type), else: query
     query = if level, do: where(query, [e], e.level == ^level), else: query
@@ -31,7 +39,14 @@ defmodule CanopyWeb.ActivityController do
 
     # Build filtered count query with the same conditions (without limit/offset/select)
     count_query = from e in ActivityEvent
-    count_query = if workspace_id, do: where(count_query, [e], e.workspace_id == ^workspace_id), else: count_query
+
+    count_query =
+      cond do
+        workspace_id -> where(count_query, [e], e.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(count_query, [e], e.workspace_id in ^user_workspace_ids)
+        true -> count_query
+      end
+
     count_query = if agent_id, do: where(count_query, [e], e.agent_id == ^agent_id), else: count_query
     count_query = if event_type, do: where(count_query, [e], e.event_type == ^event_type), else: count_query
     count_query = if level, do: where(count_query, [e], e.level == ^level), else: count_query

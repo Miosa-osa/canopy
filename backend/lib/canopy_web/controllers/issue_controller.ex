@@ -37,7 +37,7 @@ defmodule CanopyWeb.IssueController do
     count_query = if assignee_id, do: where(count_query, [i], i.assignee_id == ^assignee_id), else: count_query
     count_query = if goal_id, do: where(count_query, [i], i.goal_id == ^goal_id), else: count_query
 
-    issues = Repo.all(query) |> Repo.preload(:labels)
+    issues = Repo.all(query) |> Repo.preload([:labels, :assignee, :comments])
     total = Repo.aggregate(count_query, :count)
     json(conn, %{issues: Enum.map(issues, &serialize/1), total: total})
   end
@@ -47,6 +47,8 @@ defmodule CanopyWeb.IssueController do
 
     case Repo.insert(changeset) do
       {:ok, issue} ->
+        issue = Repo.preload(issue, [:labels, :assignee, :comments])
+
         Canopy.EventBus.broadcast(
           Canopy.EventBus.workspace_topic(issue.workspace_id),
           %{event: "issue.created", issue_id: issue.id, title: issue.title}
@@ -62,7 +64,7 @@ defmodule CanopyWeb.IssueController do
   end
 
   def show(conn, %{"id" => id}) do
-    case Repo.get(Issue, id) |> Repo.preload([:comments, :labels]) do
+    case Repo.get(Issue, id) |> Repo.preload([:comments, :labels, :assignee]) do
       nil ->
         conn |> put_status(404) |> json(%{error: "not_found"})
 
@@ -86,6 +88,8 @@ defmodule CanopyWeb.IssueController do
 
         case Repo.update(changeset) do
           {:ok, updated} ->
+            updated = Repo.preload(updated, [:labels, :assignee, :comments])
+
             if old_status != updated.status do
               Canopy.EventBus.broadcast(
                 Canopy.EventBus.workspace_topic(updated.workspace_id),
@@ -128,6 +132,8 @@ defmodule CanopyWeb.IssueController do
            |> Ecto.Changeset.change(assignee_id: agent_id)
            |> Repo.update() do
         {:ok, updated} ->
+          updated = Repo.preload(updated, [:labels, :assignee, :comments])
+
           Canopy.EventBus.broadcast(
             Canopy.EventBus.workspace_topic(updated.workspace_id),
             %{event: "issue.assigned", issue_id: id, agent_id: agent_id}
@@ -150,20 +156,16 @@ defmodule CanopyWeb.IssueController do
       nil ->
         conn |> put_status(404) |> json(%{error: "not_found"})
 
-      %{checked_out_by: existing} when not is_nil(existing) ->
-        conn
-        |> put_status(409)
-        |> json(%{error: "already_checked_out", checked_out_by: existing})
-
-      issue ->
-        case issue
-             |> Ecto.Changeset.change(checked_out_by: agent_id, status: "in_progress")
-             |> Repo.update() do
+      _issue ->
+        case Canopy.Work.checkout_issue(id, agent_id) do
           {:ok, updated} ->
+            updated = Repo.preload(updated, [:labels, :assignee, :comments])
             json(conn, %{issue: serialize(updated)})
 
-          {:error, _changeset} ->
-            conn |> put_status(500) |> json(%{error: "update_failed"})
+          {:error, :already_checked_out} ->
+            conn
+            |> put_status(409)
+            |> json(%{error: "already_checked_out"})
         end
     end
   end
@@ -216,6 +218,17 @@ defmodule CanopyWeb.IssueController do
   # --- Private helpers ---
 
   defp serialize(%Issue{} = i) do
+    assignee_name =
+      if Ecto.assoc_loaded?(i.assignee) && i.assignee, do: i.assignee.name, else: nil
+
+    comments_count =
+      if Ecto.assoc_loaded?(i.comments), do: length(i.comments), else: 0
+
+    labels =
+      if Ecto.assoc_loaded?(i.labels),
+        do: Enum.map(i.labels, fn l -> %{id: l.id, name: l.name, color: l.color} end),
+        else: []
+
     %{
       id: i.id,
       title: i.title,
@@ -226,9 +239,9 @@ defmodule CanopyWeb.IssueController do
       project_id: i.project_id,
       goal_id: i.goal_id,
       assignee_id: i.assignee_id,
-      assignee_name: nil,
-      labels: Enum.map(i.labels || [], fn l -> %{id: l.id, name: l.name, color: l.color} end),
-      comments_count: 0,
+      assignee_name: assignee_name,
+      labels: labels,
+      comments_count: comments_count,
       created_by: nil,
       checked_out_by: i.checked_out_by,
       created_at: i.inserted_at,

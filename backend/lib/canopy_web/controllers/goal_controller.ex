@@ -95,7 +95,7 @@ defmodule CanopyWeb.GoalController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       goal ->
-        chain = build_ancestry(goal, [], 20)
+        chain = build_ancestry(goal, [], 20, MapSet.new())
         json(conn, %{ancestry: chain})
     end
   end
@@ -149,16 +149,22 @@ defmodule CanopyWeb.GoalController do
 
   # --- Private helpers ---
 
-  defp build_ancestry(%Goal{parent_id: nil} = goal, acc, _depth) do
+  defp build_ancestry(%Goal{parent_id: nil} = goal, acc, _depth, _visited) do
     [serialize(goal) | acc]
   end
 
-  defp build_ancestry(_goal, acc, 0), do: acc
+  defp build_ancestry(_goal, acc, 0, _visited), do: acc
 
-  defp build_ancestry(%Goal{parent_id: parent_id} = goal, acc, depth) do
-    case Repo.get(Goal, parent_id) do
-      nil -> [serialize(goal) | acc]
-      parent -> build_ancestry(parent, [serialize(goal) | acc], depth - 1)
+  defp build_ancestry(%Goal{parent_id: parent_id} = goal, acc, depth, visited) do
+    if MapSet.member?(visited, goal.id) do
+      acc  # Break cycle
+    else
+      new_visited = MapSet.put(visited, goal.id)
+
+      case Repo.get(Goal, parent_id) do
+        nil -> [serialize(goal) | acc]
+        parent -> build_ancestry(parent, [serialize(goal) | acc], depth - 1, new_visited)
+      end
     end
   end
 

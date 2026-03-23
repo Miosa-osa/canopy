@@ -25,9 +25,15 @@ defmodule CanopyWeb.LogController do
           created_at: e.inserted_at
         }
 
-    query = if params["workspace_id"],
-      do: where(query, [e], e.workspace_id == ^params["workspace_id"]),
-      else: query
+    workspace_id = params["workspace_id"]
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
+
+    query =
+      cond do
+        workspace_id -> where(query, [e], e.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(query, [e], e.workspace_id in ^user_workspace_ids)
+        true -> query
+      end
 
     query = if params["level"],
       do: where(query, [e], e.level == ^params["level"]),

@@ -6,6 +6,9 @@ defmodule CanopyWeb.ApprovalController do
   import Ecto.Query
 
   def index(conn, params) do
+    workspace_id = params["workspace_id"]
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
+
     query =
       from a in Approval,
         order_by: [desc: a.inserted_at]
@@ -16,9 +19,11 @@ defmodule CanopyWeb.ApprovalController do
         else: query
 
     query =
-      if params["workspace_id"],
-        do: where(query, [a], a.workspace_id == ^params["workspace_id"]),
-        else: query
+      cond do
+        workspace_id -> where(query, [a], a.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(query, [a], a.workspace_id in ^user_workspace_ids)
+        true -> query
+      end
 
     approvals = Repo.all(query)
     json(conn, %{approvals: Enum.map(approvals, &serialize/1)})

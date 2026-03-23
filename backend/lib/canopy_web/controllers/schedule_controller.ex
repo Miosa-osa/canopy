@@ -53,7 +53,11 @@ defmodule CanopyWeb.ScheduleController do
 
     schedules =
       Enum.map(schedules, fn s ->
-        Map.put(s, :run_count, Map.get(run_counts, s.id, 0))
+        next_run = s.next_run_at || compute_next_run_at(s.cron_expression)
+
+        s
+        |> Map.put(:run_count, Map.get(run_counts, s.id, 0))
+        |> Map.put(:next_run_at, next_run)
       end)
 
     json(conn, %{schedules: schedules})
@@ -64,7 +68,7 @@ defmodule CanopyWeb.ScheduleController do
 
     case Repo.insert(changeset) do
       {:ok, schedule} ->
-        schedule = persist_next_run_at(schedule)
+        schedule = schedule |> persist_next_run_at() |> Repo.preload(:agent)
         if schedule.enabled, do: Canopy.Scheduler.add_schedule(schedule)
         conn |> put_status(201) |> json(%{schedule: serialize(schedule, 0)})
 
@@ -76,7 +80,7 @@ defmodule CanopyWeb.ScheduleController do
   end
 
   def show(conn, %{"id" => id}) do
-    case Repo.get(Schedule, id) do
+    case Repo.get(Schedule, id) |> maybe_preload_agent() do
       nil -> conn |> put_status(404) |> json(%{error: "not_found"})
       schedule -> json(conn, %{schedule: serialize(schedule, run_count_for(schedule.id))})
     end
@@ -92,6 +96,7 @@ defmodule CanopyWeb.ScheduleController do
 
         case Repo.update(changeset) do
           {:ok, updated} ->
+            updated = updated |> persist_next_run_at() |> Repo.preload(:agent)
             Canopy.Scheduler.remove_schedule(updated.id)
             if updated.enabled, do: Canopy.Scheduler.add_schedule(updated)
             json(conn, %{schedule: serialize(updated, run_count_for(updated.id))})
@@ -184,6 +189,11 @@ defmodule CanopyWeb.ScheduleController do
   end
 
   defp serialize(%Schedule{} = s, run_count) do
+    agent_name =
+      if Ecto.assoc_loaded?(s.agent) && s.agent, do: s.agent.name, else: nil
+
+    next_run = s.next_run_at || compute_next_run_at(s.cron_expression)
+
     %{
       id: s.id,
       name: s.name,
@@ -195,9 +205,9 @@ defmodule CanopyWeb.ScheduleController do
       timezone: s.timezone,
       workspace_id: s.workspace_id,
       agent_id: s.agent_id,
-      agent_name: nil,
+      agent_name: agent_name,
       last_run_at: s.last_run_at,
-      next_run_at: s.next_run_at,
+      next_run_at: next_run,
       last_run_status: s.last_run_status,
       run_count: run_count,
       created_at: s.inserted_at,
@@ -205,6 +215,9 @@ defmodule CanopyWeb.ScheduleController do
       updated_at: s.updated_at
     }
   end
+
+  defp maybe_preload_agent(nil), do: nil
+  defp maybe_preload_agent(%Schedule{} = s), do: Repo.preload(s, :agent)
 
   defp run_count_for(schedule_id) do
     Repo.aggregate(

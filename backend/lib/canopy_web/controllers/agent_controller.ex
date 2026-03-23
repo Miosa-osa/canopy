@@ -7,50 +7,69 @@ defmodule CanopyWeb.AgentController do
 
   def index(conn, params) do
     workspace_id = params["workspace_id"]
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
 
     query = from a in Agent, order_by: [asc: a.name]
-    query = if workspace_id, do: where(query, [a], a.workspace_id == ^workspace_id), else: query
+
+    query =
+      cond do
+        workspace_id -> where(query, [a], a.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(query, [a], a.workspace_id in ^user_workspace_ids)
+        true -> query
+      end
 
     agents = Repo.all(query)
 
     agent_ids = Enum.map(agents, & &1.id)
 
-    # Batch skill lookup
+    # Batch skill lookup — query all then filter to avoid binary_id encoding in IN clause
     skills_map =
-      Repo.all(
-        from as_ in "agent_skills",
-          where: as_.agent_id in ^agent_ids,
-          select: {type(as_.agent_id, :binary_id), type(as_.skill_id, :binary_id)}
-      )
-      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+      if agent_ids == [] do
+        %{}
+      else
+        Repo.all(
+          from as_ in "agent_skills",
+            select: {type(as_.agent_id, :binary_id), type(as_.skill_id, :binary_id)}
+        )
+        |> Enum.filter(fn {aid, _} -> aid in agent_ids end)
+        |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+      end
 
     # Batch today's cost stats
     today = Date.utc_today()
     beginning_of_today = DateTime.new!(today, ~T[00:00:00], "Etc/UTC")
 
     cost_stats_map =
-      Repo.all(
-        from ce in CostEvent,
-          where: ce.agent_id in ^agent_ids and ce.inserted_at >= ^beginning_of_today,
-          group_by: ce.agent_id,
-          select: {ce.agent_id, %{
-            cost_cents: coalesce(sum(ce.cost_cents), 0),
-            tokens_input: coalesce(sum(ce.tokens_input), 0),
-            tokens_output: coalesce(sum(ce.tokens_output), 0),
-            tokens_cache: coalesce(sum(ce.tokens_cache), 0)
-          }}
-      )
-      |> Map.new()
+      if agent_ids == [] do
+        %{}
+      else
+        Repo.all(
+          from ce in CostEvent,
+            where: ce.agent_id in ^agent_ids and ce.inserted_at >= ^beginning_of_today,
+            group_by: ce.agent_id,
+            select: {ce.agent_id, %{
+              cost_cents: coalesce(sum(ce.cost_cents), 0),
+              tokens_input: coalesce(sum(ce.tokens_input), 0),
+              tokens_output: coalesce(sum(ce.tokens_output), 0),
+              tokens_cache: coalesce(sum(ce.tokens_cache), 0)
+            }}
+        )
+        |> Map.new()
+      end
 
     # Batch last active
     last_active_map =
-      Repo.all(
-        from s in Session,
-          where: s.agent_id in ^agent_ids,
-          group_by: s.agent_id,
-          select: {s.agent_id, max(s.updated_at)}
-      )
-      |> Map.new()
+      if agent_ids == [] do
+        %{}
+      else
+        Repo.all(
+          from s in Session,
+            where: s.agent_id in ^agent_ids,
+            group_by: s.agent_id,
+            select: {s.agent_id, max(s.updated_at)}
+        )
+        |> Map.new()
+      end
 
     serialized =
       Enum.map(agents, fn agent ->
@@ -302,8 +321,16 @@ defmodule CanopyWeb.AgentController do
 
   def hierarchy(conn, params) do
     workspace_id = params["workspace_id"]
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
+
     query = from a in Agent, order_by: [asc: a.name]
-    query = if workspace_id, do: where(query, [a], a.workspace_id == ^workspace_id), else: query
+
+    query =
+      cond do
+        workspace_id -> where(query, [a], a.workspace_id == ^workspace_id)
+        user_workspace_ids != [] -> where(query, [a], a.workspace_id in ^user_workspace_ids)
+        true -> query
+      end
     agents = Repo.all(query)
 
     json(conn, %{
