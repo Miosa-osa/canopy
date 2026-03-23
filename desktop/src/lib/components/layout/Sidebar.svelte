@@ -80,6 +80,10 @@
     templates:    'M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776',
     workspaces:   'M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125',
     terminal:     'M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z',
+    hierarchy:    'M3 6l3-3 3 3M6 3v13M21 6l-3-3-3 3M18 3v13M3 21h18M3 17h6M15 17h6',
+    divisions:    'M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21',
+    departments:  'M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21',
+    teams:        'M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z',
     hamburger:    'M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5',
     close:        'M6 18L18 6M6 6l12 12',
     search:       'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 10.607z',
@@ -154,6 +158,16 @@
         <SidebarNavItem href="/app/goals" label="Goals" icon={ICONS.goals} active={isActive('/app/goals')} />
         <SidebarNavItem href="/app/approvals" label="Approvals" icon={ICONS.approvals} badge={approvalsStore.pendingCount || undefined} active={isActive('/app/approvals')} />
         <SidebarNavItem href="/app/documents" label="Documents" icon={ICONS.documents} active={isActive('/app/documents')} />
+      </SidebarSection>
+
+      <div class="sb-divider" aria-hidden="true"></div>
+
+      <!-- STRUCTURE -->
+      <SidebarSection label="Structure">
+        <SidebarNavItem href="/app/hierarchy" label="Hierarchy" icon={ICONS.hierarchy} active={isActive('/app/hierarchy')} />
+        <SidebarNavItem href="/app/divisions" label="Divisions" icon={ICONS.divisions} active={isActive('/app/divisions')} />
+        <SidebarNavItem href="/app/departments" label="Departments" icon={ICONS.departments} active={isActive('/app/departments')} />
+        <SidebarNavItem href="/app/teams" label="Teams" icon={ICONS.teams} active={isActive('/app/teams')} />
       </SidebarSection>
 
       <div class="sb-divider" aria-hidden="true"></div>

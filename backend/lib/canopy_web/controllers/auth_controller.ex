@@ -41,6 +41,66 @@ defmodule CanopyWeb.AuthController do
     |> json(%{error: "invalid_request", details: "Missing email or password"})
   end
 
+  def register(conn, %{"name" => _, "email" => _, "password" => password} = params)
+      when byte_size(password) >= 8 do
+    changeset = User.changeset(%User{}, params)
+
+    case Repo.insert(changeset) do
+      {:ok, user} ->
+        {:ok, token, _claims} =
+          Canopy.Guardian.encode_and_sign(user, %{"role" => user.role}, ttl: {1, :hour})
+
+        conn
+        |> put_status(201)
+        |> json(%{
+          token: token,
+          user: %{
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          }
+        })
+
+      {:error, changeset} ->
+        conn
+        |> put_status(422)
+        |> json(%{error: "validation_failed", details: format_errors(changeset)})
+    end
+  end
+
+  def register(conn, %{"password" => password}) when byte_size(password) < 8 do
+    conn
+    |> put_status(422)
+    |> json(%{error: "validation_failed", details: %{password: ["must be at least 8 characters"]}})
+  end
+
+  def register(conn, _params) do
+    conn
+    |> put_status(400)
+    |> json(%{error: "invalid_request", details: "Missing name, email, or password"})
+  end
+
+  def status(conn, _params) do
+    with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
+         {:ok, claims} <- Canopy.Guardian.decode_and_verify(token),
+         {:ok, user} <- Canopy.Guardian.resource_from_claims(claims) do
+      json(conn, %{
+        authenticated: true,
+        user: %{
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        },
+        expires_at: claims["exp"]
+      })
+    else
+      _ ->
+        json(conn, %{authenticated: false})
+    end
+  end
+
   def refresh(conn, _params) do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
          {:ok, _old_claims} <- Canopy.Guardian.decode_and_verify(token),
@@ -52,5 +112,13 @@ defmodule CanopyWeb.AuthController do
         |> put_status(401)
         |> json(%{error: "invalid_token"})
     end
+  end
+
+  defp format_errors(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
   end
 end
