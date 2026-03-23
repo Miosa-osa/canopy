@@ -5,6 +5,7 @@
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import GoalHierarchy from '$lib/components/goals/GoalHierarchy.svelte';
   import GoalForm from '$lib/components/goals/GoalForm.svelte';
+  import GoalDetail from '$lib/components/goals/GoalDetail.svelte';
   import { goalsStore } from '$lib/stores/goals.svelte';
   import { projectsStore } from '$lib/stores/projects.svelte';
 
@@ -91,6 +92,10 @@
 
 {#if showForm}
   <GoalForm onSubmit={handleSubmit} onCancel={() => showForm = false} />
+{/if}
+
+{#if goalsStore.selected}
+  <GoalDetail goal={goalsStore.selected} onClose={() => goalsStore.selectGoal(null)} />
 {/if}
 
 <style>
