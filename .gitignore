@@ -43,3 +43,4 @@ backend/erl_crash.dump
 # Superset
 .superset/
 templates/growth-os/
+.claude/worktrees/
