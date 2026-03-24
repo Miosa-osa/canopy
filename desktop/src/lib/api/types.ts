@@ -199,6 +199,8 @@ export interface CanopyAgent {
   adapter: AdapterType;
   model: string;
   system_prompt: string;
+  temperature?: number;
+  max_concurrent_runs?: number;
   config: Record<string, unknown>;
   skills: string[];
   team_id?: string | null;
@@ -222,6 +224,8 @@ export interface AgentCreateRequest {
   adapter: AdapterType;
   model: string;
   system_prompt?: string;
+  temperature?: number;
+  max_concurrent_runs?: number;
   config?: Record<string, unknown>;
   skills?: string[];
   budget_policy?: BudgetPolicyInput;

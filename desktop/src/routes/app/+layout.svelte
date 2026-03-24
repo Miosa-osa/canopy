@@ -139,9 +139,11 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
       // 6. Initialize organizations — ensure at least one exists, auto-select
       await organizationsStore.ensureDefault();
 
-      // 7. Pre-fetch hierarchy divisions + approvals for sidebar badges
+      // 7. Pre-fetch full hierarchy tree + approvals for sidebar
       if (organizationsStore.current) {
+        void hierarchyStore.fetchTree(organizationsStore.current.id);
         void hierarchyStore.fetchDivisions(organizationsStore.current.id);
+        void hierarchyStore.fetchDepartments();
         void hierarchyStore.fetchTeams();
       }
       void approvalsStore.fetchApprovals();

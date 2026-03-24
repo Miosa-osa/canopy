@@ -4,7 +4,6 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import StatusDot from '$lib/components/shared/StatusDot.svelte';
-  import Badge from '$lib/components/shared/Badge.svelte';
   import MetricCard from '$lib/components/shared/MetricCard.svelte';
   import TimeAgo from '$lib/components/shared/TimeAgo.svelte';
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
@@ -40,11 +39,28 @@
     { id: 'code_execution', label: 'Code Execution',  description: 'Run code in sandbox' },
   ] as const;
 
-  const ADAPTER_OPTIONS: AdapterType[] = ['osa', 'claude_code', 'claude-code', 'codex', 'openclaw', 'jidoclaw', 'hermes', 'bash', 'http', 'cursor', 'gemini', 'custom'];
+  const ADAPTER_OPTIONS: { value: AdapterType; label: string; description: string }[] = [
+    { value: 'claude-code',  label: 'Claude Code',  description: 'Runs claude CLI in its own terminal — full coding agent' },
+    { value: 'claude_code',  label: 'Claude Code',  description: 'Runs claude CLI in its own terminal — full coding agent' },
+    { value: 'osa',          label: 'OSA Agent',     description: 'OSA runtime — orchestrated agent execution' },
+    { value: 'codex',        label: 'Codex',         description: 'OpenAI Codex runtime' },
+    { value: 'bash',         label: 'Bash Shell',    description: 'Runs shell commands directly' },
+    { value: 'http',         label: 'HTTP API',      description: 'Calls an external API endpoint' },
+    { value: 'cursor',       label: 'Cursor',        description: 'Cursor IDE agent runtime' },
+    { value: 'gemini',       label: 'Gemini',        description: 'Google Gemini runtime' },
+    { value: 'custom',       label: 'Custom',        description: 'Custom adapter implementation' },
+  ];
 
-  // Local editable copies for the access tab (not persisted until "Save" — for now just visual)
+  // Local editable copies for config & access tabs
   let localAdapter = $state<AdapterType>('osa');
+  let localModel = $state('');
+  let localWorkingDir = $state('');
+  let localSystemPrompt = $state('');
+  let localTemperature = $state(0.3);
+  let localMaxConcurrent = $state(1);
   let localGatewayId = $state<string>('');
+  let configSaving = $state(false);
+  let configSaved = $state(false);
   let enabledTools = $state<Record<string, boolean>>({
     computer_use: false,
     file_system: false,
@@ -55,6 +71,46 @@
   });
 
   let accessFetched = $state(false);
+
+  function adapterDescription(adapter: AdapterType): string {
+    return ADAPTER_OPTIONS.find(a => a.value === adapter)?.description ?? '';
+  }
+
+  // Save runtime config to backend
+  async function saveRuntimeConfig() {
+    if (!agent) return;
+    configSaving = true;
+    configSaved = false;
+    try {
+      const config = { ...(agent.config ?? {}) };
+      if (localWorkingDir) config.working_dir = localWorkingDir;
+      if (localAdapter === 'claude-code' || localAdapter === 'claude_code') {
+        config.model = localModel || agent.model;
+      }
+
+      const toolsList = Object.entries(enabledTools)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+      config.tools = toolsList;
+
+      await agentsApi.update(agent.id, {
+        adapter: localAdapter,
+        model: localModel || agent.model,
+        system_prompt: localSystemPrompt || agent.system_prompt,
+        temperature: localTemperature,
+        max_concurrent_runs: localMaxConcurrent,
+        config,
+      });
+
+      // Refresh agent from store
+      agent = await agentsStore.fetchAgent(agent.id) ?? agent;
+      configSaved = true;
+      setTimeout(() => { configSaved = false; }, 2000);
+    } catch {
+      // Error handling via store
+    }
+    configSaving = false;
+  }
 
   const TABS = [
     { id: 'overview'  as const, label: 'Overview'       },
@@ -108,9 +164,14 @@
   });
 
   $effect(() => {
-    // Populate access tab state from agent data once agent is loaded
+    // Populate editable state from agent data once loaded
     if (agent && !accessFetched) {
       localAdapter = agent.adapter;
+      localModel = agent.model;
+      localWorkingDir = (agent.config?.working_dir as string) ?? (agent.config?.workspace_path as string) ?? '';
+      localSystemPrompt = agent.system_prompt ?? '';
+      localTemperature = agent.temperature ?? 0.3;
+      localMaxConcurrent = agent.max_concurrent_runs ?? 1;
       // Derive enabled tools from agent.config.tools array if present
       const configTools = (agent.config?.tools ?? []) as string[];
       if (configTools.length > 0) {
@@ -182,15 +243,6 @@
   async function handleAction(action: AgentLifecycleAction) {
     if (!agent) return;
     await agentsStore.performAction(agent.id, action);
-  }
-
-  function adapterBadgeVariant(a: string): 'default' | 'info' | 'success' | 'accent' {
-    switch (a) {
-      case 'osa':         return 'accent';
-      case 'claude_code': return 'info';
-      case 'bash':        return 'success';
-      default:            return 'default';
-    }
   }
 
   function categoryEmoji(cat: string): string {
@@ -443,31 +495,115 @@
           aria-label="Config tab"
           class="ad-panel"
         >
-          <section class="ad-card" aria-label="Model and adapter configuration">
-            <h2 class="ad-card-title">Model & Adapter</h2>
-            <div class="ad-config-row">
-              <span class="ad-config-label">Adapter</span>
-              <Badge value={agent.adapter} variant={adapterBadgeVariant(agent.adapter)} />
+          <!-- Runtime / Adapter -->
+          <section class="ad-card" aria-label="Runtime configuration">
+            <h2 class="ad-card-title">Runtime</h2>
+            <p class="ad-card-subtitle">How this agent executes — which engine and where it runs.</p>
+
+            <div class="ad-form-group">
+              <label class="ad-form-label" for="cfg-adapter">Adapter</label>
+              <select id="cfg-adapter" class="ad-form-select" bind:value={localAdapter} aria-label="Select runtime adapter">
+                {#each ADAPTER_OPTIONS as opt}
+                  <option value={opt.value}>{opt.label}</option>
+                {/each}
+              </select>
+              <span class="ad-form-hint">{adapterDescription(localAdapter)}</span>
             </div>
-            <div class="ad-config-row">
-              <span class="ad-config-label">Model</span>
-              <code class="ad-code-inline">{agent.model}</code>
+
+            {#if localAdapter === 'claude-code' || localAdapter === 'claude_code'}
+              <div class="ad-runtime-callout">
+                <span class="ad-runtime-callout-icon" aria-hidden="true">⌨️</span>
+                <div>
+                  <strong>Claude Code</strong> — This agent runs the <code>claude</code> CLI in its own isolated terminal process.
+                  It has full coding capabilities: file read/write, shell execution, and autonomous task completion.
+                </div>
+              </div>
+            {/if}
+
+            <div class="ad-form-group">
+              <label class="ad-form-label" for="cfg-model">Model</label>
+              <select id="cfg-model" class="ad-form-select" bind:value={localModel} aria-label="Select LLM model">
+                <option value="sonnet">Claude Sonnet</option>
+                <option value="opus">Claude Opus</option>
+                <option value="haiku">Claude Haiku</option>
+                <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+              </select>
+            </div>
+
+            <div class="ad-form-group">
+              <label class="ad-form-label" for="cfg-workdir">Working Directory</label>
+              <input
+                id="cfg-workdir"
+                type="text"
+                class="ad-form-input"
+                placeholder="/path/to/workspace"
+                bind:value={localWorkingDir}
+                aria-label="Working directory for agent execution"
+              />
+              <span class="ad-form-hint">Where the agent operates — its file system root.</span>
+            </div>
+
+            <div class="ad-form-row-inline">
+              <div class="ad-form-group" style="flex:1">
+                <label class="ad-form-label" for="cfg-temp">Temperature</label>
+                <input
+                  id="cfg-temp"
+                  type="number"
+                  class="ad-form-input"
+                  min="0" max="1" step="0.1"
+                  bind:value={localTemperature}
+                />
+              </div>
+              <div class="ad-form-group" style="flex:1">
+                <label class="ad-form-label" for="cfg-concurrent">Max Concurrent Runs</label>
+                <input
+                  id="cfg-concurrent"
+                  type="number"
+                  class="ad-form-input"
+                  min="1" max="10"
+                  bind:value={localMaxConcurrent}
+                />
+              </div>
             </div>
           </section>
 
+          <!-- System Prompt -->
           <section class="ad-card" aria-label="System prompt">
             <h2 class="ad-card-title">System Prompt</h2>
-            {#if agent.system_prompt}
-              <pre class="ad-code-block" aria-label="System prompt content">{agent.system_prompt}</pre>
-            {:else}
-              <p class="ad-muted">No system prompt configured.</p>
-            {/if}
+            <textarea
+              class="ad-form-textarea"
+              rows="8"
+              placeholder="Instructions for this agent..."
+              bind:value={localSystemPrompt}
+              aria-label="Agent system prompt"
+            ></textarea>
           </section>
 
-          <section class="ad-card" aria-label="Extra configuration">
-            <h2 class="ad-card-title">Config JSON</h2>
+          <!-- Save -->
+          <div class="ad-config-actions">
+            <button
+              class="ad-save-btn"
+              onclick={saveRuntimeConfig}
+              disabled={configSaving}
+              aria-label="Save runtime configuration"
+            >
+              {#if configSaving}
+                Saving…
+              {:else if configSaved}
+                Saved
+              {:else}
+                Save Configuration
+              {/if}
+            </button>
+          </div>
+
+          <!-- Raw Config (collapsible for debugging) -->
+          <details class="ad-card ad-config-details">
+            <summary class="ad-card-title" style="cursor:pointer">Raw Config JSON</summary>
             <pre class="ad-code-block" aria-label="Agent configuration JSON">{JSON.stringify(agent.config, null, 2)}</pre>
-          </section>
+          </details>
         </div>
 
       <!-- SCHEDULES -->
@@ -674,10 +810,16 @@
                       aria-label="Select adapter type"
                     >
                       {#each ADAPTER_OPTIONS as opt}
-                        <option value={opt}>{opt}</option>
+                        <option value={opt.value}>{opt.label}</option>
                       {/each}
                     </select>
                   </div>
+                </dd>
+              </div>
+              <div class="ad-access-row">
+                <dt class="ad-access-dt">Runtime</dt>
+                <dd class="ad-access-dd">
+                  <span class="ad-muted">{adapterDescription(localAdapter)}</span>
                 </dd>
               </div>
               <div class="ad-access-row">
@@ -1451,6 +1593,142 @@
     color: var(--text-tertiary);
     line-height: 1.5;
     margin: 0;
+  }
+
+  /* ── Config tab form elements ─────────────────────────────────────────────── */
+
+  .ad-card-subtitle {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin: -4px 0 16px;
+  }
+
+  .ad-form-group {
+    margin-bottom: 14px;
+  }
+
+  .ad-form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .ad-form-select,
+  .ad-form-input {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color 120ms ease;
+  }
+
+  .ad-form-select:focus,
+  .ad-form-input:focus {
+    outline: none;
+    border-color: var(--accent-primary, #60a5fa);
+  }
+
+  .ad-form-textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 120ms ease;
+  }
+
+  .ad-form-textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary, #60a5fa);
+  }
+
+  .ad-form-hint {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .ad-form-row-inline {
+    display: flex;
+    gap: 12px;
+  }
+
+  .ad-runtime-callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(96, 165, 250, 0.08);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    border-radius: var(--radius-sm);
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .ad-runtime-callout-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .ad-runtime-callout code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: rgba(96, 165, 250, 0.15);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  .ad-config-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0 8px;
+  }
+
+  .ad-save-btn {
+    padding: 8px 20px;
+    background: var(--accent-primary, #60a5fa);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+
+  .ad-save-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .ad-save-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .ad-config-details {
+    opacity: 0.7;
+  }
+
+  .ad-config-details[open] {
+    opacity: 1;
   }
 
   /* ── Tools & Access tab ──────────────────────────────────────────────────── */
