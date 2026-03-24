@@ -5,6 +5,7 @@
   import { paletteStore } from '$lib/stores/palette.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
   import { approvalsStore } from '$lib/stores/approvals.svelte';
+  import { notificationsStore } from '$lib/stores/notifications.svelte';
   import { hierarchyStore } from '$lib/stores/hierarchy.svelte';
   import WorkspaceSwitcher from './WorkspaceSwitcher.svelte';
   import SidebarNavItem from './SidebarNavItem.svelte';
@@ -52,7 +53,7 @@
   }
 
   // Inbox badge: approvals + any future notification count
-  const inboxBadge = $derived(approvalsStore.pendingCount || undefined);
+  const inboxBadge = $derived((approvalsStore.pendingCount + notificationsStore.unreadCount) || undefined);
 
   // SVG icon paths
   const ICONS = {
@@ -288,12 +289,15 @@
         <SidebarNavItem href="/app/activity" label="Activity" icon={ICONS.activity} active={isActive('/app/activity')} />
         <SidebarNavItem href="/app/sessions" label="Sessions" icon={ICONS.sessions} active={isActive('/app/sessions')} />
         <SidebarNavItem href="/app/costs" label="Costs" icon={ICONS.costs} active={isActive('/app/costs')} />
+        <SidebarNavItem href="/app/analytics" label="Analytics" icon={ICONS.activity} active={isActive('/app/analytics')} />
+        <SidebarNavItem href="/app/reports" label="Reports" icon={ICONS.documents} active={isActive('/app/reports')} />
       </SidebarSection>
 
       <div class="sb-divider" aria-hidden="true"></div>
 
       <!-- ═══ AUTOMATE — Make things happen automatically ═══ -->
       <SidebarSection label="Automate">
+        <SidebarNavItem href="/app/skills" label="Skills" icon={ICONS.skills} active={isActive('/app/skills')} />
         <SidebarNavItem href="/app/workflows" label="Workflows" icon={ICONS.workflows} active={isActive('/app/workflows')} />
         <SidebarNavItem href="/app/schedules" label="Schedules" icon={ICONS.schedules} active={isActive('/app/schedules')} />
         <SidebarNavItem href="/app/alerts" label="Alerts" icon={ICONS.alerts} active={isActive('/app/alerts')} />
