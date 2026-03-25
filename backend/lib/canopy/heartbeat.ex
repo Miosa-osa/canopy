@@ -40,6 +40,7 @@ defmodule Canopy.Heartbeat do
     issue_id = opts[:issue_id]
 
     with %Agent{} = agent <- Repo.get(Agent, agent_id),
+         :ok <- check_agent_can_run(agent),
          {:ok, adapter_mod} <- Canopy.Adapter.resolve(agent.adapter) do
       session =
         if existing_session_id do
@@ -220,6 +221,21 @@ defmodule Canopy.Heartbeat do
   end
 
   # ── Private ───────────────────────────────────────────────────────────────────
+
+  # Gate check: verify agent is not paused (budget enforcement) or blocked by pending approvals
+  defp check_agent_can_run(%Agent{status: "paused"} = agent) do
+    Logger.warning("[Heartbeat] Agent #{agent.name} (#{agent.id}) is paused — skipping heartbeat")
+    {:error, :agent_paused}
+  end
+
+  defp check_agent_can_run(%Agent{} = agent) do
+    if Canopy.Governance.Gate.agent_blocked?(agent.id) do
+      Logger.warning("[Heartbeat] Agent #{agent.name} (#{agent.id}) has pending approvals — skipping heartbeat")
+      {:error, :pending_approval}
+    else
+      :ok
+    end
+  end
 
   defp create_session!(agent, schedule_id) do
     %Session{}

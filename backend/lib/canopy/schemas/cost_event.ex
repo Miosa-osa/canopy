@@ -19,7 +19,7 @@ defmodule Canopy.Schemas.CostEvent do
 
   def changeset(event, attrs) do
     event
-    |> cast(attrs, [:model, :tokens_input, :tokens_output, :tokens_cache, :cost_cents, :agent_id, :session_id])
+    |> cast(attrs, [:model, :tokens_input, :tokens_output, :tokens_cache, :cost_cents, :agent_id, :session_id, :inserted_at])
     |> validate_required([:model, :agent_id])
   end
 end
