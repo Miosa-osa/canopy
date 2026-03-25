@@ -2,17 +2,19 @@ defmodule Canopy.Heartbeat do
   @moduledoc """
   Executes a heartbeat run for an agent.
 
-  Lifecycle:
-    1. Resolve adapter from agent config
-    2. Create session record
-    3. Optionally checkout an issue (set status to "in_progress")
-    4. Optionally create git worktree execution workspace
-    5. Execute heartbeat via adapter — streams events
-    6. Persist each event to DB and broadcast to PubSub
-    7. Update session with final token counts and cost
-    8. Record cost with BudgetEnforcer
-    9. Cleanup workspace and reset agent status
-   10. Mark issue as done and create WorkProduct record (if issue_id provided)
+  Lifecycle (12 steps):
+    1. Check governance gates (heartbeat_blocked?)
+    2. Resolve adapter via dispatch router (task override → labels → content → agent default)
+    3. Create or reuse session record
+    4. Resolve workspace path (fail fast before setting agent to "working")
+    5. Set agent status to "working" and broadcast run.started
+    6. Optionally checkout an issue (atomic lock with FOR UPDATE)
+    7. Build full context: system prompt + continuation from prior sessions + task context
+    8. Execute heartbeat via adapter — stream events, persist each to DB and broadcast
+    9. Complete session with token counts and cost, set agent to "idle"
+   10. Compact session — generate summary and handoff notes for next heartbeat
+   11. Mark issue as done and create WorkProduct record (if issue_id provided)
+   12. Cleanup workspace and record cost with BudgetEnforcer
   """
   require Logger
 
@@ -345,9 +347,23 @@ defmodule Canopy.Heartbeat do
         %Workspace{path: path} when is_binary(path) and path != "" ->
           path
 
-        _ ->
-          raise "No workspace path found for agent #{agent.id} (workspace_id: #{inspect(agent.workspace_id)}). Cannot execute without a valid workspace."
+        %Workspace{path: path_value} ->
+          raise "No workspace path found for agent #{agent.id} " <>
+                  "(workspace_id: #{inspect(agent.workspace_id)}, workspace.path was: #{inspect(path_value)}). " <>
+                  "Set workspace.path to a valid directory before running the heartbeat."
+
+        nil ->
+          raise "No workspace found for agent #{agent.id} " <>
+                  "(workspace_id: #{inspect(agent.workspace_id)}). " <>
+                  "The workspace record does not exist in the database."
       end
+
+    unless File.dir?(workspace_path) do
+      Logger.warning(
+        "[Heartbeat] Workspace path #{workspace_path} does not exist on disk for agent #{agent.id}. " <>
+          "The heartbeat will likely fail. Ensure the workspace is initialized."
+      )
+    end
 
     Logger.info("[Heartbeat] Resolved workspace path: #{workspace_path} for agent #{agent.id}")
 
