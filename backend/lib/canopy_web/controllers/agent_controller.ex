@@ -71,6 +71,10 @@ defmodule CanopyWeb.AgentController do
   end
 
   def create(conn, params) do
+    # Normalise camelCase key from template-deploy callers
+    reports_to = params["reports_to"] || params["reportsTo"]
+    params = Map.put(params, "reports_to", reports_to)
+
     changeset = Agent.changeset(%Agent{}, params)
 
     case Repo.insert(changeset) do
