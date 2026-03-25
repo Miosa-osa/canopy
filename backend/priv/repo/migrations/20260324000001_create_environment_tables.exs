@@ -20,7 +20,7 @@ defmodule Canopy.Repo.Migrations.CreateEnvironmentTables do
       add :id, :binary_id, primary_key: true
       add :name, :string, null: false
       add :agent_id, references(:agents, type: :binary_id, on_delete: :nilify_all)
-      add :workspace_id, references(:workspaces, type: :binary_id, on_delete: :cascade)
+      add :workspace_id, references(:workspaces, type: :binary_id, on_delete: :delete_all)
       add :template_source, :string
       add :status, :string, default: "stopped"
       add :port, :integer
