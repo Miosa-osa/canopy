@@ -34,18 +34,27 @@ defmodule CanopyWeb.WorkflowController do
   def create(conn, params) do
     {step_attrs, workflow_params} = Map.pop(params, "steps", [])
 
-    changeset = Workflow.changeset(%Workflow{}, workflow_params)
+    multi =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:workflow, Workflow.changeset(%Workflow{}, workflow_params))
+      |> Ecto.Multi.run(:steps, fn repo, %{workflow: workflow} ->
+        insert_steps_multi(repo, workflow, step_attrs)
+      end)
 
-    case Repo.insert(changeset) do
-      {:ok, workflow} ->
-        workflow = insert_steps(workflow, step_attrs)
+    case Repo.transaction(multi) do
+      {:ok, %{workflow: workflow}} ->
         workflow = Repo.preload(workflow, [:steps])
         conn |> put_status(201) |> json(%{workflow: serialize(workflow)})
 
-      {:error, changeset} ->
+      {:error, :workflow, changeset, _changes} ->
         conn
         |> put_status(422)
         |> json(%{error: "validation_failed", details: format_errors(changeset)})
+
+      {:error, :steps, reason, _changes} ->
+        conn
+        |> put_status(422)
+        |> json(%{error: "step_creation_failed", details: reason})
     end
   end
 
@@ -230,18 +239,29 @@ defmodule CanopyWeb.WorkflowController do
   defp maybe_preload(%Workflow{} = w),
     do: Repo.preload(w, [:steps, :runs])
 
-  defp insert_steps(workflow, step_attrs) when is_list(step_attrs) do
-    Enum.each(step_attrs, fn attrs ->
-      attrs
-      |> Map.put("workflow_id", workflow.id)
-      |> then(&WorkflowStep.changeset(%WorkflowStep{}, &1))
-      |> Repo.insert()
-    end)
+  defp insert_steps_multi(_repo, workflow, step_attrs) when is_list(step_attrs) do
+    results =
+      step_attrs
+      |> Enum.with_index()
+      |> Enum.reduce_while([], fn {attrs, _idx}, acc ->
+        changeset =
+          attrs
+          |> Map.put("workflow_id", workflow.id)
+          |> then(&WorkflowStep.changeset(%WorkflowStep{}, &1))
 
-    workflow
+        case Repo.insert(changeset) do
+          {:ok, step} -> {:cont, [step | acc]}
+          {:error, changeset} -> {:halt, {:error, format_errors(changeset)}}
+        end
+      end)
+
+    case results do
+      {:error, reason} -> {:error, reason}
+      steps when is_list(steps) -> {:ok, Enum.reverse(steps)}
+    end
   end
 
-  defp insert_steps(workflow, _), do: workflow
+  defp insert_steps_multi(_repo, _workflow, _), do: {:ok, []}
 
   defp serialize(%Workflow{} = w) do
     step_count =

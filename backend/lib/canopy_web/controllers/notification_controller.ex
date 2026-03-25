@@ -41,7 +41,13 @@ defmodule CanopyWeb.NotificationController do
   end
 
   def create(conn, params) do
-    case Dispatcher.notify(params) do
+    # Ensure workspace_id is set from auth context when not provided in body
+    workspace_id =
+      params["workspace_id"] || default_workspace_id(conn)
+
+    attrs = Map.put(params, "workspace_id", workspace_id)
+
+    case Dispatcher.notify(attrs) do
       {:ok, notification} ->
         conn |> put_status(201) |> json(%{notification: serialize(notification)})
 
@@ -167,6 +173,14 @@ defmodule CanopyWeb.NotificationController do
 
   defp apply_unread_filter(query, "true"), do: where(query, [n], is_nil(n.read_at))
   defp apply_unread_filter(query, _), do: query
+
+  defp default_workspace_id(conn) do
+    case conn.assigns do
+      %{workspace: %{id: id}} -> id
+      %{user_workspace_ids: [id]} -> id
+      _ -> nil
+    end
+  end
 
   defp parse_int(nil, default), do: default
 
