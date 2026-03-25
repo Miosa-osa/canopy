@@ -49,25 +49,32 @@ defmodule Canopy.Adapters.Bash do
 
         {port, ""}
       end,
-      fn {port, buf} ->
-        receive do
-          {^port, {:data, data}} ->
-            {[%{event_type: "run.output", data: %{"text" => data}, tokens: 0}],
-             {port, buf <> data}}
+      fn
+        {:halt_next, _} ->
+          {:halt, :done}
 
-          {^port, {:exit_status, code}} ->
-            {[
-               %{
-                 event_type: "run.completed",
-                 data: %{"exit_code" => code, "output" => buf},
-                 tokens: 0
-               }
-             ], {:halt_next, port}}
-        after
-          120_000 -> {:halt, {port, buf}}
-        end
+        {port, buf} ->
+          receive do
+            {^port, {:data, data}} ->
+              {[%{event_type: "run.output", data: %{"text" => data}, tokens: 0}],
+               {port, buf <> data}}
+
+            {^port, {:exit_status, code}} ->
+              {[
+                 %{
+                   event_type: "run.completed",
+                   data: %{"exit_code" => code, "output" => buf},
+                   tokens: 0
+                 }
+               ], {:halt_next, port}}
+          after
+            120_000 -> {:halt, {port, buf}}
+          end
       end,
       fn
+        :done ->
+          :ok
+
         {:halt_next, port} ->
           try do
             Port.close(port)

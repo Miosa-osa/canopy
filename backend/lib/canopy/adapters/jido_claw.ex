@@ -224,29 +224,34 @@ defmodule Canopy.Adapters.JidoClaw do
 
         {port, ""}
       end,
-      fn {port, buf} ->
-        receive do
-          {^port, {:data, data}} ->
-            {[%{event_type: "run.output", data: %{"text" => data}, tokens: 0}],
-             {port, buf <> data}}
+      fn
+        {:done, _} ->
+          {:halt, :done}
 
-          {^port, {:exit_status, 0}} ->
-            {[%{event_type: "run.completed", data: %{"output" => buf}, tokens: 0}], {:done, port}}
+        {port, buf} ->
+          receive do
+            {^port, {:data, data}} ->
+              {[%{event_type: "run.output", data: %{"text" => data}, tokens: 0}],
+               {port, buf <> data}}
 
-          {^port, {:exit_status, code}} ->
-            {[
-               %{
-                 event_type: "run.failed",
-                 data: %{"exit_code" => code, "output" => buf},
-                 tokens: 0
-               }
-             ], {:done, port}}
-        after
-          120_000 ->
-            {:halt, {port, buf}}
-        end
+            {^port, {:exit_status, 0}} ->
+              {[%{event_type: "run.completed", data: %{"output" => buf}, tokens: 0}], {:done, port}}
+
+            {^port, {:exit_status, code}} ->
+              {[
+                 %{
+                   event_type: "run.failed",
+                   data: %{"exit_code" => code, "output" => buf},
+                   tokens: 0
+                 }
+               ], {:done, port}}
+          after
+            120_000 ->
+              {:halt, {port, buf}}
+          end
       end,
       fn
+        :done -> :ok
         {:done, port} -> close_port(port)
         {port, _buf} -> close_port(port)
       end
