@@ -7,6 +7,7 @@
   import LibraryTemplateCard from '$lib/components/library/LibraryTemplateCard.svelte';
   import { goto } from '$app/navigation';
   import { deployTemplate } from '$lib/services/template-deploy';
+  import { toastStore } from '$lib/stores/toasts.svelte';
   import {
     getLibraryAgents,
     getLibrarySkills,
@@ -225,8 +226,7 @@
       notify(`${op.emoji} ${op.name} deployed — ${result.agentCount} agents${warn}`);
       if (result.warnings) {
         for (const w of result.warnings) {
-          // eslint-disable-next-line no-console
-          console.warn('[template-deploy]', w);
+          toastStore.warning('Deploy warning', w);
         }
       }
       goto('/app');
@@ -245,8 +245,7 @@
       notify(`${tmpl.emoji} ${tmpl.name} deployed — ${result.agentCount} agents${warn}`);
       if (result.warnings) {
         for (const w of result.warnings) {
-          // eslint-disable-next-line no-console
-          console.warn('[template-deploy]', w);
+          toastStore.warning('Deploy warning', w);
         }
       }
       goto('/app');

@@ -2,6 +2,7 @@
 <!-- Syntax-highlighted code block with language label and copy button -->
 <script lang="ts">
   import hljs from 'highlight.js';
+  import DOMPurify from 'dompurify';
 
   interface Props {
     code: string;
@@ -14,14 +15,18 @@
   let copyTimer: ReturnType<typeof setTimeout> | null = null;
 
   const highlighted = $derived.by(() => {
+    let raw: string;
     if (lang) {
       try {
-        return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
+        raw = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value;
       } catch {
         // Unknown language — fall through to auto-detect
+        raw = hljs.highlightAuto(code).value;
       }
+    } else {
+      raw = hljs.highlightAuto(code).value;
     }
-    return hljs.highlightAuto(code).value;
+    return DOMPurify.sanitize(raw, { ALLOWED_TAGS: ['span', 'br'], ALLOWED_ATTR: ['class'] });
   });
 
   const displayLang = $derived(lang || 'text');

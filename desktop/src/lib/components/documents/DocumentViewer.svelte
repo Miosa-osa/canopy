@@ -2,6 +2,7 @@
 <!-- Markdown viewer with glass surface and edit toggle -->
 <script lang="ts">
   import type { Document } from '$api/types';
+  import DOMPurify from 'dompurify';
   import TimeAgo from '$lib/components/shared/TimeAgo.svelte';
 
   interface Props {
@@ -19,12 +20,10 @@
     editMode = false;
   });
 
-  // Simple markdown → HTML renderer using browser-native approach
-  // A real implementation would use marked + DOMPurify; here we do a lightweight
-  // inline render sufficient for the viewer pattern.
+  // Lightweight markdown → HTML renderer, sanitized via DOMPurify.
   function renderMarkdown(md: string): string {
     if (!md) return '<p class="dv-empty-doc">This document is empty.</p>';
-    return md
+    const html = md
       // Headings
       .replace(/^######\s(.+)$/gm, '<h6>$1</h6>')
       .replace(/^#####\s(.+)$/gm, '<h5>$1</h5>')
@@ -52,6 +51,7 @@
         return `<p>${wrapped}</p>`;
       })
       .join('\n');
+    return DOMPurify.sanitize(html);
   }
 
   let rendered = $derived(renderMarkdown(document.content));

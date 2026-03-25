@@ -1155,6 +1155,8 @@ export const costs = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+  deletePolicy: (scopeType: string, scopeId: string) =>
+    request<void>(`/budgets/${scopeType}/${scopeId}`, { method: "DELETE" }),
   resolveIncident: (id: string) =>
     request<void>(`/budgets/incidents/${id}/resolve`, { method: "POST" }),
 };

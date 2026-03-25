@@ -59,8 +59,8 @@
       } catch {
         onImport({ workspacePath: selected, workspaceName: '', adapter: 'osa', teamTemplate: 'custom', agents: [], jumpToStep: 3 });
       }
-    } catch (e) {
-      console.warn('Import dialog failed:', e);
+    } catch {
+      // Dialog cancelled or unavailable — no action needed
     }
   }
 </script>
