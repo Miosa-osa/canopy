@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: canopy-backend
+    runtime: elixir
+    rootDir: backend
+    buildCommand: mix deps.get --only prod && mix compile && mix release
+    startCommand: ./bin/canopy start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PHX_SERVER
+        value: "true"
+      - key: PORT
+        value: "9089"
+      - key: MIX_ENV
+        value: prod
+      - key: PHX_HOST
+        fromService:
+          name: canopy-backend
+          type: web
+          property: host
+      - key: DATABASE_URL
+        fromDatabase:
+          name: canopy-db
+          property: connectionString
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: GUARDIAN_SECRET_KEY
+        generateValue: true
+      - key: POOL_SIZE
+        value: "5"
+
+databases:
+  - name: canopy-db
+    databaseName: canopy_prod
+    user: canopy
+    plan: free
