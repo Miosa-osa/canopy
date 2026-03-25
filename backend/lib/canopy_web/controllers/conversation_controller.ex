@@ -166,47 +166,48 @@ defmodule CanopyWeb.ConversationController do
 
       conv ->
         now = DateTime.utc_now()
-
-        # Persist user message
-        user_msg_attrs = %{
-          conversation_id: conversation_id,
-          role: "user",
-          content: content,
-          content_type: "text"
-        }
-
-        {:ok, user_msg} =
-          %ConversationMessage{}
-          |> ConversationMessage.changeset(user_msg_attrs)
-          |> Repo.insert()
-
-        # Mock agent response (synchronous placeholder until real OSA wiring)
         agent_content = mock_agent_response(content, conv.agent)
 
-        agent_msg_attrs = %{
-          conversation_id: conversation_id,
-          role: "agent",
-          content: agent_content,
-          content_type: "text"
-        }
+        multi =
+          Ecto.Multi.new()
+          |> Ecto.Multi.insert(
+            :user_message,
+            ConversationMessage.changeset(%ConversationMessage{}, %{
+              conversation_id: conversation_id,
+              role: "user",
+              content: content,
+              content_type: "text"
+            })
+          )
+          |> Ecto.Multi.insert(
+            :agent_message,
+            ConversationMessage.changeset(%ConversationMessage{}, %{
+              conversation_id: conversation_id,
+              role: "agent",
+              content: agent_content,
+              content_type: "text"
+            })
+          )
+          |> Ecto.Multi.update(
+            :conversation,
+            Conversation.changeset(conv, %{
+              message_count: conv.message_count + 2,
+              last_message_at: now
+            })
+          )
 
-        {:ok, agent_msg} =
-          %ConversationMessage{}
-          |> ConversationMessage.changeset(agent_msg_attrs)
-          |> Repo.insert()
+        case Repo.transaction(multi) do
+          {:ok, %{user_message: user_msg, agent_message: agent_msg}} ->
+            json(conn, %{
+              user_message: serialize_message(user_msg),
+              agent_message: serialize_message(agent_msg)
+            })
 
-        # Update conversation counters
-        conv
-        |> Conversation.changeset(%{
-          message_count: conv.message_count + 2,
-          last_message_at: now
-        })
-        |> Repo.update()
-
-        json(conn, %{
-          user_message: serialize_message(user_msg),
-          agent_message: serialize_message(agent_msg)
-        })
+          {:error, failed_op, changeset, _changes} ->
+            conn
+            |> put_status(422)
+            |> json(%{error: "message_failed", step: failed_op, details: format_errors(changeset)})
+        end
     end
   end
 
