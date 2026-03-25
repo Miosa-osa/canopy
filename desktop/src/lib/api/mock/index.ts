@@ -234,10 +234,10 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
             typeof options.body === "string"
               ? options.body
               : JSON.stringify(options.body ?? {}),
-          ) as Partial<CanopyAgent> & { slug?: string; workspace_id?: string };
+          ) as Partial<CanopyAgent> & { slug?: string };
           const now = new Date().toISOString();
           const newAgent: CanopyAgent = {
-            id: `agent-new-${Date.now()}`,
+            id: body.id ?? `agent-new-${Date.now()}`,
             name: body.name ?? "new-agent",
             display_name: body.display_name ?? body.name ?? "New Agent",
             avatar_emoji: body.avatar_emoji ?? "🤖",
@@ -248,6 +248,8 @@ const routes: Array<{ pattern: RegExp; handler: RouteHandler }> = [
             config: body.config ?? {},
             skills: body.skills ?? [],
             team_id: body.team_id ?? null,
+            reports_to: body.reports_to ?? null,
+            workspace_id: body.workspace_id ?? wsId ?? null,
             schedule_id: null,
             budget_policy_id: null,
             status: "idle",
