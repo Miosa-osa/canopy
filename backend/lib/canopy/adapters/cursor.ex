@@ -41,6 +41,11 @@ defmodule Canopy.Adapters.Cursor do
   def capabilities, do: [:code_edit, :file_read, :file_write, :code_completion]
 
   @impl true
+  def health do
+    if find_cursor(), do: :ok, else: {:error, "cursor binary not found"}
+  end
+
+  @impl true
   def start(config) do
     case find_cursor() do
       nil ->

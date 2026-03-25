@@ -35,6 +35,7 @@ defmodule CanopyWeb.Router do
     pipe_through [:api, :authenticated]
 
     get "/dashboard", DashboardController, :show
+    get "/adapters", AdapterController, :index
 
     # Workspaces
     resources "/workspaces", WorkspaceController, except: [:new, :edit] do

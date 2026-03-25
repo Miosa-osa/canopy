@@ -27,6 +27,15 @@ defmodule Canopy.Adapters.OSA do
   def capabilities, do: [:chat, :tools, :code_execution, :web_search, :memory, :delegation]
 
   @impl true
+  def health do
+    case Req.get("#{@default_url}/health", receive_timeout: 2_000) do
+      {:ok, %{status: status}} when status in 200..299 -> :ok
+      {:ok, %{status: status}} -> {:error, "OSA returned HTTP #{status}"}
+      {:error, reason} -> {:error, "OSA not reachable at #{@default_url}: #{inspect(reason)}"}
+    end
+  end
+
+  @impl true
   def start(config) do
     base_url = config["url"] || @default_url
 

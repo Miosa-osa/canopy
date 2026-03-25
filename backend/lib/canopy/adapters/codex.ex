@@ -18,6 +18,11 @@ defmodule Canopy.Adapters.Codex do
   def capabilities, do: [:chat, :tools, :code_execution, :file_edit]
 
   @impl true
+  def health do
+    if System.find_executable("codex"), do: :ok, else: {:error, "codex binary not found in PATH"}
+  end
+
+  @impl true
   def start(config) do
     {:ok, %{cwd: config["working_dir"] || ".", model: config["model"] || "codex"}}
   end

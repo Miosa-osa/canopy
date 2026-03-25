@@ -52,6 +52,11 @@ defmodule Canopy.Adapters.Aider do
   def capabilities, do: [:code_edit, :file_read, :file_write, :git_operations]
 
   @impl true
+  def health do
+    if find_aider(), do: :ok, else: {:error, "aider binary not found"}
+  end
+
+  @impl true
   def start(config) do
     case find_aider() do
       nil ->

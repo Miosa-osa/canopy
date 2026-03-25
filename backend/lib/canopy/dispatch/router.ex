@@ -152,9 +152,10 @@ defmodule Canopy.Dispatch.Router do
       %{
         priority: 3,
         name: "Content: shell/infra",
-        description: "Mentions run tests, deploy, docker, kubectl, terraform, ansible, script",
+        description:
+          "Mentions run tests, write tests, deploy, docker, kubectl, terraform, ansible, script, ci pipeline",
         trigger: "content_regex",
-        pattern: "(run tests|deploy|docker|kubectl|terraform|ansible|script)",
+        pattern: "(run tests|write tests|deploy|docker|kubectl|terraform|ansible|script|ci pipeline)",
         adapter: "bash"
       },
       %{
@@ -235,7 +236,7 @@ defmodule Canopy.Dispatch.Router do
         content =~ ~r/(refactor \d+ files|bulk|mass update|find and replace across)/ ->
           safe_resolve("codex", "content:bulk")
 
-        content =~ ~r/(run tests|deploy|docker|kubectl|terraform|ansible|script)/ ->
+        content =~ ~r/(run tests|write tests|deploy|docker|kubectl|terraform|ansible|script|ci pipeline)/ ->
           safe_resolve("bash", "content:shell")
 
         content =~ ~r/(check endpoint|api status|webhook|curl|health check|ping)/ ->

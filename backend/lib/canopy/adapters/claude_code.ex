@@ -23,6 +23,17 @@ defmodule Canopy.Adapters.ClaudeCode do
   def capabilities, do: [:chat, :tools, :code_execution, :file_edit, :web_search]
 
   @impl true
+  def health do
+    path = Canopy.ClaudeBinary.find()
+
+    if File.exists?(path) do
+      :ok
+    else
+      {:error, "claude binary not found (checked: #{path})"}
+    end
+  end
+
+  @impl true
   def start(config) do
     cwd = config["working_dir"] || config["workspace_path"] || System.tmp_dir!()
     model = config["model"] || "sonnet"

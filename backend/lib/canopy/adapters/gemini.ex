@@ -49,6 +49,13 @@ defmodule Canopy.Adapters.Gemini do
   def capabilities, do: [:text_generation, :multimodal, :code_generation, :analysis]
 
   @impl true
+  def health do
+    if resolve_api_key(%{}),
+      do: :ok,
+      else: {:error, "GEMINI_API_KEY not configured"}
+  end
+
+  @impl true
   def start(config) do
     case resolve_api_key(config) do
       nil ->

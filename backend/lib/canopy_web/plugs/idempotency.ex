@@ -10,7 +10,6 @@ defmodule CanopyWeb.Plugs.Idempotency do
   @table :canopy_idempotency_cache
   @ttl_seconds 86_400
 
-
   def init(opts), do: opts
 
   def call(conn, _opts) do

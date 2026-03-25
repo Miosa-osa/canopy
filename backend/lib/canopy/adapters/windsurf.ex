@@ -41,6 +41,11 @@ defmodule Canopy.Adapters.Windsurf do
   def capabilities, do: [:code_edit, :file_read, :file_write, :code_completion]
 
   @impl true
+  def health do
+    if find_windsurf(), do: :ok, else: {:error, "windsurf binary not found"}
+  end
+
+  @impl true
   def start(config) do
     case find_windsurf() do
       nil ->

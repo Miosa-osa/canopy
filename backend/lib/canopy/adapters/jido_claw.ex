@@ -49,6 +49,15 @@ defmodule Canopy.Adapters.JidoClaw do
   def capabilities, do: [:code_edit, :file_read, :file_write, :shell_execution, :elixir_native]
 
   @impl true
+  def health do
+    cond do
+      native_available?() -> :ok
+      find_jidoclaw_cli() != nil -> :ok
+      true -> {:error, "jidoclaw not found (neither module nor CLI binary)"}
+    end
+  end
+
+  @impl true
   def start(config) do
     cond do
       native_available?() ->

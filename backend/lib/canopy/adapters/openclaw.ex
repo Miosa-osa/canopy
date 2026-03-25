@@ -45,6 +45,11 @@ defmodule Canopy.Adapters.OpenClaw do
   def capabilities, do: [:code_edit, :file_read, :file_write, :shell_execution, :web_search]
 
   @impl true
+  def health do
+    if find_openclaw(), do: :ok, else: {:error, "openclaw binary not found"}
+  end
+
+  @impl true
   def start(config) do
     case find_openclaw() do
       nil ->

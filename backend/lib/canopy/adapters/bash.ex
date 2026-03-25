@@ -18,6 +18,9 @@ defmodule Canopy.Adapters.Bash do
   def capabilities, do: [:code_execution, :file_edit]
 
   @impl true
+  def health, do: :ok
+
+  @impl true
   def start(config) do
     {:ok, %{cwd: config["working_dir"] || ".", shell: config["shell"] || "/bin/bash"}}
   end
