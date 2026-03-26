@@ -11,49 +11,59 @@ defmodule CanopyWeb.SpawnController do
 
   def create(conn, params) do
     agent_id = params["agent_id"]
-    # Fix 4: accept both "context" and "prompt" as the initial context
     context = params["context"] || params["prompt"] || ""
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
 
-    # Fix 5: look up the agent to propagate workspace_id onto the session
-    agent = Repo.get!(Agent, agent_id)
+    with %Agent{} = agent <- Repo.get(Agent, agent_id),
+         true <- user_workspace_ids == [] or agent.workspace_id in user_workspace_ids do
+      session_params = %{
+        "agent_id" => agent_id,
+        "workspace_id" => agent.workspace_id,
+        "model" => params["model"] || agent.model,
+        "started_at" => DateTime.utc_now() |> DateTime.truncate(:second),
+        "context" => context,
+        "status" => "active"
+      }
 
-    session_params = %{
-      "agent_id" => agent_id,
-      "workspace_id" => agent.workspace_id,
-      "model" => params["model"] || agent.model,
-      "started_at" => DateTime.utc_now() |> DateTime.truncate(:second),
-      "context" => context,
-      "status" => "active"
-    }
+      changeset = Session.changeset(%Session{}, session_params)
 
-    changeset = Session.changeset(%Session{}, session_params)
+      case Repo.insert(changeset) do
+        {:ok, session} ->
+          Task.Supervisor.start_child(Canopy.HeartbeatRunner, fn ->
+            Canopy.Heartbeat.run(agent_id, context: context, session_id: session.id)
+          end)
 
-    case Repo.insert(changeset) do
-      {:ok, session} ->
-        # Pass the pre-created session_id so Heartbeat.run/2 reuses this row
-        # instead of inserting a second one.
-        Task.Supervisor.start_child(Canopy.HeartbeatRunner, fn ->
-          Canopy.Heartbeat.run(agent_id, context: context, session_id: session.id)
-        end)
+          conn
+          |> put_status(201)
+          |> json(%{session: %{id: session.id, status: session.status}})
 
-        conn
-        |> put_status(201)
-        |> json(%{session: %{id: session.id, status: session.status}})
-
-      {:error, cs} ->
-        conn
-        |> put_status(422)
-        |> json(%{error: "validation_failed", details: format_errors(cs)})
+        {:error, cs} ->
+          conn
+          |> put_status(422)
+          |> json(%{error: "validation_failed", details: format_errors(cs)})
+      end
+    else
+      nil -> conn |> put_status(404) |> json(%{error: "agent_not_found"})
+      false -> conn |> put_status(403) |> json(%{error: "forbidden"})
     end
   end
 
   def active(conn, _params) do
-    sessions =
-      Repo.all(
-        from s in Session,
-          where: s.status == "active",
-          order_by: [desc: s.started_at]
-      )
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
+
+    query =
+      from s in Session,
+        where: s.status == "active",
+        order_by: [desc: s.started_at]
+
+    query =
+      if user_workspace_ids != [] do
+        where(query, [s], s.workspace_id in ^user_workspace_ids)
+      else
+        query
+      end
+
+    sessions = Repo.all(query)
 
     json(conn, %{
       instances:
@@ -92,14 +102,22 @@ defmodule CanopyWeb.SpawnController do
 
   def history(conn, params) do
     limit = min(String.to_integer(params["limit"] || "50"), 100)
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
 
-    sessions =
-      Repo.all(
-        from s in Session,
-          where: s.status in ["completed", "failed", "cancelled"],
-          order_by: [desc: s.completed_at],
-          limit: ^limit
-      )
+    query =
+      from s in Session,
+        where: s.status in ["completed", "failed", "cancelled"],
+        order_by: [desc: s.completed_at],
+        limit: ^limit
+
+    query =
+      if user_workspace_ids != [] do
+        where(query, [s], s.workspace_id in ^user_workspace_ids)
+      else
+        query
+      end
+
+    sessions = Repo.all(query)
 
     json(conn, %{
       history:

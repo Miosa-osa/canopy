@@ -38,8 +38,8 @@
       if (selected && typeof selected === 'string') {
         workspacePath = selected;
       }
-    } catch (e) {
-      console.warn('Dialog failed:', e);
+    } catch {
+      // Dialog cancelled or unavailable — no action needed
     }
   }
 

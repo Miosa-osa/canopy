@@ -58,11 +58,11 @@ class ChatStore {
 
   // ── Session operations ────────────────────────────────────────────────────
 
-  async listSessions(): Promise<void> {
+  async listSessions(workspaceId?: string): Promise<void> {
     this.isLoadingSessions = true;
     this.error = null;
     try {
-      this.sessions = await sessionsApi.list();
+      this.sessions = await sessionsApi.list(workspaceId);
     } catch (e) {
       this.error = (e as Error).message;
     } finally {

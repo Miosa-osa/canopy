@@ -197,7 +197,11 @@ defmodule CanopyWeb.WebhookController do
 
   # --- Private helpers ---
 
-  defp verify_secret(_conn, %Webhook{secret: nil}), do: :ok
+  defp verify_secret(_conn, %Webhook{secret: nil}) do
+    require Logger
+    Logger.warning("Accepting unsigned webhook delivery — no secret configured")
+    :ok
+  end
 
   defp verify_secret(conn, %Webhook{secret: secret}) do
     signature = get_req_header(conn, "x-canopy-signature") |> List.first()

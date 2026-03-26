@@ -77,6 +77,10 @@ defmodule CanopyWeb.AgentController do
   end
 
   def create(conn, params) do
+    # Normalise camelCase key from template-deploy callers
+    reports_to = params["reports_to"] || params["reportsTo"]
+    params = Map.put(params, "reports_to", reports_to)
+
     changeset = Agent.changeset(%Agent{}, params)
 
     case Repo.insert(changeset) do
@@ -93,6 +97,53 @@ defmodule CanopyWeb.AgentController do
         |> put_status(422)
         |> json(%{error: "validation_failed", details: format_errors(changeset)})
     end
+  end
+
+  def batch_create(conn, %{"agents" => agents_params}) when is_list(agents_params) do
+    multi =
+      agents_params
+      |> Enum.with_index()
+      |> Enum.reduce(Ecto.Multi.new(), fn {params, idx}, multi ->
+        reports_to = params["reports_to"] || params["reportsTo"]
+        params = Map.put(params, "reports_to", reports_to)
+
+        changeset = Agent.changeset(%Agent{}, params)
+        Ecto.Multi.insert(multi, {:agent, idx}, changeset)
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, result} ->
+        agents =
+          result
+          |> Map.values()
+          |> Enum.sort_by(fn a -> a.name end)
+
+        Enum.each(agents, fn agent ->
+          Canopy.EventBus.broadcast(
+            Canopy.EventBus.workspace_topic(agent.workspace_id),
+            %{event: "agent.hired", agent_id: agent.id, name: agent.name}
+          )
+        end)
+
+        conn
+        |> put_status(201)
+        |> json(%{agents: Enum.map(agents, &serialize_with_skills/1), count: length(agents)})
+
+      {:error, failed_operation, changeset, _changes_so_far} ->
+        conn
+        |> put_status(422)
+        |> json(%{
+          error: "batch_validation_failed",
+          failed_at: inspect(failed_operation),
+          details: format_errors(changeset)
+        })
+    end
+  end
+
+  def batch_create(conn, _params) do
+    conn
+    |> put_status(400)
+    |> json(%{error: "agents array is required"})
   end
 
   def show(conn, %{"id" => id}) do

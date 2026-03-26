@@ -11,10 +11,10 @@ class AlertsStore {
   totalCount = $derived(this.rules.length);
   enabledCount = $derived(this.rules.filter((r) => r.enabled).length);
 
-  async fetchRules(): Promise<void> {
+  async fetchRules(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.rules = await alertsApi.list();
+      this.rules = await alertsApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

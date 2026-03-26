@@ -11,7 +11,15 @@ const INITIAL_DELAY_MS = 1_000;
 const MAX_DELAY_MS = 30_000;
 const BACKOFF_FACTOR = 2;
 
-/** Append JWT as query param so native EventSource / browser fetch works without headers. */
+/**
+ * Append JWT as query param for SSE authentication.
+ *
+ * SECURITY NOTE: Tokens in query parameters may be logged in server access logs,
+ * browser history, and Referer headers. This is a known tradeoff required because
+ * the native EventSource API does not support custom headers. The fetch-based SSE
+ * client also sends the token via Authorization header where supported. Query param
+ * tokens should be short-lived and rotated frequently in production.
+ */
 function appendTokenParam(url: string, token: string | null): string {
   if (!token) return url;
   const separator = url.includes("?") ? "&" : "?";

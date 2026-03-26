@@ -7,9 +7,8 @@
 
   // Fetch on mount and whenever the active workspace changes.
   $effect(() => {
-    // Touch reactive dependency so the effect re-runs on workspace change.
-    void workspaceStore.activeWorkspaceId;
-    void approvalsStore.fetchApprovals();
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void approvalsStore.fetchApprovals(wsId);
   });
 
   // Per-item comment state for approve/reject flows.

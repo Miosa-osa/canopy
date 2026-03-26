@@ -22,10 +22,10 @@ class SkillsStore {
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
   });
 
-  async fetchSkills(): Promise<void> {
+  async fetchSkills(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.skills = await skillsApi.list();
+      this.skills = await skillsApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

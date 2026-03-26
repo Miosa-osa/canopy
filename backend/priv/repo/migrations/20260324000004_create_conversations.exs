@@ -5,8 +5,8 @@ defmodule Canopy.Repo.Migrations.CreateConversations do
     create table(:conversations, primary_key: false) do
       add :id, :binary_id, primary_key: true
       add :title, :string
-      add :agent_id, references(:agents, type: :binary_id, on_delete: :cascade), null: false
-      add :workspace_id, references(:workspaces, type: :binary_id, on_delete: :cascade)
+      add :agent_id, references(:agents, type: :binary_id, on_delete: :delete_all), null: false
+      add :workspace_id, references(:workspaces, type: :binary_id, on_delete: :delete_all)
       add :user_id, :string
       add :status, :string, default: "active"
       add :last_message_at, :utc_datetime_usec

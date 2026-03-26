@@ -17,10 +17,10 @@ class IntegrationsStore {
     }).length,
   );
 
-  async fetchIntegrations(): Promise<void> {
+  async fetchIntegrations(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.integrations = await integrationsApi.list();
+      this.integrations = await integrationsApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

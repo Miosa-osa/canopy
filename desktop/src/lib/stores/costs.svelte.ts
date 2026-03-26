@@ -5,6 +5,7 @@ import type {
   AgentCostBreakdown,
   ModelCostBreakdown,
   BudgetPolicy,
+  BudgetPolicyInput,
   BudgetIncident,
 } from "$api/types";
 import { toastStore } from "./toasts.svelte";
@@ -177,6 +178,44 @@ class CostsStore {
   setDateRange(range: DateRange): void {
     this.dateRange = range;
     void this.fetchTrends(this._workspaceId);
+  }
+
+  async upsertPolicy(
+    scopeType: string,
+    scopeId: string,
+    input: BudgetPolicyInput,
+  ): Promise<void> {
+    try {
+      await costsApi.upsertPolicy(scopeType, scopeId, input);
+      await this.fetchPolicies(this._workspaceId);
+      toastStore.success("Budget policy saved");
+    } catch (e) {
+      toastStore.error("Failed to save policy", (e as Error).message);
+    }
+  }
+
+  async resolveIncident(id: string): Promise<void> {
+    const idx = this.incidents.findIndex((i) => i.id === id);
+    if (idx !== -1)
+      this.incidents[idx] = { ...this.incidents[idx], resolved: true };
+    try {
+      await costsApi.resolveIncident(id);
+      toastStore.success("Incident resolved");
+    } catch (e) {
+      if (idx !== -1)
+        this.incidents[idx] = { ...this.incidents[idx], resolved: false };
+      toastStore.error("Failed to resolve incident", (e as Error).message);
+    }
+  }
+
+  async deletePolicy(scopeType: string, scopeId: string): Promise<void> {
+    try {
+      await costsApi.deletePolicy(scopeType, scopeId);
+      this.policies = this.policies.filter((p) => p.id !== scopeId);
+      toastStore.success("Budget policy deleted");
+    } catch (e) {
+      toastStore.error("Failed to delete policy", (e as Error).message);
+    }
   }
 }
 

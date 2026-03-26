@@ -1,6 +1,7 @@
 // src/lib/services/template-deploy.ts
 // Template deployment pipeline: scaffolds .canopy/ workspace via Tauri IPC,
-// loads agents from filesystem or bundled data, and registers them.
+// loads agents from filesystem or bundled data, and registers them with
+// full organizational hierarchy (Division → Department → Team → Agent).
 
 import type { CanopyAgent, AdapterType } from "$api/types";
 import { workspaceStore } from "$lib/stores/workspace.svelte";
@@ -24,15 +25,15 @@ export interface DeployResult {
  * Desktop (Tauri) flow:
  *   1. Load agent definitions from bundled TS module
  *   2. Create workspace entry (localStorage)
- *   3. Call scaffold_canopy_dir IPC → creates .canopy/agents/*.md on disk
- *   4. Set active workspace
- *   5. Register agents into store + backend
+ *   3. Register agents with hierarchy (3-pass)
+ *   4. Call scaffold_canopy_dir IPC → creates .canopy/agents/*.md on disk
+ *   5. Set active workspace
  *
  * Web fallback:
  *   1. Load agent definitions from bundled TS module
  *   2. Create workspace entry (localStorage)
- *   3. Set active workspace
- *   4. Register agents into store
+ *   3. Register agents with hierarchy (3-pass)
+ *   4. Set active workspace
  */
 export async function deployTemplate(
   templateId: string,
@@ -46,11 +47,14 @@ export async function deployTemplate(
     const ws = await workspaceStore.createWorkspace(templateName);
     if (!ws) throw new Error("Failed to create workspace");
 
-    // Step 3: Register agents in mock layer BEFORE setting active workspace
+    // Step 3: Register agents with hierarchy BEFORE setting active workspace
     // (so any fetchAgents triggered by setActiveWorkspace finds them)
     let failedAgents: Array<{ name: string; error: string }> = [];
+    const warnings: string[] = [];
     if (agents.length > 0) {
-      failedAgents = await registerAgents(agents, ws.id);
+      const result = await registerAgents(agents, ws.id);
+      failedAgents = result.failures;
+      warnings.push(...result.warnings);
     }
 
     // Step 4: Scaffold .canopy/ directory on disk via Tauri IPC
@@ -72,8 +76,13 @@ export async function deployTemplate(
             system_prompt: a.system_prompt || null,
           })),
         });
-      } catch {
-        // scaffold_canopy_dir failed — agents still loaded from bundled data
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toastStore.warning(
+          "Workspace files not created on disk",
+          `Tauri scaffold failed: ${msg}. Agents are loaded from bundled data and will work normally.`,
+          6000,
+        );
       }
     }
 
@@ -85,14 +94,17 @@ export async function deployTemplate(
       workspaceId: ws.id,
       agentCount: agents.length - failedAgents.length,
       failedAgents,
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
   } catch (e) {
+    const msg = (e as Error).message;
+    toastStore.error("Template deployment failed", msg);
     return {
       success: false,
       workspaceId: null,
       agentCount: 0,
       failedAgents: [],
-      error: (e as Error).message,
+      error: msg,
     };
   }
 }
@@ -123,100 +135,209 @@ async function loadBundledTemplate(templateId: string): Promise<CanopyAgent[]> {
   }
 }
 
+/** Derive a URL-safe slug from a display name or short ID. */
+function toSlug(name: string): string {
+  return (name || "agent")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** Normalize adapter string: template may use underscores, schema requires hyphens. */
+function normalizeAdapter(adapter: string): AdapterType {
+  return (adapter || "claude-code").replace(/_/g, "-") as AdapterType;
+}
+
+/** Capitalize the first letter of a string. */
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+interface RegisterResult {
+  failures: Array<{ name: string; error: string }>;
+  warnings: string[];
+}
+
 /**
- * Register agents for immediate display and persistence.
+ * Register agents with full hierarchy using a 3-pass approach:
  *
- * 1. Persist in mock layer (survives navigation / fetchAgents cycles)
- * 2. Inject into Svelte store for instant UI
- * 3. Persist to real backend if available
+ * Pass 1 — Create all agents, collecting a name→ID mapping.
+ * Pass 2 — Patch each agent's reports_to with the resolved real ID.
+ * Pass 3 — Create Divisions / Departments / Teams from config.division
+ *           values, then assign agents to their teams.
  *
- * Returns a list of agents that failed to register (empty on full success).
+ * Both mock and real-backend paths use the same 3-pass flow so that
+ * hierarchy is built consistently in both modes.
  */
 async function registerAgents(
   agents: CanopyAgent[],
   workspaceId: string,
-): Promise<Array<{ name: string; error: string }>> {
-  if (isMockEnabled()) {
-    // Mock mode only: persist agents to localStorage so they survive
-    // fetchAgents() calls and page reloads while offline.
-    const { setMockWorkspaceAgents } = await import("$api/mock/agents");
-    setMockWorkspaceAgents(workspaceId, agents);
+): Promise<RegisterResult> {
+  const {
+    agents: agentsApi,
+    divisions: divisionsApi,
+    departments: departmentsApi,
+    teams: teamsApi,
+  } = await import("$api/client");
+  const { hierarchyStore } = await import("$lib/stores/hierarchy.svelte");
 
-    // Inject into store immediately so the UI reflects them without a refetch.
-    agentsStore.agents = agents;
-    return [];
-  } else {
-    // Real backend available: create agents via API. The store will be
-    // refreshed by the subsequent fetchAgents() call, so we do not need to
-    // set agentsStore.agents directly — doing so would risk showing a mix
-    // of partially-created agents before the backend confirms them.
+  const failures: Array<{ name: string; error: string }> = [];
+  const warnings: string[] = [];
+
+  // ── Pass 1: Create all agents, collect name→ID map ──────────────────────
+  const nameToId = new Map<string, string>();
+  const createdAgents: CanopyAgent[] = [];
+
+  for (const agent of agents) {
     try {
-      const { agents: agentsApi } = await import("$api/client");
+      const slug = toSlug(agent.name);
+      const adapter = normalizeAdapter(agent.adapter);
 
-      const results = await Promise.allSettled(
-        agents.map((agent) => {
-          // Derive slug from agent.name (the short ID, e.g. "growth-director")
-          const slug = (agent.name || agent.display_name || "agent")
-            .toLowerCase()
-            .replace(/[^a-z0-9-]/g, "-")
-            .replace(/-+/g, "-")
-            .replace(/^-|-$/g, "");
-
-          // Normalize adapter: template may use underscores, schema requires hyphens
-          const adapter = (agent.adapter || "claude-code").replace(
-            /_/g,
-            "-",
-          ) as AdapterType;
-
-          return agentsApi.create({
-            slug,
-            name: agent.display_name || agent.name,
-            display_name: agent.display_name || agent.name,
-            role: agent.role,
-            adapter,
-            model: agent.model || "sonnet",
-            workspace_id: workspaceId,
-            avatar_emoji: agent.avatar_emoji,
-            system_prompt: agent.system_prompt,
-            config: agent.config || {},
-          });
-        }),
-      );
-
-      // Collect failed registrations
-      const failures: Array<{ name: string; error: string }> = [];
-      results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          const agent = agents[index];
-          failures.push({
-            name: agent.display_name || agent.name,
-            error:
-              result.reason instanceof Error
-                ? result.reason.message
-                : String(result.reason),
-          });
-        }
+      const created = await agentsApi.create({
+        slug,
+        name: agent.display_name || agent.name,
+        display_name: agent.display_name || agent.name,
+        role: agent.role,
+        adapter,
+        model: agent.model || "sonnet",
+        workspace_id: workspaceId,
+        avatar_emoji: agent.avatar_emoji,
+        system_prompt: agent.system_prompt,
+        config: agent.config || {},
+        // reports_to intentionally omitted — resolved in pass 2
       });
 
-      if (failures.length > 0) {
-        const detail = failures.map((f) => `${f.name}: ${f.error}`).join("\n");
-        toastStore.warning(
-          `${failures.length} agent${failures.length > 1 ? "s" : ""} failed to register`,
-          detail,
-          8000,
-        );
-      }
-
-      return failures;
+      nameToId.set(agent.name, created.id);
+      createdAgents.push(created);
     } catch (err) {
-      // Entire API call failed — fall back to store-only injection so the
-      // user at least sees something, but do NOT persist to localStorage.
-      agentsStore.agents = agents;
       const errorMsg = err instanceof Error ? err.message : String(err);
-      return agents.map((a) => ({
-        name: a.display_name || a.name,
+      failures.push({
+        name: agent.display_name || agent.name,
         error: errorMsg,
-      }));
+      });
+      // Push a placeholder so indices stay aligned with `agents` array
+      createdAgents.push(agent);
     }
   }
+
+  // If all agents failed, bail early
+  if (failures.length === agents.length) {
+    toastStore.error(
+      "All agents failed to create",
+      failures.map((f) => `${f.name}: ${f.error}`).join("\n"),
+    );
+    return { failures, warnings };
+  }
+
+  // Show partial agent creation failures
+  if (failures.length > 0) {
+    const detail = failures.map((f) => `${f.name}: ${f.error}`).join("\n");
+    toastStore.warning(
+      `${failures.length} agent${failures.length > 1 ? "s" : ""} failed to create`,
+      detail,
+      8000,
+    );
+  }
+
+  // ── Pass 2: Patch reports_to using resolved IDs ─────────────────────────
+  for (let i = 0; i < agents.length; i++) {
+    const template = agents[i];
+    const reportsToName = template.config?.reportsTo as string | undefined;
+    if (!reportsToName) continue;
+
+    const reportsToId = nameToId.get(reportsToName);
+    if (!reportsToId) continue; // parent not created — skip
+
+    const agentId = nameToId.get(template.name);
+    if (!agentId) continue; // this agent failed creation — skip
+
+    try {
+      await agentsApi.update(agentId, { reports_to: reportsToId });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      warnings.push(
+        `Failed to set reports_to for ${template.display_name || template.name}: ${msg}`,
+      );
+    }
+  }
+
+  // ── Pass 3: Create Divisions / Departments / Teams and assign members ───
+  const divisionNames = [
+    ...new Set(
+      agents
+        .map((a) => a.config?.division as string | undefined)
+        .filter((d): d is string => Boolean(d)),
+    ),
+  ];
+
+  for (const divName of divisionNames) {
+    try {
+      // Create Division
+      const division = await divisionsApi.create({
+        name: capitalize(divName),
+      });
+
+      // Create Department under Division
+      const department = await departmentsApi.create({
+        name: `${capitalize(divName)} Department`,
+        division_id: division.id,
+      });
+
+      // Create Team under Department
+      const team = await teamsApi.create({
+        name: `${capitalize(divName)} Team`,
+        department_id: department.id,
+      });
+
+      // Assign agents belonging to this division
+      for (let i = 0; i < agents.length; i++) {
+        if (agents[i].config?.division !== divName) continue;
+        const agentId = nameToId.get(agents[i].name);
+        if (!agentId) continue; // agent failed creation
+
+        try {
+          await teamsApi.addMember(team.id, agentId);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          warnings.push(
+            `Failed to add ${agents[i].display_name || agents[i].name} to ${capitalize(divName)} Team: ${msg}`,
+          );
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      warnings.push(
+        `Failed to create hierarchy for division "${capitalize(divName)}": ${msg}`,
+      );
+    }
+  }
+
+  // Surface hierarchy warnings
+  if (warnings.length > 0) {
+    toastStore.warning(
+      `${warnings.length} hierarchy warning${warnings.length > 1 ? "s" : ""}`,
+      warnings.join("\n"),
+      8000,
+    );
+  }
+
+  // ── Refresh stores so sidebar and hierarchy pages reflect new structure ──
+  await hierarchyStore.fetchDivisions();
+  await agentsStore.fetchAgents(workspaceId);
+
+  // Also persist to mock layer for offline resilience
+  if (isMockEnabled()) {
+    try {
+      const { setMockWorkspaceAgents } = await import("$api/mock/agents");
+      const freshAgents = agentsStore.agents;
+      if (freshAgents.length > 0) {
+        setMockWorkspaceAgents(workspaceId, freshAgents);
+      }
+    } catch {
+      // Mock module may not be available
+    }
+  }
+
+  return { failures, warnings };
 }

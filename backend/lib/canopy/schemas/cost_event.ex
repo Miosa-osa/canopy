@@ -26,7 +26,8 @@ defmodule Canopy.Schemas.CostEvent do
       :tokens_cache,
       :cost_cents,
       :agent_id,
-      :session_id
+      :session_id,
+      :inserted_at
     ])
     |> validate_required([:model, :agent_id])
   end

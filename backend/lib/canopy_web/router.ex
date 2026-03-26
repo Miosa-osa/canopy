@@ -3,12 +3,15 @@ defmodule CanopyWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug CanopyWeb.Plugs.SecurityHeaders
     plug CanopyWeb.Plugs.CORS
+    plug CanopyWeb.Plugs.RateLimiter
   end
 
   pipeline :authenticated do
     plug CanopyWeb.Plugs.Auth
     plug CanopyWeb.Plugs.WorkspaceAuth
+    plug CanopyWeb.Plugs.Governance
     plug CanopyWeb.Plugs.Idempotency
     plug CanopyWeb.Plugs.Audit
   end
@@ -16,6 +19,7 @@ defmodule CanopyWeb.Router do
   pipeline :streaming do
     plug :accepts, ["event-stream", "json"]
     plug :fetch_query_params
+    plug CanopyWeb.Plugs.SecurityHeaders
     plug CanopyWeb.Plugs.CORS
   end
 
@@ -35,6 +39,7 @@ defmodule CanopyWeb.Router do
     pipe_through [:api, :authenticated]
 
     get "/dashboard", DashboardController, :show
+    get "/adapters", AdapterController, :index
 
     # Workspaces
     resources "/workspaces", WorkspaceController, except: [:new, :edit] do
@@ -45,7 +50,8 @@ defmodule CanopyWeb.Router do
     end
 
     # Agents
-    get "/agents/hierarchy", AgentController, :hierarchy
+    get  "/agents/hierarchy", AgentController, :hierarchy
+    post "/agents/batch",     AgentController, :batch_create
 
     resources "/agents", AgentController, except: [:new, :edit] do
       post "/wake", AgentController, :wake, as: :wake

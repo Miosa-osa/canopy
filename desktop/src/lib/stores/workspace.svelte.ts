@@ -4,6 +4,7 @@ import { isTauri } from "$lib/utils/platform";
 import type { Workspace as BackendWorkspace } from "$api/types";
 import { toastStore } from "./toasts.svelte";
 import { workspaces as workspacesApi, isMockEnabled } from "$api/client";
+import type { CanopyWorkspace } from "$lib/types/canopy";
 
 /**
  * Extract the `description` field from YAML frontmatter in a markdown file.
@@ -43,19 +44,8 @@ export interface LocalWorkspace {
   addedAt: string;
 }
 
-interface CanopyWorkspaceScan {
-  path: string;
-  name: string;
-  agents: any[];
-  projects: any[];
-  schedules: any[];
-  skills: any[];
-  /** Raw contents of .canopy/SYSTEM.md */
-  system_md: string | null;
-  /** Raw contents of .canopy/COMPANY.md */
-  company_md: string | null;
-  scanned_at: string;
-}
+/** Tauri IPC scan result — structurally identical to CanopyWorkspace. */
+type CanopyWorkspaceScan = CanopyWorkspace;
 
 const STORAGE_KEY = "canopy-workspaces";
 const ACTIVE_KEY = "canopy-active-workspace";
@@ -224,8 +214,8 @@ class WorkspaceStore {
           await this.scanAndLoadAgents(active.path);
         }
       });
-    } catch (e) {
-      console.warn("Failed to start file watcher:", e);
+    } catch {
+      // File watcher unavailable — workspace changes will not be auto-detected
     }
   }
 
@@ -318,9 +308,8 @@ class WorkspaceStore {
         });
         backendId =
           (created as any).workspace?.id ?? (created as any).id ?? null;
-      } catch (e) {
+      } catch {
         // Backend create failed — fall back to local-only
-        console.warn("[WorkspaceStore] Backend workspace create failed:", e);
       }
     }
 

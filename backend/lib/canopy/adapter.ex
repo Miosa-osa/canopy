@@ -25,6 +25,14 @@ defmodule Canopy.Adapter do
   @callback supports_concurrent?() :: boolean()
   @callback capabilities() :: [atom()]
 
+  @doc """
+  Check if the adapter's runtime dependency is available.
+
+  Returns `:ok` if the adapter is ready to execute, or
+  `{:error, reason}` if the required binary, API key, or service is missing.
+  """
+  @callback health() :: :ok | {:error, String.t()}
+
   @doc "Resolve adapter module from string type."
   def resolve("osa"), do: {:ok, Canopy.Adapters.OSA}
   def resolve("claude-code"), do: {:ok, Canopy.Adapters.ClaudeCode}
@@ -39,21 +47,23 @@ defmodule Canopy.Adapter do
   def resolve("windsurf"), do: {:ok, Canopy.Adapters.Windsurf}
   def resolve(type), do: {:error, {:unknown_adapter, type}}
 
+  @adapters [
+    Canopy.Adapters.OSA,
+    Canopy.Adapters.ClaudeCode,
+    Canopy.Adapters.Codex,
+    Canopy.Adapters.Bash,
+    Canopy.Adapters.HTTP,
+    Canopy.Adapters.OpenClaw,
+    Canopy.Adapters.Cursor,
+    Canopy.Adapters.Gemini,
+    Canopy.Adapters.Aider,
+    Canopy.Adapters.JidoClaw,
+    Canopy.Adapters.Windsurf
+  ]
+
   @doc "List all registered adapters with metadata."
   def all do
-    [
-      Canopy.Adapters.OSA,
-      Canopy.Adapters.ClaudeCode,
-      Canopy.Adapters.Codex,
-      Canopy.Adapters.Bash,
-      Canopy.Adapters.HTTP,
-      Canopy.Adapters.OpenClaw,
-      Canopy.Adapters.Cursor,
-      Canopy.Adapters.Gemini,
-      Canopy.Adapters.Aider,
-      Canopy.Adapters.JidoClaw,
-      Canopy.Adapters.Windsurf
-    ]
+    @adapters
     |> Enum.map(fn mod ->
       %{
         type: mod.type(),
@@ -61,6 +71,28 @@ defmodule Canopy.Adapter do
         supports_session: mod.supports_session?(),
         supports_concurrent: mod.supports_concurrent?(),
         capabilities: mod.capabilities()
+      }
+    end)
+  end
+
+  @doc "List all adapters with health status included."
+  def health_all do
+    @adapters
+    |> Enum.map(fn mod ->
+      health =
+        try do
+          mod.health()
+        rescue
+          e -> {:error, "health check raised: #{Exception.message(e)}"}
+        end
+
+      %{
+        type: mod.type(),
+        name: mod.name(),
+        supports_session: mod.supports_session?(),
+        supports_concurrent: mod.supports_concurrent?(),
+        capabilities: mod.capabilities(),
+        health: health
       }
     end)
   end

@@ -2,6 +2,7 @@
 <!-- Full message bubble: markdown body, thinking block, tool calls, streaming cursor -->
 <script lang="ts">
   import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
   import type { Message } from '$lib/api/types';
   import StreamingCursor from './StreamingCursor.svelte';
   import ThinkingBlock from './ThinkingBlock.svelte';
@@ -58,9 +59,10 @@
   function renderMarkdown(text: string): string {
     if (!text) return '';
     try {
-      return marked.parse(text, { async: false }) as string;
+      const raw = marked.parse(text, { async: false }) as string;
+      return DOMPurify.sanitize(raw);
     } catch {
-      return text;
+      return DOMPurify.sanitize(text);
     }
   }
 

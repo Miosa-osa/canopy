@@ -30,10 +30,16 @@ class ApprovalsStore {
     this.approvals.filter((a) => a.status === "pending"),
   );
 
-  async fetchApprovals(params?: Record<string, string>): Promise<void> {
+  async fetchApprovals(
+    workspaceId?: string,
+    params?: Record<string, string>,
+  ): Promise<void> {
     this.loading = true;
     try {
-      this.approvals = await approvalsApi.list(params);
+      const mergedParams = workspaceId
+        ? { ...params, workspace_id: workspaceId }
+        : params;
+      this.approvals = await approvalsApi.list(mergedParams);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

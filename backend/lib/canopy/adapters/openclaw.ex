@@ -45,6 +45,11 @@ defmodule Canopy.Adapters.OpenClaw do
   def capabilities, do: [:code_edit, :file_read, :file_write, :shell_execution, :web_search]
 
   @impl true
+  def health do
+    if find_openclaw(), do: :ok, else: {:error, "openclaw binary not found"}
+  end
+
+  @impl true
   def start(config) do
     case find_openclaw() do
       nil ->
@@ -129,29 +134,34 @@ defmodule Canopy.Adapters.OpenClaw do
         Port.command(port, prompt <> "\n")
         {port, ""}
       end,
-      fn {port, buf} ->
-        receive do
-          {^port, {:data, data}} ->
-            {[%{event_type: "run.output", data: %{"text" => data}, tokens: 0}],
-             {port, buf <> data}}
+      fn
+        {:done, _} ->
+          {:halt, :done}
 
-          {^port, {:exit_status, 0}} ->
-            {[%{event_type: "run.completed", data: %{"output" => buf}, tokens: 0}], {:done, port}}
+        {port, buf} ->
+          receive do
+            {^port, {:data, data}} ->
+              {[%{event_type: "run.output", data: %{"text" => data}, tokens: 0}],
+               {port, buf <> data}}
 
-          {^port, {:exit_status, code}} ->
-            {[
-               %{
-                 event_type: "run.failed",
-                 data: %{"exit_code" => code, "output" => buf},
-                 tokens: 0
-               }
-             ], {:done, port}}
-        after
-          120_000 ->
-            {:halt, {port, buf}}
-        end
+            {^port, {:exit_status, 0}} ->
+              {[%{event_type: "run.completed", data: %{"output" => buf}, tokens: 0}], {:done, port}}
+
+            {^port, {:exit_status, code}} ->
+              {[
+                 %{
+                   event_type: "run.failed",
+                   data: %{"exit_code" => code, "output" => buf},
+                   tokens: 0
+                 }
+               ], {:done, port}}
+          after
+            120_000 ->
+              {:halt, {port, buf}}
+          end
       end,
       fn
+        :done -> :ok
         {:done, port} -> close_port(port)
         {port, _buf} -> close_port(port)
       end

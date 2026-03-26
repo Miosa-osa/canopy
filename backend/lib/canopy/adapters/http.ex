@@ -18,6 +18,9 @@ defmodule Canopy.Adapters.HTTP do
   def capabilities, do: [:chat]
 
   @impl true
+  def health, do: :ok
+
+  @impl true
   def start(config) do
     url = config["url"] || raise "HTTP adapter requires 'url' in config"
     {:ok, %{url: url, headers: config["headers"] || %{}, method: config["method"] || "POST"}}

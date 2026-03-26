@@ -18,10 +18,10 @@ class SecretsStore {
     }),
   );
 
-  async fetchSecrets(): Promise<void> {
+  async fetchSecrets(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.secrets = await secretsApi.list();
+      this.secrets = await secretsApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

@@ -10,10 +10,10 @@ class WebhooksStore {
 
   totalCount = $derived(this.webhooks.length);
 
-  async fetchWebhooks(): Promise<void> {
+  async fetchWebhooks(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.webhooks = await webhooksApi.list();
+      this.webhooks = await webhooksApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

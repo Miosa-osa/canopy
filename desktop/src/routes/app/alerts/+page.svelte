@@ -7,8 +7,8 @@
 
   // Re-fetch whenever the active workspace changes (covers onMount + workspace switches)
   $effect(() => {
-    void workspaceStore.activeWorkspaceId;
-    void alertsStore.fetchRules();
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void alertsStore.fetchRules(wsId);
   });
 
   const ENTITY_OPTIONS: { value: AlertRule['entity_type']; label: string }[] = [

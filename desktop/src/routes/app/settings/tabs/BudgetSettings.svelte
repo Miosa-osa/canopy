@@ -1,11 +1,58 @@
 <!-- src/routes/app/settings/tabs/BudgetSettings.svelte -->
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { settingsStore } from '$lib/stores/settings.svelte';
+  import { costsStore } from '$lib/stores/costs.svelte';
 
+  // Local display state (dollars / percent) initialised from the workspace policy
   let dailyLimitDollars = $state(50);
   let monthlyLimitDollars = $state(500);
   let warningThreshold = $state(80);
   let hardStop = $state(true);
+
+  let dirty = $state(false);
+  let saving = $state(false);
+
+  function loadFromPolicy(): void {
+    const policy = costsStore.policies.find(p => p.agent_ids.length === 0);
+    if (!policy) return;
+    dailyLimitDollars = Math.round(policy.daily_limit_cents / 100);
+    monthlyLimitDollars = Math.round(policy.monthly_limit_cents / 100);
+    // API stores warning_threshold as 0-1 decimal; display as 0-100 percent
+    warningThreshold = Math.round(policy.warning_threshold * 100);
+    hardStop = policy.hard_stop;
+    dirty = false;
+  }
+
+  onMount(async () => {
+    if (costsStore.policies.length === 0) {
+      await costsStore.fetchPolicies();
+    }
+    loadFromPolicy();
+  });
+
+  // Re-initialise whenever the policies array is updated from the store
+  $effect(() => {
+    // Touch costsStore.policies to subscribe to reactive updates
+    void costsStore.policies;
+    loadFromPolicy();
+  });
+
+  async function saveSettings(): Promise<void> {
+    saving = true;
+    await costsStore.upsertPolicy('workspace', 'default', {
+      daily_limit_cents: Math.round(dailyLimitDollars * 100),
+      monthly_limit_cents: Math.round(monthlyLimitDollars * 100),
+      warning_threshold: warningThreshold / 100,
+      hard_stop: hardStop,
+    });
+    saving = false;
+    dirty = false;
+  }
+
+  function markDirty(): void {
+    dirty = true;
+  }
 </script>
 
 <section class="stg-section">
@@ -44,6 +91,7 @@
           min="0"
           step="1"
           bind:value={dailyLimitDollars}
+          oninput={markDirty}
         />
       </div>
     </div>
@@ -62,6 +110,7 @@
           min="0"
           step="10"
           bind:value={monthlyLimitDollars}
+          oninput={markDirty}
         />
       </div>
     </div>
@@ -82,6 +131,7 @@
         max="95"
         step="5"
         bind:value={warningThreshold}
+        oninput={markDirty}
       />
       <div class="stg-slider-labels">
         <span>10%</span>
@@ -101,12 +151,28 @@
           id="hard-stop"
           type="checkbox"
           bind:checked={hardStop}
+          onchange={markDirty}
         />
         <span class="stg-toggle-track">
           <span class="stg-toggle-thumb"></span>
         </span>
       </label>
     </div>
+
+    {#if dirty}
+      <div class="stg-sep"></div>
+      <div class="stg-field stg-field--row stg-field--actions">
+        <p class="stg-desc stg-desc--unsaved">Unsaved changes</p>
+        <button
+          class="stg-btn-save"
+          onclick={saveSettings}
+          disabled={saving}
+          aria-label="Save budget settings"
+        >
+          {saving ? 'Saving…' : 'Save Changes'}
+        </button>
+      </div>
+    {/if}
   </div>
 </section>
 
@@ -148,6 +214,10 @@
     gap: 16px;
   }
 
+  .stg-field--actions {
+    padding: 12px 16px;
+  }
+
   .stg-field-text {
     display: flex;
     flex-direction: column;
@@ -169,6 +239,10 @@
     font-size: 12px;
     color: var(--text-tertiary);
     line-height: 1.5;
+  }
+
+  .stg-desc--unsaved {
+    color: var(--accent-warning, #f59e0b);
   }
 
   .stg-value-badge {
@@ -297,5 +371,27 @@
   .stg-toggle input:checked ~ .stg-toggle-track .stg-toggle-thumb {
     transform: translateX(16px);
     background: #fff;
+  }
+
+  .stg-btn-save {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: opacity var(--transition-fast);
+  }
+
+  .stg-btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .stg-btn-save:not(:disabled):hover {
+    opacity: 0.88;
   }
 </style>

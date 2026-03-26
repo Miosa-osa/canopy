@@ -230,4 +230,30 @@ defmodule Canopy.Governance.Gate do
   end
 
   defp sanitize_params(_), do: %{}
+
+  @doc """
+  Check if an agent has pending approvals that should block execution.
+  Returns true if the agent should be blocked.
+  """
+  def agent_blocked?(agent_id) do
+    count =
+      Repo.aggregate(
+        from(a in Approval,
+          where: a.requested_by == ^agent_id and a.status == "pending"
+        ),
+        :count
+      )
+
+    count > 0
+  end
+
+  @doc """
+  Check if an agent is paused (budget enforcement or manual).
+  """
+  def agent_paused?(agent_id) do
+    case Repo.get(Canopy.Schemas.Agent, agent_id) do
+      %{status: "paused"} -> true
+      _ -> false
+    end
+  end
 end

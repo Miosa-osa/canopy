@@ -247,6 +247,8 @@ export interface CanopyAgent {
   config: Record<string, unknown>;
   skills: string[];
   team_id?: string | null;
+  reports_to?: string | null;
+  workspace_id?: string | null;
   schedule_id: string | null;
   budget_policy_id: string | null;
   current_task: string | null;
@@ -262,6 +264,7 @@ export interface AgentCreateRequest {
   display_name: string;
   slug?: string;
   workspace_id?: string;
+  reports_to?: string | null;
   avatar_emoji?: string;
   role: string;
   adapter: AdapterType;

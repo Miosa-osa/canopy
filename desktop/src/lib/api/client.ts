@@ -1193,6 +1193,8 @@ export const costs = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+  deletePolicy: (scopeType: string, scopeId: string) =>
+    request<void>(`/budgets/${scopeType}/${scopeId}`, { method: "DELETE" }),
   resolveIncident: (id: string) =>
     request<void>(`/budgets/incidents/${id}/resolve`, { method: "POST" }),
 };
@@ -1211,9 +1213,10 @@ export const activity = {
 // ── Inbox ─────────────────────────────────────────────────────────────────────
 
 export const inbox = {
-  list: async (): Promise<InboxItem[]> => {
+  list: async (workspaceId?: string): Promise<InboxItem[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
     const data = await request<{ messages: InboxItem[]; items: InboxItem[] }>(
-      "/inbox",
+      `/inbox${qs}`,
     );
     return data.messages ?? data.items ?? [];
   },
@@ -1231,8 +1234,9 @@ export const inbox = {
 // ── Skills ────────────────────────────────────────────────────────────────────
 
 export const skills = {
-  list: async (): Promise<Skill[]> => {
-    const data = await request<{ skills: Skill[] }>("/skills");
+  list: async (workspaceId?: string): Promise<Skill[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    const data = await request<{ skills: Skill[] }>(`/skills${qs}`);
     return data.skills ?? [];
   },
   toggle: (id: string) =>
@@ -1261,8 +1265,9 @@ export const skills = {
 // ── Webhooks ──────────────────────────────────────────────────────────────────
 
 export const webhooks = {
-  list: async (): Promise<Webhook[]> => {
-    const data = await request<{ webhooks: Webhook[] }>("/webhooks");
+  list: async (workspaceId?: string): Promise<Webhook[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    const data = await request<{ webhooks: Webhook[] }>(`/webhooks${qs}`);
     return data.webhooks ?? [];
   },
   create: (body: Partial<Webhook>) =>
@@ -1287,8 +1292,9 @@ export const webhooks = {
 // ── Alerts ────────────────────────────────────────────────────────────────────
 
 export const alerts = {
-  list: async (): Promise<AlertRule[]> => {
-    const data = await request<{ rules: AlertRule[] }>("/alerts/rules");
+  list: async (workspaceId?: string): Promise<AlertRule[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    const data = await request<{ rules: AlertRule[] }>(`/alerts/rules${qs}`);
     return data.rules ?? [];
   },
   create: (body: Partial<AlertRule>) =>
@@ -1311,9 +1317,10 @@ export const alerts = {
 // ── Integrations ──────────────────────────────────────────────────────────────
 
 export const integrations = {
-  list: async (): Promise<Integration[]> => {
+  list: async (workspaceId?: string): Promise<Integration[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
     const data = await request<{ integrations: Integration[] }>(
-      "/integrations",
+      `/integrations${qs}`,
     );
     return data.integrations ?? [];
   },
@@ -1601,8 +1608,9 @@ export const spawn = {
 // ── Secrets ───────────────────────────────────────────────────────────────────
 
 export const secrets = {
-  list: async (): Promise<Secret[]> => {
-    const data = await request<{ secrets: Secret[] }>("/secrets");
+  list: async (workspaceId?: string): Promise<Secret[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    const data = await request<{ secrets: Secret[] }>(`/secrets${qs}`);
     return data.secrets ?? [];
   },
   get: (id: string) => request<Secret>(`/secrets/${id}`),
@@ -1874,8 +1882,11 @@ export const users = {
 // ── Templates ─────────────────────────────────────────────────────────────────
 
 export const templates = {
-  list: async (): Promise<AgentTemplate[]> => {
-    const data = await request<{ templates: AgentTemplate[] }>("/templates");
+  list: async (workspaceId?: string): Promise<AgentTemplate[]> => {
+    const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    const data = await request<{ templates: AgentTemplate[] }>(
+      `/templates${qs}`,
+    );
     return data.templates ?? [];
   },
   get: (id: string) => request<AgentTemplate>(`/templates/${id}`),
@@ -1982,6 +1993,7 @@ export const conversations = {
   list: async (filters?: {
     agent_id?: string;
     status?: string;
+    workspace_id?: string;
   }): Promise<import("./types").Conversation[]> => {
     const qs = filters
       ? "?" + new URLSearchParams(filters as Record<string, string>).toString()

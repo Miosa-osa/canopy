@@ -7,8 +7,8 @@ defmodule Canopy.Repo.Migrations.CreateWorkflows do
       add :name, :string, null: false
       add :slug, :string, null: false
       add :description, :text
-      add :workspace_id, references(:workspaces, type: :binary_id, on_delete: :cascade)
-      add :organization_id, references(:organizations, type: :binary_id, on_delete: :cascade)
+      add :workspace_id, references(:workspaces, type: :binary_id, on_delete: :delete_all)
+      add :organization_id, references(:organizations, type: :binary_id, on_delete: :delete_all)
       add :status, :string, default: "draft"
       add :trigger_type, :string, default: "manual"
       add :trigger_config, :map, default: %{}
@@ -45,7 +45,7 @@ defmodule Canopy.Repo.Migrations.CreateWorkflows do
 
     create table(:workflow_runs, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :workflow_id, references(:workflows, type: :binary_id, on_delete: :cascade), null: false
+      add :workflow_id, references(:workflows, type: :binary_id, on_delete: :delete_all), null: false
       add :status, :string, default: "pending"
       add :trigger_event, :string
       add :input, :map, default: %{}

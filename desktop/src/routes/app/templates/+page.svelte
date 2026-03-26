@@ -10,8 +10,8 @@
 
   // Re-fetch whenever the active workspace changes (covers onMount + workspace switches)
   $effect(() => {
-    void workspaceStore.activeWorkspaceId;
-    void templatesStore.fetchTemplates();
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void templatesStore.fetchTemplates(wsId);
   });
 
   async function handleDeploy() {

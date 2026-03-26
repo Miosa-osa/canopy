@@ -1,11 +1,12 @@
 <!-- src/routes/app/skills/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import { skillsStore } from '$lib/stores/skills.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
-  onMount(() => {
-    void skillsStore.fetchSkills();
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId;
+    void skillsStore.fetchSkills(wsId ?? undefined);
   });
 </script>
 

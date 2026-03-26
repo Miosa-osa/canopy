@@ -33,14 +33,17 @@ class ConversationsStore {
 
   // ── List operations ────────────────────────────────────────────────────────
 
-  async fetchConversations(filters?: {
-    agent_id?: string;
-    status?: string;
-  }): Promise<void> {
+  async fetchConversations(
+    workspaceId?: string,
+    filters?: { agent_id?: string; status?: string },
+  ): Promise<void> {
     this.loading = true;
     this.error = null;
     try {
-      this.conversations = await conversationsApi.list(filters);
+      const mergedFilters = workspaceId
+        ? { ...filters, workspace_id: workspaceId }
+        : filters;
+      this.conversations = await conversationsApi.list(mergedFilters);
     } catch (e) {
       const msg = (e as Error).message;
       this.error = msg;

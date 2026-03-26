@@ -6,11 +6,11 @@ defmodule Canopy.Repo.Migrations.CreateLibraryInstalls do
       add :id, :binary_id, primary_key: true
 
       add :library_item_id,
-          references(:library_items, type: :binary_id, on_delete: :cascade),
+          references(:library_items, type: :binary_id, on_delete: :delete_all),
           null: false
 
       add :workspace_id,
-          references(:workspaces, type: :binary_id, on_delete: :cascade),
+          references(:workspaces, type: :binary_id, on_delete: :delete_all),
           null: false
 
       add :installed_by_id, :binary_id

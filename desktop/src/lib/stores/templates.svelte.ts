@@ -36,10 +36,10 @@ class TemplatesStore {
     [...new Set(this.templates.map((t) => t.category))].sort(),
   );
 
-  async fetchTemplates(): Promise<void> {
+  async fetchTemplates(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.templates = await templatesApi.list();
+      this.templates = await templatesApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

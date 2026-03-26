@@ -32,7 +32,8 @@ defmodule Canopy.Schemas.BudgetIncident do
       :agent_id,
       :resolved_by,
       :scope_type,
-      :scope_id
+      :scope_id,
+      :inserted_at
     ])
     |> validate_required([:incident_type, :threshold_pct, :actual_pct, :policy_id])
     |> validate_inclusion(:incident_type, ~w(warning hard_stop))

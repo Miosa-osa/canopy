@@ -2,6 +2,7 @@
 <script lang="ts">
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import { workProductsStore, type WorkProduct, type WorkProductType } from '$lib/stores/work-products.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
 
   type FilterType = WorkProductType | 'all';
 
@@ -19,6 +20,7 @@
   let searchQuery = $state('');
 
   $effect(() => {
+    void workspaceStore.activeWorkspaceId;
     void workProductsStore.fetchProducts();
   });
 

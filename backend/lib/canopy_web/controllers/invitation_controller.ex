@@ -57,7 +57,7 @@ defmodule CanopyWeb.InvitationController do
         else
           now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-          user_id = conn.assigns[:current_user_id]
+          user_id = conn.assigns[:current_user].id
 
           result =
             Repo.transaction(fn ->

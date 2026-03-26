@@ -32,9 +32,9 @@
 
   // ── Fetch all stores on mount / workspace change ─────────────────────────
   $effect(() => {
-    void workspaceStore.activeWorkspaceId;
-    void inboxStore.fetchItems();
-    void approvalsStore.fetchApprovals();
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    void inboxStore.fetchItems(wsId);
+    void approvalsStore.fetchApprovals(wsId);
     void notificationsStore.fetchNotifications();
     void notificationsStore.fetchBadges();
     notificationsStore.startPolling();

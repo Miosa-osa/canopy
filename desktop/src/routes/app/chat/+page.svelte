@@ -1,9 +1,10 @@
 <!-- src/routes/app/chat/+page.svelte -->
 <!-- Enterprise chat interface for direct agent conversations -->
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { tick } from 'svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
   import { conversationsStore } from '$lib/stores/conversations.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
   import type { Conversation } from '$api/types';
 
   // ── Local state ──────────────────────────────────────────────────────────
@@ -31,12 +32,14 @@
   );
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
-  onMount(async () => {
-    await conversationsStore.fetchConversations();
-    if (conversationsStore.conversations.length > 0) {
-      const first = conversationsStore.conversations[0];
-      await conversationsStore.fetchConversation(first.id);
-    }
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId ?? undefined;
+    conversationsStore.fetchConversations(wsId).then(() => {
+      if (conversationsStore.conversations.length > 0) {
+        const first = conversationsStore.conversations[0];
+        void conversationsStore.fetchConversation(first.id);
+      }
+    });
   });
 
   // Auto-scroll when messages change

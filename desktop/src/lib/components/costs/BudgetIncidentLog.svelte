@@ -43,6 +43,17 @@
   function toggleExpand(id: string) {
     expandedId = expandedId === id ? null : id;
   }
+
+  let resolvingId = $state<string | null>(null);
+
+  async function handleResolve(id: string) {
+    resolvingId = id;
+    try {
+      await costsStore.resolveIncident(id);
+    } finally {
+      resolvingId = null;
+    }
+  }
 </script>
 
 <article class="bil-panel" aria-label="Budget incident log">
@@ -119,7 +130,29 @@
             {#if expandedId === incident.id}
               <tr class="bil-detail-row">
                 <td colspan="7" class="bil-detail-cell">
-                  <p class="bil-detail-msg">{incident.message}</p>
+                  <div class="bil-detail-inner">
+                    <p class="bil-detail-msg">{incident.message}</p>
+                    {#if !incident.resolved}
+                      <button
+                        class="bil-resolve-btn"
+                        onclick={() => handleResolve(incident.id)}
+                        disabled={resolvingId === incident.id}
+                        aria-label="Resolve incident {incident.id}"
+                      >
+                        {#if resolvingId === incident.id}
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" class="bil-spinner">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                          </svg>
+                          Resolving…
+                        {:else}
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          Resolve
+                        {/if}
+                      </button>
+                    {/if}
+                  </div>
                 </td>
               </tr>
             {/if}
@@ -301,12 +334,58 @@
     padding: var(--space-2) var(--space-4);
   }
 
+  .bil-detail-inner {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
   .bil-detail-msg {
     font-family: var(--font-sans);
     font-size: 12px;
     color: var(--text-secondary);
     margin: 0;
     line-height: 1.5;
+    flex: 1;
+  }
+
+  .bil-resolve-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: var(--radius-xs);
+    color: rgba(34, 197, 94, 0.8);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 120ms ease, border-color 120ms ease;
+    flex-shrink: 0;
+  }
+
+  .bil-resolve-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .bil-resolve-btn:not(:disabled):hover {
+    background: rgba(34, 197, 94, 0.18);
+    border-color: rgba(34, 197, 94, 0.5);
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .bil-spinner {
+    animation: spin 800ms linear infinite;
   }
 
   .bil-pagination {

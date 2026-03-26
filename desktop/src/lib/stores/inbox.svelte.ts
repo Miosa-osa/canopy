@@ -65,10 +65,10 @@ class InboxStore {
       .filter((g) => g.items.length > 0);
   });
 
-  async fetchItems(): Promise<void> {
+  async fetchItems(workspaceId?: string): Promise<void> {
     this.loading = true;
     try {
-      this.items = await inboxApi.list();
+      this.items = await inboxApi.list(workspaceId);
       this.error = null;
     } catch (e) {
       const msg = (e as Error).message;

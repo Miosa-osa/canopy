@@ -238,7 +238,7 @@ defmodule CanopyWeb.SessionController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       _session ->
-        now = DateTime.utc_now()
+        now = DateTime.utc_now() |> DateTime.truncate(:second)
 
         event = %SessionEvent{
           session_id: session_id,

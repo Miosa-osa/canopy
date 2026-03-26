@@ -21,8 +21,9 @@ defmodule Canopy.Application do
       CanopyWeb.Endpoint
     ]
 
-    # Create ETS table for idempotency plug before endpoint starts (avoids TOCTOU race)
+    # Create ETS tables before endpoint starts (avoids TOCTOU race)
     :ets.new(:canopy_idempotency_cache, [:named_table, :set, :public, read_concurrency: true])
+    :ets.new(:canopy_rate_limiter, [:named_table, :bag, :public, write_concurrency: true])
 
     opts = [strategy: :one_for_one, name: Canopy.Supervisor]
     result = Supervisor.start_link(children, opts)

@@ -1,12 +1,13 @@
 <!-- src/routes/app/secrets/+page.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import PageShell from '$lib/components/layout/PageShell.svelte';
   import { secretsStore } from '$lib/stores/secrets.svelte';
+  import { workspaceStore } from '$lib/stores/workspace.svelte';
   import type { SecretType } from '$api/types';
 
-  onMount(() => {
-    void secretsStore.fetchSecrets();
+  $effect(() => {
+    const wsId = workspaceStore.activeWorkspaceId;
+    void secretsStore.fetchSecrets(wsId ?? undefined);
   });
 
   // Create form state

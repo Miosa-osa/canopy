@@ -9,7 +9,6 @@ defmodule CanopyWeb.Plugs.Idempotency do
 
   @table :canopy_idempotency_cache
   @ttl_seconds 86_400
-  @cleanup_interval :timer.hours(1)
 
   def init(opts), do: opts
 
@@ -25,8 +24,11 @@ defmodule CanopyWeb.Plugs.Idempotency do
   end
 
   defp handle_idempotency(conn, key) do
-    case :ets.lookup(@table, key) do
-      [{^key, {status, body, _timestamp}}] ->
+    user_id = conn.assigns[:current_user] && conn.assigns[:current_user].id
+    cache_key = {user_id, key}
+
+    case :ets.lookup(@table, cache_key) do
+      [{^cache_key, {status, body, _timestamp}}] ->
         conn
         |> put_resp_content_type("application/json")
         |> send_resp(status, body)
@@ -40,7 +42,7 @@ defmodule CanopyWeb.Plugs.Idempotency do
                 do: conn.resp_body,
                 else: IO.iodata_to_binary(conn.resp_body)
 
-            :ets.insert(@table, {key, {conn.status, body, System.system_time(:second)}})
+            :ets.insert(@table, {cache_key, {conn.status, body, System.system_time(:second)}})
           end
 
           conn
