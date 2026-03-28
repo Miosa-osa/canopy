@@ -16,6 +16,14 @@ defmodule CanopyWeb.Plugs.RateLimiter do
   def init(opts), do: opts
 
   def call(conn, opts) do
+    if opts[:disabled] || Application.get_env(:canopy, :disable_rate_limiter, false) do
+      conn
+    else
+      do_rate_limit(conn, opts)
+    end
+  end
+
+  defp do_rate_limit(conn, opts) do
     limit = opts[:limit] || rate_limit_for(conn)
     window_ms = opts[:window_ms] || @default_window_ms
     key = bucket_key(conn)

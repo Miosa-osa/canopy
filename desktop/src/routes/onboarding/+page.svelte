@@ -256,8 +256,10 @@
         localStorage.setItem('canopy-default-adapter', selectedAdapter);
         if (selectedProviderSlug) {
           localStorage.setItem('canopy-provider-slug', selectedProviderSlug);
+          // API keys are stored in memory only on web builds (sessionStorage).
+          // On Tauri builds, they are moved to the secure credential store below.
           const key = providerKeys[selectedProviderSlug];
-          if (key) localStorage.setItem(`canopy-provider-${selectedProviderSlug}`, key);
+          if (key) sessionStorage.setItem(`canopy-provider-${selectedProviderSlug}`, key);
         }
         // Clean up registration scratch keys — no longer needed.
         localStorage.removeItem('canopy-registered-name');
@@ -305,7 +307,7 @@
       if (selectedProviderSlug) {
         localStorage.setItem('canopy-provider-slug', selectedProviderSlug);
         const key = providerKeys[selectedProviderSlug];
-        if (key) localStorage.setItem(`canopy-provider-${selectedProviderSlug}`, key);
+        if (key) sessionStorage.setItem(`canopy-provider-${selectedProviderSlug}`, key);
       }
       // Clean up registration scratch keys.
       localStorage.removeItem('canopy-registered-name');

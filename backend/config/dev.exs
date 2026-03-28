@@ -4,9 +4,10 @@ import Config
 # NOTE: The username must match your local PostgreSQL role.
 # Override via PGUSER env var or edit directly for your machine.
 config :canopy, Canopy.Repo,
-  username: "symac",
-  password: "",
+  username: "postgres",
+  password: "postgres",
   hostname: "localhost",
+  port: 5433,
   database: "canopy_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,

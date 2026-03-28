@@ -131,7 +131,7 @@ defmodule CanopyWeb.WebhookController do
   end
 
   def deliveries(conn, %{"webhook_id" => id}) do
-    limit = min(String.to_integer(conn.params["limit"] || "50"), 200)
+    limit = min(parse_int(conn.params["limit"], 50), 200)
 
     deliveries =
       Repo.all(

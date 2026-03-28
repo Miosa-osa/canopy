@@ -1,6 +1,14 @@
 defmodule CanopyWeb.Plugs.RateLimiterTest do
   use CanopyWeb.ConnCase
 
+  setup do
+    # Re-enable rate limiter for these specific tests
+    prev = Application.get_env(:canopy, :disable_rate_limiter, false)
+    Application.put_env(:canopy, :disable_rate_limiter, false)
+    on_exit(fn -> Application.put_env(:canopy, :disable_rate_limiter, prev) end)
+    :ok
+  end
+
   test "GET /health returns rate limit headers", %{conn: conn} do
     conn = get(conn, "/api/v1/health")
 

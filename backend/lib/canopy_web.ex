@@ -40,6 +40,7 @@ defmodule CanopyWeb do
       use Phoenix.Controller, formats: [:html, :json]
 
       import Plug.Conn
+      import CanopyWeb.Helpers.Params, only: [parse_int: 2]
 
       unquote(verified_routes())
     end

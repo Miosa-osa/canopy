@@ -6,8 +6,8 @@ defmodule CanopyWeb.IssueController do
   import Ecto.Query
 
   def index(conn, params) do
-    limit = min(String.to_integer(params["limit"] || "50"), 100)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 100)
+    offset = parse_int(params["offset"], 0)
 
     workspace_id = params["workspace_id"]
     status = params["status"]

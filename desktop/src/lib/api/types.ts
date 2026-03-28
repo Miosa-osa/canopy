@@ -464,7 +464,7 @@ export interface Issue {
   assignee_name: string | null;
   project_id: string | null;
   goal_id: string | null;
-  labels: string[];
+  labels: { id: string; name: string; color: string }[];
   comments_count: number;
   created_by: string;
   created_at: string;
@@ -492,9 +492,9 @@ export interface Goal {
   parent_id: string | null;
   project_id: string;
   status: GoalStatus;
-  priority: GoalPriority;
-  progress: number;
-  assignee_id: string | null;
+  priority?: GoalPriority;
+  progress?: number;
+  assignee_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -514,10 +514,10 @@ export interface Project {
   description: string | null;
   status: ProjectStatus;
   workspace_id?: string;
-  workspace_path: string | null;
-  goal_count: number;
-  issue_count: number;
-  agent_count: number;
+  workspace_path?: string | null;
+  goal_count?: number;
+  issue_count?: number;
+  agent_count?: number;
   created_at: string;
   updated_at: string;
 }

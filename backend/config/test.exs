@@ -10,8 +10,9 @@ import Config
 # Example: username: System.get_env("PGUSER", "postgres")
 config :canopy, Canopy.Repo,
   username: System.get_env("PGUSER", "postgres"),
-  password: System.get_env("PGPASSWORD", ""),
+  password: System.get_env("PGPASSWORD", "postgres"),
   hostname: System.get_env("PGHOST", "localhost"),
+  port: String.to_integer(System.get_env("PGPORT", "5433")),
   database: "canopy_test#{System.get_env("MIX_TEST_PARTITION")}",
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
@@ -22,6 +23,9 @@ config :canopy, CanopyWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "hGWbjAGuPwUJwljbt0gus/fwEUhHa4lP5D980bnFfGh6aI8+VoVsGCmsPETBq/0T",
   server: false
+
+# Disable rate limiter in test to avoid flaky 429 responses
+config :canopy, disable_rate_limiter: true
 
 # Print only warnings and errors during test
 config :logger, level: :warning

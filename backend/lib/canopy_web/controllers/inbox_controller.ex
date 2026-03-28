@@ -11,8 +11,8 @@ defmodule CanopyWeb.InboxController do
   def index(conn, params) do
     workspace_id = params["workspace_id"]
     unread_only = params["unread"] == "true"
-    limit = min(String.to_integer(params["limit"] || "50"), 200)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 200)
+    offset = parse_int(params["offset"], 0)
 
     query =
       from e in ActivityEvent,

@@ -26,11 +26,11 @@ defmodule Canopy.Accounts do
 
   def authenticate(email, password) do
     with %User{} = user <- get_user_by_email(email),
-         true <- Bcrypt.verify_pass(password, user.password_hash) do
+         true <- Pbkdf2.verify_pass(password, user.password_hash) do
       {:ok, user}
     else
       nil ->
-        Bcrypt.no_user_verify()
+        Pbkdf2.no_user_verify()
         {:error, :invalid_credentials}
 
       false ->

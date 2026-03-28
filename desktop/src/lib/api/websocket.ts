@@ -1,7 +1,9 @@
 // src/lib/api/websocket.ts
 // WebSocket client for real-time bidirectional communication
 
-const WS_URL: string = import.meta.env.VITE_WS_URL ?? "ws://127.0.0.1:9089/ws";
+import { WS_BASE_URL } from "./config";
+
+const WS_URL: string = `${WS_BASE_URL}/ws`;
 void WS_URL; // reserved for future WebSocket implementation
 
 export interface WSCallbacks {

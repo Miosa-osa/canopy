@@ -4,8 +4,9 @@
 import type { StreamEvent } from "./types";
 import { getToken, isMockEnabled } from "./client";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:9089";
-const API_PREFIX = "/api/v1";
+import { API_BASE_URL, API_PREFIX } from "./config";
+
+const BASE_URL = API_BASE_URL;
 
 const INITIAL_DELAY_MS = 1_000;
 const MAX_DELAY_MS = 30_000;

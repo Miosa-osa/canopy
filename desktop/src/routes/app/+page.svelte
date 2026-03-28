@@ -10,7 +10,10 @@
   import { dashboardStore } from '$lib/stores/dashboard.svelte';
   import { workspaceStore } from '$lib/stores/workspace.svelte';
 
-  onMount(() => dashboardStore.startAutoRefresh(30_000));
+  onMount(() => {
+    const stopRefresh = dashboardStore.startAutoRefresh(30_000);
+    return () => stopRefresh();
+  });
 
   // Re-fetch dashboard whenever the active workspace changes.
   // setActiveWorkspace() already triggers this, but the $effect here ensures

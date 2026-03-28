@@ -19,7 +19,7 @@ defmodule CanopyWeb.AgentController do
       cond do
         workspace_id -> where(query, [a], a.workspace_id == ^workspace_id)
         user_workspace_ids != [] -> where(query, [a], a.workspace_id in ^user_workspace_ids)
-        true -> query
+        true -> where(query, [a], false)
       end
 
     agents = Repo.all(query) |> Repo.preload([:skills, :schedules])
@@ -299,8 +299,8 @@ defmodule CanopyWeb.AgentController do
   # --- Queries ---
 
   def runs(conn, %{"agent_id" => id} = params) do
-    limit = min(String.to_integer(params["limit"] || "50"), 200)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 200)
+    offset = parse_int(params["offset"], 0)
 
     sessions =
       Repo.all(
@@ -333,8 +333,8 @@ defmodule CanopyWeb.AgentController do
 
   def inbox(conn, %{"agent_id" => id} = params) do
     status_filter = params["status"]
-    limit = min(String.to_integer(params["limit"] || "50"), 200)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 200)
+    offset = parse_int(params["offset"], 0)
 
     # Primary inbox: approval requests made by this agent awaiting human review
     approval_query =
@@ -375,7 +375,7 @@ defmodule CanopyWeb.AgentController do
       cond do
         workspace_id -> where(query, [a], a.workspace_id == ^workspace_id)
         user_workspace_ids != [] -> where(query, [a], a.workspace_id in ^user_workspace_ids)
-        true -> query
+        true -> where(query, [a], false)
       end
 
     agents = Repo.all(query)

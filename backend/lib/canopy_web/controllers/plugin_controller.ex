@@ -85,7 +85,7 @@ defmodule CanopyWeb.PluginController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       _plugin ->
-        limit = min(String.to_integer(params["limit"] || "100"), 500)
+        limit = min(parse_int(params["limit"], 100), 500)
 
         query =
           from l in PluginLog,

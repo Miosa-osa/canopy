@@ -3,48 +3,50 @@ defmodule CanopyWeb.OrganizationController do
 
   alias Canopy.Repo
   alias Canopy.Schemas.{Organization, OrganizationMembership}
+  alias Ecto.Multi
   import Ecto.Query
 
-  def index(conn, params) do
-    user_id = params["user_id"] || conn.assigns[:current_user_id]
+  def index(conn, _params) do
+    user_id = conn.assigns.current_user.id
 
     query =
-      if user_id do
-        from o in Organization,
-          join: m in OrganizationMembership,
-          on: m.organization_id == o.id and m.user_id == ^user_id,
-          order_by: [asc: o.name]
-      else
-        from o in Organization, order_by: [asc: o.name]
-      end
+      from o in Organization,
+        join: m in OrganizationMembership,
+        on: m.organization_id == o.id and m.user_id == ^user_id,
+        order_by: [asc: o.name]
 
     orgs = Repo.all(query)
     json(conn, %{organizations: Enum.map(orgs, &serialize/1)})
   end
 
   def create(conn, params) do
-    user_id = params["created_by"] || conn.assigns[:current_user_id]
-    changeset = Organization.changeset(%Organization{}, params)
+    user_id = conn.assigns.current_user.id
 
-    case Repo.insert(changeset) do
-      {:ok, org} ->
-        # Auto-add creator as admin member
-        if user_id do
-          %OrganizationMembership{}
-          |> OrganizationMembership.changeset(%{
-            "organization_id" => org.id,
-            "user_id" => user_id,
-            "role" => "admin"
-          })
-          |> Repo.insert()
-        end
+    result =
+      Multi.new()
+      |> Multi.insert(:organization, Organization.changeset(%Organization{}, params))
+      |> Multi.insert(:membership, fn %{organization: org} ->
+        OrganizationMembership.changeset(%OrganizationMembership{}, %{
+          organization_id: org.id,
+          user_id: user_id,
+          role: "admin"
+        })
+      end)
+      |> Repo.transaction()
 
+    case result do
+      {:ok, %{organization: org}} ->
         conn |> put_status(201) |> json(%{organization: serialize(org)})
 
-      {:error, cs} ->
+      {:error, :organization, cs, _} ->
         conn
         |> put_status(422)
         |> json(%{error: "validation_failed", details: format_errors(cs)})
+
+      {:error, :membership, cs, _} ->
+        conn
+        |> put_status(422)
+        |> json(%{error: "creation_failed", details: format_errors(cs)})
     end
   end
 
@@ -54,13 +56,19 @@ defmodule CanopyWeb.OrganizationController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       org ->
-        member_count =
-          Repo.aggregate(
-            from(m in OrganizationMembership, where: m.organization_id == ^id),
-            :count
-          )
+        case authorize_member(conn, id) do
+          {:error, :forbidden} ->
+            conn |> put_status(403) |> json(%{error: "forbidden"})
 
-        json(conn, %{organization: serialize(org) |> Map.put(:member_count, member_count)})
+          {:ok, _membership} ->
+            member_count =
+              Repo.aggregate(
+                from(m in OrganizationMembership, where: m.organization_id == ^id),
+                :count
+              )
+
+            json(conn, %{organization: serialize(org) |> Map.put(:member_count, member_count)})
+        end
     end
   end
 
@@ -70,16 +78,22 @@ defmodule CanopyWeb.OrganizationController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       org ->
-        changeset = Organization.changeset(org, params)
+        case authorize_member(conn, id, "admin") do
+          {:error, :forbidden} ->
+            conn |> put_status(403) |> json(%{error: "forbidden"})
 
-        case Repo.update(changeset) do
-          {:ok, updated} ->
-            json(conn, %{organization: serialize(updated)})
+          {:ok, _membership} ->
+            changeset = Organization.changeset(org, params)
 
-          {:error, cs} ->
-            conn
-            |> put_status(422)
-            |> json(%{error: "validation_failed", details: format_errors(cs)})
+            case Repo.update(changeset) do
+              {:ok, updated} ->
+                json(conn, %{organization: serialize(updated)})
+
+              {:error, cs} ->
+                conn
+                |> put_status(422)
+                |> json(%{error: "validation_failed", details: format_errors(cs)})
+            end
         end
     end
   end
@@ -90,8 +104,14 @@ defmodule CanopyWeb.OrganizationController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       org ->
-        Repo.delete!(org)
-        json(conn, %{ok: true})
+        case authorize_member(conn, id, "admin") do
+          {:error, :forbidden} ->
+            conn |> put_status(403) |> json(%{error: "forbidden"})
+
+          {:ok, _membership} ->
+            Repo.delete!(org)
+            json(conn, %{ok: true})
+        end
     end
   end
 
@@ -113,6 +133,22 @@ defmodule CanopyWeb.OrganizationController do
   end
 
   # --- Private helpers ---
+
+  defp authorize_member(conn, org_id, required_role \\ nil) do
+    user_id = conn.assigns.current_user.id
+
+    membership =
+      Repo.one(
+        from m in OrganizationMembership,
+          where: m.organization_id == ^org_id and m.user_id == ^user_id
+      )
+
+    cond do
+      is_nil(membership) -> {:error, :forbidden}
+      required_role && membership.role != required_role -> {:error, :forbidden}
+      true -> {:ok, membership}
+    end
+  end
 
   defp serialize(%Organization{} = o) do
     %{
