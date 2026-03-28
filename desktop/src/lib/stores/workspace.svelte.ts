@@ -256,21 +256,34 @@ class WorkspaceStore {
         backendWorkspaces.find((w) => w.status === "active") ??
         backendWorkspaces[0];
 
-      // Register any backend workspaces not yet in local store
-      for (const bws of backendWorkspaces) {
-        if (!this.workspaces.some((w) => w.id === bws.id)) {
-          const localWs: LocalWorkspace = {
-            id: bws.id,
-            name: bws.name,
-            path:
-              bws.path ??
-              bws.directory ??
-              `~/.canopy/${bws.name.toLowerCase().replace(/\s+/g, "-")}`,
-            addedAt: bws.created_at ?? new Date().toISOString(),
-          };
-          this.workspaces = [...this.workspaces, localWs];
-        }
-      }
+      // Build the canonical workspace list from backend data. Backend is the
+      // source of truth — local-only entries (e.g. stale mock workspaces) that
+      // don't exist on the backend are dropped. For entries that exist on both
+      // sides, preserve local fields (like a Tauri-resolved path) while
+      // updating name from the backend.
+      const backendIds = new Set(backendWorkspaces.map((w) => w.id));
+      const tauriOnlyWorkspaces = this.workspaces.filter(
+        (w) => !backendIds.has(w.id) && w.path && !w.id.startsWith("ws-"),
+      );
+
+      const merged: LocalWorkspace[] = backendWorkspaces.map((bws) => {
+        const existing = this.workspaces.find((w) => w.id === bws.id);
+        return {
+          id: bws.id,
+          name: bws.name,
+          path:
+            existing?.path ??
+            bws.path ??
+            bws.directory ??
+            `~/.canopy/${bws.name.toLowerCase().replace(/\s+/g, "-")}`,
+          description: existing?.description,
+          addedAt:
+            existing?.addedAt ?? bws.created_at ?? new Date().toISOString(),
+        };
+      });
+
+      // Keep Tauri-opened workspaces that only exist locally (real folders)
+      this.workspaces = [...merged, ...tauriOnlyWorkspaces];
       this.#persist();
 
       // Point the active workspace at the backend's active one.

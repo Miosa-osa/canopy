@@ -25,7 +25,7 @@ defmodule CanopyWeb.ConfigRevisionController do
         do: where(query, [r], r.workspace_id == ^params["workspace_id"]),
         else: query
 
-    limit = min(String.to_integer(params["limit"] || "50"), 200)
+    limit = min(parse_int(params["limit"], 50), 200)
     query = limit(query, ^limit)
 
     revisions = Repo.all(query)

@@ -12,8 +12,8 @@ defmodule CanopyWeb.AuditController do
     entity_type = params["entity_type"]
     from_date = params["from"]
     to_date = params["to"]
-    limit = min(String.to_integer(params["limit"] || "50"), 500)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 500)
+    offset = parse_int(params["offset"], 0)
 
     query =
       from e in AuditEvent,

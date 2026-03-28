@@ -285,8 +285,8 @@ defmodule CanopyWeb.LibraryController do
   defp apply_sort(query, _), do: order_by(query, [i], desc: i.inserted_at)
 
   defp pagination_params(params) do
-    page = max(String.to_integer(params["page"] || "1"), 1)
-    per_page = min(String.to_integer(params["per_page"] || "20"), 100)
+    page = max(parse_int(params["page"], 1), 1)
+    per_page = min(parse_int(params["per_page"], 20), 100)
     {page, per_page}
   end
 

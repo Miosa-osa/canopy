@@ -21,7 +21,7 @@ defmodule CanopyWeb.SignalController do
 
   def feed(conn, params) do
     workspace_id = params["workspace_id"]
-    limit = min(String.to_integer(params["limit"] || "20"), 100)
+    limit = min(parse_int(params["limit"], 20), 100)
 
     query =
       from e in ActivityEvent,
@@ -89,7 +89,7 @@ defmodule CanopyWeb.SignalController do
 
   def patterns(conn, params) do
     workspace_id = params["workspace_id"]
-    limit = min(String.to_integer(params["limit"] || "10"), 50)
+    limit = min(parse_int(params["limit"], 10), 50)
     since = DateTime.add(DateTime.utc_now(), -7, :day)
 
     base_query =

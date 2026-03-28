@@ -2,14 +2,15 @@ defmodule CanopyWeb.AuthController do
   use CanopyWeb, :controller
 
   alias Canopy.Repo
-  alias Canopy.Schemas.User
+  alias Canopy.Schemas.{User, Organization, OrganizationMembership, Workspace}
+  alias Ecto.Multi
   import Ecto.Query
 
   def login(conn, %{"email" => email, "password" => password}) do
     user = Repo.one(from u in User, where: u.email == ^email)
 
     cond do
-      user && Bcrypt.verify_pass(password, user.password_hash) ->
+      user && Pbkdf2.verify_pass(password, user.password_hash) ->
         {:ok, token, _claims} =
           Canopy.Guardian.encode_and_sign(user, %{"role" => user.role}, ttl: {1, :hour})
 
@@ -31,7 +32,7 @@ defmodule CanopyWeb.AuthController do
 
       true ->
         # Constant-time comparison to prevent user enumeration
-        Bcrypt.no_user_verify()
+        Pbkdf2.no_user_verify()
 
         conn
         |> put_status(401)
@@ -47,10 +48,33 @@ defmodule CanopyWeb.AuthController do
 
   def register(conn, %{"name" => _, "email" => _, "password" => password} = params)
       when byte_size(password) >= 8 do
-    changeset = User.changeset(%User{}, params)
+    result =
+      Multi.new()
+      |> Multi.insert(:user, User.changeset(%User{}, params))
+      |> Multi.insert(:organization, fn %{user: user} ->
+        Organization.changeset(%Organization{}, %{
+          name: "#{user.name}'s Organization"
+        })
+      end)
+      |> Multi.insert(:membership, fn %{user: user, organization: org} ->
+        OrganizationMembership.changeset(%OrganizationMembership{}, %{
+          organization_id: org.id,
+          user_id: user.id,
+          role: "admin"
+        })
+      end)
+      |> Multi.insert(:workspace, fn %{user: user, organization: org} ->
+        Workspace.changeset(%Workspace{}, %{
+          name: "Default Workspace",
+          path: "/workspaces/default",
+          owner_id: user.id,
+          organization_id: org.id
+        })
+      end)
+      |> Repo.transaction()
 
-    case Repo.insert(changeset) do
-      {:ok, user} ->
+    case result do
+      {:ok, %{user: user, workspace: workspace}} ->
         {:ok, token, _claims} =
           Canopy.Guardian.encode_and_sign(user, %{"role" => user.role}, ttl: {1, :hour})
 
@@ -63,13 +87,22 @@ defmodule CanopyWeb.AuthController do
             name: user.name,
             email: user.email,
             role: user.role
+          },
+          workspace: %{
+            id: workspace.id,
+            name: workspace.name
           }
         })
 
-      {:error, changeset} ->
+      {:error, :user, changeset, _} ->
         conn
         |> put_status(422)
         |> json(%{error: "validation_failed", details: format_errors(changeset)})
+
+      {:error, step, changeset, _} ->
+        conn
+        |> put_status(422)
+        |> json(%{error: "setup_failed", step: step, details: format_errors(changeset)})
     end
   end
 

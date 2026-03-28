@@ -59,6 +59,8 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   // Nav routes for ⌘1–⌘3 (Core section)
   const NAV_ROUTES = ['/app', '/app/inbox', '/app/office'];
 
+  let initError = $state<string | null>(null);
+
   onMount(() => {
     // Capture stopPolling in outer scope so the cleanup return can call it.
     let stopPolling: (() => void) | null = null;
@@ -165,6 +167,9 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
       } else {
         void agentsStore.fetchAgents(wsId);
       }
+    }).catch((err: unknown) => {
+      console.error('Failed to initialize Canopy:', err);
+      initError = err instanceof Error ? err.message : 'Failed to connect to backend';
     });
 
     // Load adapter choice and miosaCloud setting from Tauri secure store
@@ -204,14 +209,25 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   const user = $derived(userName ? { name: userName, email: '' } : null);
 </script>
 
-<!-- App shell with sidebar + main content -->
-<div class="app-shell" class:has-titlebar={isTauri() && isMacOS()}>
-  <Sidebar bind:isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} {user} />
-  <main class="main-content" id="main-content">
-    {@render children()}
-    <ConnectionStatusBar />
-  </main>
-</div>
+{#if initError}
+  <div class="init-error">
+    <div class="init-error-card">
+      <h2>Could not connect to Canopy</h2>
+      <p>{initError}</p>
+      <p class="init-error-hint">Make sure the backend is running on port 9089.</p>
+      <button class="init-error-retry" onclick={() => location.reload()}>Retry</button>
+    </div>
+  </div>
+{:else}
+  <!-- App shell with sidebar + main content -->
+  <div class="app-shell" class:has-titlebar={isTauri() && isMacOS()}>
+    <Sidebar bind:isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} {user} />
+    <main class="main-content" id="main-content">
+      {@render children()}
+      <ConnectionStatusBar />
+    </main>
+  </div>
+{/if}
 
 <!-- Global overlays -->
 <CommandPalette />
@@ -233,4 +249,23 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
     min-width: 0; overflow: hidden; background: var(--bg-secondary);
     box-shadow: inset 1px 0 0 rgba(255,255,255,0.04); position: relative;
   }
+  .init-error {
+    height: 100dvh; width: 100vw; display: flex; align-items: center;
+    justify-content: center; background: var(--bg-primary, #0d0d0d);
+    color: var(--text-primary, #e0e0e0);
+  }
+  .init-error-card {
+    text-align: center; max-width: 400px; padding: 40px;
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    background: rgba(255,255,255,0.02);
+  }
+  .init-error-card h2 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
+  .init-error-card p { margin: 0 0 8px; font-size: 14px; opacity: 0.7; }
+  .init-error-hint { font-size: 13px; opacity: 0.5; }
+  .init-error-retry {
+    margin-top: 20px; padding: 10px 24px; border-radius: 8px; border: none;
+    background: var(--accent, #3b82f6); color: white; font-size: 14px;
+    font-weight: 500; cursor: pointer;
+  }
+  .init-error-retry:hover { opacity: 0.9; }
 </style>

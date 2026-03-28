@@ -43,9 +43,29 @@ defmodule Canopy.Schemas.Organization do
       :budget_enforcement,
       :governance
     ])
-    |> validate_required([:name, :slug])
+    |> validate_required([:name])
+    |> maybe_generate_slug()
     |> validate_format(:slug, ~r/^[a-z0-9-]+$/)
     |> validate_inclusion(:budget_enforcement, ~w(visibility warning stop))
     |> unique_constraint(:slug)
+  end
+
+  defp maybe_generate_slug(changeset) do
+    case get_field(changeset, :slug) do
+      nil ->
+        name = get_field(changeset, :name) || ""
+        suffix = :crypto.strong_rand_bytes(3) |> Base.encode16(case: :lower)
+
+        slug =
+          name
+          |> String.downcase()
+          |> String.replace(~r/[^a-z0-9]+/, "-")
+          |> String.trim("-")
+
+        put_change(changeset, :slug, "#{slug}-#{suffix}")
+
+      _ ->
+        changeset
+    end
   end
 end

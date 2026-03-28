@@ -7,10 +7,11 @@ defmodule CanopyWeb.SessionController do
   import Ecto.Query
 
   def index(conn, params) do
-    limit = min(String.to_integer(params["limit"] || "50"), 100)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 100)
+    offset = parse_int(params["offset"], 0)
     agent_id = params["agent_id"]
     status = params["status"]
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
 
     message_count_subquery =
       from e in SessionEvent,
@@ -23,6 +24,7 @@ defmodule CanopyWeb.SessionController do
         on: s.agent_id == a.id,
         left_join: mc in subquery(message_count_subquery),
         on: mc.session_id == s.id,
+        where: a.workspace_id in ^user_workspace_ids,
         order_by: [desc: s.started_at],
         limit: ^limit,
         offset: ^offset,
@@ -52,7 +54,11 @@ defmodule CanopyWeb.SessionController do
     query = if agent_id, do: where(query, [s], s.agent_id == ^agent_id), else: query
     query = if status, do: where(query, [s], s.status == ^status), else: query
 
-    count_query = from(s in Session)
+    count_query =
+      from s in Session,
+        join: a in Agent,
+        on: s.agent_id == a.id,
+        where: a.workspace_id in ^user_workspace_ids
 
     count_query =
       if agent_id, do: where(count_query, [s], s.agent_id == ^agent_id), else: count_query
@@ -65,50 +71,48 @@ defmodule CanopyWeb.SessionController do
   end
 
   def show(conn, %{"id" => id}) do
-    case Repo.get(Session, id) |> Repo.preload(:agent) do
-      nil ->
-        conn |> put_status(404) |> json(%{error: "not_found"})
+    with {:ok, session} <- authorize_session(conn, id) do
+      message_count =
+        Repo.aggregate(
+          from(e in SessionEvent, where: e.session_id == ^session.id),
+          :count
+        )
 
-      session ->
-        message_count =
-          Repo.aggregate(
-            from(e in SessionEvent, where: e.session_id == ^session.id),
-            :count
-          )
-
-        json(conn, %{
-          session: %{
-            id: session.id,
-            agent_id: session.agent_id,
-            agent_name: session.agent.name,
-            title: session.agent.name,
-            model: session.model,
-            status: session.status,
-            message_count: message_count,
-            token_usage: %{
-              input: session.tokens_input,
-              output: session.tokens_output,
-              cache_read: session.tokens_cache,
-              cache_write: 0
-            },
-            tokens_input: session.tokens_input,
-            tokens_output: session.tokens_output,
-            tokens_cache: session.tokens_cache,
-            cost_cents: session.cost_cents,
-            workspace_path: session.workspace_path,
-            workspace_branch: session.workspace_branch,
-            started_at: session.started_at,
-            completed_at: session.completed_at,
-            created_at: session.started_at,
-            # Continuity fields
-            context_summary: session.context_summary,
-            handoff_notes: session.handoff_notes,
-            continuation_data: session.continuation_data,
-            compaction_reason: session.compaction_reason,
-            parent_session_id: session.parent_session_id,
-            sequence_number: session.sequence_number
-          }
-        })
+      json(conn, %{
+        session: %{
+          id: session.id,
+          agent_id: session.agent_id,
+          agent_name: session.agent.name,
+          title: session.agent.name,
+          model: session.model,
+          status: session.status,
+          message_count: message_count,
+          token_usage: %{
+            input: session.tokens_input,
+            output: session.tokens_output,
+            cache_read: session.tokens_cache,
+            cache_write: 0
+          },
+          tokens_input: session.tokens_input,
+          tokens_output: session.tokens_output,
+          tokens_cache: session.tokens_cache,
+          cost_cents: session.cost_cents,
+          workspace_path: session.workspace_path,
+          workspace_branch: session.workspace_branch,
+          started_at: session.started_at,
+          completed_at: session.completed_at,
+          created_at: session.started_at,
+          # Continuity fields
+          context_summary: session.context_summary,
+          handoff_notes: session.handoff_notes,
+          continuation_data: session.continuation_data,
+          compaction_reason: session.compaction_reason,
+          parent_session_id: session.parent_session_id,
+          sequence_number: session.sequence_number
+        }
+      })
+    else
+      {:error, halted_conn} -> halted_conn
     end
   end
 
@@ -193,12 +197,13 @@ defmodule CanopyWeb.SessionController do
   end
 
   def transcript(conn, %{"session_id" => session_id}) do
-    events =
-      Repo.all(
-        from e in SessionEvent,
-          where: e.session_id == ^session_id,
-          order_by: [asc: e.id]
-      )
+    with {:ok, _session} <- authorize_session(conn, session_id) do
+      events =
+        Repo.all(
+          from e in SessionEvent,
+            where: e.session_id == ^session_id,
+            order_by: [asc: e.id]
+        )
 
     messages =
       Enum.map(events, fn e ->
@@ -227,49 +232,53 @@ defmodule CanopyWeb.SessionController do
         }
       end)
 
-    json(conn, %{messages: messages})
+      json(conn, %{messages: messages})
+    else
+      {:error, halted_conn} -> halted_conn
+    end
   end
 
   def message(conn, %{"session_id" => session_id} = params) do
-    body = params["body"] || params["message"] || ""
+    with {:ok, _session} <- authorize_session(conn, session_id) do
+      body = params["body"] || params["message"] || ""
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    case Repo.get(Session, session_id) do
-      nil ->
-        conn |> put_status(404) |> json(%{error: "not_found"})
+      event = %SessionEvent{
+        session_id: session_id,
+        event_type: "user_message",
+        data: %{"body" => body},
+        tokens: 0,
+        inserted_at: now
+      }
 
-      _session ->
-        now = DateTime.utc_now() |> DateTime.truncate(:second)
+      Repo.insert!(event)
 
-        event = %SessionEvent{
-          session_id: session_id,
-          event_type: "user_message",
-          data: %{"body" => body},
-          tokens: 0,
-          inserted_at: now
-        }
+      Canopy.EventBus.broadcast(
+        Canopy.EventBus.session_topic(session_id),
+        %{event: "user_message", body: body, session_id: session_id}
+      )
 
-        Repo.insert!(event)
-
-        Canopy.EventBus.broadcast(
-          Canopy.EventBus.session_topic(session_id),
-          %{event: "user_message", body: body, session_id: session_id}
-        )
-
-        conn |> put_status(202) |> json(%{ok: true, session_id: session_id})
+      conn |> put_status(202) |> json(%{ok: true, session_id: session_id})
+    else
+      {:error, halted_conn} -> halted_conn
     end
   end
 
   def stream(conn, %{"session_id" => session_id}) do
-    conn =
-      conn
-      |> put_resp_content_type("text/event-stream")
-      |> put_resp_header("cache-control", "no-cache")
-      |> put_resp_header("x-accel-buffering", "no")
-      |> send_chunked(200)
+    with {:ok, _session} <- authorize_session(conn, session_id) do
+      conn =
+        conn
+        |> put_resp_content_type("text/event-stream")
+        |> put_resp_header("cache-control", "no-cache")
+        |> put_resp_header("x-accel-buffering", "no")
+        |> send_chunked(200)
 
-    Canopy.EventBus.subscribe(Canopy.EventBus.session_topic(session_id))
+      Canopy.EventBus.subscribe(Canopy.EventBus.session_topic(session_id))
 
-    stream_loop(conn, session_id)
+      stream_loop(conn, session_id)
+    else
+      {:error, halted_conn} -> halted_conn
+    end
   end
 
   defp stream_loop(conn, session_id) do
@@ -297,4 +306,21 @@ defmodule CanopyWeb.SessionController do
   end
 
   defp sanitize_content(other), do: to_string(other)
+
+  defp authorize_session(conn, session_id) do
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
+
+    case Repo.get(Session, session_id) |> Repo.preload(:agent) do
+      nil ->
+        {:error, conn |> put_status(404) |> json(%{error: "not_found"}) |> halt()}
+
+      %Session{agent: %Agent{workspace_id: ws_id}} = session ->
+        if ws_id in user_workspace_ids do
+          {:ok, session}
+        else
+          {:error, conn |> put_status(403) |> json(%{error: "forbidden"}) |> halt()}
+        end
+    end
+  end
+
 end

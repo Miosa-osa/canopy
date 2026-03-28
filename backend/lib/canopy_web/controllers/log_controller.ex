@@ -5,8 +5,8 @@ defmodule CanopyWeb.LogController do
   alias Canopy.Repo
 
   def index(conn, params) do
-    limit = min(String.to_integer(params["limit"] || "200"), 500)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 200), 500)
+    offset = parse_int(params["offset"], 0)
 
     query =
       from e in Canopy.Schemas.ActivityEvent,

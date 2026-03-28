@@ -8,9 +8,9 @@ export interface ProviderCredentials {
 
 export async function getProviderCredentials(): Promise<ProviderCredentials | null> {
   if (!isTauri()) {
-    // Browser fallback — read from localStorage
+    // Browser fallback — read from sessionStorage (keys are not persisted to disk)
     const slug = localStorage.getItem("canopy-provider-slug");
-    const key = slug ? localStorage.getItem(`canopy-provider-${slug}`) : null;
+    const key = slug ? sessionStorage.getItem(`canopy-provider-${slug}`) : null;
     if (slug && key) return { slug, apiKey: key };
     return null;
   }
@@ -29,7 +29,7 @@ export async function setProviderCredentials(
 ): Promise<void> {
   if (!isTauri()) {
     localStorage.setItem("canopy-provider-slug", creds.slug);
-    localStorage.setItem(`canopy-provider-${creds.slug}`, creds.apiKey);
+    sessionStorage.setItem(`canopy-provider-${creds.slug}`, creds.apiKey);
     return;
   }
 
@@ -39,8 +39,8 @@ export async function setProviderCredentials(
     await store.set("provider", creds);
     await store.save();
   } catch {
-    // Fallback to localStorage
+    // Fallback to sessionStorage (keys not persisted to disk)
     localStorage.setItem("canopy-provider-slug", creds.slug);
-    localStorage.setItem(`canopy-provider-${creds.slug}`, creds.apiKey);
+    sessionStorage.setItem(`canopy-provider-${creds.slug}`, creds.apiKey);
   }
 }

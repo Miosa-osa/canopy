@@ -101,7 +101,7 @@ defmodule CanopyWeb.SpawnController do
   end
 
   def history(conn, params) do
-    limit = min(String.to_integer(params["limit"] || "50"), 100)
+    limit = min(parse_int(params["limit"], 50), 100)
     user_workspace_ids = conn.assigns[:user_workspace_ids] || []
 
     query =

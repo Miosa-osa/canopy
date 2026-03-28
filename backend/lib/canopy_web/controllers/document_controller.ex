@@ -152,7 +152,7 @@ defmodule CanopyWeb.DocumentController do
   # GET /document-revisions?path=some/doc.md&workspace_id=...
   # Lists DocumentRevision entries. Path filter is optional — omit to list all revisions.
   def revisions(conn, params) do
-    limit = min(String.to_integer(params["limit"] || "50"), 200)
+    limit = min(parse_int(params["limit"], 50), 200)
 
     query =
       from r in DocumentRevision,

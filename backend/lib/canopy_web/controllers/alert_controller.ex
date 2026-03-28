@@ -94,8 +94,8 @@ defmodule CanopyWeb.AlertController do
   def history(conn, params) do
     rule_id = params["rule_id"]
     resolved = params["resolved"]
-    limit = min(String.to_integer(params["limit"] || "50"), 200)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 200)
+    offset = parse_int(params["offset"], 0)
 
     query =
       from h in AlertHistory,

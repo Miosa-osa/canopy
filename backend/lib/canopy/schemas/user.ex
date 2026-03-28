@@ -25,7 +25,7 @@ defmodule Canopy.Schemas.User do
     |> cast(attrs, [:name, :email, :password, :role, :provider])
     |> validate_required([:name, :email])
     |> maybe_require_password()
-    |> validate_format(:email, ~r/@/)
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+\.[^\s]+$/, message: "must be a valid email address")
     |> validate_length(:password, min: 8, message: "must be at least 8 characters")
     |> validate_inclusion(:role, ~w(admin member viewer))
     |> unique_constraint(:email)
@@ -40,7 +40,7 @@ defmodule Canopy.Schemas.User do
   defp maybe_require_password(changeset), do: changeset
 
   defp hash_password(%{valid?: true, changes: %{password: password}} = changeset) do
-    put_change(changeset, :password_hash, Bcrypt.hash_pwd_salt(password))
+    put_change(changeset, :password_hash, Pbkdf2.hash_pwd_salt(password))
   end
 
   defp hash_password(changeset), do: changeset

@@ -6,9 +6,12 @@ defmodule CanopyWeb.WorkspaceController do
   import Ecto.Query
 
   def index(conn, _params) do
+    user_workspace_ids = conn.assigns[:user_workspace_ids] || []
+
     workspaces =
       Repo.all(
         from w in Workspace,
+          where: w.id in ^user_workspace_ids,
           order_by: [desc: w.inserted_at]
       )
 
@@ -67,6 +70,15 @@ defmodule CanopyWeb.WorkspaceController do
   def create(conn, params) do
     user = conn.assigns[:current_user]
     params = Map.put_new(params, "owner_id", user.id)
+
+    # Frontend sends "directory" but schema expects "path"
+    params =
+      if params["directory"] && !params["path"] do
+        Map.put(params, "path", params["directory"])
+      else
+        params
+      end
+
     changeset = Workspace.changeset(%Workspace{}, params)
 
     case Repo.insert(changeset) do
@@ -138,15 +150,22 @@ defmodule CanopyWeb.WorkspaceController do
   end
 
   def activate(conn, %{"workspace_id" => id}) do
+    user = conn.assigns[:current_user]
+    user_id = user.id
+
     case Repo.get(Workspace, id) do
       nil ->
         conn |> put_status(404) |> json(%{error: "not_found"})
 
+      %Workspace{owner_id: owner_id} when owner_id != user_id ->
+        conn |> put_status(403) |> json(%{error: "forbidden"})
+
       workspace ->
         # Bulk-deactivate all others using change/2 to bypass status enum validation
         # ("inactive" is an internal transition value, not exposed in the changeset enum)
+        # Scoped to the current user's workspaces only to avoid archiving other users' data.
         Repo.update_all(
-          from(w in Workspace, where: w.id != ^id),
+          from(w in Workspace, where: w.id != ^id and w.owner_id == ^user.id),
           set: [status: "archived"]
         )
 

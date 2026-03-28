@@ -24,7 +24,12 @@ defmodule CanopyWeb.Plugs.WorkspaceAuth do
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    workspace_id = conn.params["workspace_id"]
+    workspace_id =
+      conn.params["workspace_id"] ||
+        if match?(["api", "v1", "workspaces" | _], conn.path_info),
+          do: conn.params["id"],
+          else: nil
+
     user = conn.assigns[:current_user]
 
     cond do

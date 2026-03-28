@@ -183,8 +183,8 @@ defmodule CanopyWeb.CostController do
     workspace_id = params["workspace_id"]
     user_workspace_ids = conn.assigns[:user_workspace_ids] || []
 
-    limit = min(String.to_integer(params["limit"] || "50"), 200)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 200)
+    offset = parse_int(params["offset"], 0)
 
     query =
       from ce in CostEvent,

@@ -10,8 +10,8 @@ defmodule CanopyWeb.ActivityController do
     agent_id = params["agent_id"]
     event_type = params["event_type"]
     level = params["level"]
-    limit = min(String.to_integer(params["limit"] || "50"), 200)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 200)
+    offset = parse_int(params["offset"], 0)
 
     query =
       from e in ActivityEvent,

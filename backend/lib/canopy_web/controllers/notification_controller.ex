@@ -182,17 +182,6 @@ defmodule CanopyWeb.NotificationController do
     end
   end
 
-  defp parse_int(nil, default), do: default
-
-  defp parse_int(value, default) when is_binary(value) do
-    case Integer.parse(value) do
-      {n, _} when n >= 0 -> n
-      _ -> default
-    end
-  end
-
-  defp parse_int(value, _default) when is_integer(value), do: value
-
   defp serialize(%Notification{} = n) do
     %{
       id: n.id,

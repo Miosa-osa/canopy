@@ -10,8 +10,8 @@ defmodule CanopyWeb.ConversationController do
   def index(conn, params) do
     agent_id = params["agent_id"]
     status = params["status"]
-    limit = min(String.to_integer(params["limit"] || "50"), 100)
-    offset = String.to_integer(params["offset"] || "0")
+    limit = min(parse_int(params["limit"], 50), 100)
+    offset = parse_int(params["offset"], 0)
 
     query =
       from c in Conversation,
@@ -127,7 +127,7 @@ defmodule CanopyWeb.ConversationController do
         conn |> put_status(404) |> json(%{error: "not_found"})
 
       _conv ->
-        limit = min(String.to_integer(params["limit"] || "50"), 200)
+        limit = min(parse_int(params["limit"], 50), 200)
         before_id = params["before"]
 
         query =

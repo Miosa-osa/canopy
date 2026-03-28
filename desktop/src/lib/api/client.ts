@@ -71,8 +71,9 @@ import type {
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:9089";
-const API_PREFIX = "/api/v1";
+import { API_BASE_URL, API_PREFIX } from "./config";
+
+const BASE_URL = API_BASE_URL;
 
 let useMock = true;
 let mockModule: typeof import("./mock/index") | null = null;
@@ -558,9 +559,36 @@ async function doFetch<T>(
   const response = await fetch(url, { ...options, headers });
 
   if (response.status === 401 && !retried && _token) {
-    // Token expired — for now just clear it
+    // Token expired — attempt refresh before giving up
+    try {
+      const refreshRes = await fetch(`${BASE_URL}${API_PREFIX}/auth/refresh`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${_token}` },
+      });
+      if (refreshRes.ok) {
+        const { token } = (await refreshRes.json()) as { token: string };
+        _token = token;
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem("canopy-token", token);
+        }
+        return doFetch<T>(path, options, true);
+      }
+    } catch {
+      // Refresh failed — fall through to redirect
+    }
+
+    // Refresh failed — clear auth state and redirect to login
     _token = null;
-    return doFetch<T>(path, options, true);
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("canopy-token");
+    }
+    if (
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/auth")
+    ) {
+      window.location.href = "/auth";
+    }
+    throw new ApiError(401, "session_expired");
   }
 
   if (!response.ok) {
@@ -899,12 +927,10 @@ export const sessions = {
     );
     return data.sessions ?? [];
   },
-  get: (id: string) => request<Session>(`/sessions/${id}`),
-  create: (body: { agent_id: string; title?: string }) =>
-    request<Session>("/sessions", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+  get: async (id: string): Promise<Session> => {
+    const data = await request<{ session: Session }>(`/sessions/${id}`);
+    return data.session;
+  },
   delete: (id: string) =>
     request<void>(`/sessions/${id}`, { method: "DELETE" }),
 };
@@ -912,8 +938,18 @@ export const sessions = {
 // ── Session Chain ─────────────────────────────────────────────────────────────
 
 export const sessionChain = {
-  get: (sessionId: string) =>
-    request<SessionChain>(`/sessions/${sessionId}/chain`),
+  get: async (sessionId: string): Promise<SessionChain> => {
+    const data = await request<{
+      chain: SessionChain["sessions"];
+      total_tokens: number;
+      session_count: number;
+    }>(`/sessions/${sessionId}/chain`);
+    return {
+      sessions: data.chain ?? [],
+      total_tokens: data.total_tokens ?? 0,
+      total_cost_cents: 0,
+    };
+  },
   compact: (sessionId: string) =>
     request<void>(`/sessions/${sessionId}/compact`, { method: "POST" }),
 };
@@ -1064,14 +1100,24 @@ export const issues = {
     const data = await request<{ issues: Issue[] }>(`/issues${qs}`);
     return data.issues ?? [];
   },
-  get: (id: string) => request<Issue>(`/issues/${id}`),
-  create: (body: Partial<Issue>) =>
-    request<Issue>("/issues", { method: "POST", body: JSON.stringify(body) }),
-  update: (id: string, body: Partial<Issue>) =>
-    request<Issue>(`/issues/${id}`, {
+  get: async (id: string): Promise<Issue> => {
+    const data = await request<{ issue: Issue }>(`/issues/${id}`);
+    return data.issue;
+  },
+  create: async (body: Partial<Issue>): Promise<Issue> => {
+    const data = await request<{ issue: Issue }>("/issues", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return data.issue;
+  },
+  update: async (id: string, body: Partial<Issue>): Promise<Issue> => {
+    const data = await request<{ issue: Issue }>(`/issues/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
-    }),
+    });
+    return data.issue;
+  },
   delete: (id: string) => request<void>(`/issues/${id}`, { method: "DELETE" }),
   dispatch: (issueId: string) =>
     request<{ ok: boolean; message: string }>(`/issues/${issueId}/dispatch`, {
@@ -1102,17 +1148,28 @@ export const goals = {
     );
     return data.goals ?? [];
   },
-  get: (id: string) => request<{ goal: Goal }>(`/goals/${id}`),
-  create: (projectId: string, body: Partial<Goal>) =>
-    request<Goal>("/goals", {
+  get: async (id: string): Promise<Goal> => {
+    const data = await request<{ goal: Goal }>(`/goals/${id}`);
+    return data.goal;
+  },
+  create: async (projectId: string, body: Partial<Goal>): Promise<Goal> => {
+    const data = await request<{ goal: Goal }>("/goals", {
       method: "POST",
       body: JSON.stringify({ ...body, project_id: projectId }),
-    }),
-  update: (_projectId: string, id: string, body: Partial<Goal>) =>
-    request<Goal>(`/goals/${id}`, {
+    });
+    return data.goal;
+  },
+  update: async (
+    _projectId: string,
+    id: string,
+    body: Partial<Goal>,
+  ): Promise<Goal> => {
+    const data = await request<{ goal: Goal }>(`/goals/${id}`, {
       method: "PUT",
       body: JSON.stringify(body),
-    }),
+    });
+    return data.goal;
+  },
   delete: (id: string) => request<void>(`/goals/${id}`, { method: "DELETE" }),
   decompose: (
     goalId: string,
@@ -1137,17 +1194,24 @@ export const projects = {
     const data = await request<{ projects: Project[] }>(`/projects${qs}`);
     return data.projects ?? [];
   },
-  get: (id: string) => request<Project>(`/projects/${id}`),
-  create: (body: Partial<Project>) =>
-    request<Project>("/projects", {
+  get: async (id: string): Promise<Project> => {
+    const data = await request<{ project: Project }>(`/projects/${id}`);
+    return data.project;
+  },
+  create: async (body: Partial<Project>): Promise<Project> => {
+    const data = await request<{ project: Project }>("/projects", {
       method: "POST",
       body: JSON.stringify(body),
-    }),
-  update: (id: string, body: Partial<Project>) =>
-    request<Project>(`/projects/${id}`, {
+    });
+    return data.project;
+  },
+  update: async (id: string, body: Partial<Project>): Promise<Project> => {
+    const data = await request<{ project: Project }>(`/projects/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
-    }),
+    });
+    return data.project;
+  },
   delete: (id: string) =>
     request<void>(`/projects/${id}`, { method: "DELETE" }),
   workspaces: (id: string) =>
@@ -1448,23 +1512,34 @@ export const workspaces = {
   create: async (params: {
     name: string;
     directory?: string;
+    path?: string;
   }): Promise<Workspace> => {
-    return request<Workspace>("/workspaces", {
+    const body = {
+      name: params.name,
+      path: params.path ?? params.directory,
+    };
+    const data = await request<{ workspace: Workspace }>("/workspaces", {
       method: "POST",
-      body: JSON.stringify(params),
+      body: JSON.stringify(body),
     });
+    return data.workspace;
   },
   activate: async (id: string): Promise<Workspace> => {
     return request<{ workspace: Workspace }>(`/workspaces/${id}/activate`, {
       method: "POST",
     }).then((data) => (data as { workspace: Workspace }).workspace ?? data);
   },
-  get: (id: string) => request<Workspace>(`/workspaces/${id}`),
-  update: (id: string, body: unknown) =>
-    request<Workspace>(`/workspaces/${id}`, {
+  get: async (id: string): Promise<Workspace> => {
+    const data = await request<{ workspace: Workspace }>(`/workspaces/${id}`);
+    return data.workspace;
+  },
+  update: async (id: string, body: unknown): Promise<Workspace> => {
+    const data = await request<{ workspace: Workspace }>(`/workspaces/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
-    }),
+    });
+    return data.workspace;
+  },
   delete: (id: string) =>
     request<void>(`/workspaces/${id}`, { method: "DELETE" }),
   agents: (id: string) =>
@@ -1666,17 +1741,35 @@ export const organizations = {
     );
     return data.organizations ?? [];
   },
-  get: (id: string) => request<Organization>(`/organizations/${id}`),
-  create: (body: OrganizationCreateRequest) =>
-    request<Organization>("/organizations", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  update: (id: string, body: Partial<OrganizationCreateRequest>) =>
-    request<Organization>(`/organizations/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(body),
-    }),
+  get: async (id: string): Promise<Organization> => {
+    const data = await request<{ organization: Organization }>(
+      `/organizations/${id}`,
+    );
+    return data.organization;
+  },
+  create: async (body: OrganizationCreateRequest): Promise<Organization> => {
+    const data = await request<{ organization: Organization }>(
+      "/organizations",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
+    return data.organization;
+  },
+  update: async (
+    id: string,
+    body: Partial<OrganizationCreateRequest>,
+  ): Promise<Organization> => {
+    const data = await request<{ organization: Organization }>(
+      `/organizations/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+    );
+    return data.organization;
+  },
   delete: (id: string) =>
     request<void>(`/organizations/${id}`, { method: "DELETE" }),
   members: async (id: string): Promise<OrganizationMembership[]> => {
