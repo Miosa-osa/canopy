@@ -9,6 +9,7 @@ defmodule CanopyWeb.Router do
   end
 
   pipeline :authenticated do
+    plug CanopyWeb.Plugs.LocalTrustedAuth
     plug CanopyWeb.Plugs.Auth
     plug CanopyWeb.Plugs.WorkspaceAuth
     plug CanopyWeb.Plugs.Governance

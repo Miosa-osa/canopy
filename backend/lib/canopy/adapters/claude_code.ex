@@ -62,15 +62,31 @@ defmodule Canopy.Adapters.ClaudeCode do
     cwd = params["working_dir"] || params["workspace_path"] || "."
     model = params["model"] || "sonnet"
 
-    stream_claude_command(context, cwd, model)
+    resume_session_id =
+      params["resume_session_id"] || params[:resume_session_id]
+
+    resume_args =
+      case resume_session_id do
+        nil -> []
+        "" -> []
+        id -> ["--resume", id]
+      end
+
+    stream_claude_command(context, cwd, model, %{workspace_path: cwd}, resume_args)
   end
 
   @impl true
-  def send_message(%{cwd: cwd, model: model}, message) do
-    stream_claude_command(message, cwd, model)
+  def send_message(%{cwd: cwd, model: model} = state, message) do
+    opts = %{
+      agent_id: Map.get(state, :agent_id, ""),
+      run_id: Map.get(state, :run_id, ""),
+      workspace_path: cwd
+    }
+
+    stream_claude_command(message, cwd, model, opts, [])
   end
 
-  defp stream_claude_command(prompt, cwd, model) do
+  defp stream_claude_command(prompt, cwd, model, opts, resume_args) do
     Stream.resource(
       fn ->
         port =
@@ -80,19 +96,21 @@ defmodule Canopy.Adapters.ClaudeCode do
               :binary,
               :exit_status,
               :stderr_to_stdout,
-              args: [
-                "--print",
-                "--verbose",
-                "--output-format",
-                "stream-json",
-                "--model",
-                model,
-                prompt
-              ],
-              cd: to_charlist(cwd)
+              args:
+                [
+                  "--print",
+                  "--verbose",
+                  "--output-format",
+                  "stream-json",
+                  "--model",
+                  model
+                ] ++ resume_args,
+              cd: to_charlist(cwd),
+              env: nesting_guard_env() ++ canopy_env(opts)
             ]
           )
 
+        Port.command(port, prompt <> "\n")
         {port, ""}
       end,
       fn {port, buffer} ->
@@ -119,6 +137,28 @@ defmodule Canopy.Adapters.ClaudeCode do
             {:halt, {port, buffer}}
         after
           60_000 ->
+            case Port.info(port, :os_pid) do
+              {:os_pid, os_pid} ->
+                System.cmd("kill", ["-TERM", Integer.to_string(os_pid)],
+                  stderr_to_stdout: true
+                )
+
+                Process.sleep(5_000)
+
+                System.cmd("kill", ["-KILL", Integer.to_string(os_pid)],
+                  stderr_to_stdout: true
+                )
+
+              _ ->
+                :ok
+            end
+
+            try do
+              Port.close(port)
+            rescue
+              _ -> :ok
+            end
+
             {:halt, {port, buffer}}
         end
       end,
@@ -130,6 +170,29 @@ defmodule Canopy.Adapters.ClaudeCode do
         end
       end
     )
+  end
+
+  defp nesting_guard_env do
+    [
+      {~c"CLAUDECODE", ~c""},
+      {~c"CLAUDE_CODE_ENTRYPOINT", ~c""},
+      {~c"CLAUDE_CODE_SESSION", ~c""},
+      {~c"CLAUDE_CODE_PARENT_SESSION", ~c""}
+    ]
+  end
+
+  defp canopy_env(opts) do
+    [
+      {~c"CANOPY_AGENT_ID", to_charlist(Map.get(opts, :agent_id, ""))},
+      {~c"CANOPY_RUN_ID", to_charlist(Map.get(opts, :run_id, ""))},
+      {~c"CANOPY_WORKSPACE_PATH", to_charlist(Map.get(opts, :workspace_path, ""))},
+      {~c"CANOPY_API_URL",
+       to_charlist(
+         Application.get_env(:canopy, :api_url, "http://localhost:4000") |> to_string()
+       )},
+      {~c"CANOPY_API_KEY",
+       to_charlist(Application.get_env(:canopy, :api_key, "") |> to_string())}
+    ]
   end
 
   defp parse_stream_json(buffer) do

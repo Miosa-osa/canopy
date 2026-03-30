@@ -22,6 +22,12 @@ pub fn run() {
             filesystem::detect_adapters,
             filesystem::install_adapter,
             filesystem::setup_osa,
+            filesystem::scan_nodes_dir,
+            filesystem::read_markdown_file,
+            filesystem::scan_rhythm_dir,
+            filesystem::list_signal_files,
+            filesystem::read_topology_yaml,
+            filesystem::run_engine_command,
         ])
         .setup(|_app| {
             Ok(())

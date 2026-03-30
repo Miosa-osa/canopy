@@ -9,7 +9,8 @@ import Config
 
 config :canopy,
   ecto_repos: [Canopy.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  auth_mode: "authenticated"
 
 # Configure the endpoint
 config :canopy, CanopyWeb.Endpoint,
