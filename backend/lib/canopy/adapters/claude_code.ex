@@ -2,10 +2,17 @@ defmodule Canopy.Adapters.ClaudeCode do
   @moduledoc """
   Claude Code adapter — spawns the `claude` CLI process with --print flag
   for non-interactive execution, or --output-format stream-json for streaming.
+
+  Prompt is delivered via stdin (not CLI args) to support large context payloads.
+  Environment is sanitized to prevent nesting errors when Canopy runs inside
+  a Claude Code session. CANOPY_* env vars provide execution context to the agent.
   """
   @behaviour Canopy.Adapter
 
   require Logger
+
+  @timeout_ms 60_000
+  @kill_grace_ms 5_000
 
   @impl true
   def type, do: "claude-code"
@@ -62,23 +69,38 @@ defmodule Canopy.Adapters.ClaudeCode do
     cwd = params["working_dir"] || params["workspace_path"] || "."
     model = params["model"] || "sonnet"
 
-    stream_claude_command(context, cwd, model)
+    opts = %{
+      agent_id: params["agent_id"] || "",
+      run_id: params["run_id"] || generate_id(),
+      workspace_path: cwd
+    }
+
+    stream_claude_command(context, cwd, model, opts)
   end
 
   @impl true
   def send_message(%{cwd: cwd, model: model}, message) do
-    stream_claude_command(message, cwd, model)
+    opts = %{
+      agent_id: "",
+      run_id: generate_id(),
+      workspace_path: cwd
+    }
+
+    stream_claude_command(message, cwd, model, opts)
   end
 
-  defp stream_claude_command(prompt, cwd, model) do
+  defp stream_claude_command(prompt, cwd, model, opts) do
     Stream.resource(
       fn ->
+        env = nesting_guard_env() ++ canopy_env(opts)
+
         port =
           Port.open(
             {:spawn_executable, Canopy.ClaudeBinary.find()},
             [
               :binary,
               :exit_status,
+              :use_stdio,
               :stderr_to_stdout,
               args: [
                 "--print",
@@ -86,12 +108,14 @@ defmodule Canopy.Adapters.ClaudeCode do
                 "--output-format",
                 "stream-json",
                 "--model",
-                model,
-                prompt
+                model
               ],
+              env: env,
               cd: to_charlist(cwd)
             ]
           )
+
+        Port.command(port, prompt <> "\n")
 
         {port, ""}
       end,
@@ -118,7 +142,8 @@ defmodule Canopy.Adapters.ClaudeCode do
           {^port, {:exit_status, _code}} ->
             {:halt, {port, buffer}}
         after
-          60_000 ->
+          @timeout_ms ->
+            graceful_kill(port)
             {:halt, {port, buffer}}
         end
       end,
@@ -130,6 +155,44 @@ defmodule Canopy.Adapters.ClaudeCode do
         end
       end
     )
+  end
+
+  # Strip Claude Code env vars to prevent "cannot launch inside another session" errors.
+  defp nesting_guard_env do
+    [
+      {~c"CLAUDECODE", ~c""},
+      {~c"CLAUDE_CODE_ENTRYPOINT", ~c""},
+      {~c"CLAUDE_CODE_SESSION", ~c""},
+      {~c"CLAUDE_CODE_PARENT_SESSION", ~c""}
+    ]
+  end
+
+  # Inject CANOPY_* env vars so the spawned agent has execution context.
+  defp canopy_env(opts) do
+    [
+      {~c"CANOPY_AGENT_ID", to_charlist(Map.get(opts, :agent_id, ""))},
+      {~c"CANOPY_RUN_ID", to_charlist(Map.get(opts, :run_id, ""))},
+      {~c"CANOPY_WORKSPACE_PATH", to_charlist(Map.get(opts, :workspace_path, ""))},
+      {~c"CANOPY_API_URL",
+       to_charlist(Application.get_env(:canopy, :api_url, "http://localhost:9089"))},
+      {~c"CANOPY_API_KEY", to_charlist(Application.get_env(:canopy, :api_key, ""))}
+    ]
+  end
+
+  # SIGTERM first, wait grace period, then SIGKILL if still alive.
+  defp graceful_kill(port) do
+    case Port.info(port, :os_pid) do
+      {:os_pid, pid} ->
+        pid_str = Integer.to_string(pid)
+        System.cmd("kill", ["-TERM", pid_str], stderr_to_stdout: true)
+        Process.sleep(@kill_grace_ms)
+        System.cmd("kill", ["-KILL", pid_str], stderr_to_stdout: true)
+
+      nil ->
+        :ok
+    end
+  rescue
+    _ -> :ok
   end
 
   defp parse_stream_json(buffer) do
