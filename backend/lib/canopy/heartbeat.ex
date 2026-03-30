@@ -19,7 +19,7 @@ defmodule Canopy.Heartbeat do
   require Logger
 
   alias Canopy.Repo
-  alias Canopy.Schemas.{Agent, Session, SessionEvent, Workspace, WorkProduct, ActivityEvent}
+  alias Canopy.Schemas.{Agent, AgentRuntimeState, Session, SessionEvent, Workspace, WorkProduct, ActivityEvent}
   alias Canopy.Sessions.Compactor
   import Ecto.Changeset, only: [change: 2]
   import Ecto.Query, only: [from: 2]
@@ -134,19 +134,30 @@ defmodule Canopy.Heartbeat do
             context
         end
 
+      # Load existing Claude Code session state for this agent + workspace
+      runtime_state = Repo.get_by(AgentRuntimeState, agent_id: agent.id)
+
+      resume_session_id =
+        if runtime_state && runtime_state.workspace_path == workspace.path do
+          runtime_state.session_id
+        else
+          nil
+        end
+
       params = %{
         "context" => full_context,
         "model" => agent.model,
         "working_dir" => workspace.path,
         "workspace_path" => workspace.path,
-        "url" => agent.config["url"]
+        "url" => agent.config["url"],
+        "resume_session_id" => resume_session_id
       }
 
       Logger.info(
         "[Heartbeat] Executing agent #{agent.name} (#{agent.id}) via #{agent.adapter} in #{workspace.path}"
       )
 
-      totals =
+      {totals, claude_session_id} =
         try do
           execute_and_stream(adapter_mod, params, session, agent)
         rescue
@@ -201,6 +212,32 @@ defmodule Canopy.Heartbeat do
 
             raise e
         end
+
+      # Persist Claude Code session ID for next heartbeat resumption
+      if claude_session_id do
+        %AgentRuntimeState{}
+        |> AgentRuntimeState.changeset(%{
+          agent_id: agent.id,
+          session_id: claude_session_id,
+          workspace_path: workspace.path,
+          last_run_at: DateTime.utc_now() |> DateTime.truncate(:second)
+        })
+        |> Repo.insert(
+          on_conflict: {:replace, [:session_id, :workspace_path, :last_run_at, :updated_at]},
+          conflict_target: [:agent_id]
+        )
+        |> case do
+          {:ok, _} ->
+            Logger.info(
+              "[Heartbeat] Persisted Claude session #{claude_session_id} for agent #{agent.id}"
+            )
+
+          {:error, changeset} ->
+            Logger.warning(
+              "[Heartbeat] Failed to persist runtime state for agent #{agent.id}: #{inspect(changeset.errors)}"
+            )
+        end
+      end
 
       session = complete_session!(session, totals)
       agent |> change(status: "idle") |> Repo.update!()
@@ -392,32 +429,42 @@ defmodule Canopy.Heartbeat do
 
   defp execute_and_stream(adapter_mod, params, session, agent) do
     try do
-      adapter_mod.execute_heartbeat(params)
-      |> Enum.reduce(%{input: 0, output: 0, cache: 0, cost: 0}, fn event, acc ->
-        persist_event!(event, session)
+      result =
+        adapter_mod.execute_heartbeat(params)
+        |> Enum.reduce(%{input: 0, output: 0, cache: 0, cost: 0, claude_session_id: nil}, fn event, acc ->
+          persist_event!(event, session)
 
-        Canopy.EventBus.broadcast(
-          Canopy.EventBus.session_topic(session.id),
-          %{
-            event: event.event_type,
-            data: event.data,
-            session_id: session.id,
-            agent_id: agent.id
-          }
-        )
+          Canopy.EventBus.broadcast(
+            Canopy.EventBus.session_topic(session.id),
+            %{
+              event: event.event_type,
+              data: event.data,
+              session_id: session.id,
+              agent_id: agent.id
+            }
+          )
 
-        # Adapters emit tokens_input, tokens_output, tokens_cache (or legacy :tokens)
-        input_tokens = event[:tokens_input] || event[:tokens] || 0
-        output_tokens = event[:tokens_output] || 0
-        cache_tokens = event[:tokens_cache] || 0
+          # Adapters emit tokens_input, tokens_output, tokens_cache (or legacy :tokens)
+          input_tokens = event[:tokens_input] || event[:tokens] || 0
+          output_tokens = event[:tokens_output] || 0
+          cache_tokens = event[:tokens_cache] || 0
 
-        new_input = acc.input + input_tokens
-        new_output = acc.output + output_tokens
-        new_cache = acc.cache + cache_tokens
-        cost = estimate_cost(new_input, new_output, new_cache, agent.model)
+          new_input = acc.input + input_tokens
+          new_output = acc.output + output_tokens
+          new_cache = acc.cache + cache_tokens
+          cost = estimate_cost(new_input, new_output, new_cache, agent.model)
 
-        %{acc | input: new_input, output: new_output, cache: new_cache, cost: cost}
-      end)
+          # Extract Claude Code session ID from system/init event (first event in stream)
+          claude_session_id =
+            acc.claude_session_id ||
+              get_in(event, [:data, "session_id"]) ||
+              get_in(event.data, ["session_id"])
+
+          %{acc | input: new_input, output: new_output, cache: new_cache, cost: cost, claude_session_id: claude_session_id}
+        end)
+
+      totals = Map.take(result, [:input, :output, :cache, :cost])
+      {totals, result.claude_session_id}
     rescue
       e ->
         Logger.error(
@@ -425,7 +472,7 @@ defmodule Canopy.Heartbeat do
             Exception.format_stacktrace(__STACKTRACE__)
         )
 
-        %{input: 0, output: 0, cache: 0, cost: 0}
+        {%{input: 0, output: 0, cache: 0, cost: 0}, nil}
     end
   end
 

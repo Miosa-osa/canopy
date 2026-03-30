@@ -6,6 +6,15 @@ defmodule CanopyWeb.Plugs.Auth do
   def init(opts), do: opts
 
   def call(conn, _opts) do
+    # Short-circuit if another plug (e.g. LocalTrustedAuth) already set current_user
+    if conn.assigns[:current_user] do
+      conn
+    else
+      do_auth(conn)
+    end
+  end
+
+  defp do_auth(conn) do
     token = extract_token(conn)
 
     case token do

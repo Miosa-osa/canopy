@@ -20,6 +20,8 @@ if System.get_env("PHX_SERVER") do
   config :canopy, CanopyWeb.Endpoint, server: true
 end
 
+config :canopy, auth_mode: System.get_env("CANOPY_AUTH_MODE", "authenticated")
+
 config :canopy, CanopyWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "9089"))]
 
