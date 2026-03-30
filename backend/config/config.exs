@@ -40,6 +40,9 @@ config :canopy, Canopy.Guardian,
   issuer: "canopy",
   secret_key: "dev-secret-key-change-in-production"
 
+# Auth mode — "authenticated" (default) requires JWT, "local_trusted" bypasses auth
+config :canopy, auth_mode: "authenticated"
+
 # Quantum scheduler — jobs loaded from DB at runtime
 config :canopy, Canopy.Scheduler, jobs: []
 

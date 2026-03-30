@@ -5,6 +5,8 @@ defmodule CanopyWeb.Plugs.Auth do
 
   def init(opts), do: opts
 
+  def call(%{assigns: %{current_user: %{id: _}}} = conn, _opts), do: conn
+
   def call(conn, _opts) do
     token = extract_token(conn)
 

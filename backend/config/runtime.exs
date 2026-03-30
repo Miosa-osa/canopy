@@ -23,6 +23,9 @@ end
 config :canopy, CanopyWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "9089"))]
 
+# Auth mode: "authenticated" (JWT required) or "local_trusted" (bypass for local dev)
+config :canopy, auth_mode: System.get_env("CANOPY_AUTH_MODE", "authenticated")
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
