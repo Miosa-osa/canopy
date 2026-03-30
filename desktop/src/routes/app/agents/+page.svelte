@@ -24,6 +24,11 @@
   });
 
   let showHireDialog = $state(false);
+
+  // Filter to AI agents only (exclude human and http adapters)
+  const aiFilteredAgents = $derived(
+    agentsStore.filteredAgents.filter((a: any) => a.adapter !== 'human' && a.adapter !== 'http')
+  );
 </script>
 
 <PageShell
@@ -40,7 +45,7 @@
       <AgentRosterHeader onHire={() => showHireDialog = true} />
 
       {#if agentsStore.viewMode === 'grid'}
-        {#if agentsStore.filteredAgents.length === 0}
+        {#if aiFilteredAgents.length === 0}
           <div class="ar-empty" role="status" aria-live="polite">
             <span class="ar-empty-icon" aria-hidden="true">🤖</span>
             <p class="ar-empty-text">
@@ -51,7 +56,7 @@
           </div>
         {:else}
           <div class="ar-grid" role="list" aria-label="Agent roster">
-            {#each agentsStore.filteredAgents as agent (agent.id)}
+            {#each aiFilteredAgents as agent (agent.id)}
               <div role="listitem">
                 <AgentCard {agent} />
               </div>
@@ -60,7 +65,7 @@
         {/if}
 
       {:else if agentsStore.viewMode === 'table'}
-        <AgentTable agents={agentsStore.filteredAgents} />
+        <AgentTable agents={aiFilteredAgents} />
 
       {:else}
         <div class="ar-org-placeholder" role="status">

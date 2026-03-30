@@ -2,7 +2,7 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
-import Sidebar from '$lib/components/layout/Sidebar.svelte';
+  import MainLayout from '$lib/components/layout/MainLayout.svelte';
   import ConnectionStatusBar from '$lib/components/layout/ConnectionStatusBar.svelte';
   import ToastContainer from '$lib/components/layout/ToastContainer.svelte';
   import { connectionStore } from '$lib/stores/connection.svelte';
@@ -21,8 +21,15 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   import { hierarchyStore } from '$lib/stores/hierarchy.svelte';
   import { isTauri, isMacOS } from '$lib/utils/platform';
   import { initializeAuth, getToken, isMockEnabled, workspaces, agents } from '$api/client';
+  import { nodesStore } from '$lib/stores/nodes.svelte';
+  import { signalsFsStore } from '$lib/stores/signals-fs.svelte';
+  import { rhythmStore } from '$lib/stores/rhythm.svelte';
+  import { topologyStore } from '$lib/stores/topology.svelte';
+  import WorkspacePickerModal from '$lib/components/ui/WorkspacePickerModal.svelte';
 
   let { children } = $props();
+
+  let showWorkspacePicker = $state(false);
 
   // ─── Onboarding guard ────────────────────────────────────────────────────
   // NOTE: This guard runs inside initializeAuth().then() (see the second
@@ -133,6 +140,19 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
       // 4. Load workspaces from localStorage
       workspaceStore.fetchWorkspaces();
 
+      // 4b. Load filesystem stores from active workspace directory (Tauri / local mode)
+      {
+        const wsPath = workspaceStore.activeWorkspace?.path;
+        if (wsPath) {
+          void Promise.all([
+            nodesStore.load(wsPath),
+            signalsFsStore.load(wsPath),
+            rhythmStore.load(wsPath),
+            topologyStore.load(wsPath),
+          ]);
+        }
+      }
+
       // 5. Sync workspace list from backend (sets activeWorkspaceId to backend's active workspace)
       await workspaceStore.syncFromBackend();
 
@@ -194,29 +214,25 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
     return () => window.removeEventListener('keydown', handleKeyDown);
   });
 
-  // Wire user display name from onboarding
-  let userName = $state<string | null>(null);
-  $effect(() => {
-    if (!browser) return;
-    const name = localStorage.getItem('canopy-display-name');
-    if (name) userName = name;
-  });
-  const user = $derived(userName ? { name: userName, email: '' } : null);
+  // Note: user display name was wired here for the old Sidebar; MainLayout does not consume it.
 </script>
 
 <!-- App shell with sidebar + main content -->
 <div class="app-shell" class:has-titlebar={isTauri() && isMacOS()}>
-  <Sidebar bind:isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} {user} />
-  <main class="main-content" id="main-content">
+  <MainLayout
+    {sidebarCollapsed}
+    onAddWorkspace={() => { showWorkspacePicker = true; }}
+  >
     {@render children()}
     <ConnectionStatusBar />
-  </main>
+  </MainLayout>
 </div>
 
 <!-- Global overlays -->
 <CommandPalette />
 <ToastContainer />
 <ActivityWidget />
+<WorkspacePickerModal bind:open={showWorkspacePicker} onClose={() => { showWorkspacePicker = false; }} />
 
 <style>
   .app-shell {
@@ -227,10 +243,5 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
   .app-shell.has-titlebar {
     padding-top: 28px;
     height: calc(100dvh - 28px);
-  }
-  .main-content {
-    flex: 1; height: 100%; display: flex; flex-direction: column;
-    min-width: 0; overflow: hidden; background: var(--bg-secondary);
-    box-shadow: inset 1px 0 0 rgba(255,255,255,0.04); position: relative;
   }
 </style>
