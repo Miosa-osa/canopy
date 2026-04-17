@@ -139,7 +139,7 @@ Already installed (Corsica in :api pipeline). No new work.
 
 ### Exit criteria Day 2 / Track D
 
-- `curl -N http://localhost:9090/api/v1/sessions/<id>/events` streams events live
+- `curl -N http://localhost:9190/api/v1/sessions/<id>/events` streams events live
 - Full integration test: POST create → SSE subscribe → fake-claude fires → messages arrive → completion event → session row finalized with cost
 - RuntimesController returns real data from Runtime schema (populated by Track H Tauri detection)
 - Controller tests + integration test green

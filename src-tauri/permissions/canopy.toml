@@ -1,0 +1,58 @@
+# Permissions for Canopy's custom Tauri commands.
+# One [[permission]] block per command — referenced by identifier from
+# capabilities/default.json.
+
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+# ---- Vault ----
+
+[[permission]]
+identifier = "allow-vault-put"
+description = "Store a secret in the OS keychain."
+commands.allow = ["vault_put"]
+
+[[permission]]
+identifier = "allow-vault-get"
+description = "Retrieve a secret from the OS keychain."
+commands.allow = ["vault_get"]
+
+[[permission]]
+identifier = "allow-vault-delete"
+description = "Delete a secret from the OS keychain."
+commands.allow = ["vault_delete"]
+
+# ---- Runtimes ----
+
+[[permission]]
+identifier = "allow-runtime-detect"
+description = "Scan $PATH for known AI runtime binaries."
+commands.allow = ["runtime_detect"]
+
+# ---- PTY ----
+
+[[permission]]
+identifier = "allow-pty-spawn"
+description = "Spawn a command inside a new PTY session."
+commands.allow = ["pty_spawn"]
+
+[[permission]]
+identifier = "allow-pty-write"
+description = "Write bytes to a PTY session's stdin."
+commands.allow = ["pty_write"]
+
+[[permission]]
+identifier = "allow-pty-kill"
+description = "Kill a live PTY session."
+commands.allow = ["pty_kill"]
+
+# ---- Filesystem ----
+
+[[permission]]
+identifier = "allow-list-dir"
+description = "List a directory's contents."
+commands.allow = ["list_dir"]
+
+[[permission]]
+identifier = "allow-read-file"
+description = "Read a file as UTF-8."
+commands.allow = ["read_file"]

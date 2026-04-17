@@ -1,10 +1,22 @@
-.PHONY: setup dev test test-watch lint format build clean doctor
+.PHONY: setup dev test test-watch lint format build clean doctor seed db-reset
 
 # ─── Setup ────────────────────────────────────────────────────────────────────
 
 setup:
 	pnpm install
 	cd backend && mix deps.get
+	cd backend && mix ecto.create
+	cd backend && mix ecto.migrate
+	cd backend && mix run priv/repo/seeds.exs
+
+seed:
+	cd backend && mix run priv/repo/seeds.exs
+
+db-reset:
+	cd backend && mix ecto.drop
+	cd backend && mix ecto.create
+	cd backend && mix ecto.migrate
+	cd backend && mix run priv/repo/seeds.exs
 
 # ─── Development ──────────────────────────────────────────────────────────────
 

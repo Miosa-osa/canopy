@@ -35,13 +35,23 @@ defmodule CanopyWeb.Router do
 
     # Health check — always available, no auth required
     get "/health", HealthController, :index
+    get "/health/ready", HealthController, :ready
 
-    # Future resources (Week 1+):
-    # resources "/runtimes", RuntimeController, only: [:index, :show]
-    # resources "/sessions", SessionController, only: [:index, :show, :create, :delete]
-    # resources "/agents", AgentController, only: [:index, :show, :create, :delete]
-    # resources "/workspaces", WorkspaceController, only: [:index, :show, :create]
-    # resources "/sandboxes", SandboxController, only: [:index, :show, :delete]
+    # Runtime management
+    get "/runtimes", RuntimesController, :index
+    post "/runtimes/detect", RuntimesController, :detect
+    get "/runtimes/:type", RuntimesController, :show
+    post "/runtimes/:type/test", RuntimesController, :test_environment
+    get "/runtimes/:type/models", RuntimesController, :models
+
+    # Session lifecycle + SSE streaming
+    get "/sessions", SessionsController, :index
+    post "/sessions", SessionsController, :create
+    get "/sessions/:id", SessionsController, :show
+    delete "/sessions/:id", SessionsController, :delete
+    get "/sessions/:id/chain", SessionsController, :chain
+    get "/sessions/:id/messages", SessionsController, :messages
+    get "/sessions/:id/events", SessionEventsController, :stream
   end
 
   # OpenAPI spec endpoint — outside the CanopyWeb scope so the module name is literal

@@ -59,7 +59,7 @@
       "!!**/.svelte-kit",
       "!!**/build",
       "!!**/dist",
-      "!!src/lib/design/primitives",
+      "!!src/lib/design/foundation",
       "!!src/lib/vitest-examples",
       "!!src/routes/demo",
       "!!src/app.css",

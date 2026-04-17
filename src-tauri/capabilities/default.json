@@ -1,5 +1,5 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema/acl/capability.json",
+  "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capabilities for Canopy Desktop",
   "windows": [
@@ -13,6 +13,15 @@
     "fs:default",
     "notification:default",
     "process:default",
-    "shell:default"
+    "shell:default",
+    "allow-vault-put",
+    "allow-vault-get",
+    "allow-vault-delete",
+    "allow-runtime-detect",
+    "allow-pty-spawn",
+    "allow-pty-write",
+    "allow-pty-kill",
+    "allow-list-dir",
+    "allow-read-file"
   ]
 }

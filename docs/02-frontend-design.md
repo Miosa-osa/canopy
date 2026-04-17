@@ -159,7 +159,7 @@ Mono: 400 and 500 only.
 --radius-2xl: calc(var(--radius) * 2);          /* 16px — composer card */
 ```
 
-Not zero-radius (Paperclip). Not pill (MIOSA artifacts memory). A functional middle — feels modern without being either extreme.
+Not zero-radius (Paperclip). **Pill for primary CTAs (Foundation migration D1 — finalized 2026-04-17).** Rounded (8px) for inline utility controls, forms, segmented controls. Glass pill for overlay contexts.
 
 ### Motion
 
@@ -200,23 +200,31 @@ Not zero-radius (Paperclip). Not pill (MIOSA artifacts memory). A functional mid
 
 ## 4. Component Inventory
 
-### L1 — Primitives (shadcn-svelte, themed to tokens)
+### L1 — Primitives (MIOSA Foundation, themed to tokens)
 
-| Component | Notes |
-|-----------|-------|
-| Button | variants: primary, secondary, ghost, destructive, icon |
-| IconButton | square, for toolbar rows |
-| Input | no focus ring, border darkens |
-| Textarea | auto-grow, used in Composer |
-| Select | headless via Bits UI |
-| DropdownMenu | with submenus, keyboard nav |
-| Dialog | modal, esc-to-close, focus trap |
-| Drawer | right-side slide, for non-modal detail |
-| Sheet | bottom slide, mobile-ish (rare on desktop) |
-| Tabs | underline style, no pills |
-| Tooltip | 400ms delay, `--text-xs` |
-| Popover | for inline rich menus |
-| Toast | bottom-right stack, auto-dismiss |
+**Source:** `src/lib/design/foundation/` — copied from Miosa-osa/foundation at commit a6f26df.
+shadcn-svelte has been removed. Foundation provides Bits UI-backed equivalents.
+
+**Button shape decision (D1, finalized 2026-04-17):**
+- Primary CTAs: `.btn-pill .btn-pill-primary` (9999px radius)
+- Inline utility controls, icon buttons, toolbars: `.btn-rounded .btn-rounded-*` (8px radius) or `.btn-compact .btn-compact-*` (6px, dense)
+- Overlay / glass surfaces: `.btn-glass .btn-glass-pill` or `.btn-glass .btn-glass-rounded`
+
+| Component | Source | Notes |
+|-----------|--------|-------|
+| Button | `foundation/button/Button.svelte` | Use CSS utility classes (`.btn-pill-*`, `.btn-rounded-*`) directly for shape control |
+| Input | `foundation/input/Input.svelte` | Bits UI backed |
+| Modal | `foundation/modal/Modal.svelte` | Replaces shadcn Dialog (9-file compound) |
+| Tooltip | `foundation/tooltip/Tooltip.svelte` | Replaces shadcn Tooltip |
+| Separator | `foundation/separator/Separator.svelte` | Direct replacement |
+| Tabs | `foundation/tabs/` | TabsList, TabsTrigger, TabsContent |
+| Menu / DropdownMenu | `foundation/menu/` | Menu, MenuItem, MenuGroup |
+| Toast / Toaster | `foundation/toast/` | `toast()`, Toaster, Toast |
+| Select | `foundation/select/Select.svelte` | Bits UI backed |
+| Textarea | `foundation/textarea/Textarea.svelte` | Auto-grow capable |
+| Popover | `foundation/popover/Popover.svelte` | For inline rich menus |
+| PillButton | `foundation/osa/PillButton.svelte` | OSA-specific pill — for onboarding flows |
+| GlassCard | `foundation/osa/GlassCard.svelte` | Glassmorphic card surface |
 | Checkbox / Switch / Radio | standard |
 | Progress | linear bar, circular for quota |
 | Badge | `--text-xs`, pill shape (the one pill allowed) |

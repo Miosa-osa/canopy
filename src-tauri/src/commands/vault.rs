@@ -1,25 +1,58 @@
-use crate::error::CanopyError;
-use keyring::Entry;
+//! Credential vault commands — thin wrappers over the OS keychain via `keyring`.
+//!
+//! Caller is expected to pass a namespaced `service` (e.g. `"canopy.runtime.claude-local"`)
+//! and an `account` (e.g. `"api_key"`). The `keyring` crate provides per-OS backends:
+//! macOS Keychain, Windows Credential Manager, Linux Secret Service.
 
-const KEYRING_SERVICE: &str = "ai.canopy.desktop";
+use crate::error::CanopyError;
+use keyring::{Entry, Error as KeyringError};
+
+/// Store a secret in the OS keychain. Overwrites any existing value.
+#[tauri::command]
+pub async fn vault_put(
+    service: String,
+    account: String,
+    secret: String,
+) -> Result<(), CanopyError> {
+    tokio::task::spawn_blocking(move || -> Result<(), CanopyError> {
+        let entry = Entry::new(&service, &account)?;
+        entry.set_password(&secret)?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| CanopyError::Vault(format!("join error: {e}")))?
+}
 
 /// Retrieve a secret from the OS keychain.
+///
+/// Returns `Ok(None)` if no entry exists (maps `keyring::Error::NoEntry`).
+/// Any other keychain failure is surfaced as `CanopyError::Vault(String)` with
+/// the backend message — we do not leak raw `keyring::Error` types.
 #[tauri::command]
-pub async fn vault_get(key: String) -> Result<String, CanopyError> {
-    let entry = Entry::new(KEYRING_SERVICE, &key)?;
-    entry.get_password().map_err(CanopyError::from)
+pub async fn vault_get(service: String, account: String) -> Result<Option<String>, CanopyError> {
+    tokio::task::spawn_blocking(move || -> Result<Option<String>, CanopyError> {
+        let entry = Entry::new(&service, &account)?;
+        match entry.get_password() {
+            Ok(secret) => Ok(Some(secret)),
+            Err(KeyringError::NoEntry) => Ok(None),
+            Err(e) => Err(CanopyError::Vault(e.to_string())),
+        }
+    })
+    .await
+    .map_err(|e| CanopyError::Vault(format!("join error: {e}")))?
 }
 
-/// Store a secret in the OS keychain.
+/// Delete a secret from the OS keychain. Idempotent — no error if missing.
 #[tauri::command]
-pub async fn vault_put(key: String, value: String) -> Result<(), CanopyError> {
-    let entry = Entry::new(KEYRING_SERVICE, &key)?;
-    entry.set_password(&value).map_err(CanopyError::from)
-}
-
-/// Delete a secret from the OS keychain.
-#[tauri::command]
-pub async fn vault_delete(key: String) -> Result<(), CanopyError> {
-    let entry = Entry::new(KEYRING_SERVICE, &key)?;
-    entry.delete_credential().map_err(CanopyError::from)
+pub async fn vault_delete(service: String, account: String) -> Result<(), CanopyError> {
+    tokio::task::spawn_blocking(move || -> Result<(), CanopyError> {
+        let entry = Entry::new(&service, &account)?;
+        match entry.delete_credential() {
+            Ok(()) => Ok(()),
+            Err(KeyringError::NoEntry) => Ok(()),
+            Err(e) => Err(CanopyError::Vault(e.to_string())),
+        }
+    })
+    .await
+    .map_err(|e| CanopyError::Vault(format!("join error: {e}")))?
 }

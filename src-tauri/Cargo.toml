@@ -26,9 +26,13 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
 portable-pty = "0.9"
-keyring = "3"
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
 notify = "7"
 thiserror = "1"
+which = "7"
+
+[dev-dependencies]
+tempfile = "3"
 
 [profile.dev]
 opt-level = 0

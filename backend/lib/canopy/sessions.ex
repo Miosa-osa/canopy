@@ -27,9 +27,67 @@ defmodule Canopy.Sessions do
     |> Repo.insert()
   end
 
+  @doc "Returns the session by id, or `{:error, :not_found}`."
+  @spec get(binary()) :: {:ok, Session.t()} | {:error, :not_found}
+  def get(id) do
+    case Repo.get(Session, id) do
+      nil -> {:error, :not_found}
+      session -> {:ok, session}
+    end
+  end
+
   @doc "Returns the session by id, raising `Ecto.NoResultsError` if not found."
   @spec get!(binary()) :: Session.t()
   def get!(id), do: Repo.get!(Session, id)
+
+  @doc """
+  Returns the full session chain: the session itself, all its ancestors
+  (up to the root), and all its direct children ordered by sequence_number.
+  """
+  @spec get_chain(binary()) :: {:ok, map()} | {:error, :not_found}
+  def get_chain(id) do
+    case Repo.get(Session, id) do
+      nil ->
+        {:error, :not_found}
+
+      session ->
+        ancestors = load_ancestors(session, [])
+
+        children =
+          Repo.all(
+            from(s in Session,
+              where: s.parent_session_id == ^id,
+              order_by: [asc: s.sequence_number]
+            )
+          )
+
+        {:ok, %{session: session, ancestors: ancestors, children: children}}
+    end
+  end
+
+  @doc """
+  Lists sessions with optional filters.
+
+  Options:
+  - `:status` — filter by session status
+  - `:runtime` — filter by runtime_type
+  - `:workspace` — filter by workspace_slug
+  - `:limit` — max results (default 50)
+  - `:cursor` — inserted_at cursor for pagination (ISO8601 string)
+  """
+  @spec list(keyword()) :: {:ok, [Session.t()]}
+  def list(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+
+    query =
+      from(s in Session, order_by: [desc: s.inserted_at], limit: ^limit)
+      |> apply_session_filter(:status, Keyword.get(opts, :status))
+      |> apply_session_filter(:runtime, Keyword.get(opts, :runtime))
+      |> apply_session_filter(:workspace, Keyword.get(opts, :workspace))
+      |> apply_cursor_filter(Keyword.get(opts, :cursor))
+
+    {:ok, Repo.all(query)}
+  end
 
   @doc "Returns sessions matching the given status, ordered by insertion time descending."
   @spec list_by_status(String.t()) :: {:ok, [Session.t()]}
@@ -104,18 +162,27 @@ defmodule Canopy.Sessions do
     |> Repo.insert()
   end
 
-  @doc "Returns all messages for a session, ordered by sequence ascending."
-  @spec list_messages(binary()) :: {:ok, [SessionMessage.t()]}
-  def list_messages(session_id) do
-    messages =
-      Repo.all(
-        from(m in SessionMessage,
-          where: m.session_id == ^session_id,
-          order_by: [asc: m.sequence]
-        )
+  @doc """
+  Returns all messages for a session, ordered by sequence ascending.
+
+  Options:
+  - `:from` — only return messages with sequence >= this value (SSE replay cursor)
+  - `:limit` — maximum number of messages to return
+  """
+  @spec list_messages(binary(), keyword()) :: {:ok, [SessionMessage.t()]}
+  def list_messages(session_id, opts \\ []) do
+    from_seq = Keyword.get(opts, :from, 0)
+    limit = Keyword.get(opts, :limit)
+
+    query =
+      from(m in SessionMessage,
+        where: m.session_id == ^session_id and m.sequence >= ^from_seq,
+        order_by: [asc: m.sequence]
       )
 
-    {:ok, messages}
+    query = if limit, do: from(m in query, limit: ^limit), else: query
+
+    {:ok, Repo.all(query)}
   end
 
   @doc """
@@ -124,4 +191,39 @@ defmodule Canopy.Sessions do
   """
   @spec append_message(binary(), map()) :: :ok | {:error, term()}
   def append_message(_session_id, _entry), do: {:error, :not_implemented}
+
+  # ---------------------------------------------------------------------------
+  # Private helpers
+  # ---------------------------------------------------------------------------
+
+  defp apply_session_filter(query, _field, nil), do: query
+  defp apply_session_filter(query, :status, val), do: from(s in query, where: s.status == ^val)
+
+  defp apply_session_filter(query, :runtime, val),
+    do: from(s in query, where: s.runtime_type == ^val)
+
+  defp apply_session_filter(query, :workspace, val),
+    do: from(s in query, where: s.workspace_slug == ^val)
+
+  defp apply_cursor_filter(query, nil), do: query
+
+  defp apply_cursor_filter(query, cursor_str) do
+    case DateTime.from_iso8601(cursor_str) do
+      {:ok, dt, _tz_offset} -> from(s in query, where: s.inserted_at < ^dt)
+      _parse_error -> query
+    end
+  end
+
+  # Walks the parent_session_id chain upward, collecting ancestors.
+  # Stops at the root (nil parent) or after 100 hops to prevent infinite loops.
+  @spec load_ancestors(Session.t(), [Session.t()]) :: [Session.t()]
+  defp load_ancestors(%Session{parent_session_id: nil}, acc), do: Enum.reverse(acc)
+  defp load_ancestors(_session, acc) when length(acc) >= 100, do: Enum.reverse(acc)
+
+  defp load_ancestors(%Session{parent_session_id: parent_id}, acc) do
+    case Repo.get(Session, parent_id) do
+      nil -> Enum.reverse(acc)
+      parent -> load_ancestors(parent, [parent | acc])
+    end
+  end
 end

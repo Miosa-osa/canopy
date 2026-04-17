@@ -28,10 +28,10 @@
 | Credo strict | `mix credo --strict` | No issues (or documented suppressions) |
 | Dialyzer | `mix dialyzer` | Clean or known-empty first-run |
 | Routes | `mix phx.routes` | `/api/v1/health`, `/api/v1/openapi` both listed |
-| Server boots | `mix phx.server` (15s then kill) | Binds to :9090, no crash logs |
+| Server boots | `mix phx.server` (15s then kill) | Binds to :9190, no crash logs |
 | DB migration | `mix ecto.create && mix ecto.migrate` | pgvector extension created |
-| Health endpoint | `curl http://localhost:9090/api/v1/health` | 200 JSON `{"status":"ok","version":"0.1.0"}` |
-| OpenAPI endpoint | `curl http://localhost:9090/api/v1/openapi` | Valid OpenAPI 3.1 JSON |
+| Health endpoint | `curl http://localhost:9190/api/v1/health` | 200 JSON `{"status":"ok","version":"0.1.0"}` |
+| OpenAPI endpoint | `curl http://localhost:9190/api/v1/openapi` | Valid OpenAPI 3.1 JSON |
 
 ### Desktop (`canopy/desktop/`)
 
@@ -109,7 +109,7 @@ If order is wrong (e.g. Endpoint before Repo), the app may start then immediatel
 | File | Must contain |
 |------|--------------|
 | `config/config.exs` | App, ecto_repos, endpoint base, Oban queues + plugins |
-| `config/dev.exs` | Repo dev DB, endpoint port 9090, debug_errors |
+| `config/dev.exs` | Repo dev DB, endpoint port 9190, debug_errors |
 | `config/test.exs` | Repo test DB + sandbox pool, logger warn only |
 | `config/runtime.exs` | DATABASE_URL, SECRET_KEY_BASE, MIOSA_API_URL, MIOSA_API_KEY (required in prod) |
 
@@ -182,9 +182,9 @@ Any mismatch → fix doc OR fix code, whichever represents truth.
 
 | Check | How |
 |-------|-----|
-| Backend port = `tauri.conf.json` `devUrl` base | Both read port from same source OR both hardcoded to 9090 for dev |
-| Desktop dev port = `tauri.conf.json` `devUrl` | SvelteKit default 5173 matches devUrl |
-| Makefile `dev` starts all three | `make dev` → phoenix :9090, vite :5173, tauri, in parallel w/ proper cleanup |
+| Backend port = `tauri.conf.json` `devUrl` base | Both read port from same source OR both hardcoded to 9190 for dev |
+| Desktop dev port = `tauri.conf.json` `devUrl` | SvelteKit default 5280 matches devUrl |
+| Makefile `dev` starts all three | `make dev` → phoenix :9190, vite :5280, tauri, in parallel w/ proper cleanup |
 | CI references correct paths | `ci.yml` jobs reference `backend/`, `desktop/`, `src-tauri/` — verify |
 | `packages/types/` empty now, ready for generated OpenAPI types | Day 1: placeholder. Week 2+: wire via `mix canopy.gen.openapi` |
 | `.tool-versions` matches installed | asdf users don't get surprises |
@@ -242,11 +242,11 @@ Things I do MYSELF after agents return, before declaring Day 1 done:
 
 2. **Write initial CSP** — `tauri.conf.json` `security.csp`:
    ```
-   default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:9090 ws://localhost:9090
+   default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://localhost:9190 ws://localhost:9190
    ```
    Tightened per-environment later.
 
-3. **Add a Phoenix CORS plug** — `CanopyWeb.Router` pipeline for `/api/v1` only, allow origin `tauri://localhost` + `http://localhost:5173` in dev.
+3. **Add a Phoenix CORS plug** — `CanopyWeb.Router` pipeline for `/api/v1` only, allow origin `tauri://localhost` + `http://localhost:5280` in dev.
 
 4. **Rate limit the API** — `:hammer` or equivalent on `/api/v1/*` with a sane default (100 req/min per IP). Even though it's a desktop app, defense-in-depth.
 

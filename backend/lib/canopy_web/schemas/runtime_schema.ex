@@ -69,4 +69,122 @@ defmodule CanopyWeb.Schemas.RuntimeSchema do
       required: [:data]
     })
   end
+
+  defmodule RuntimeDetail do
+    @moduledoc "Detailed runtime info including config schema, models, and quota."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "RuntimeDetail",
+      type: :object,
+      properties: %{
+        type: %Schema{type: :string},
+        capabilities: %Schema{type: :array, items: %Schema{type: :string}},
+        config_schema: %Schema{type: :array, description: "Declarative config field specs"},
+        models: %Schema{type: :array, description: "Available models"},
+        quota_windows: %Schema{
+          type: :array,
+          nullable: true,
+          description: "Live quota windows if supported"
+        }
+      },
+      required: [:type, :capabilities, :config_schema, :models]
+    })
+  end
+
+  defmodule EnvironmentCheck do
+    @moduledoc "A single environment preflight check result."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "EnvironmentCheck",
+      type: :object,
+      properties: %{
+        level: %Schema{type: :string, enum: ["info", "warn", "error"]},
+        message: %Schema{type: :string}
+      },
+      required: [:level, :message]
+    })
+  end
+
+  defmodule EnvironmentCheckList do
+    @moduledoc "Result of running runtime preflight checks."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "EnvironmentCheckList",
+      type: :object,
+      properties: %{
+        checks: %Schema{type: :array, items: EnvironmentCheck}
+      },
+      required: [:checks]
+    })
+  end
+
+  defmodule ModelList do
+    @moduledoc "A list of models available for a runtime."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "ModelList",
+      type: :object,
+      properties: %{
+        data: %Schema{type: :array, description: "Model objects from the adapter"}
+      },
+      required: [:data]
+    })
+  end
+
+  defmodule ErrorResponse do
+    @moduledoc "Generic error response."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "ErrorResponse",
+      type: :object,
+      properties: %{
+        error: %Schema{type: :string},
+        message: %Schema{type: :string}
+      },
+      required: [:error]
+    })
+  end
+
+  defmodule DetectedItem do
+    @moduledoc "Single result from the Tauri runtime_detect sidecar command."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "DetectedItem",
+      type: :object,
+      properties: %{
+        slug: %Schema{type: :string, description: "Canonical runtime type (e.g. claude-local)"},
+        installed: %Schema{type: :boolean},
+        path: %Schema{type: :string, nullable: true, description: "Absolute path to binary"},
+        version: %Schema{type: :string, nullable: true, description: "Detected version"}
+      },
+      required: [:slug, :installed]
+    })
+  end
+
+  defmodule DetectRequest do
+    @moduledoc "Wrapper for POST /runtimes/detect body — list of DetectedItem."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "DetectRequest",
+      type: :object,
+      properties: %{
+        detected: %Schema{type: :array, items: DetectedItem}
+      },
+      required: [:detected]
+    })
+  end
 end

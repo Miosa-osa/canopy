@@ -14,7 +14,10 @@ class UIStore {
   setTheme(next: Theme) {
     this.theme = next;
     if (typeof document !== 'undefined') {
+      // data-theme drives Canopy's OKLCh token selectors.
+      // .dark drives Foundation primitive CSS (Modal, Tabs, etc.).
       document.documentElement.setAttribute('data-theme', next);
+      document.documentElement.classList.toggle('dark', next === 'dark');
     }
   }
 

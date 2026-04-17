@@ -1,13 +1,11 @@
 <script lang="ts">
-  /**
-   * Theme toggle — floating bottom-right button.
-   * Global; does not reach into routes. Pure presentation over the UI store.
-   */
-  import { ui } from '$lib/stores/ui.svelte.js';
+/**
+ * Theme toggle — floating bottom-right button.
+ * Global; does not reach into routes. Pure presentation over the UI store.
+ */
+import { ui } from '$lib/stores/ui.svelte.js';
 
-  const label = $derived(
-    ui.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
-  );
+const label = $derived(ui.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
 </script>
 
 <button

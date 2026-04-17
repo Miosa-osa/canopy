@@ -30,17 +30,15 @@ defmodule Canopy.Application do
       # 6. Oban — Postgres-backed job queue (heartbeats, cron, async enforcement)
       {Oban, Application.fetch_env!(:canopy, Oban)},
 
-      # 7. Runtime Registry — unique Registry for RuntimeAdapter process lookup
-      {Registry, keys: :unique, name: Canopy.Runtimes.Registry},
+      # 7. Runtime Registry — GenServer + ETS. Auto-registers built-in adapters
+      #    on init. Process stays alive for app lifetime, so adapters stay registered
+      #    (unlike the prior Task-based approach which auto-unregistered on exit).
+      Canopy.Runtimes.RegistryServer,
 
       # 8. Sessions Supervisor — DynamicSupervisor; one child per running session
       Canopy.Sessions.Supervisor,
 
-      # 9. Adapter registrar — registers built-in adapters into the Runtime Registry.
-      #    Must start after the Registry (7) and before the Endpoint (10).
-      {Task, fn -> Canopy.Runtimes.register_adapter(Canopy.Runtimes.ClaudeLocal) end},
-
-      # 10. Phoenix Endpoint — HTTP server, last so all deps are ready
+      # 9. Phoenix Endpoint — HTTP server, last so all deps are ready
       CanopyWeb.Endpoint
     ]
 

@@ -20,10 +20,13 @@ defmodule Canopy.RuntimesTest do
   end
 
   describe "list_adapters/0" do
-    test "returns an empty list when no adapters are registered" do
-      # At scaffold time, no adapters are registered — Week 1 will add them.
-      # This test verifies the Registry is running and the public API works.
-      assert Runtimes.list_adapters() == []
+    test "returns the built-in adapters registered at boot" do
+      # RegistryServer auto-registers ClaudeLocal, CodexLocal, GeminiLocal on init.
+      # This test verifies the Registry is running and the built-ins are live.
+      adapters = Runtimes.list_adapters()
+      assert Canopy.Runtimes.ClaudeLocal in adapters
+      assert Canopy.Runtimes.CodexLocal in adapters
+      assert Canopy.Runtimes.GeminiLocal in adapters
     end
   end
 

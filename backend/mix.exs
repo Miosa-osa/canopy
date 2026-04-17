@@ -68,6 +68,8 @@ defmodule Canopy.MixProject do
       {:nanoid, "~> 2.1"},
       # CORS for dev (Tauri devUrl 5280 → Phoenix 9190)
       {:corsica, "~> 2.1"},
+      # YAML parsing for agent persona frontmatter (mix canopy.seed.agents)
+      {:yaml_elixir, "~> 2.11"},
       # Test-only
       {:mox, "~> 1.2", only: :test},
       {:ex_machina, "~> 2.8", only: :test},

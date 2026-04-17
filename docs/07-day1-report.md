@@ -84,7 +84,7 @@ backend/
 **Verification:** `mix compile --warnings-as-errors` + `mix test` (4/4) +
 `mix format --check-formatted` + `mix credo --strict` all green.
 
-**Live endpoint:** `GET http://localhost:9090/api/v1/health` →
+**Live endpoint:** `GET http://localhost:9190/api/v1/health` →
 `{"status":"ok","version":"0.1.0"}`.
 
 ### Desktop — SvelteKit + Svelte 5
@@ -122,7 +122,7 @@ desktop/
 │       ├── utils/
 │       │   └── keyboard.ts               (extracted from +layout during audit)
 │       ├── api/
-│       │   ├── client.ts                 stub pointing to :9090
+│       │   ├── client.ts                 stub pointing to :9190
 │       │   └── realtime.ts               stub for SSE invalidation
 │       ├── tauri/index.ts                isTauri() + plugin re-exports
 │       └── utils.ts                      cn() (shadcn-svelte helper)
@@ -140,7 +140,7 @@ desktop/
 src-tauri/
 ├── Cargo.toml                     portable-pty, keyring, notify, reqwest,
 │                                  tokio, serde, thiserror, tauri-*
-├── tauri.conf.json                window 1280×800, CSP tightened to :9090 + ipc,
+├── tauri.conf.json                window 1280×800, CSP tightened to :9190 + ipc,
 │                                  minimal bundle
 ├── capabilities/default.json      deny-by-default: no shell:default, no process
 └── src/
@@ -217,7 +217,7 @@ docs/
 |-------|--------|
 | No secrets committed | ✅ grep clean |
 | Tauri capabilities minimal | ✅ removed `shell:default` + `process:default`; `shell:allow-open` only |
-| CSP correct port | ✅ fixed :4000 → :9090, tightened script-src (removed 'unsafe-inline') |
+| CSP correct port | ✅ fixed :4000 → :9190, tightened script-src (removed 'unsafe-inline') |
 | CSP includes ipc + asset protocols | ✅ |
 | Backend CORS plug installed | ✅ Corsica in :api pipeline, origins from config |
 | TLS defaults preserved | ✅ no `verify: :verify_none` |
@@ -246,7 +246,7 @@ docs/
 | 2 | `CanopyError` enum variants flagged dead_code by clippy | Trivial (lint rule) | Added `#[allow(dead_code)]` with reason comment |
 | 3 | `+layout.svelte` was 254 LOC (violates ≤150 rule) | **Structural** | Refactored: extracted `theme-persistence.ts`, `keyboard.ts`, `ThemeToggle.svelte`. Result: 139 LOC |
 | 4 | Biome flagged `handleGlobalShortcut` + `ThemeToggle` as unused in +layout | Trivial (Biome limitation — doesn't parse Svelte templates) | Added `noUnusedImports: off` to .svelte override in biome.json |
-| 5 | CSP in `tauri.conf.json` referenced port 4000 (Phoenix default) but backend runs on 9090 | **Hardening** | Fixed CSP to :9090 + added `ipc:` and `asset:` protocols |
+| 5 | CSP in `tauri.conf.json` referenced port 4000 (Phoenix default) but backend runs on 9190 | **Hardening** | Fixed CSP to :9190 + added `ipc:` and `asset:` protocols |
 | 6 | CSP allowed `script-src 'unsafe-inline'` | **Hardening** | Removed (SvelteKit production build doesn't need inline scripts) |
 | 7 | Tauri capabilities included `shell:default` + `process:default` (unused and overly permissive) | **Hardening** | Dropped both; kept `shell:allow-open` only |
 | 8 | No CORS plug in backend | **Hardening** | Added Corsica with env-configurable origins |

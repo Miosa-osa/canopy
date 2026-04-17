@@ -1,0 +1,25 @@
+/* Foundation token alias layer
+ * Maps Foundation's --dt* / --dbg* / --dbd* names to Canopy's OKLCh tokens.
+ * Do NOT define colors here — only aliases. Source of truth stays in oklch.css.
+ * Import after oklch.css so the vars resolve correctly.
+ */
+
+:root,
+[data-theme="dark"],
+[data-theme="light"],
+.dark {
+  /* Text tokens */
+  --dt: var(--fg);
+  --dt2: var(--fg-muted);
+  --dt3: var(--fg-subtle);
+  --dt4: var(--fg-subtle);
+
+  /* Background tokens */
+  --dbg: var(--bg);
+  --dbg2: var(--bg-elevated);
+  --dbg3: var(--bg-inset);
+
+  /* Border tokens */
+  --dbd: var(--border);
+  --dbd2: var(--border);
+}

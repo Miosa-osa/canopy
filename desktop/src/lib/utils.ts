@@ -1,12 +1,12 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-// Re-export bits-ui utility types that shadcn-svelte primitives import from $lib/utils
+// Re-export bits-ui utility types used by Foundation primitives and Canopy components.
 export type { WithElementRef, WithoutChildrenOrChild } from 'bits-ui';
 
 /**
  * Merges class names using clsx + tailwind-merge.
- * Used by shadcn-svelte primitives and all Canopy components.
+ * Used by Foundation primitives and all Canopy components.
  */
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));

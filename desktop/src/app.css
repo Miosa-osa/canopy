@@ -1,5 +1,5 @@
 /* Canopy v2 — Root Stylesheet
- * Import order: tokens → Tailwind → @theme bridge → shadcn bridge → resets
+ * Import order: tokens → Foundation aliases → glass → buttons → Tailwind → @theme bridge → resets
  * Tailwind v4 CSS-first config — no tailwind.config.js needed.
  */
 
@@ -10,6 +10,11 @@
 @import "./lib/design/tokens/radius.css";
 @import "./lib/design/tokens/motion.css";
 @import "./lib/design/tokens/terminal.css";
+@import "./lib/design/tokens/foundation-aliases.css";
+
+/* 1b. Foundation visual layers */
+@import "./lib/design/glass.css";
+@import "./lib/design/buttons.css";
 
 /* 2. Tailwind v4 */
 @import "tailwindcss";
@@ -89,32 +94,16 @@
   --cnp-accent-fg: var(--accent-fg);
 }
 
-/* 5. shadcn-svelte semantic token bridge
- * Maps shadcn's expected CSS var names to our OKLCh tokens.
- * shadcn primitives use --background, --foreground, --primary, --accent, etc.
- * We alias them here so the generated components work without modification.
- * NOTE: shadcn's --accent = hover bg surface (≠ our brand green --cnp-accent).
+/* Foundation Modal uses bg-background / text-muted-foreground from Tailwind classes.
+ * These minimal aliases let the copied Modal.svelte render correctly without
+ * re-introducing the full shadcn bridge. Only the subset Modal actually uses.
  */
 :root,
 [data-theme="dark"],
 [data-theme="light"] {
   --background: var(--bg);
   --foreground: var(--fg);
-  --muted: var(--bg-elevated);
   --muted-foreground: var(--fg-muted);
-  --card: var(--bg-elevated);
-  --card-foreground: var(--fg);
-  --popover: var(--bg-elevated);
-  --popover-foreground: var(--fg);
-  --input: var(--border);
-  --primary: var(--cnp-accent);
-  --primary-foreground: var(--cnp-accent-fg);
-  --secondary: var(--bg-elevated);
-  --secondary-foreground: var(--fg-muted);
-  --accent: var(--bg-inset);
-  --accent-foreground: var(--fg);
-  --destructive: var(--signal-error);
-  --destructive-foreground: var(--fg);
   --ring: var(--cnp-accent);
   --radius: 8px;
 }

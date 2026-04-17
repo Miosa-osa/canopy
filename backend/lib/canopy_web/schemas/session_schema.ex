@@ -99,9 +99,89 @@ defmodule CanopyWeb.Schemas.SessionSchema do
         model_id: %Schema{type: :string, nullable: true},
         agent_slug: %Schema{type: :string, nullable: true},
         workspace_slug: %Schema{type: :string, nullable: true},
-        prompt: %Schema{type: :string, nullable: true}
+        prompt: %Schema{type: :string, nullable: true},
+        parent_session_id: %Schema{type: :string, format: :uuid, nullable: true}
       },
       required: [:runtime_type, :cwd]
+    })
+  end
+
+  defmodule SessionList do
+    @moduledoc "A paginated list of sessions."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "SessionList",
+      type: :object,
+      properties: %{
+        data: %Schema{type: :array, items: Session}
+      },
+      required: [:data]
+    })
+  end
+
+  defmodule SessionDetail do
+    @moduledoc "A session with its most recent messages."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "SessionDetail",
+      type: :object,
+      properties: %{
+        session: Session,
+        messages: %Schema{type: :array, items: SessionMessage}
+      },
+      required: [:session, :messages]
+    })
+  end
+
+  defmodule CreateSessionResponse do
+    @moduledoc "Response body for POST /api/v1/sessions."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "CreateSessionResponse",
+      type: :object,
+      properties: %{
+        session_id: %Schema{type: :string, format: :uuid},
+        sse_url: %Schema{type: :string, description: "SSE stream URL for this session"}
+      },
+      required: [:session_id, :sse_url]
+    })
+  end
+
+  defmodule MessageList do
+    @moduledoc "A paginated list of session messages."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "MessageList",
+      type: :object,
+      properties: %{
+        data: %Schema{type: :array, items: SessionMessage}
+      },
+      required: [:data]
+    })
+  end
+
+  defmodule SessionChain do
+    @moduledoc "A session chain with ancestors and children."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "SessionChain",
+      type: :object,
+      properties: %{
+        session: Session,
+        ancestors: %Schema{type: :array, items: Session},
+        children: %Schema{type: :array, items: Session}
+      },
+      required: [:session, :ancestors, :children]
     })
   end
 end
