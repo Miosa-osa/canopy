@@ -1,0 +1,73 @@
+/* Canopy v2 — Motion Tokens
+ * Easings, durations, keyframes. From FRONTEND-DESIGN.md §3.
+ * Motion is functional, never decorative.
+ * Respects prefers-reduced-motion.
+ */
+
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-instant: 80ms;
+  --dur-fast: 160ms;
+  --dur-normal: 240ms;
+  --dur-slow: 400ms;
+}
+
+@keyframes agent-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(from var(--signal-running) l c h / 0.15);
+  }
+  50% {
+    box-shadow: 0 0 24px 4px oklch(from var(--signal-running) l c h / 0.35);
+  }
+}
+
+.agent-running {
+  animation: agent-pulse 2s var(--ease-io) infinite;
+}
+
+@keyframes thinking-shimmer {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.thinking {
+  animation: thinking-shimmer 1.4s var(--ease-io) infinite;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.list-item {
+  animation: fade-in-up var(--dur-fast) var(--ease-out) both;
+}
+
+/* Accessibility: kill all motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .agent-running,
+  .thinking,
+  .list-item {
+    animation: none;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

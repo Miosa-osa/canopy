@@ -1,0 +1,14 @@
+{
+  "$schema": "https://shadcn-svelte.com/schema.json",
+  "tailwind": {
+    "css": "src/app.css",
+    "baseColor": "neutral"
+  },
+  "aliases": {
+    "components": "$lib/design/primitives",
+    "utils": "$lib/utils",
+    "ui": "$lib/design/primitives",
+    "hooks": "$lib/hooks",
+    "lib": "$lib"
+  }
+}

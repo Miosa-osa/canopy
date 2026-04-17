@@ -1,0 +1,18 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema/acl/capability.json",
+  "identifier": "default",
+  "description": "Default capabilities for Canopy Desktop",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "store:default",
+    "opener:default",
+    "dialog:default",
+    "fs:default",
+    "notification:default",
+    "process:default",
+    "shell:default"
+  ]
+}

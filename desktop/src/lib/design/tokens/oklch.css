@@ -1,0 +1,58 @@
+/* Canopy v2 — OKLCh Color Tokens
+ * Dark mode is canonical. Light mode derived by L-flip.
+ * Zero hardcoded hex. All values from FRONTEND-DESIGN.md §1.
+ */
+
+:root,
+[data-theme="dark"] {
+  /* Neutral scale */
+  --bg: oklch(0.16 0.005 240);
+  --bg-elevated: oklch(0.2 0.005 240);
+  --bg-inset: oklch(0.13 0.005 240);
+  --sidebar: oklch(0.14 0.005 240);
+  --border: oklch(0.28 0.005 240);
+  --border-strong: oklch(0.38 0.005 240);
+
+  /* Foreground */
+  --fg: oklch(0.96 0.005 240);
+  --fg-muted: oklch(0.7 0.005 240);
+  --fg-subtle: oklch(0.52 0.005 240);
+
+  /* Signal colors — sparingly */
+  --signal-running: oklch(0.78 0.18 145);
+  --signal-thinking: oklch(0.72 0.14 265);
+  --signal-warn: oklch(0.82 0.14 75);
+  --signal-error: oklch(0.68 0.19 25);
+  --signal-info: oklch(0.78 0.08 210);
+
+  /* Accent — primary action, focus, progress */
+  --accent: oklch(0.78 0.18 145);
+  --accent-hover: oklch(0.82 0.18 145);
+  --accent-fg: oklch(0.14 0.005 240);
+}
+
+[data-theme="light"] {
+  /* Neutral scale — L-flipped */
+  --bg: oklch(0.99 0.002 240);
+  --bg-elevated: oklch(0.97 0.002 240);
+  --bg-inset: oklch(0.94 0.002 240);
+  --sidebar: oklch(0.96 0.002 240);
+  --border: oklch(0.88 0.002 240);
+  --border-strong: oklch(0.78 0.002 240);
+
+  /* Foreground — L-flipped */
+  --fg: oklch(0.16 0.005 240);
+  --fg-muted: oklch(0.42 0.005 240);
+  --fg-subtle: oklch(0.6 0.005 240);
+
+  /* Signal + accent stay identical — perceptually balanced in both modes */
+  --signal-running: oklch(0.78 0.18 145);
+  --signal-thinking: oklch(0.72 0.14 265);
+  --signal-warn: oklch(0.82 0.14 75);
+  --signal-error: oklch(0.68 0.19 25);
+  --signal-info: oklch(0.78 0.08 210);
+
+  --accent: oklch(0.78 0.18 145);
+  --accent-hover: oklch(0.82 0.18 145);
+  --accent-fg: oklch(0.14 0.005 240);
+}

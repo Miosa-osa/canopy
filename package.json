@@ -1,0 +1,20 @@
+{
+  "name": "@canopyai/root",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "make dev",
+    "test": "make test",
+    "lint": "make lint",
+    "format": "make format",
+    "build": "make build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

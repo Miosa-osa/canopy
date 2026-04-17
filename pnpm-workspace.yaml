@@ -1,0 +1,5 @@
+packages:
+  - desktop
+  - packages/*
+onlyBuiltDependencies:
+  - esbuild

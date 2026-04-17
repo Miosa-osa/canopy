@@ -1,0 +1,45 @@
+/* Canopy v2 — Typography Tokens
+ * From FRONTEND-DESIGN.md §2.
+ * Web fonts (Geist, EB Garamond, JetBrains Mono) installed Week 4.
+ * System fallbacks used until then.
+ */
+
+:root {
+  /* Font stacks */
+  --font-serif: "EB Garamond", "Spectral", Georgia, serif;
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, "Cascadia Code", monospace;
+
+  /* Type scale — 7 steps */
+  --text-3xl: 36px; /* editorial h1, home greeting (serif) */
+  --text-2xl: 28px; /* page h1 */
+  --text-xl: 22px; /* section h2 */
+  --text-lg: 17px; /* subtitle */
+  --text-base: 15px; /* body, editor */
+  --text-sm: 13px; /* UI labels, meta */
+  --text-xs: 11px; /* badges, tags */
+
+  /* Line heights */
+  --lh-3xl: 1.1;
+  --lh-2xl: 1.15;
+  --lh-xl: 1.25;
+  --lh-lg: 1.4;
+  --lh-base: 1.55;
+  --lh-sm: 1.5;
+  --lh-xs: 1.4;
+
+  /* Letter spacing */
+  --tracking-3xl: -0.03em;
+  --tracking-2xl: -0.025em;
+  --tracking-xl: -0.02em;
+  --tracking-lg: -0.015em;
+  --tracking-base: -0.011em;
+  --tracking-sm: -0.005em;
+  --tracking-xs: 0;
+}
+
+/* Weight scale annotation (applied per element, not via token):
+ * Sans: 400 body, 500 labels, 600 headings, 700 rare
+ * Serif: 400 only — never bold serif
+ * Mono: 400 and 500 only
+ */

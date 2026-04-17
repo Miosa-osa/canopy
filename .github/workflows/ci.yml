@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Backend: Elixir + Phoenix ───────────────────────────────────────────────
+  backend-test:
+    name: Backend (ExUnit)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: canopy
+          POSTGRES_PASSWORD: canopy
+          POSTGRES_DB: canopy_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19.5"
+          otp-version: "28.0"
+
+      - name: Cache mix deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            backend/deps
+            backend/_build
+          key: ${{ runner.os }}-mix-${{ hashFiles('backend/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        working-directory: backend
+        run: mix deps.get
+
+      - name: Compile (warnings as errors)
+        working-directory: backend
+        run: mix compile --warnings-as-errors
+        env:
+          MIX_ENV: test
+
+      - name: Check formatting
+        working-directory: backend
+        run: mix format --check-formatted
+
+      - name: Run tests
+        working-directory: backend
+        run: mix test --cover
+        env:
+          MIX_ENV: test
+          DATABASE_URL: postgres://canopy:canopy@localhost:5432/canopy_test
+
+  # ─── Desktop: SvelteKit + Svelte 5 ──────────────────────────────────────────
+  desktop-test:
+    name: Desktop (Vitest + svelte-check)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: canopy/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: canopy
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check (svelte-check)
+        working-directory: canopy/desktop
+        run: pnpm check
+
+      - name: Lint (Biome)
+        working-directory: canopy/desktop
+        run: pnpm biome check .
+
+      - name: Run unit tests
+        working-directory: canopy/desktop
+        run: pnpm test --run
+
+  # ─── Rust sidecar ────────────────────────────────────────────────────────────
+  rust-test:
+    name: Rust (cargo test)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.94.1"
+          components: rustfmt, clippy
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            canopy/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('canopy/src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install system deps (Tauri on Linux)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Check formatting
+        working-directory: canopy/src-tauri
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: canopy/src-tauri
+        run: cargo clippy -- -D warnings
+
+      - name: Run tests
+        working-directory: canopy/src-tauri
+        run: cargo test

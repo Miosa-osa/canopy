@@ -1,0 +1,13 @@
+/* Canopy v2 — Radius Tokens
+ * calc-derived scale. From FRONTEND-DESIGN.md §3.
+ * Not zero-radius (Paperclip). Not pill (MIOSA). A functional middle.
+ */
+
+:root {
+  --radius: 8px; /* canonical */
+  --radius-sm: calc(var(--radius) * 0.5); /* 4px — badges, chips */
+  --radius-md: calc(var(--radius) * 0.75); /* 6px — buttons, inputs */
+  --radius-lg: var(--radius); /* 8px — cards */
+  --radius-xl: calc(var(--radius) * 1.5); /* 12px — modals */
+  --radius-2xl: calc(var(--radius) * 2); /* 16px — composer card */
+}

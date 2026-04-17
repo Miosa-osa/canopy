@@ -1,0 +1,155 @@
+/* Canopy v2 — Root Stylesheet
+ * Import order: tokens → Tailwind → @theme bridge → shadcn bridge → resets
+ * Tailwind v4 CSS-first config — no tailwind.config.js needed.
+ */
+
+/* 1. Design tokens */
+@import "./lib/design/tokens/oklch.css";
+@import "./lib/design/tokens/typography.css";
+@import "./lib/design/tokens/spacing.css";
+@import "./lib/design/tokens/radius.css";
+@import "./lib/design/tokens/motion.css";
+@import "./lib/design/tokens/terminal.css";
+
+/* 2. Tailwind v4 */
+@import "tailwindcss";
+
+/* 3. @theme inline — maps CSS vars to Tailwind utility classes.
+ * Paperclip / Cabinet pattern: tokens drive Tailwind, not the reverse.
+ * Uses --cnp-* prefixed vars to avoid shadcn name collisions.
+ */
+@theme inline {
+  /* Colors — use our canonical token names */
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-inset: var(--bg-inset);
+  --color-sidebar: var(--sidebar);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-signal-running: var(--signal-running);
+  --color-signal-thinking: var(--signal-thinking);
+  --color-signal-warn: var(--signal-warn);
+  --color-signal-error: var(--signal-error);
+  --color-signal-info: var(--signal-info);
+  /* Use --cnp-accent to hold our green — avoids shadcn --accent collision */
+  --color-accent: var(--cnp-accent);
+  --color-accent-hover: var(--cnp-accent-hover);
+  --color-accent-fg: var(--cnp-accent-fg);
+
+  /* Typography */
+  --font-family-sans: var(--font-sans);
+  --font-family-serif: var(--font-serif);
+  --font-family-mono: var(--font-mono);
+  --font-size-3xl: var(--text-3xl);
+  --font-size-2xl: var(--text-2xl);
+  --font-size-xl: var(--text-xl);
+  --font-size-lg: var(--text-lg);
+  --font-size-base: var(--text-base);
+  --font-size-sm: var(--text-sm);
+  --font-size-xs: var(--text-xs);
+
+  /* Spacing */
+  --spacing-0: var(--space-0);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --spacing-10: var(--space-10);
+  --spacing-12: var(--space-12);
+
+  /* Radius */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+
+  /* Motion */
+  --ease-out: var(--ease-out);
+  --ease-in: var(--ease-in);
+  --ease-io: var(--ease-io);
+  --duration-instant: var(--dur-instant);
+  --duration-fast: var(--dur-fast);
+  --duration-normal: var(--dur-normal);
+  --duration-slow: var(--dur-slow);
+}
+
+/* 4. Canopy alias layer — renames our tokens to --cnp-* for safe @theme reference */
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
+  --cnp-accent: var(--accent);
+  --cnp-accent-hover: var(--accent-hover);
+  --cnp-accent-fg: var(--accent-fg);
+}
+
+/* 5. shadcn-svelte semantic token bridge
+ * Maps shadcn's expected CSS var names to our OKLCh tokens.
+ * shadcn primitives use --background, --foreground, --primary, --accent, etc.
+ * We alias them here so the generated components work without modification.
+ * NOTE: shadcn's --accent = hover bg surface (≠ our brand green --cnp-accent).
+ */
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--fg-muted);
+  --card: var(--bg-elevated);
+  --card-foreground: var(--fg);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--fg);
+  --input: var(--border);
+  --primary: var(--cnp-accent);
+  --primary-foreground: var(--cnp-accent-fg);
+  --secondary: var(--bg-elevated);
+  --secondary-foreground: var(--fg-muted);
+  --accent: var(--bg-inset);
+  --accent-foreground: var(--fg);
+  --destructive: var(--signal-error);
+  --destructive-foreground: var(--fg);
+  --ring: var(--cnp-accent);
+  --radius: 8px;
+}
+
+/* 6. Minimal resets — only what Tailwind v4 doesn't cover */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  letter-spacing: var(--tracking-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--sidebar);
+  color: var(--fg);
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden; /* Tauri desktop — no scroll on body */
+}
+
+/* Focus-visible ring — keyboard only, no mouse */
+:focus-visible {
+  outline: 2px solid var(--cnp-accent);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
