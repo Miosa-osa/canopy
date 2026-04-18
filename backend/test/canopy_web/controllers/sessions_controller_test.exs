@@ -76,6 +76,23 @@ defmodule CanopyWeb.SessionsControllerTest do
       assert Enum.all?(data, &(&1["runtime_type"] == "codex-local"))
     end
 
+    test "filters by workspace_slug", %{conn: conn} do
+      insert(:session, workspace_slug: "acme-corp")
+      insert(:session, workspace_slug: "other-workspace")
+
+      conn = get(conn, "/api/v1/sessions?workspace=acme-corp")
+      assert %{"data" => data} = json_response(conn, 200)
+      assert length(data) >= 1
+      assert Enum.all?(data, &(&1["workspace_slug"] == "acme-corp"))
+    end
+
+    test "returns workspace_slug in session response", %{conn: conn} do
+      insert(:session, workspace_slug: "my-workspace")
+      conn = get(conn, "/api/v1/sessions")
+      assert %{"data" => data} = json_response(conn, 200)
+      assert Enum.any?(data, &(&1["workspace_slug"] == "my-workspace"))
+    end
+
     test "respects limit param", %{conn: conn} do
       for _n <- 1..5, do: insert(:session)
       conn = get(conn, "/api/v1/sessions?limit=2")
@@ -117,6 +134,13 @@ defmodule CanopyWeb.SessionsControllerTest do
       assert body = json_response(conn, 200)
       assert body["session"]["id"] == session.id
       assert body["messages"] == []
+    end
+
+    test "includes workspace_slug in session detail response", %{conn: conn} do
+      session = insert(:session, workspace_slug: "detail-workspace")
+      conn = get(conn, "/api/v1/sessions/#{session.id}")
+      assert body = json_response(conn, 200)
+      assert body["session"]["workspace_slug"] == "detail-workspace"
     end
   end
 
@@ -182,6 +206,14 @@ defmodule CanopyWeb.SessionsControllerTest do
       assert %{"session_id" => session_id} = json_response(conn, 201)
       session = Sessions.get!(session_id)
       assert session.parent_session_id == parent.id
+    end
+
+    test "persists workspace_slug when provided", %{conn: conn} do
+      body = %{runtime_type: @mock_type, cwd: "/tmp", workspace_slug: "acme-corp"}
+      conn = post(conn, "/api/v1/sessions", body)
+      assert %{"session_id" => session_id} = json_response(conn, 201)
+      session = Sessions.get!(session_id)
+      assert session.workspace_slug == "acme-corp"
     end
   end
 

@@ -5,6 +5,7 @@ defmodule CanopyWeb.AgentsController do
   Routes:
     GET    /api/v1/agents                    — list agents (optional ?hired=true|false filter)
     GET    /api/v1/agents/:slug              — get agent detail with persona markdown
+    PUT    /api/v1/agents/:slug/persona      — update persona markdown file
     POST   /api/v1/agents/:slug/hire         — hire an agent (hired: true)
     DELETE /api/v1/agents/:slug/hire         — fire an agent (hired: false)
     GET    /api/v1/agents/:slug/heartbeats   — list next scheduled heartbeat Oban jobs
@@ -69,6 +70,49 @@ defmodule CanopyWeb.AgentsController do
         |> Map.from_struct()
         |> Map.drop([:__meta__])
         |> Map.put(:persona_content, persona_content)
+
+      json(conn, body)
+    end
+  end
+
+  operation :update_persona,
+    summary: "Update agent persona markdown",
+    description: """
+    Overwrites the persona markdown file for the given agent slug.
+    Returns the updated AgentDetail shape (with persona_content reflecting the new content).
+    """,
+    parameters: [
+      slug: [in: :path, description: "Agent slug", type: :string, required: true]
+    ],
+    request_body:
+      {"Persona markdown", "application/json", AgentSchema.UpdatePersonaRequest, required: true},
+    responses: [
+      ok: {"Updated agent detail", "application/json", AgentSchema.AgentDetail},
+      not_found: {"Not found", "application/json", CanopyWeb.Schemas.RuntimeSchema.ErrorResponse},
+      unprocessable_entity:
+        {"Write failed", "application/json", CanopyWeb.Schemas.RuntimeSchema.ErrorResponse}
+    ]
+
+  @spec update_persona(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def update_persona(conn, %{"slug" => slug, "persona_markdown" => md}) do
+    with {:ok, agent} <- Agents.update_persona(slug, md) do
+      body =
+        agent
+        |> Map.from_struct()
+        |> Map.drop([:__meta__])
+        |> Map.put(:persona_content, md)
+
+      json(conn, body)
+    end
+  end
+
+  def update_persona(conn, %{"slug" => slug}) do
+    with {:ok, agent} <- Agents.update_persona(slug, "") do
+      body =
+        agent
+        |> Map.from_struct()
+        |> Map.drop([:__meta__])
+        |> Map.put(:persona_content, "")
 
       json(conn, body)
     end

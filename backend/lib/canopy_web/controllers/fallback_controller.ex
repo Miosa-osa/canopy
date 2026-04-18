@@ -51,6 +51,12 @@ defmodule CanopyWeb.FallbackController do
     |> json(%{error: "forbidden", message: "You do not have permission to perform this action."})
   end
 
+  def call(conn, {:error, :write_failed}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "write_failed", message: "Could not write the persona file."})
+  end
+
   def call(conn, {:error, :bad_request}) do
     conn
     |> put_status(:bad_request)

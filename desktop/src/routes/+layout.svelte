@@ -17,6 +17,7 @@ import { syncRuntimesIfStale } from '$lib/bootstrap/runtime-sync.js';
 import CommandPalette from '$lib/design/patterns/CommandPalette.svelte';
 import Sidebar from '$lib/design/patterns/Sidebar.svelte';
 import ToastContainer from '$lib/design/patterns/ToastContainer.svelte';
+import WorkspaceSwitcher from '$lib/design/patterns/WorkspaceSwitcher.svelte';
 import ThemeToggle from '$lib/design/primitives/ThemeToggle.svelte';
 import { loadPersistedTheme, persistTheme } from '$lib/stores/theme-persistence.js';
 import { ui } from '$lib/stores/ui.svelte.js';
@@ -138,6 +139,11 @@ function handleKeydown(e: KeyboardEvent): void {
           {#if !ui.sidebarCollapsed}
             <span class="spend-label">$24 / $100 this month</span>
           {/if}
+        </div>
+
+        <!-- WorkspaceSwitcher — between spend bar and settings (Track #57) -->
+        <div class="sidebar-footer__workspace" style="position: relative;">
+          <WorkspaceSwitcher />
         </div>
 
         <div class="sidebar-footer__actions">

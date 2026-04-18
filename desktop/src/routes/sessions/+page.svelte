@@ -1,9 +1,10 @@
 <script lang="ts">
 /**
- * /sessions — Session list with status + runtime filter.
+ * /sessions — Session list with status + runtime + workspace filter.
  *
  * Filter bar drives sessionsQuery() parameters reactively.
- * Foundation Table with status dot, agent name, runtime, duration, cost.
+ * The ?workspace=slug URL param pre-fills the workspace selector on mount.
+ * Foundation Table with status dot, agent name, runtime, workspace, duration, cost.
  *
  * TanStack QueryClientProvider assumed from root layout (+layout.svelte).
  */
@@ -12,7 +13,9 @@ import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
+import { page } from '$app/state';
 import { sessionsQuery } from '$lib/api/queries/sessions.js';
+import { workspacesQuery } from '$lib/api/queries/workspaces.js';
 import Alert from '$lib/design/foundation/alert/Alert.svelte';
 import Select from '$lib/design/foundation/select/Select.svelte';
 import Skeleton from '$lib/design/foundation/skeleton/Skeleton.svelte';
@@ -20,6 +23,7 @@ import { Table, TableHeader } from '$lib/design/foundation/table/index.js';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
 import type { Session, SessionStatus } from '$lib/domain/sessions/types.js';
+import type { Workspace } from '$lib/domain/workspaces/types.js';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
@@ -43,12 +47,36 @@ const RUNTIME_OPTIONS = [
   { value: 'gemma', label: 'Gemma' },
 ];
 
+// Pre-fill workspace from URL ?workspace=slug query param.
+const urlWorkspace = $derived(page.url.searchParams.get('workspace') ?? 'all');
+
 let statusFilter = $state('all');
 let runtimeFilter = $state('all');
+let workspaceFilter = $state('all');
+
+// Sync workspaceFilter when the URL param changes (e.g., navigated from another page).
+$effect(() => {
+  workspaceFilter = urlWorkspace;
+});
+
+// Workspace list for the selector — loaded once, stale for 30s.
+const workspacesOptsStore = writable(
+  untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>)
+);
+const workspacesResult = createQuery<Workspace[]>(workspacesOptsStore);
+
+const workspaceOptions = $derived([
+  { value: 'all', label: 'All workspaces' },
+  ...($workspacesResult.data ?? []).map((w: Workspace) => ({
+    value: w.slug,
+    label: w.name,
+  })),
+]);
 
 const filters = $derived({
   status: statusFilter !== 'all' ? statusFilter : undefined,
   runtimeType: runtimeFilter !== 'all' ? runtimeFilter : undefined,
+  workspaceSlug: workspaceFilter !== 'all' ? workspaceFilter : undefined,
 });
 
 const queryOptsStore = writable(
@@ -113,6 +141,11 @@ function formatCost(usd: number): string {
       options={RUNTIME_OPTIONS}
       bind:value={runtimeFilter}
       placeholder="All runtimes"
+    />
+    <Select
+      options={workspaceOptions}
+      bind:value={workspaceFilter}
+      placeholder="All workspaces"
     />
   </div>
 

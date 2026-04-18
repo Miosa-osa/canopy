@@ -226,7 +226,17 @@ onMount(() => {
         <!-- Workspace -->
         <div class="sd-ctx-item">
           <span class="sd-ctx-label">Workspace</span>
-          <span class="sd-ctx-value">{session.workspaceSlug ?? '—'}</span>
+          {#if session.workspaceSlug}
+            <a
+              class="sd-workspace-chip"
+              href="/workspaces/{session.workspaceSlug}"
+              aria-label="Open workspace {session.workspaceSlug}"
+            >
+              {session.workspaceSlug}
+            </a>
+          {:else}
+            <span class="sd-ctx-value">—</span>
+          {/if}
         </div>
 
         <!-- Sandbox URL -->
@@ -479,6 +489,37 @@ onMount(() => {
 
   .sd-ctx-link:hover {
     color: var(--fg);
+  }
+
+  /* Workspace chip — compact pill linking to /workspaces/:slug */
+  .sd-workspace-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    align-self: flex-start;
+    padding: 2px 8px;
+    border-radius: var(--radius-full, 9999px);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+    background: color-mix(in oklch, var(--fg) 6%, transparent 94%);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    transition: background 0.12s ease, color 0.12s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .sd-workspace-chip:hover {
+    background: color-mix(in oklch, var(--fg) 12%, transparent 88%);
+    color: var(--fg);
+  }
+
+  .sd-workspace-chip:focus-visible {
+    outline: 2px solid var(--accent, currentColor);
+    outline-offset: 2px;
   }
 
   :global(.sd-sk-ctx) {

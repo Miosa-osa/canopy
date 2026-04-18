@@ -56,6 +56,7 @@ defmodule CanopyWeb.Router do
     # Agent management
     get "/agents", AgentsController, :index
     get "/agents/:slug", AgentsController, :show
+    put "/agents/:slug/persona", AgentsController, :update_persona
     post "/agents/:slug/hire", AgentsController, :hire
     delete "/agents/:slug/hire", AgentsController, :fire
     get "/agents/:slug/heartbeats", AgentsController, :heartbeats

@@ -92,6 +92,24 @@ defmodule CanopyWeb.Schemas.AgentSchema do
     })
   end
 
+  defmodule UpdatePersonaRequest do
+    @moduledoc "Request body for PUT /api/v1/agents/:slug/persona."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "UpdatePersonaRequest",
+      type: :object,
+      properties: %{
+        persona_markdown: %Schema{
+          type: :string,
+          description: "Full markdown content to write to the agent persona file"
+        }
+      },
+      required: [:persona_markdown]
+    })
+  end
+
   defmodule HireResponse do
     @moduledoc "Response after hiring or firing an agent."
 

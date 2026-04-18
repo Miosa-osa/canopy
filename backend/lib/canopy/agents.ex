@@ -68,6 +68,26 @@ defmodule Canopy.Agents do
   end
 
   @doc """
+  Updates the persona markdown file for an agent.
+
+  Writes `content` to the agent's `persona_path` under `priv/agents/` and
+  returns `{:ok, agent}`. Returns `{:error, :not_found}` when the slug is
+  unknown, or `{:error, :write_failed}` if the file cannot be written.
+  """
+  @spec update_persona(String.t(), String.t()) ::
+          {:ok, Agent.t()} | {:error, :not_found | :write_failed}
+  def update_persona(slug, content) when is_binary(content) do
+    with {:ok, agent} <- get_by_slug(slug) do
+      path = Path.join(:code.priv_dir(:canopy), Path.join("agents", agent.persona_path))
+
+      case File.write(path, content) do
+        :ok -> {:ok, agent}
+        {:error, _reason} -> {:error, :write_failed}
+      end
+    end
+  end
+
+  @doc """
   Fires an agent: sets `hired: false` and cancels pending heartbeat jobs.
 
   Returns `{:ok, agent}`, `{:error, :not_found}`, or `{:error, changeset}`.
