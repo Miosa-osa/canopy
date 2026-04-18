@@ -187,4 +187,43 @@ defmodule CanopyWeb.Schemas.RuntimeSchema do
       required: [:detected]
     })
   end
+
+  defmodule PutCredentialsRequest do
+    @moduledoc "Request body for PUT /runtimes/:type/credentials."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "PutCredentialsRequest",
+      type: :object,
+      properties: %{
+        values: %Schema{
+          type: :object,
+          description: "Map of field_key to plaintext value, e.g. {\"api_key\": \"sk-ant-...\"}",
+          additionalProperties: %Schema{type: :string}
+        }
+      },
+      required: [:values]
+    })
+  end
+
+  defmodule CredentialFieldList do
+    @moduledoc "Response for credential endpoints — field keys only, never values."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "CredentialFieldList",
+      type: :object,
+      properties: %{
+        runtime_type: %Schema{type: :string, description: "Runtime type identifier"},
+        field_keys: %Schema{
+          type: :array,
+          items: %Schema{type: :string},
+          description: "List of field keys that have been stored for this runtime"
+        }
+      },
+      required: [:runtime_type, :field_keys]
+    })
+  end
 end

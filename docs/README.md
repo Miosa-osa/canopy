@@ -71,6 +71,19 @@ Live plan for Week 1: parallelization map, adapter-seeding logic, SessionsContro
 + SSE endpoint shape, CodexLocal/GeminiLocal follow-on strategy, agent frontmatter
 mapping table, day-by-day track ownership.
 
+### [09-foundation-migration.md](./09-foundation-migration.md)
+**MIOSA Foundation Migration Plan**
+
+Plan + decisions for replacing shadcn-svelte primitives with Miosa-osa/foundation
+component library. Pill-first, glassmorphism, OKLCh ↔ hex token alias layer.
+
+### [10-naming-ontology-audit.md](./10-naming-ontology-audit.md)
+**Naming, Topology, Ontology, Foundation Audit**
+
+Self-audit of how names/categories/layers/boundaries were chosen across backend,
+frontend, Rust, protocols, and docs. Flags 8 inconsistencies with a remediation
+queue ordered by impact÷effort. Read this before large renames or layer changes.
+
 ---
 
 ## Third-Party Attributions

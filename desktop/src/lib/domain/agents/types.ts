@@ -25,10 +25,7 @@ export type AgentCategory =
   | 'technology'
   | 'testing';
 
-/** Hire status reflects whether the user has activated this agent. */
-export type AgentHireStatus = 'hired' | 'available';
-
-/** Agent summary for the library grid. */
+/** Agent summary for the library grid. Matches backend /api/v1/agents shape. */
 export interface Agent {
   slug: string;
   name: string;
@@ -37,7 +34,8 @@ export interface Agent {
   category: AgentCategory;
   owner: string | null;
   bio: string;
-  hireStatus: AgentHireStatus;
+  /** Whether the user has hired this agent. Maps 1:1 to backend `hired` bool. */
+  hired: boolean;
   runCount: number;
   budget: number | null;
   defaultRuntime: string | null;
@@ -58,7 +56,8 @@ export interface AgentDetail extends Agent {
 export interface AgentFilters {
   category?: AgentCategory;
   query?: string;
-  hireStatus?: AgentHireStatus;
+  /** true = only hired agents; false = only available; undefined = all. */
+  hired?: boolean;
 }
 
 /** Body for POST /api/v1/agents/:slug/hire */

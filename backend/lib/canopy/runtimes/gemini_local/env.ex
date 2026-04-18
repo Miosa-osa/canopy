@@ -8,20 +8,22 @@ defmodule Canopy.Runtimes.GeminiLocal.Env do
 
   ## Injected variables
 
-  | Variable              | Source                             | Always? |
-  |-----------------------|------------------------------------|---------|
-  | `CANOPY_SESSION_ID`   | Generated or provided `session_id` | yes     |
-  | `CANOPY_API_URL`      | `:canopy, :api_url` app config     | yes     |
-  | `GEMINI_API_KEY`      | `context["api_key"]`               | optional|
-  | `GOOGLE_API_KEY`      | `context["api_key"]` (alias)       | optional|
-  | `CANOPY_TASK_ID`      | `context["task_id"]`               | optional|
-  | `CANOPY_WAKE_REASON`  | `context["wake_reason"]`           | optional|
-  | `CANOPY_WORKSPACE_CWD`| `context["cwd"]`                   | optional|
+  | Variable               | Source                                         | Always? |
+  |------------------------|------------------------------------------------|---------|
+  | `CANOPY_SESSION_ID`    | Generated or provided `session_id`             | yes     |
+  | `CANOPY_API_URL`       | `:canopy, :api_url` app config                 | yes     |
+  | `GEMINI_API_KEY`       | Vault `("gemini-local", "api_key")`            | optional|
+  | `GOOGLE_API_KEY`       | Vault `("gemini-local", "api_key")` (alias)    | optional|
+  | `CANOPY_TASK_ID`       | `context["task_id"]`                           | optional|
+  | `CANOPY_WAKE_REASON`   | `context["wake_reason"]`                       | optional|
+  | `CANOPY_WORKSPACE_CWD` | `context["cwd"]`                               | optional|
 
-  Note: `GEMINI_API_KEY` and `GOOGLE_API_KEY` are set to the same value when
-  `context["api_key"]` is present — the Gemini CLI accepts both. When neither
-  is provided, the CLI uses its own stored credentials from `gemini auth login`.
+  `GEMINI_API_KEY` and `GOOGLE_API_KEY` are set to the same vault value when
+  present — the Gemini CLI accepts both. When no key is stored, the CLI uses
+  its own stored credentials from `gemini auth login`.
   """
+
+  alias Canopy.Vault
 
   @doc """
   Builds the environment variable list for a `gemini` Port.
@@ -31,11 +33,16 @@ defmodule Canopy.Runtimes.GeminiLocal.Env do
   """
   @spec build(map(), String.t()) :: {:ok, [{charlist(), charlist()}]}
   def build(context, session_id) do
-    api_key = Map.get(context, "api_key", "") |> to_string() |> String.trim()
     task_id = Map.get(context, "task_id", "") |> to_string() |> String.trim()
     wake_reason = Map.get(context, "wake_reason", "") |> to_string() |> String.trim()
     workspace_cwd = Map.get(context, "cwd", "") |> to_string() |> String.trim()
     api_url = Application.get_env(:canopy, :api_url, "http://localhost:4000") |> to_string()
+
+    api_key =
+      case Vault.get("gemini-local", "api_key") do
+        {:ok, key} -> key
+        {:error, :not_found} -> nil
+      end
 
     base = [
       {"CANOPY_SESSION_ID", session_id},
@@ -43,8 +50,8 @@ defmodule Canopy.Runtimes.GeminiLocal.Env do
     ]
 
     optional = [
-      if(api_key != "", do: {"GEMINI_API_KEY", api_key}),
-      if(api_key != "", do: {"GOOGLE_API_KEY", api_key}),
+      if(api_key, do: {"GEMINI_API_KEY", api_key}),
+      if(api_key, do: {"GOOGLE_API_KEY", api_key}),
       if(task_id != "", do: {"CANOPY_TASK_ID", task_id}),
       if(wake_reason != "", do: {"CANOPY_WAKE_REASON", wake_reason}),
       if(workspace_cwd != "", do: {"CANOPY_WORKSPACE_CWD", workspace_cwd})

@@ -41,9 +41,7 @@ const recentSessionsOpts = $derived(sessionsQuery({ limit: 5 }) as CreateQueryOp
 const recentSessionsQ = createQuery<Session[]>(recentSessionsOpts);
 
 // Pinned agents — hired agents only
-const pinnedAgentsOpts = $derived(
-  agentsQuery({ hireStatus: 'hired' }) as CreateQueryOptions<Agent[]>
-);
+const pinnedAgentsOpts = $derived(agentsQuery({ hired: true }) as CreateQueryOptions<Agent[]>);
 const pinnedAgentsQ = createQuery<Agent[]>(pinnedAgentsOpts);
 
 const hireMut = createMutation<Agent, Error, { slug: string; body?: HireAgentBody }>(
@@ -202,7 +200,12 @@ function formatRelative(iso: string): string {
     {:else}
       <div class="agent-grid">
         {#each pinnedAgents.slice(0, 4) as agent (agent.slug)}
-          <AgentCard {agent} onHire={handleHire} onRun={handleRun} />
+          <AgentCard
+            {agent}
+            onHire={handleHire}
+            onRun={handleRun}
+            isHiring={$hireMut.isPending && $hireMut.variables?.slug === agent.slug}
+          />
         {/each}
       </div>
     {/if}

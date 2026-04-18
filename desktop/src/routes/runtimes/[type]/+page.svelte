@@ -9,16 +9,22 @@
  *   - runtimeDetailQuery(type) for runtime data
  *   - runtimeModelsQuery(type) for Models tab
  *   - testEnvironmentMutation(type) for "Test Environment" button
- *
- * TanStack QueryClientProvider assumed from root layout (+layout.svelte).
+ *   - saveRuntimeCredentialsMutation(type) for Configuration tab save
+ *   - runtimeCredentialsQuery(type) for showing "configured" pills
  */
-// TODO: QueryClient setup assumed from layout
-import { type CreateQueryOptions, createMutation, createQuery } from '@tanstack/svelte-query';
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import {
+  runtimeCredentialsQuery,
   runtimeDetailQuery,
   runtimeModelsQuery,
+  saveRuntimeCredentialsMutation,
   testRuntimeEnvironment,
 } from '$lib/api/queries/runtimes.js';
 import Alert from '$lib/design/foundation/alert/Alert.svelte';
@@ -29,12 +35,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/design/foundation
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import RuntimeConfigForm from '$lib/design/patterns/RuntimeConfigForm.svelte';
 import type {
-  EnvironmentCheckItem,
   RuntimeDetail,
   RuntimeModel,
   TestEnvironmentResult,
 } from '$lib/domain/runtimes/types.js';
 
+const queryClient = useQueryClient();
 const runtimeType = $derived(page.params.type ?? '');
 
 const detailQueryOpts = $derived(
@@ -43,16 +49,26 @@ const detailQueryOpts = $derived(
 const modelsQueryOpts = $derived(
   runtimeModelsQuery(runtimeType) as CreateQueryOptions<RuntimeModel[]>
 );
+const credsQueryOpts = $derived(
+  runtimeCredentialsQuery(runtimeType) as CreateQueryOptions<{ field_keys: string[] }>
+);
 
 const detailQuery = createQuery<RuntimeDetail>(detailQueryOpts);
 const modelsQuery = createQuery<RuntimeModel[]>(modelsQueryOpts);
+const credsQuery = createQuery<{ field_keys: string[] }>(credsQueryOpts);
 
 const testMutation = createMutation<TestEnvironmentResult, Error, void>({
   mutationFn: () => testRuntimeEnvironment(runtimeType),
 });
 
+const credsMutation = createMutation<void, Error, Record<string, unknown>>(
+  saveRuntimeCredentialsMutation(runtimeType)
+);
+
 let testResult = $state<TestEnvironmentResult | null>(null);
 let testError = $state<string | null>(null);
+let saveSuccess = $state(false);
+let saveError = $state<string | null>(null);
 
 async function runTest() {
   testResult = null;
@@ -65,15 +81,27 @@ async function runTest() {
   }
 }
 
+async function handleSaveConfig(values: Record<string, unknown>) {
+  saveSuccess = false;
+  saveError = null;
+  try {
+    await $credsMutation.mutateAsync(values);
+    saveSuccess = true;
+    // Refresh both the credentials query and runtime detail
+    await queryClient.invalidateQueries({ queryKey: ['runtimes', runtimeType, 'credentials'] });
+    await queryClient.invalidateQueries({ queryKey: ['runtimes', runtimeType] });
+  } catch (err) {
+    saveError = err instanceof Error ? err.message : 'Failed to save credentials';
+  }
+}
+
 function formatContext(n: number | null): string {
   if (n === null) return '—';
   return n >= 1000 ? `${(n / 1000).toFixed(0)}K` : String(n);
 }
 
-async function handleSaveConfig(values: Record<string, unknown>) {
-  // Placeholder — config persistence API ships in Week 2.
-  console.info('[RuntimeConfigForm] save', values);
-}
+// Derived: which secret field keys are already stored
+const configuredKeys = $derived(($credsQuery.data?.field_keys ?? []) as string[]);
 </script>
 
 <div class="rtd-page">
@@ -205,6 +233,26 @@ async function handleSaveConfig(values: Record<string, unknown>) {
 
       <!-- Configuration -->
       <TabsContent value="configuration" class="rtd-tab-content">
+        {#if saveSuccess}
+          <Alert variant="success" dismissible ondismiss={() => (saveSuccess = false)}>
+            Credentials saved
+          </Alert>
+        {/if}
+        {#if saveError}
+          <Alert variant="error" dismissible ondismiss={() => (saveError = null)}>
+            {saveError}
+          </Alert>
+        {/if}
+
+        {#if configuredKeys.length > 0}
+          <div class="rtd-configured-row" aria-label="Already configured fields">
+            <span class="rtd-configured-label">Configured:</span>
+            {#each configuredKeys as key (key)}
+              <span class="rtd-configured-pill">{key}</span>
+            {/each}
+          </div>
+        {/if}
+
         {#if $detailQuery.isLoading}
           <Skeleton class="rtd-sk-form" />
         {:else if $detailQuery.data}
@@ -212,6 +260,7 @@ async function handleSaveConfig(values: Record<string, unknown>) {
             schema={$detailQuery.data.configSchema}
             initial={$detailQuery.data.config}
             onSave={handleSaveConfig}
+            isSaving={$credsMutation.isPending}
           />
         {/if}
       </TabsContent>
@@ -423,6 +472,39 @@ async function handleSaveConfig(values: Record<string, unknown>) {
 
   .rtd-check[data-level='error'] { color: var(--signal-error); }
   .rtd-check[data-level='warn']  { color: var(--signal-warn); }
+
+  /* Configured credentials row */
+  .rtd-configured-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+  }
+
+  .rtd-configured-label {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .rtd-configured-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 9999px;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--signal-running);
+    background: color-mix(in oklch, var(--signal-running) 10%, transparent 90%);
+    border: 1px solid color-mix(in oklch, var(--signal-running) 30%, transparent 70%);
+  }
 
   /* Deferred content */
   .rtd-deferred {

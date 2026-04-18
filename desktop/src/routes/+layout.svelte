@@ -11,6 +11,7 @@
 import '../app.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 import { onMount } from 'svelte';
+import { syncRuntimesIfStale } from '$lib/bootstrap/runtime-sync.js';
 import CommandPalette from '$lib/design/patterns/CommandPalette.svelte';
 import Sidebar from '$lib/design/patterns/Sidebar.svelte';
 import ThemeToggle from '$lib/design/primitives/ThemeToggle.svelte';
@@ -34,6 +35,11 @@ const queryClient = new QueryClient({
 onMount(async () => {
   const saved = await loadPersistedTheme();
   if (saved) ui.setTheme(saved);
+
+  // Fire-and-forget: scan $PATH for runtime binaries (Tauri-only), POST results
+  // to Phoenix /runtimes/detect so installed/version/binary_path become real.
+  // Rate-limited to once per 60s to avoid re-detection storms on re-mount.
+  void syncRuntimesIfStale();
 });
 
 $effect(() => {

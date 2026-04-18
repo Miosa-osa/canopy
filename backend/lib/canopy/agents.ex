@@ -9,15 +9,31 @@ defmodule Canopy.Agents do
   Full heartbeat scheduling via Oban cron is Week 2 scope.
   """
 
+  import Ecto.Query, only: [from: 2]
+
   alias Canopy.Agents.Agent
   alias Canopy.Repo
 
-  @doc "Returns all agents, ordered by category and name."
-  @spec list() :: {:ok, [Agent.t()]}
-  def list do
-    agents = Repo.all(Agent)
-    {:ok, agents}
+  @doc """
+  Returns all agents, ordered by category and name.
+
+  Options:
+  - `:hired` — `true` to return only hired agents, `false` for unhired, `nil` for all.
+  """
+  @spec list(keyword()) :: {:ok, [Agent.t()]}
+  def list(opts \\ []) do
+    hired_filter = Keyword.get(opts, :hired)
+
+    query =
+      from(a in Agent, order_by: [asc: a.category, asc: a.name])
+      |> apply_hired_filter(hired_filter)
+
+    {:ok, Repo.all(query)}
   end
+
+  @doc "Returns only hired agents, ordered by category and name."
+  @spec list_hired() :: {:ok, [Agent.t()]}
+  def list_hired, do: list(hired: true)
 
   @doc "Returns an agent by slug, or `{:error, :not_found}`."
   @spec get_by_slug(String.t()) :: {:ok, Agent.t()} | {:error, :not_found}
@@ -55,4 +71,12 @@ defmodule Canopy.Agents do
       |> Repo.update()
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # Private
+  # ---------------------------------------------------------------------------
+
+  @spec apply_hired_filter(Ecto.Query.t(), boolean() | nil) :: Ecto.Query.t()
+  defp apply_hired_filter(query, nil), do: query
+  defp apply_hired_filter(query, val), do: from(a in query, where: a.hired == ^val)
 end

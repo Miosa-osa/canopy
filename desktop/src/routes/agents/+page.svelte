@@ -160,7 +160,12 @@ function handleRun(slug: string): void {
     {:else}
       <div class="agents-grid">
         {#each agents as agent (agent.slug)}
-          <AgentCard {agent} onHire={handleHire} onRun={handleRun} />
+          <AgentCard
+            {agent}
+            onHire={handleHire}
+            onRun={handleRun}
+            isHiring={$hireMut.isPending && $hireMut.variables?.slug === agent.slug}
+          />
         {/each}
       </div>
     {/if}

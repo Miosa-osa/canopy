@@ -43,6 +43,14 @@ defmodule CanopyWeb.Router do
     get "/runtimes/:type", RuntimesController, :show
     post "/runtimes/:type/test", RuntimesController, :test_environment
     get "/runtimes/:type/models", RuntimesController, :models
+    put "/runtimes/:type/credentials", RuntimesController, :put_credentials
+    get "/runtimes/:type/credentials", RuntimesController, :get_credentials
+
+    # Agent management
+    get "/agents", AgentsController, :index
+    get "/agents/:slug", AgentsController, :show
+    post "/agents/:slug/hire", AgentsController, :hire
+    delete "/agents/:slug/hire", AgentsController, :fire
 
     # Session lifecycle + SSE streaming
     get "/sessions", SessionsController, :index

@@ -12,12 +12,14 @@ interface Props {
   agent: Agent;
   onHire?: (slug: string) => void;
   onRun?: (slug: string) => void;
+  /** Pass true while the hire mutation is in-flight for this card's agent. */
+  isHiring?: boolean;
   class?: string;
 }
 
-let { agent, onHire, onRun, class: className = '' }: Props = $props();
+let { agent, onHire, onRun, isHiring = false, class: className = '' }: Props = $props();
 
-const hired = $derived(agent.hireStatus === 'hired');
+const hired = $derived(agent.hired);
 
 function handleHire(e: MouseEvent): void {
   e.stopPropagation();
@@ -75,9 +77,15 @@ function handleCardClick(): void {
         <button
           class="btn-pill btn-pill-primary btn-pill-sm"
           onclick={handleHire}
-          aria-label="Hire {agent.name}"
+          disabled={isHiring}
+          aria-label={isHiring ? 'Hiring…' : `Hire ${agent.name}`}
         >
-          Hire
+          {#if isHiring}
+            <span class="btn-pill-spinner" aria-hidden="true"></span>
+            Hiring…
+          {:else}
+            Hire
+          {/if}
         </button>
       {/if}
     </div>

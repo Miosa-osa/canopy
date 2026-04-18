@@ -17,6 +17,7 @@ defmodule CanopyWeb.RuntimesController do
   use OpenApiSpex.ControllerSpecs
 
   alias Canopy.Runtimes
+  alias Canopy.Vault
   alias CanopyWeb.Schemas.RuntimeSchema
 
   action_fallback CanopyWeb.FallbackController
@@ -152,6 +153,58 @@ defmodule CanopyWeb.RuntimesController do
   end
 
   def detect(_conn, _params), do: {:error, :bad_request}
+
+  operation :put_credentials,
+    summary: "Store credentials for a runtime",
+    description: """
+    Encrypts and persists one or more credential values for the given runtime
+    type. Values are stored using AES-256-GCM encryption — plaintext is never
+    returned. Calling this again for the same field key replaces the previous value.
+    """,
+    parameters: [
+      type: [in: :path, description: "Runtime type identifier", type: :string, required: true]
+    ],
+    request_body: {"Credential values", "application/json", RuntimeSchema.PutCredentialsRequest},
+    responses: [
+      ok: {"Stored field keys", "application/json", RuntimeSchema.CredentialFieldList}
+    ]
+
+  @spec put_credentials(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def put_credentials(conn, %{"type" => runtime_type, "values" => values})
+      when is_map(values) do
+    results =
+      Enum.map(values, fn {field_key, plaintext} ->
+        Vault.put(runtime_type, field_key, to_string(plaintext))
+      end)
+
+    if Enum.all?(results, &match?({:ok, _}, &1)) do
+      field_keys = Vault.list_fields(runtime_type)
+      json(conn, %{runtime_type: runtime_type, field_keys: field_keys})
+    else
+      {:error, :internal_server_error}
+    end
+  end
+
+  def put_credentials(_conn, _params), do: {:error, :bad_request}
+
+  operation :get_credentials,
+    summary: "List stored credential field keys for a runtime",
+    description: """
+    Returns the list of field keys that have been stored for the given runtime
+    type. Plaintext values are never returned.
+    """,
+    parameters: [
+      type: [in: :path, description: "Runtime type identifier", type: :string, required: true]
+    ],
+    responses: [
+      ok: {"Field key list", "application/json", RuntimeSchema.CredentialFieldList}
+    ]
+
+  @spec get_credentials(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def get_credentials(conn, %{"type" => runtime_type}) do
+    field_keys = Vault.list_fields(runtime_type)
+    json(conn, %{runtime_type: runtime_type, field_keys: field_keys})
+  end
 
   # Maps the Tauri sidecar's `DetectedRuntime` JSON to our Ecto attrs.
   @spec build_attrs(map(), DateTime.t()) :: map()

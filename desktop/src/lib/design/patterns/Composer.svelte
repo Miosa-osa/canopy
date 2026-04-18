@@ -2,11 +2,17 @@
 /**
  * Composer — primary prompt input surface (Cabinet pattern lift).
  * Features: autogrow textarea (13px mono), agent picker popover,
- * runtime picker popover, @mention trigger, ⌘↵ submit.
+ * runtime picker popover, @mention trigger with live hired-agents list, ⌘↵ submit.
  * No focus ring — border darkens on focus (Cabinet detail).
- * LOC target: ≤ 150.
+ *
+ * @mention wiring (Mission 4): on @ keypress, opens a popover seeded from
+ * hiredAgentsQuery(). Filtered by text after @ up to next whitespace.
+ * Selecting an agent inserts "@slug " chip and sets selectedAgent.
  */
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
 import { Bot, ChevronDown } from 'lucide-svelte';
+import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
+import type { Agent } from '$lib/domain/agents/types.js';
 import Kbd from './Kbd.svelte';
 
 interface Props {
@@ -17,6 +23,11 @@ interface Props {
 
 let { onSubmit, placeholder = 'What are we working on?', class: className = '' }: Props = $props();
 
+// Hired agents from API — powers @mention dropdown
+const hiredOpts = $derived(hiredAgentsQuery() as CreateQueryOptions<Agent[]>);
+const hiredQ = createQuery<Agent[]>(hiredOpts);
+const hiredAgents = $derived(($hiredQ.data ?? []) as Agent[]);
+
 let prompt = $state('');
 let selectedAgent = $state<string | null>(null);
 let selectedRuntime = $state<string | null>(null);
@@ -24,6 +35,19 @@ let focused = $state(false);
 let textareaEl = $state<HTMLTextAreaElement | null>(null);
 let agentPickerOpen = $state(false);
 let runtimePickerOpen = $state(false);
+/** Text after the last @ for filtering the @mention dropdown. */
+let mentionFilter = $state('');
+
+// Filter hired agents by mentionFilter text
+const filteredMentionAgents = $derived(
+  mentionFilter
+    ? hiredAgents.filter(
+        (a) =>
+          a.name.toLowerCase().includes(mentionFilter.toLowerCase()) ||
+          a.slug.toLowerCase().includes(mentionFilter.toLowerCase())
+      )
+    : hiredAgents
+);
 
 /** Autogrow the textarea on each input event. */
 function handleInput(): void {
@@ -32,12 +56,22 @@ function handleInput(): void {
   el.style.height = 'auto';
   el.style.height = `${el.scrollHeight}px`;
 
-  // Handle @ trigger for agent picker
+  // Handle @ trigger for agent mention dropdown
   const val = prompt;
   const cursor = el.selectionStart ?? 0;
-  if (val[cursor - 1] === '@') {
-    agentPickerOpen = true;
+  const beforeCursor = val.slice(0, cursor);
+  const atIdx = beforeCursor.lastIndexOf('@');
+  if (atIdx !== -1) {
+    const afterAt = beforeCursor.slice(atIdx + 1);
+    // Only open if no whitespace between @ and cursor (still typing the mention)
+    if (!afterAt.includes(' ') && !afterAt.includes('\n')) {
+      mentionFilter = afterAt;
+      agentPickerOpen = true;
+      return;
+    }
   }
+  agentPickerOpen = false;
+  mentionFilter = '';
 }
 
 function handleKeydown(e: KeyboardEvent): void {
@@ -61,12 +95,34 @@ function handleSubmit(): void {
   }
 }
 
-/** Quick agent options for MVP — Week 1 uses static list; Day 3 seeds real data. */
-const agentOptions = [
-  { slug: 'sales-strategist', name: 'Sales Strategist', emoji: '📊' },
-  { slug: 'architect', name: 'Architect', emoji: '🏗️' },
-  { slug: 'copy-doctor', name: 'Copy Doctor', emoji: '✍️' },
-];
+/** Select an agent from the @mention dropdown. Replaces the @… fragment with @slug chip. */
+function selectMentionAgent(agent: Agent): void {
+  const el = textareaEl;
+  if (!el) return;
+  const cursor = el.selectionStart ?? 0;
+  const beforeCursor = prompt.slice(0, cursor);
+  const atIdx = beforeCursor.lastIndexOf('@');
+  const afterCursor = prompt.slice(cursor);
+  // Replace @<filter> with @slug followed by a space
+  const replacement = `@${agent.slug} `;
+  prompt = beforeCursor.slice(0, atIdx) + replacement + afterCursor;
+  selectedAgent = agent.slug;
+  agentPickerOpen = false;
+  mentionFilter = '';
+  // Restore focus + move cursor after the inserted chip
+  setTimeout(() => {
+    el.focus();
+    const newPos = atIdx + replacement.length;
+    el.setSelectionRange(newPos, newPos);
+  }, 0);
+}
+
+/** Open agent picker button (distinct from @mention inline). */
+function openAgentPicker(): void {
+  agentPickerOpen = !agentPickerOpen;
+  runtimePickerOpen = false;
+  mentionFilter = '';
+}
 
 const runtimeOptions = [
   { slug: 'claude-code', name: 'Claude Code', model: 'claude-3-5-sonnet' },
@@ -95,32 +151,44 @@ const runtimeOptions = [
   <!-- Bottom bar: agent picker | runtime picker | submit -->
   <div class="cnp-composer__bar">
     <div class="cnp-composer__pickers">
-      <!-- Agent picker -->
+      <!-- Agent picker — seeds from hiredAgentsQuery; also used by @mention -->
       <div class="cnp-picker-anchor">
         <button
           class="btn-compact btn-compact-secondary cnp-picker-btn"
-          onclick={() => { agentPickerOpen = !agentPickerOpen; }}
+          onclick={openAgentPicker}
           aria-expanded={agentPickerOpen}
           aria-label="Select agent"
         >
           <Bot size={12} aria-hidden="true" />
-          {selectedAgent ? agentOptions.find(a => a.slug === selectedAgent)?.name ?? 'Agent' : '@agent'}
+          {selectedAgent
+            ? (hiredAgents.find((a) => a.slug === selectedAgent)?.name ?? selectedAgent)
+            : '@agent'}
           <ChevronDown size={10} aria-hidden="true" />
         </button>
 
         {#if agentPickerOpen}
           <div class="cnp-picker-dropdown glass" role="listbox" aria-label="Select agent">
-            {#each agentOptions as a (a.slug)}
-              <button
-                class="cnp-picker-option"
-                role="option"
-                aria-selected={selectedAgent === a.slug}
-                onclick={() => { selectedAgent = a.slug; agentPickerOpen = false; }}
-              >
-                <span>{a.emoji}</span>
-                <span>{a.name}</span>
-              </button>
-            {/each}
+            {#if mentionFilter}
+              <p class="cnp-picker-filter-label">Agents matching "{mentionFilter}"</p>
+            {/if}
+            {#if filteredMentionAgents.length === 0}
+              <p class="cnp-picker-empty">
+                {hiredAgents.length === 0 ? 'No hired agents yet.' : 'No matches.'}
+              </p>
+            {:else}
+              {#each filteredMentionAgents as a (a.slug)}
+                <button
+                  class="cnp-picker-option"
+                  role="option"
+                  aria-selected={selectedAgent === a.slug}
+                  onclick={() => selectMentionAgent(a)}
+                >
+                  <span>{a.emoji}</span>
+                  <span class="cnp-picker-option__name">{a.name}</span>
+                  <span class="cnp-picker-option__sub">{a.category}</span>
+                </button>
+              {/each}
+            {/if}
           </div>
         {/if}
       </div>
@@ -129,11 +197,11 @@ const runtimeOptions = [
       <div class="cnp-picker-anchor">
         <button
           class="btn-compact btn-compact-secondary cnp-picker-btn"
-          onclick={() => { runtimePickerOpen = !runtimePickerOpen; }}
+          onclick={() => { runtimePickerOpen = !runtimePickerOpen; agentPickerOpen = false; }}
           aria-expanded={runtimePickerOpen}
           aria-label="Select runtime"
         >
-          {selectedRuntime ? runtimeOptions.find(r => r.slug === selectedRuntime)?.name ?? 'Runtime' : '⚙ runtime'}
+          {selectedRuntime ? runtimeOptions.find((r) => r.slug === selectedRuntime)?.name ?? 'Runtime' : '⚙ runtime'}
           <ChevronDown size={10} aria-hidden="true" />
         </button>
 
@@ -278,6 +346,27 @@ const runtimeOptions = [
     font-size: var(--text-xs);
     color: var(--fg-subtle);
     margin-left: auto;
+  }
+
+  .cnp-picker-filter-label {
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .cnp-picker-empty {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--fg-subtle);
+    font-style: italic;
+    text-align: center;
   }
 
   .cnp-composer__submit {

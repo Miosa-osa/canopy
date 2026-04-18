@@ -14,6 +14,7 @@ defmodule Canopy.Runtimes.ClaudeLocal.Env do
   | `CLAUDECODE`                | Empty string (nesting guard)          | yes     |
   | `CLAUDE_CODE_ENTRYPOINT`    | Empty string (nesting guard)          | yes     |
   | `CLAUDE_CODE_SESSION`       | Empty string (nesting guard)          | yes     |
+  | `ANTHROPIC_API_KEY`         | `Canopy.Vault.get("claude-local", "api_key")` | optional|
   | `CANOPY_TASK_ID`            | `context["task_id"]`                  | optional|
   | `CANOPY_WAKE_REASON`        | `context["wake_reason"]`              | optional|
   | `CANOPY_WORKSPACE_CWD`      | `context["cwd"]`                      | optional|
@@ -23,7 +24,13 @@ defmodule Canopy.Runtimes.ClaudeLocal.Env do
   `CLAUDE_CODE_SESSION`) are set to empty strings to prevent recursive
   `claude` invocations inside the spawned process from inheriting the parent's
   session context.
+
+  The `ANTHROPIC_API_KEY` is looked up from the vault at execute time. If no
+  key is stored, the variable is omitted so that the `claude` binary falls back
+  to its own stored credentials (e.g. `claude auth login`).
   """
+
+  alias Canopy.Vault
 
   @doc """
   Builds the environment variable list for a `claude` Port.
@@ -39,6 +46,12 @@ defmodule Canopy.Runtimes.ClaudeLocal.Env do
     sandbox_url = Map.get(context, "miosa_sandbox_url", "") |> to_string() |> String.trim()
     api_url = Application.get_env(:canopy, :api_url, "http://localhost:4000") |> to_string()
 
+    api_key =
+      case Vault.get("claude-local", "api_key") do
+        {:ok, key} -> key
+        {:error, :not_found} -> nil
+      end
+
     base = [
       {"CANOPY_SESSION_ID", session_id},
       {"CANOPY_API_URL", api_url},
@@ -49,6 +62,7 @@ defmodule Canopy.Runtimes.ClaudeLocal.Env do
     ]
 
     optional = [
+      if(api_key, do: {"ANTHROPIC_API_KEY", api_key}),
       if(task_id != "", do: {"CANOPY_TASK_ID", task_id}),
       if(wake_reason != "", do: {"CANOPY_WAKE_REASON", wake_reason}),
       if(workspace_cwd != "", do: {"CANOPY_WORKSPACE_CWD", workspace_cwd}),

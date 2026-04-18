@@ -59,4 +59,51 @@ defmodule CanopyWeb.Schemas.AgentSchema do
       required: [:data]
     })
   end
+
+  defmodule AgentDetail do
+    @moduledoc "An agent with optional persona markdown content."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "AgentDetail",
+      type: :object,
+      properties: %{
+        id: %Schema{type: :string, format: :uuid},
+        slug: %Schema{type: :string},
+        category: %Schema{type: :string},
+        name: %Schema{type: :string},
+        description: %Schema{type: :string, nullable: true},
+        persona_path: %Schema{type: :string},
+        persona_content: %Schema{
+          type: :string,
+          nullable: true,
+          description: "Raw markdown content of the persona file (nil if file not found)"
+        },
+        default_runtime: %Schema{type: :string, nullable: true},
+        default_model: %Schema{type: :string, nullable: true},
+        heartbeat_cron: %Schema{type: :string, nullable: true},
+        budget_monthly_usd: %Schema{type: :string, nullable: true},
+        hired: %Schema{type: :boolean},
+        inserted_at: %Schema{type: :string, format: :"date-time"},
+        updated_at: %Schema{type: :string, format: :"date-time"}
+      },
+      required: [:id, :slug, :category, :name, :persona_path, :hired]
+    })
+  end
+
+  defmodule HireResponse do
+    @moduledoc "Response after hiring or firing an agent."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "HireResponse",
+      type: :object,
+      properties: %{
+        data: Agent
+      },
+      required: [:data]
+    })
+  end
 end

@@ -25,9 +25,11 @@ interface Props {
   initial?: Record<string, unknown>;
   onSave: (values: Record<string, unknown>) => Promise<void>;
   onCancel?: () => void;
+  /** External pending state — disables submit while parent mutation is in-flight. */
+  isSaving?: boolean;
 }
 
-let { schema, initial = {}, onSave, onCancel }: Props = $props();
+let { schema, initial = {}, onSave, onCancel, isSaving = false }: Props = $props();
 
 // Reactive values object keyed by schema field keys.
 // Use $derived for initial computation from schema (Svelte 5 pattern).
@@ -140,9 +142,9 @@ function updateValue(key: string, val: unknown) {
     <button
       type="submit"
       class="btn-pill btn-pill-primary"
-      disabled={isSubmitting}
+      disabled={isSubmitting || isSaving}
     >
-      {#if isSubmitting}
+      {#if isSubmitting || isSaving}
         <span class="btn-pill-spinner" aria-hidden="true"></span>
         Saving…
       {:else}

@@ -3,7 +3,7 @@
  * Verifies type narrowing and category membership.
  */
 import { describe, expect, it } from 'vitest';
-import type { Agent, AgentCategory, AgentHireStatus } from './types.js';
+import type { Agent, AgentCategory } from './types.js';
 
 /** All 19 canonical categories — must stay in sync with the directory. */
 const VALID_CATEGORIES: AgentCategory[] = [
@@ -42,13 +42,6 @@ describe('AgentCategory', () => {
   });
 });
 
-describe('AgentHireStatus', () => {
-  it('only has two values: hired and available', () => {
-    const statuses: AgentHireStatus[] = ['hired', 'available'];
-    expect(statuses).toHaveLength(2);
-  });
-});
-
 describe('Agent shape', () => {
   it('can be constructed with required fields', () => {
     const agent: Agent = {
@@ -59,7 +52,7 @@ describe('Agent shape', () => {
       category: 'sales',
       owner: 'Roberto',
       bio: 'I analyze deal pipelines.',
-      hireStatus: 'hired',
+      hired: true,
       runCount: 3,
       budget: 600,
       defaultRuntime: 'claude-code',
@@ -70,7 +63,7 @@ describe('Agent shape', () => {
     };
 
     expect(agent.slug).toBe('sales-strategist');
-    expect(agent.hireStatus).toBe('hired');
+    expect(agent.hired).toBe(true);
     expect(agent.category).toBe('sales');
   });
 
@@ -83,7 +76,7 @@ describe('Agent shape', () => {
       category: 'academic',
       owner: null,
       bio: 'I research topics.',
-      hireStatus: 'available',
+      hired: false,
       runCount: 0,
       budget: null,
       defaultRuntime: null,

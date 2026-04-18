@@ -24,7 +24,7 @@ defmodule Canopy.Sessions.SessionMessage do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
-  @valid_kinds ~w(assistant thinking tool_call tool_result diff stderr stdout system user)
+  @valid_kinds ~w(assistant thinking tool_call tool_result diff stderr stdout system user init result)
 
   @derive {Jason.Encoder,
            only: [

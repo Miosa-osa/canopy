@@ -43,7 +43,7 @@ const fireMut = createMutation<void, Error, string>(
 
 // Typed accessor
 const agent = $derived(($agentQ.data ?? null) as AgentDetail | null);
-const hired = $derived(agent?.hireStatus === 'hired');
+const hired = $derived(agent?.hired === true);
 </script>
 
 <div class="agent-detail">

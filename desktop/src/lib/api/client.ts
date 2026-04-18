@@ -69,6 +69,17 @@ export async function apiPost<T>(path: string, body?: unknown, opts?: FetchOpts)
   return handleResponse<T>(res);
 }
 
+/** PUT /api/v1/:path */
+export async function apiPut<T>(path: string, body?: unknown, opts?: FetchOpts): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...opts,
+  });
+  return handleResponse<T>(res);
+}
+
 /** DELETE /api/v1/:path */
 export async function apiDelete<T = void>(path: string, opts?: FetchOpts): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

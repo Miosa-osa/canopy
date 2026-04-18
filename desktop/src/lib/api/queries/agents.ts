@@ -13,7 +13,7 @@ export function listAgents(filters?: AgentFilters): Promise<Agent[]> {
   const params = new URLSearchParams();
   if (filters?.category) params.set('category', filters.category);
   if (filters?.query) params.set('q', filters.query);
-  if (filters?.hireStatus) params.set('hire_status', filters.hireStatus);
+  if (typeof filters?.hired === 'boolean') params.set('hired', String(filters.hired));
   const qs = params.toString();
   return apiGet<Agent[]>(`/agents${qs ? `?${qs}` : ''}`);
 }
@@ -65,4 +65,9 @@ export function fireAgentMutation() {
     mutationKey: ['agents', 'fire'] as const,
     mutationFn: (slug: string) => fireAgent(slug),
   };
+}
+
+/** Shorthand query for only hired agents — used by Composer @mention and home pinned panel. */
+export function hiredAgentsQuery() {
+  return agentsQuery({ hired: true });
 }

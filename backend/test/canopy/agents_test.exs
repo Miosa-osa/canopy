@@ -20,7 +20,7 @@ defmodule Canopy.AgentsTest do
     )
   end
 
-  describe "list/0" do
+  describe "list/0 and list/1" do
     test "returns empty list when no agents exist" do
       assert {:ok, []} = Agents.list()
     end
@@ -31,6 +31,63 @@ defmodule Canopy.AgentsTest do
 
       assert {:ok, agents} = Agents.list()
       assert agents != []
+    end
+
+    test "filters to hired agents when hired: true" do
+      {:ok, _hired} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{hired: true}))
+        )
+
+      {:ok, _not_hired} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{hired: false}))
+        )
+
+      {:ok, agents} = Agents.list(hired: true)
+      assert Enum.all?(agents, & &1.hired)
+    end
+
+    test "filters to unhired agents when hired: false" do
+      {:ok, _hired} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{hired: true}))
+        )
+
+      {:ok, _not_hired} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{hired: false}))
+        )
+
+      {:ok, agents} = Agents.list(hired: false)
+      assert Enum.all?(agents, &(not &1.hired))
+    end
+  end
+
+  describe "list_hired/0" do
+    test "returns only hired agents" do
+      {:ok, _hired} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{hired: true}))
+        )
+
+      {:ok, _not_hired} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{hired: false}))
+        )
+
+      assert {:ok, agents} = Agents.list_hired()
+      assert agents != []
+      assert Enum.all?(agents, & &1.hired)
+    end
+
+    test "returns empty list when no agents are hired" do
+      {:ok, _not_hired} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{hired: false}))
+        )
+
+      assert {:ok, []} = Agents.list_hired()
     end
   end
 
