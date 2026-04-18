@@ -12,6 +12,8 @@ import {
   useQueryClient,
 } from '@tanstack/svelte-query';
 import { Bot, Plus, Search } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { agentsQuery, fireAgentMutation, hireAgentMutation } from '$lib/api/queries/agents.js';
 import AgentCard from '$lib/design/patterns/AgentCard.svelte';
@@ -47,14 +49,28 @@ const categories: Array<{ value: AgentCategory | 'all'; label: string }> = [
 let searchQuery = $state('');
 let selectedCategory = $state<AgentCategory | 'all'>('all');
 
-const agentsOpts = $derived(
-  agentsQuery(
-    selectedCategory === 'all'
-      ? { query: searchQuery || undefined }
-      : { category: selectedCategory, query: searchQuery || undefined }
-  ) as CreateQueryOptions<Agent[]>
+const agentsOptsStore = writable(
+  untrack(
+    () =>
+      agentsQuery(
+        selectedCategory === 'all'
+          ? { query: searchQuery || undefined }
+          : { category: selectedCategory, query: searchQuery || undefined }
+      ) as CreateQueryOptions<Agent[]>
+  )
 );
-const agentsQ = createQuery<Agent[]>(agentsOpts);
+
+$effect(() => {
+  agentsOptsStore.set(
+    agentsQuery(
+      selectedCategory === 'all'
+        ? { query: searchQuery || undefined }
+        : { category: selectedCategory, query: searchQuery || undefined }
+    ) as CreateQueryOptions<Agent[]>
+  );
+});
+
+const agentsQ = createQuery<Agent[]>(agentsOptsStore);
 
 const hireMut = createMutation<Agent, Error, { slug: string; body?: HireAgentBody }>(
   hireAgentMutation() as CreateMutationOptions<Agent, Error, { slug: string; body?: HireAgentBody }>

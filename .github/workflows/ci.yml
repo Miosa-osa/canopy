@@ -71,6 +71,21 @@ jobs:
           MIX_ENV: test
           DATABASE_URL: postgres://canopy:canopy@localhost:5432/canopy_test
 
+      - name: Verify OpenAPI spec is generatable
+        working-directory: backend
+        run: mix canopy.gen.openapi --output /tmp/canopy-openapi.json
+        env:
+          MIX_ENV: dev
+          DATABASE_URL: postgres://canopy:canopy@localhost:5432/canopy_test
+
+      - name: Upload OpenAPI spec artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: /tmp/canopy-openapi.json
+          if-no-files-found: error
+          retention-days: 7
+
   # ─── Desktop: SvelteKit + Svelte 5 ──────────────────────────────────────────
   desktop-test:
     name: Desktop (Vitest + svelte-check)

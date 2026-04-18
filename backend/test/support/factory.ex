@@ -14,8 +14,11 @@ defmodule Canopy.Factory do
   use ExMachina.Ecto, repo: Canopy.Repo
 
   alias Canopy.Agents.Agent
+  alias Canopy.Budgets.{Budget, SpendSnapshot}
+  alias Canopy.Governance.{Approval, Rule}
   alias Canopy.Runtimes.{Runtime, RuntimeModel}
   alias Canopy.Sessions.{Session, SessionMessage}
+  alias Canopy.Skills.Skill
   alias Canopy.Workspaces.Workspace
 
   def runtime_factory do
@@ -114,5 +117,68 @@ defmodule Canopy.Factory do
       content: %{"tool" => "bash", "args" => ["ls", "-la"]},
       tool_call_id: sequence(:tool_call_id, &"call-#{&1}")
     )
+  end
+
+  def budget_factory do
+    %Budget{
+      scope_type: "global",
+      scope_id: nil,
+      period: "monthly",
+      limit_usd: Decimal.new("100.00"),
+      soft_alert_pct: 80,
+      hard_ceiling: true,
+      enabled: true
+    }
+  end
+
+  def spend_snapshot_factory do
+    now = DateTime.utc_now()
+
+    %SpendSnapshot{
+      budget: build(:budget),
+      period_start: %{now | day: 1, hour: 0, minute: 0, second: 0, microsecond: {0, 0}},
+      period_end: DateTime.add(now, 30, :day),
+      actual_spend_usd: Decimal.new("0.00"),
+      session_count: 0,
+      snapshot_at: now,
+      inserted_at: now
+    }
+  end
+
+  def governance_rule_factory do
+    %Rule{
+      name: sequence(:name, &"governance-rule-#{&1}"),
+      description: "Test governance rule",
+      enabled: true,
+      priority: 0,
+      conditions: %{},
+      action: "log",
+      audit_context: %{}
+    }
+  end
+
+  def governance_approval_factory do
+    %Approval{
+      rule: build(:governance_rule),
+      session_id: Ecto.UUID.generate(),
+      status: "pending",
+      requested_at: DateTime.utc_now()
+    }
+  end
+
+  def skill_factory do
+    content = sequence(:content, &"# Skill #{&1}\n\nDo the thing.")
+
+    %Skill{
+      slug: sequence(:slug, &"skill-#{&1}"),
+      name: sequence(:name, &"Skill #{&1}"),
+      description: "A test skill",
+      provider_format: "generic",
+      content: content,
+      content_hash: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+      source: "local",
+      tags: [],
+      enabled: true
+    }
   end
 end

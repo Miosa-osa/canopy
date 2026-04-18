@@ -18,7 +18,8 @@
 // TODO: QueryClient setup assumed from layout
 
 import { type CreateQueryOptions, createMutation, createQuery } from '@tanstack/svelte-query';
-import { onMount } from 'svelte';
+import { onMount, untrack } from 'svelte';
+import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import {
@@ -38,15 +39,20 @@ import type { SessionDetail, SessionStatus, TranscriptEntry } from '$lib/domain/
 
 const sessionId = $derived(page.params.id ?? '');
 
-const detailQueryOpts = $derived(
-  sessionDetailQuery(sessionId) as CreateQueryOptions<SessionDetail>
+const detailOptsStore = writable(
+  untrack(() => sessionDetailQuery(sessionId) as CreateQueryOptions<SessionDetail>)
 );
-const messagesQueryOpts = $derived(
-  sessionMessagesQuery(sessionId) as CreateQueryOptions<TranscriptEntry[]>
+const messagesOptsStore = writable(
+  untrack(() => sessionMessagesQuery(sessionId) as CreateQueryOptions<TranscriptEntry[]>)
 );
 
-const detailQuery = createQuery<SessionDetail>(detailQueryOpts);
-const messagesQuery = createQuery<TranscriptEntry[]>(messagesQueryOpts);
+$effect(() => {
+  detailOptsStore.set(sessionDetailQuery(sessionId) as CreateQueryOptions<SessionDetail>);
+  messagesOptsStore.set(sessionMessagesQuery(sessionId) as CreateQueryOptions<TranscriptEntry[]>);
+});
+
+const detailQuery = createQuery<SessionDetail>(detailOptsStore);
+const messagesQuery = createQuery<TranscriptEntry[]>(messagesOptsStore);
 
 const cancelMut = createMutation<void, Error, string>({
   mutationFn: (id: string) => cancelSession(id),

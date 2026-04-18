@@ -9,6 +9,8 @@
  */
 // TODO: QueryClient setup assumed from layout
 import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { sessionsQuery } from '$lib/api/queries/sessions.js';
 import Alert from '$lib/design/foundation/alert/Alert.svelte';
@@ -49,8 +51,15 @@ const filters = $derived({
   runtimeType: runtimeFilter !== 'all' ? runtimeFilter : undefined,
 });
 
-const queryOpts = $derived(sessionsQuery(filters) as CreateQueryOptions<Session[]>);
-const query = createQuery<Session[]>(queryOpts);
+const queryOptsStore = writable(
+  untrack(() => sessionsQuery(filters) as CreateQueryOptions<Session[]>)
+);
+
+$effect(() => {
+  queryOptsStore.set(sessionsQuery(filters) as CreateQueryOptions<Session[]>);
+});
+
+const query = createQuery<Session[]>(queryOptsStore);
 
 function dotColor(status: SessionStatus): 'green' | 'amber' | 'red' | 'grey' {
   switch (status) {
@@ -220,18 +229,6 @@ function formatCost(usd: number): string {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-  }
-
-  .sl-sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
   }
 
   :global(.sl-sk-row) {

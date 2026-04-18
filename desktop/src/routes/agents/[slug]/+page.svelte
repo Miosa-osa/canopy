@@ -13,6 +13,8 @@ import {
   useQueryClient,
 } from '@tanstack/svelte-query';
 import { AlertCircle } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { agentDetailQuery, fireAgentMutation, hireAgentMutation } from '$lib/api/queries/agents.js';
@@ -28,8 +30,15 @@ const queryClient = useQueryClient();
 // slug is always defined on this route — SvelteKit guarantees it
 const slug = $derived(page.params.slug ?? '');
 
-const agentOpts = $derived(agentDetailQuery(slug) as CreateQueryOptions<AgentDetail>);
-const agentQ = createQuery<AgentDetail>(agentOpts);
+const agentOptsStore = writable(
+  untrack(() => agentDetailQuery(slug) as CreateQueryOptions<AgentDetail>)
+);
+
+$effect(() => {
+  agentOptsStore.set(agentDetailQuery(slug) as CreateQueryOptions<AgentDetail>);
+});
+
+const agentQ = createQuery<AgentDetail>(agentOptsStore);
 
 let metaPanelOpen = $state(true);
 

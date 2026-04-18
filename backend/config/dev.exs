@@ -55,6 +55,12 @@ config :canopy, :cors_origins, [
   "http://tauri.localhost"
 ]
 
+# MIOSA compute API — set real values in .env for local dev with sandbox support.
+# When not set, Canopy.Miosa.configured?() returns false and sandbox provisioning
+# is skipped gracefully (miosa_sandbox_status: "skipped").
+config :canopy, :miosa_api_url, System.get_env("MIOSA_API_URL", "")
+config :canopy, :miosa_api_key, System.get_env("MIOSA_API_KEY", "")
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

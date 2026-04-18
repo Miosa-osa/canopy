@@ -106,4 +106,43 @@ defmodule CanopyWeb.Schemas.AgentSchema do
       required: [:data]
     })
   end
+
+  defmodule HeartbeatEntry do
+    @moduledoc "A single scheduled Oban heartbeat job for an agent."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "HeartbeatEntry",
+      type: :object,
+      properties: %{
+        id: %Schema{type: :integer, description: "Oban job ID"},
+        state: %Schema{type: :string, description: "Job state: scheduled | available"},
+        scheduled_at: %Schema{
+          type: :string,
+          format: :"date-time",
+          description: "When the job is scheduled to fire"
+        },
+        args: %Schema{type: :object, description: "Job arguments including agent_slug"},
+        attempt: %Schema{type: :integer},
+        max_attempts: %Schema{type: :integer}
+      },
+      required: [:id, :state, :scheduled_at, :args]
+    })
+  end
+
+  defmodule HeartbeatList do
+    @moduledoc "A list of upcoming heartbeat jobs for an agent."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "HeartbeatList",
+      type: :object,
+      properties: %{
+        data: %Schema{type: :array, items: HeartbeatEntry}
+      },
+      required: [:data]
+    })
+  end
 end

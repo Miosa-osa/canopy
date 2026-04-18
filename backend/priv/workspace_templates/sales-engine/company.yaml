@@ -1,0 +1,33 @@
+name: "Your Company"
+mission: "Replace this with your company mission."
+
+icp:
+  industry: "Replace with your target industry"
+  company_size: "50-500 employees"
+  title: "VP of Operations, COO, Founder"
+  pain: "Replace with the core pain you solve"
+
+deal_stages:
+  - name: Prospect
+    exit_criteria: "Contact identified, LinkedIn verified"
+  - name: Qualified
+    exit_criteria: "ICP fit confirmed, pain acknowledged"
+  - name: Demo
+    exit_criteria: "Demo completed, next step agreed"
+  - name: Proposal
+    exit_criteria: "Proposal sent, budget confirmed"
+  - name: Negotiation
+    exit_criteria: "Terms under discussion"
+  - name: Closed Won
+    exit_criteria: "Contract signed, payment received"
+  - name: Closed Lost
+    exit_criteria: "Deal lost, reason documented"
+
+budget:
+  monthly_outreach_limit: 500
+  max_deal_discount_pct: 15
+
+rules:
+  - No deal advances without documented qualification notes.
+  - All outreach sequences require ICP fit score >= 7/10.
+  - Discount requests above 15% require founder approval.

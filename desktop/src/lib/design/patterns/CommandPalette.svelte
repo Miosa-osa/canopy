@@ -122,6 +122,7 @@ const allCommands: Command[] = [
 
 let query = $state('');
 let activeIndex = $state(0);
+let searchInputEl = $state<HTMLInputElement | null>(null);
 
 const open = $derived(ui.commandPaletteOpen);
 
@@ -185,6 +186,13 @@ $effect(() => {
   activeIndex = 0;
 });
 
+/** Focus search input when palette opens. */
+$effect(() => {
+  if (open && searchInputEl) {
+    searchInputEl.focus();
+  }
+});
+
 let itemIndex = $state(0);
 </script>
 
@@ -204,6 +212,7 @@ let itemIndex = $state(0);
     role="dialog"
     aria-label="Command palette"
     aria-modal="true"
+    tabindex="-1"
     onkeydown={handleKeydown}
   >
     <!-- Search input -->
@@ -214,7 +223,7 @@ let itemIndex = $state(0);
         type="text"
         placeholder="Type a command or search..."
         bind:value={query}
-        autofocus
+        bind:this={searchInputEl}
         aria-label="Command search"
         autocomplete="off"
       />

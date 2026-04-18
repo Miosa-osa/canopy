@@ -27,6 +27,7 @@ defmodule Canopy.Workspaces.Workspace do
              :description,
              :root_path,
              :template,
+             :deleted_at,
              :inserted_at,
              :updated_at
            ]}
@@ -37,6 +38,7 @@ defmodule Canopy.Workspaces.Workspace do
     field :description, :string
     field :root_path, :string
     field :template, :string
+    field :deleted_at, :utc_datetime
 
     timestamps()
   end
@@ -55,5 +57,11 @@ defmodule Canopy.Workspaces.Workspace do
     |> validate_length(:name, min: 1, max: 256)
     |> validate_length(:root_path, min: 1, max: 1024)
     |> unique_constraint(:slug)
+  end
+
+  @doc "Changeset for soft-deleting a workspace."
+  @spec delete_changeset(%__MODULE__{}) :: Ecto.Changeset.t()
+  def delete_changeset(workspace) do
+    change(workspace, deleted_at: DateTime.utc_now() |> DateTime.truncate(:second))
   end
 end

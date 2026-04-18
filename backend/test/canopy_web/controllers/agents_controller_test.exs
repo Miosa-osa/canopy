@@ -5,9 +5,10 @@ defmodule CanopyWeb.AgentsControllerTest do
     GET    /api/v1/agents/:slug
     POST   /api/v1/agents/:slug/hire
     DELETE /api/v1/agents/:slug/hire
+    GET    /api/v1/agents/:slug/heartbeats
   """
 
-  use CanopyWeb.ConnCase, async: true
+  use CanopyWeb.ConnCase, async: false
 
   import Canopy.Factory
 
@@ -132,6 +133,55 @@ defmodule CanopyWeb.AgentsControllerTest do
       conn = delete(conn, "/api/v1/agents/already-fired/hire")
       assert %{"data" => agent} = json_response(conn, 200)
       assert agent["hired"] == false
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # GET /api/v1/agents/:slug/heartbeats
+  # ---------------------------------------------------------------------------
+
+  describe "GET /api/v1/agents/:slug/heartbeats" do
+    test "returns 200 with empty data list when no jobs are scheduled", %{conn: conn} do
+      insert(:agent, slug: "hb-no-jobs", hired: false, heartbeat_cron: nil)
+      conn = get(conn, "/api/v1/agents/hb-no-jobs/heartbeats")
+      assert %{"data" => []} = json_response(conn, 200)
+    end
+
+    test "returns 200 with scheduled jobs after hire", %{conn: conn} do
+      insert(:agent, slug: "hb-with-jobs", hired: false, heartbeat_cron: "*/5 * * * *")
+      # Hire via the API so the hook fires
+      post(conn, "/api/v1/agents/hb-with-jobs/hire")
+
+      conn2 = get(conn, "/api/v1/agents/hb-with-jobs/heartbeats")
+      assert %{"data" => jobs} = json_response(conn2, 200)
+      assert length(jobs) >= 1
+      [job | _] = jobs
+      assert Map.has_key?(job, "id")
+      assert Map.has_key?(job, "scheduled_at")
+      assert job["args"]["agent_slug"] == "hb-with-jobs"
+    end
+
+    test "returns 404 for unknown agent slug", %{conn: conn} do
+      conn = get(conn, "/api/v1/agents/no-such-hb-agent/heartbeats")
+      assert json_response(conn, 404)
+    end
+
+    test "returns at most 5 jobs", %{conn: conn} do
+      insert(:agent, slug: "hb-many", hired: false, heartbeat_cron: "*/5 * * * *")
+
+      # Insert 7 scheduled jobs directly
+      Enum.each(1..7, fn i ->
+        {:ok, _} =
+          Canopy.Heartbeat.Worker.new(
+            %{"agent_slug" => "hb-many", "wake_reason" => "heartbeat"},
+            scheduled_at: DateTime.add(DateTime.utc_now(), i * 60, :second)
+          )
+          |> Oban.insert()
+      end)
+
+      conn = get(conn, "/api/v1/agents/hb-many/heartbeats")
+      assert %{"data" => jobs} = json_response(conn, 200)
+      assert length(jobs) <= 5
     end
   end
 end

@@ -37,12 +37,14 @@ function greeting(): string {
 let currentGreeting = $state(greeting());
 
 // Recent sessions — last 5
-const recentSessionsOpts = $derived(sessionsQuery({ limit: 5 }) as CreateQueryOptions<Session[]>);
-const recentSessionsQ = createQuery<Session[]>(recentSessionsOpts);
+const recentSessionsQ = createQuery<Session[]>(
+  sessionsQuery({ limit: 5 }) as CreateQueryOptions<Session[]>
+);
 
 // Pinned agents — hired agents only
-const pinnedAgentsOpts = $derived(agentsQuery({ hired: true }) as CreateQueryOptions<Agent[]>);
-const pinnedAgentsQ = createQuery<Agent[]>(pinnedAgentsOpts);
+const pinnedAgentsQ = createQuery<Agent[]>(
+  agentsQuery({ hired: true }) as CreateQueryOptions<Agent[]>
+);
 
 const hireMut = createMutation<Agent, Error, { slug: string; body?: HireAgentBody }>(
   hireAgentMutation() as CreateMutationOptions<Agent, Error, { slug: string; body?: HireAgentBody }>

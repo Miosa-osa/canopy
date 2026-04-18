@@ -1,0 +1,28 @@
+name: "Your Dev Shop"
+mission: "Build reliable, maintainable software."
+
+stack:
+  language: "Replace with your primary language"
+  framework: "Replace with your framework"
+  database: "Replace with your database"
+  ci: "GitHub Actions"
+  hosting: "Replace with your hosting provider"
+
+team:
+  - role: Engineering Lead
+    responsibilities: Architecture, code review, technical decisions
+  - role: Developer
+    responsibilities: Feature development, bug fixes, testing
+
+engineering_rules:
+  - Test coverage >= 80% before merge.
+  - All PRs reviewed by at least one engineer.
+  - No direct commits to main. Branch + PR only.
+  - ADR required for any change affecting public API or data model.
+  - Dependency updates reviewed monthly.
+
+release_cadence: "Weekly releases on Fridays."
+
+on_call:
+  rotation: "Weekly"
+  runbook: "reference/runbooks/incident-response.md"

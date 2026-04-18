@@ -11,6 +11,13 @@ defmodule CanopyWeb.Router do
   - `resources "/agents"` — list, get, hire, fire
   - `resources "/workspaces"` — list, get, create
   - `resources "/sandboxes"` — list, get, destroy (MIOSA-provisioned VMs)
+
+  Week 3 additions:
+  - Workspace CRUD: list, show, create, delete (soft)
+  - Workspace templates: GET /workspaces/templates
+  - Workspace file tree: GET /workspaces/:slug/tree
+  - Workspace file ops: GET/PUT/DELETE /workspaces/:slug/files/*path
+  - Workspace move: POST /workspaces/:slug/files/move
   """
 
   use CanopyWeb, :router
@@ -51,6 +58,7 @@ defmodule CanopyWeb.Router do
     get "/agents/:slug", AgentsController, :show
     post "/agents/:slug/hire", AgentsController, :hire
     delete "/agents/:slug/hire", AgentsController, :fire
+    get "/agents/:slug/heartbeats", AgentsController, :heartbeats
 
     # Session lifecycle + SSE streaming
     get "/sessions", SessionsController, :index
@@ -60,6 +68,56 @@ defmodule CanopyWeb.Router do
     get "/sessions/:id/chain", SessionsController, :chain
     get "/sessions/:id/messages", SessionsController, :messages
     get "/sessions/:id/events", SessionEventsController, :stream
+
+    # MIOSA compute sandboxes — derived from session sandbox columns
+    get "/sandboxes", SandboxesController, :index
+    get "/sandboxes/:sandbox_id", SandboxesController, :show
+    delete "/sandboxes/:sandbox_id", SandboxesController, :delete
+
+    # Budget enforcement — 3-tier spend control
+    get "/budgets", BudgetsController, :index
+    post "/budgets", BudgetsController, :create
+    get "/budgets/:id", BudgetsController, :show
+    put "/budgets/:id", BudgetsController, :update
+    delete "/budgets/:id", BudgetsController, :delete
+    get "/budgets/:id/spend", BudgetsController, :spend
+    post "/budgets/:id/check", BudgetsController, :check_budget
+
+    # Skills — markdown bundles injected into agent execution environments
+    get "/skills", SkillsController, :index
+    get "/skills/:slug", SkillsController, :show
+    post "/skills/import", SkillsController, :import
+
+    # Governance — approval gates, rules, and audit log
+    get "/governance/rules", GovernanceController, :rules_index
+    post "/governance/rules", GovernanceController, :rules_create
+    put "/governance/rules/:id", GovernanceController, :rules_update
+    delete "/governance/rules/:id", GovernanceController, :rules_delete
+    get "/governance/approvals", GovernanceController, :approvals_index
+    post "/governance/approvals/:id/approve", GovernanceController, :approve
+    post "/governance/approvals/:id/reject", GovernanceController, :reject
+    get "/governance/audit", GovernanceController, :audit
+
+    # Tool registry — Week 2 Track F
+    get "/tools", ToolsController, :index
+    get "/tools/:name", ToolsController, :show
+    post "/tools/:name/dispatch", ToolsController, :dispatch
+
+    # Workspace management — Week 3 (CRUD + soft-delete)
+    # NOTE: /workspaces/templates must come before /workspaces/:slug to avoid slug conflict
+    get "/workspaces/templates", WorkspacesController, :templates
+    get "/workspaces", WorkspacesController, :index
+    get "/workspaces/:slug", WorkspacesController, :show
+    post "/workspaces", WorkspacesController, :create
+    delete "/workspaces/:slug", WorkspacesController, :delete
+
+    # Workspace file operations — Week 3
+    get "/workspaces/:slug/tree", WorkspaceFilesController, :tree
+    get "/workspaces/:slug/files", WorkspaceFilesController, :list_dir
+    post "/workspaces/:slug/files/move", WorkspaceFilesController, :move
+    get "/workspaces/:slug/files/*path", WorkspaceFilesController, :read
+    put "/workspaces/:slug/files/*path", WorkspaceFilesController, :write
+    delete "/workspaces/:slug/files/*path", WorkspaceFilesController, :delete
   end
 
   # OpenAPI spec endpoint — outside the CanopyWeb scope so the module name is literal

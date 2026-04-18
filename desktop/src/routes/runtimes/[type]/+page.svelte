@@ -18,13 +18,15 @@ import {
   createQuery,
   useQueryClient,
 } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import {
   runtimeCredentialsQuery,
   runtimeDetailQuery,
   runtimeModelsQuery,
-  saveRuntimeCredentialsMutation,
+  saveRuntimeCredentials,
   testRuntimeEnvironment,
 } from '$lib/api/queries/runtimes.js';
 import Alert from '$lib/design/foundation/alert/Alert.svelte';
@@ -43,27 +45,37 @@ import type {
 const queryClient = useQueryClient();
 const runtimeType = $derived(page.params.type ?? '');
 
-const detailQueryOpts = $derived(
-  runtimeDetailQuery(runtimeType) as CreateQueryOptions<RuntimeDetail>
+const detailOptsStore = writable(
+  untrack(() => runtimeDetailQuery(runtimeType) as CreateQueryOptions<RuntimeDetail>)
 );
-const modelsQueryOpts = $derived(
-  runtimeModelsQuery(runtimeType) as CreateQueryOptions<RuntimeModel[]>
+const modelsOptsStore = writable(
+  untrack(() => runtimeModelsQuery(runtimeType) as CreateQueryOptions<RuntimeModel[]>)
 );
-const credsQueryOpts = $derived(
-  runtimeCredentialsQuery(runtimeType) as CreateQueryOptions<{ field_keys: string[] }>
+const credsOptsStore = writable(
+  untrack(
+    () => runtimeCredentialsQuery(runtimeType) as CreateQueryOptions<{ field_keys: string[] }>
+  )
 );
 
-const detailQuery = createQuery<RuntimeDetail>(detailQueryOpts);
-const modelsQuery = createQuery<RuntimeModel[]>(modelsQueryOpts);
-const credsQuery = createQuery<{ field_keys: string[] }>(credsQueryOpts);
+$effect(() => {
+  detailOptsStore.set(runtimeDetailQuery(runtimeType) as CreateQueryOptions<RuntimeDetail>);
+  modelsOptsStore.set(runtimeModelsQuery(runtimeType) as CreateQueryOptions<RuntimeModel[]>);
+  credsOptsStore.set(
+    runtimeCredentialsQuery(runtimeType) as CreateQueryOptions<{ field_keys: string[] }>
+  );
+});
+
+const detailQuery = createQuery<RuntimeDetail>(detailOptsStore);
+const modelsQuery = createQuery<RuntimeModel[]>(modelsOptsStore);
+const credsQuery = createQuery<{ field_keys: string[] }>(credsOptsStore);
 
 const testMutation = createMutation<TestEnvironmentResult, Error, void>({
   mutationFn: () => testRuntimeEnvironment(runtimeType),
 });
 
-const credsMutation = createMutation<void, Error, Record<string, unknown>>(
-  saveRuntimeCredentialsMutation(runtimeType)
-);
+const credsMutation = createMutation<void, Error, Record<string, unknown>>({
+  mutationFn: (values: Record<string, unknown>) => saveRuntimeCredentials(runtimeType, values),
+});
 
 let testResult = $state<TestEnvironmentResult | null>(null);
 let testError = $state<string | null>(null);
@@ -367,7 +379,7 @@ const configuredKeys = $derived(($credsQuery.data?.field_keys ?? []) as string[]
     flex-shrink: 0;
   }
 
-  .rtd-tab-content {
+  :global(.rtd-tab-content) {
     flex: 1;
   }
 

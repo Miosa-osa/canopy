@@ -84,6 +84,20 @@ Self-audit of how names/categories/layers/boundaries were chosen across backend,
 frontend, Rust, protocols, and docs. Flags 8 inconsistencies with a remediation
 queue ordered by impact÷effort. Read this before large renames or layer changes.
 
+### [11-weeks-2-20-roadmap.md](./11-weeks-2-20-roadmap.md)
+**Weeks 2–20 Roadmap**
+
+Phase plan for the remaining 19 weeks: agent autonomy (Week 2), productivity
+modules (Weeks 3–12), system modules (Weeks 13–17), v1.0 ship (Weeks 18–20).
+Daily track breakdowns, exit criteria per week, dependency graph.
+
+### [12-week2-report.md](./12-week2-report.md)
+**Week 2 Completion Record**
+
+Sign-off on Week 2 (agent autonomy) + Week 3 early scaffold. 13 parallel
+tracks, triple-stack verify (1001 backend / 49 vitest / 11 cargo, all green),
+shell polish wiring, Oban test-mode fix, deferrals with targets.
+
 ---
 
 ## Third-Party Attributions

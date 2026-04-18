@@ -24,8 +24,7 @@ interface Props {
 let { onSubmit, placeholder = 'What are we working on?', class: className = '' }: Props = $props();
 
 // Hired agents from API — powers @mention dropdown
-const hiredOpts = $derived(hiredAgentsQuery() as CreateQueryOptions<Agent[]>);
-const hiredQ = createQuery<Agent[]>(hiredOpts);
+const hiredQ = createQuery<Agent[]>(hiredAgentsQuery() as CreateQueryOptions<Agent[]>);
 const hiredAgents = $derived(($hiredQ.data ?? []) as Agent[]);
 
 let prompt = $state('');

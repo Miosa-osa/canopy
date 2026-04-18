@@ -3,16 +3,20 @@ defmodule CanopyWeb.AgentsController do
   HTTP API for Canopy agent personas.
 
   Routes:
-    GET    /api/v1/agents             — list agents (optional ?hired=true|false filter)
-    GET    /api/v1/agents/:slug       — get agent detail with persona markdown
-    POST   /api/v1/agents/:slug/hire  — hire an agent (hired: true)
-    DELETE /api/v1/agents/:slug/hire  — fire an agent (hired: false)
+    GET    /api/v1/agents                    — list agents (optional ?hired=true|false filter)
+    GET    /api/v1/agents/:slug              — get agent detail with persona markdown
+    POST   /api/v1/agents/:slug/hire         — hire an agent (hired: true)
+    DELETE /api/v1/agents/:slug/hire         — fire an agent (hired: false)
+    GET    /api/v1/agents/:slug/heartbeats   — list next scheduled heartbeat Oban jobs
   """
 
   use CanopyWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
+  import Ecto.Query, only: [from: 2]
+
   alias Canopy.Agents
+  alias Canopy.Repo
   alias CanopyWeb.Schemas.AgentSchema
 
   action_fallback CanopyWeb.FallbackController
@@ -103,6 +107,48 @@ defmodule CanopyWeb.AgentsController do
   def fire(conn, %{"slug" => slug}) do
     with {:ok, agent} <- Agents.fire(slug) do
       json(conn, %{data: agent})
+    end
+  end
+
+  operation :heartbeats,
+    summary: "List upcoming heartbeat jobs",
+    description: """
+    Returns the next scheduled Oban heartbeat jobs for the given agent slug.
+    Only jobs in `scheduled` or `available` state are returned, ordered by
+    `scheduled_at` ascending. Maximum 5 results.
+    """,
+    parameters: [
+      slug: [in: :path, description: "Agent slug", type: :string, required: true]
+    ],
+    responses: [
+      ok: {"Heartbeat list", "application/json", AgentSchema.HeartbeatList},
+      not_found: {"Not found", "application/json", CanopyWeb.Schemas.RuntimeSchema.ErrorResponse}
+    ]
+
+  @spec heartbeats(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def heartbeats(conn, %{"slug" => slug}) do
+    with {:ok, _agent} <- Agents.get_by_slug(slug) do
+      jobs =
+        Repo.all(
+          from(j in Oban.Job,
+            where:
+              j.queue == "heartbeats" and
+                j.state in ["scheduled", "available"] and
+                fragment("?->>'agent_slug' = ?", j.args, ^slug),
+            order_by: [asc: j.scheduled_at],
+            limit: 5,
+            select: %{
+              id: j.id,
+              state: j.state,
+              scheduled_at: j.scheduled_at,
+              args: j.args,
+              attempt: j.attempt,
+              max_attempts: j.max_attempts
+            }
+          )
+        )
+
+      json(conn, %{data: jobs})
     end
   end
 

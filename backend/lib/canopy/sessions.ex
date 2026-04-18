@@ -13,18 +13,65 @@ defmodule Canopy.Sessions do
   import Ecto.Query, only: [from: 2]
 
   alias Canopy.Repo
-  alias Canopy.Sessions.{Session, SessionMessage}
+  alias Canopy.Sessions.{Resume, Session, SessionMessage}
 
   # ---------------------------------------------------------------------------
   # Session lifecycle
   # ---------------------------------------------------------------------------
 
-  @doc "Creates a new session. Returns `{:ok, session}` or `{:error, changeset}`."
+  @doc """
+  Creates a new session.
+
+  When `agent_slug` and `workspace_slug` are present, looks up the most recent
+  completed session for the same agent+workspace+cwd triple and pre-populates
+  `external_session_id` so the adapter can pass `--resume` to the CLI.
+
+  Returns `{:ok, session}` or `{:error, changeset}`.
+  """
   @spec create(map()) :: {:ok, Session.t()} | {:error, Ecto.Changeset.t()}
   def create(attrs) do
-    %Session{}
-    |> Session.changeset(attrs)
-    |> Repo.insert()
+    attrs_with_resume = maybe_inject_resume(attrs)
+
+    with {:ok, session} <-
+           %Session{}
+           |> Session.changeset(attrs_with_resume)
+           |> Repo.insert() do
+      maybe_provision_miosa_sandbox(session, attrs)
+      {:ok, session}
+    end
+  end
+
+  # Fire-and-forget MIOSA sandbox provisioning triggered when agent metadata
+  # includes `needs_sandbox: true` and MIOSA credentials are configured.
+  # Track C (adapter args / env injection) reads `miosa_sandbox_url` from the
+  # session row and injects CANOPY_MIOSA_SANDBOX_URL into the process environment.
+  @spec maybe_provision_miosa_sandbox(Session.t(), map()) :: :ok
+  defp maybe_provision_miosa_sandbox(session, attrs) do
+    needs_sandbox =
+      case attrs do
+        %{"metadata" => %{"needs_sandbox" => true}} -> true
+        %{metadata: %{"needs_sandbox" => true}} -> true
+        %{metadata: %{needs_sandbox: true}} -> true
+        _ -> false
+      end
+
+    if needs_sandbox and Canopy.Miosa.configured?() do
+      Task.start(fn ->
+        case Canopy.Miosa.provision_for_session(session.id) do
+          {:ok, _updated} ->
+            :ok
+
+          {:error, reason} ->
+            require Logger
+
+            Logger.warning(
+              "[Sessions] MIOSA provision failed session_id=#{session.id}: #{inspect(reason)}"
+            )
+        end
+      end)
+    end
+
+    :ok
   end
 
   @doc "Returns the session by id, or `{:error, :not_found}`."
@@ -152,14 +199,25 @@ defmodule Canopy.Sessions do
   @doc """
   Appends a `SessionMessage` to the session transcript.
 
+  When the entry kind is `:result` (or the string `"result"`) and the content
+  map contains a `session_id` or `"session_id"` key, the value is persisted
+  as `external_session_id` on the parent session row via `Resume.persist/2`.
+  This drives the resume lookup on the next `create/1` call for the same
+  agent+workspace+cwd triple.
+
   Returns `{:ok, message}` or `{:error, changeset}`.
   """
   @spec add_message(binary(), map()) ::
           {:ok, SessionMessage.t()} | {:error, Ecto.Changeset.t()}
   def add_message(session_id, attrs) do
-    %SessionMessage{}
-    |> SessionMessage.changeset(Map.put(attrs, :session_id, session_id))
-    |> Repo.insert()
+    result =
+      %SessionMessage{}
+      |> SessionMessage.changeset(Map.put(attrs, :session_id, session_id))
+      |> Repo.insert()
+
+    maybe_persist_resume(session_id, attrs)
+
+    result
   end
 
   @doc """
@@ -225,5 +283,50 @@ defmodule Canopy.Sessions do
       nil -> Enum.reverse(acc)
       parent -> load_ancestors(parent, [parent | acc])
     end
+  end
+
+  # Injects external_session_id from a prior completed session when available.
+  # Only runs when agent_slug is present — direct prompts (no agent) are skipped.
+  @spec maybe_inject_resume(map()) :: map()
+  defp maybe_inject_resume(%{agent_slug: agent} = attrs) when is_binary(agent) and agent != "" do
+    workspace = Map.get(attrs, :workspace_slug)
+    cwd = Map.get(attrs, :cwd, "")
+    bundle_key = Map.get(attrs, :prompt_bundle_key)
+
+    case Resume.find_resumable(agent, workspace, cwd, bundle_key) do
+      {:ok, external_id} -> Map.put(attrs, :external_session_id, external_id)
+      {:error, :no_resume} -> attrs
+    end
+  end
+
+  defp maybe_inject_resume(%{"agent_slug" => agent} = attrs)
+       when is_binary(agent) and agent != "" do
+    workspace = Map.get(attrs, "workspace_slug")
+    cwd = Map.get(attrs, "cwd", "")
+    bundle_key = Map.get(attrs, "prompt_bundle_key")
+
+    case Resume.find_resumable(agent, workspace, cwd, bundle_key) do
+      {:ok, external_id} -> Map.put(attrs, "external_session_id", external_id)
+      {:error, :no_resume} -> attrs
+    end
+  end
+
+  defp maybe_inject_resume(attrs), do: attrs
+
+  # Persists external_session_id on :result entries that carry a session_id from
+  # the adapter CLI. Runs fire-and-forget — failure is logged, never raised.
+  @spec maybe_persist_resume(binary(), map()) :: :ok
+  defp maybe_persist_resume(session_id, attrs) do
+    kind = Map.get(attrs, :kind) || Map.get(attrs, "kind")
+    content = Map.get(attrs, :content) || Map.get(attrs, "content") || %{}
+
+    external_id =
+      Map.get(content, :session_id) || Map.get(content, "session_id")
+
+    if kind in [:result, "result"] and is_binary(external_id) and external_id != "" do
+      Resume.persist(session_id, external_id)
+    end
+
+    :ok
   end
 end

@@ -79,4 +79,7 @@ playwright-report/
 backend/cover/
 
 # ─── Generated ────────────────────────────────────────────────────────────────
+# Both files are produced by `make gen-types` / `pnpm generate`.
+# Regenerate after schema changes: mix canopy.gen.openapi → openapi-typescript
+packages/types/openapi.json
 packages/types/src/api.ts

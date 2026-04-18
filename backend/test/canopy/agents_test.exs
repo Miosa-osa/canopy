@@ -3,7 +3,9 @@ defmodule Canopy.AgentsTest do
   Integration tests for the Canopy.Agents context module.
   """
 
-  use Canopy.DataCase, async: true
+  use Canopy.DataCase, async: false
+
+  import Ecto.Query
 
   alias Canopy.Agents
   alias Canopy.Agents.Agent, as: AgentSchema
@@ -136,6 +138,100 @@ defmodule Canopy.AgentsTest do
 
     test "returns error for unknown slug" do
       assert {:error, :not_found} = Agents.fire("no-such-agent")
+    end
+  end
+
+  describe "hire/1 heartbeat registration" do
+    test "enqueues a heartbeat job when agent has heartbeat_cron" do
+      {:ok, agent} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(
+            %AgentSchema{},
+            valid_agent_attrs(%{hired: false, heartbeat_cron: "*/5 * * * *"})
+          )
+        )
+
+      assert {:ok, hired} = Agents.hire(agent.slug)
+      assert hired.hired == true
+
+      # A scheduled Oban job should now exist for this agent
+      jobs =
+        Canopy.Repo.all(
+          from(j in Oban.Job,
+            where:
+              j.queue == "heartbeats" and
+                j.state in ["scheduled", "available"] and
+                fragment("?->>'agent_slug' = ?", j.args, ^agent.slug)
+          )
+        )
+
+      assert length(jobs) >= 1
+    end
+
+    test "does not enqueue a job when agent has no heartbeat_cron" do
+      {:ok, agent} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(
+            %AgentSchema{},
+            valid_agent_attrs(%{hired: false, heartbeat_cron: nil})
+          )
+        )
+
+      assert {:ok, _hired} = Agents.hire(agent.slug)
+
+      jobs =
+        Canopy.Repo.all(
+          from(j in Oban.Job,
+            where:
+              j.queue == "heartbeats" and
+                j.state in ["scheduled", "available"] and
+                fragment("?->>'agent_slug' = ?", j.args, ^agent.slug)
+          )
+        )
+
+      assert jobs == []
+    end
+  end
+
+  describe "fire/1 heartbeat unregistration" do
+    test "cancels pending heartbeat jobs when agent is fired" do
+      {:ok, agent} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(
+            %AgentSchema{},
+            valid_agent_attrs(%{hired: true, heartbeat_cron: "*/5 * * * *"})
+          )
+        )
+
+      # Register a job first
+      :ok = Canopy.Heartbeat.Registrar.register(agent)
+
+      assert Canopy.Repo.aggregate(
+               from(j in Oban.Job,
+                 where:
+                   j.queue == "heartbeats" and
+                     j.state in ["scheduled", "available"] and
+                     fragment("?->>'agent_slug' = ?", j.args, ^agent.slug)
+               ),
+               :count
+             ) >= 1
+
+      # Firing should cancel those jobs
+      assert {:ok, fired} = Agents.fire(agent.slug)
+      assert fired.hired == false
+
+      remaining =
+        Canopy.Repo.aggregate(
+          from(j in Oban.Job,
+            where:
+              j.queue == "heartbeats" and
+                j.state in ["scheduled", "available"] and
+                fragment("?->>'agent_slug' = ?", j.args, ^agent.slug)
+          ),
+          :count
+        )
+
+      assert remaining == 0
     end
   end
 

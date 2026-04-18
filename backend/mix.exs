@@ -68,6 +68,9 @@ defmodule Canopy.MixProject do
       {:nanoid, "~> 2.1"},
       # CORS for dev (Tauri devUrl 5280 → Phoenix 9190)
       {:corsica, "~> 2.1"},
+      # Rate limiting — ETS backend; redis backend available for multi-node
+      {:hammer, "~> 6.2"},
+      {:hammer_backend_redis, "~> 6.1", optional: true},
       # YAML parsing for agent persona frontmatter (mix canopy.seed.agents)
       {:yaml_elixir, "~> 2.11"},
       # Test-only

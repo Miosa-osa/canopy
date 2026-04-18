@@ -51,6 +51,24 @@ defmodule CanopyWeb.FallbackController do
     |> json(%{error: "forbidden", message: "You do not have permission to perform this action."})
   end
 
+  def call(conn, {:error, :bad_request}) do
+    conn
+    |> put_status(:bad_request)
+    |> json(%{error: "bad_request", message: "The request body is missing or malformed."})
+  end
+
+  def call(conn, {:error, :detection_upsert_failed}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{error: "detection_upsert_failed", message: "One or more runtime upserts failed."})
+  end
+
+  def call(conn, {:error, :internal_server_error}) do
+    conn
+    |> put_status(:internal_server_error)
+    |> json(%{error: "internal_server_error", message: "An internal error occurred."})
+  end
+
   def call(conn, {:error, reason}) when is_atom(reason) do
     conn
     |> put_status(:internal_server_error)

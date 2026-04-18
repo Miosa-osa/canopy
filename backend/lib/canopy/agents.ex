@@ -6,12 +6,14 @@ defmodule Canopy.Agents do
   budget limits, and a heartbeat schedule. The 330+ agent library ships as markdown
   files in `priv/agents/`; this module provides the runtime CRUD and hire/fire lifecycle.
 
-  Full heartbeat scheduling via Oban cron is Week 2 scope.
+  Heartbeat scheduling is handled by `Canopy.Heartbeat.Registrar`. Hiring an agent
+  registers its Oban cron job chain; firing unregisters it.
   """
 
   import Ecto.Query, only: [from: 2]
 
   alias Canopy.Agents.Agent
+  alias Canopy.Heartbeat.Registrar
   alias Canopy.Repo
 
   @doc """
@@ -45,30 +47,40 @@ defmodule Canopy.Agents do
   end
 
   @doc """
-  Hires an agent: sets `hired: true`.
+  Hires an agent: sets `hired: true` and registers its heartbeat cron schedule.
 
-  Returns `{:ok, agent}`, `{:error, :not_found}`, or `{:error, changeset}`.
+  If the agent has a `heartbeat_cron` set, an Oban job is inserted for the next
+  fire time. Returns `{:ok, agent}`, `{:error, :not_found}`, or `{:error, changeset}`.
+
+  If cron registration fails (e.g. invalid expression), the hire itself still
+  succeeds — the error is logged by the Registrar.
   """
   @spec hire(String.t()) :: {:ok, Agent.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def hire(slug) do
-    with {:ok, agent} <- get_by_slug(slug) do
-      agent
-      |> Agent.hire_changeset(true)
-      |> Repo.update()
+    with {:ok, agent} <- get_by_slug(slug),
+         {:ok, hired_agent} <-
+           agent
+           |> Agent.hire_changeset(true)
+           |> Repo.update() do
+      Registrar.register(hired_agent)
+      {:ok, hired_agent}
     end
   end
 
   @doc """
-  Fires an agent: sets `hired: false`.
+  Fires an agent: sets `hired: false` and cancels pending heartbeat jobs.
 
   Returns `{:ok, agent}`, `{:error, :not_found}`, or `{:error, changeset}`.
   """
   @spec fire(String.t()) :: {:ok, Agent.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def fire(slug) do
-    with {:ok, agent} <- get_by_slug(slug) do
-      agent
-      |> Agent.hire_changeset(false)
-      |> Repo.update()
+    with {:ok, agent} <- get_by_slug(slug),
+         {:ok, fired_agent} <-
+           agent
+           |> Agent.hire_changeset(false)
+           |> Repo.update() do
+      Registrar.unregister(slug)
+      {:ok, fired_agent}
     end
   end
 

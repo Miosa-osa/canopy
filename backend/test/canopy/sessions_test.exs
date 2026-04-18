@@ -124,6 +124,119 @@ defmodule Canopy.SessionsTest do
     end
   end
 
+  describe "create/1 — resume injection" do
+    test "injects external_session_id from prior completed session" do
+      # Create first session and complete it with an external ID
+      first_attrs = %{
+        runtime_type: "claude-local",
+        cwd: "/tmp/agent-project",
+        agent_slug: "senior-dev",
+        workspace_slug: "acme-corp"
+      }
+
+      {:ok, first_session} = Sessions.create(first_attrs)
+      {:ok, completed} = Sessions.finalize(first_session.id, %{})
+
+      # Persist the external_session_id (as the adapter would via add_message :result)
+      {:ok, _} = Canopy.Sessions.Resume.persist(completed.id, "ext-claude-session-001")
+
+      # Create second session for same agent+workspace+cwd
+      second_attrs = %{
+        runtime_type: "claude-local",
+        cwd: "/tmp/agent-project",
+        agent_slug: "senior-dev",
+        workspace_slug: "acme-corp"
+      }
+
+      {:ok, second_session} = Sessions.create(second_attrs)
+      assert second_session.external_session_id == "ext-claude-session-001"
+    end
+
+    test "does not inject external_session_id when no prior completed session" do
+      attrs = %{
+        runtime_type: "claude-local",
+        cwd: "/tmp/fresh-project",
+        agent_slug: "junior-dev",
+        workspace_slug: "new-workspace"
+      }
+
+      {:ok, session} = Sessions.create(attrs)
+      assert session.external_session_id == nil
+    end
+
+    test "does not inject when agent_slug is absent (direct prompt)" do
+      attrs = %{runtime_type: "claude-local", cwd: "/tmp/direct"}
+      {:ok, session} = Sessions.create(attrs)
+      assert session.external_session_id == nil
+    end
+  end
+
+  describe "add_message/2 — resume persistence on :result" do
+    test "persists external_session_id when kind is result and content has session_id" do
+      {:ok, session} = Sessions.create(valid_attrs())
+
+      result_attrs = %{
+        sequence: 0,
+        kind: "result",
+        content: %{"session_id" => "ext-claude-abc", "cost_usd" => 0.001},
+        emitted_at: DateTime.utc_now()
+      }
+
+      {:ok, _msg} = Sessions.add_message(session.id, result_attrs)
+
+      # Give the sync call a moment — Resume.persist is synchronous
+      reloaded = Canopy.Repo.get!(Canopy.Sessions.Session, session.id)
+      assert reloaded.external_session_id == "ext-claude-abc"
+    end
+
+    test "does not persist when kind is not result" do
+      {:ok, session} = Sessions.create(valid_attrs())
+
+      attrs = %{
+        sequence: 0,
+        kind: "assistant",
+        content: %{"session_id" => "should-not-persist"},
+        emitted_at: DateTime.utc_now()
+      }
+
+      {:ok, _msg} = Sessions.add_message(session.id, attrs)
+
+      reloaded = Canopy.Repo.get!(Canopy.Sessions.Session, session.id)
+      assert reloaded.external_session_id == nil
+    end
+
+    test "does not persist when result content lacks session_id" do
+      {:ok, session} = Sessions.create(valid_attrs())
+
+      attrs = %{
+        sequence: 0,
+        kind: "result",
+        content: %{"cost_usd" => 0.001},
+        emitted_at: DateTime.utc_now()
+      }
+
+      {:ok, _msg} = Sessions.add_message(session.id, attrs)
+
+      reloaded = Canopy.Repo.get!(Canopy.Sessions.Session, session.id)
+      assert reloaded.external_session_id == nil
+    end
+
+    test "returns message insert result regardless of resume persist outcome" do
+      {:ok, session} = Sessions.create(valid_attrs())
+
+      attrs = %{
+        sequence: 0,
+        kind: "result",
+        content: %{"session_id" => "ext-123"},
+        emitted_at: DateTime.utc_now()
+      }
+
+      # Must still return {:ok, message} even with resume side-effect
+      assert {:ok, msg} = Sessions.add_message(session.id, attrs)
+      assert msg.session_id == session.id
+    end
+  end
+
   describe "finalize/2" do
     test "sets status to completed and records completed_at" do
       {:ok, session} = Sessions.create(valid_attrs())

@@ -58,11 +58,60 @@
   animation: fade-in-up var(--dur-fast) var(--ease-out) both;
 }
 
+/* ── Week 4 Shell Polish additions ─────────────────────────────────────── */
+
+@keyframes skeleton-shimmer {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.canopy-pulse {
+  animation: agent-pulse 2s var(--ease-io) infinite;
+}
+
+.canopy-shim {
+  animation: skeleton-shimmer 1.4s var(--ease-io) infinite;
+}
+
+.canopy-enter {
+  animation: fade-in-up var(--dur-fast) var(--ease-out) both;
+}
+
 /* Accessibility: kill all motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
   .agent-running,
   .thinking,
-  .list-item {
+  .list-item,
+  .canopy-pulse,
+  .canopy-shim,
+  .canopy-enter {
     animation: none;
   }
 

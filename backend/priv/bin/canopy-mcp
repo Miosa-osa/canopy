@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# canopy-mcp — Canopy MCP stdio server launcher
+#
+# This script is the single binary path Claude CLI and other MCP clients
+# can reference. It locates the backend directory relative to this script's
+# location and delegates to `mix canopy.mcp`.
+#
+# Usage (Claude CLI):
+#   claude --mcp-server "canopy:/path/to/priv/bin/canopy-mcp"
+#
+# Or add to ~/.claude/mcp.json:
+#   {
+#     "mcpServers": {
+#       "canopy": {
+#         "command": "/absolute/path/to/canopy/backend/priv/bin/canopy-mcp"
+#       }
+#     }
+#   }
+#
+# Environment variables:
+#   MIX_ENV  — Mix environment (default: prod). Use "dev" for local development.
+
+set -euo pipefail
+
+# Resolve the backend directory: two levels up from priv/bin/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+# Validate the backend exists
+if [[ ! -f "${BACKEND_DIR}/mix.exs" ]]; then
+  echo "[canopy-mcp] ERROR: Cannot find mix.exs in ${BACKEND_DIR}" >&2
+  exit 1
+fi
+
+# Default to prod so the server starts without Phoenix dev tooling.
+export MIX_ENV="${MIX_ENV:-prod}"
+
+cd "${BACKEND_DIR}"
+exec mix canopy.mcp "$@"

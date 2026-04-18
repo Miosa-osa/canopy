@@ -11,15 +11,24 @@
 import '../app.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 import { onMount } from 'svelte';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
 import { syncRuntimesIfStale } from '$lib/bootstrap/runtime-sync.js';
 import CommandPalette from '$lib/design/patterns/CommandPalette.svelte';
 import Sidebar from '$lib/design/patterns/Sidebar.svelte';
+import ToastContainer from '$lib/design/patterns/ToastContainer.svelte';
 import ThemeToggle from '$lib/design/primitives/ThemeToggle.svelte';
 import { loadPersistedTheme, persistTheme } from '$lib/stores/theme-persistence.js';
 import { ui } from '$lib/stores/ui.svelte.js';
 import { handleGlobalShortcut } from '$lib/utils/keyboard.js';
 
 let { children } = $props();
+
+/**
+ * /onboarding hides the sidebar/shell chrome — the wizard owns the full
+ * viewport. All other routes get the standard inset shell.
+ */
+const isOnboarding = $derived(page.url.pathname.startsWith('/onboarding'));
 
 /** Single QueryClient instance shared by all routes via context. */
 const queryClient = new QueryClient({
@@ -39,7 +48,19 @@ onMount(async () => {
   // Fire-and-forget: scan $PATH for runtime binaries (Tauri-only), POST results
   // to Phoenix /runtimes/detect so installed/version/binary_path become real.
   // Rate-limited to once per 60s to avoid re-detection storms on re-mount.
-  void syncRuntimesIfStale();
+  const result = await syncRuntimesIfStale();
+
+  // First-run: no runtimes detected + not already on /onboarding → route there.
+  // `result === null` (rate-limited cache hit) means we already synced this
+  // session; never re-route on those.
+  if (
+    result &&
+    result.ok &&
+    result.installedCount === 0 &&
+    !page.url.pathname.startsWith('/onboarding')
+  ) {
+    void goto('/onboarding');
+  }
 });
 
 $effect(() => {
@@ -90,6 +111,12 @@ function handleKeydown(e: KeyboardEvent): void {
 <svelte:window onkeydown={handleKeydown} />
 
 <QueryClientProvider client={queryClient}>
+  {#if isOnboarding}
+    <!-- Onboarding owns the full viewport — no sidebar, no inset card -->
+    <div class="onboarding-shell">
+      {@render children()}
+    </div>
+  {:else}
   <div class="shell">
     <aside
       class="sidebar"
@@ -136,10 +163,12 @@ function handleKeydown(e: KeyboardEvent): void {
       </main>
     </div>
   </div>
+  {/if}
 
-  <!-- Global overlays -->
+  <!-- Global overlays (present on every route, including /onboarding) -->
   <CommandPalette />
   <ThemeToggle />
+  <ToastContainer />
 </QueryClientProvider>
 
 <style>
@@ -148,6 +177,12 @@ function handleKeydown(e: KeyboardEvent): void {
     display: flex;
     height: 100vh;
     overflow: hidden;
+  }
+
+  .onboarding-shell {
+    background: var(--bg);
+    height: 100vh;
+    overflow: auto;
   }
 
   .sidebar {

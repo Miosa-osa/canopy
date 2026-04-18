@@ -1,0 +1,31 @@
+name: "Your Content Factory"
+mission: "Produce content that educates, entertains, and converts."
+
+brand:
+  voice: "Replace with your brand voice (e.g. direct, conversational, expert)"
+  tone: "Replace with your tone (e.g. confident, warm, no-fluff)"
+  avoid: "Replace with what to avoid (e.g. jargon, passive voice, filler words)"
+
+channels:
+  - name: Long-form Blog
+    cadence: "2x per week"
+    format: "1500-2500 words"
+  - name: LinkedIn
+    cadence: "Daily"
+    format: "3-5 sentence posts"
+  - name: Email Newsletter
+    cadence: "Weekly"
+    format: "500-800 words"
+  - name: Short-form Video
+    cadence: "3x per week"
+    format: "60-90 second scripts"
+
+content_goals:
+  educate: 40%
+  entertain: 30%
+  convert: 30%
+
+publishing_rules:
+  - All content requires a headline, hook, and CTA.
+  - Brand voice guide is authoritative — deviations require editor sign-off.
+  - No publishing without tracking entry in content-calendar.md.

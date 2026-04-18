@@ -1,4 +1,4 @@
-.PHONY: setup dev test test-watch lint format build clean doctor seed db-reset
+.PHONY: setup dev test test-watch lint format build clean doctor seed db-reset gen-types
 
 # ─── Setup ────────────────────────────────────────────────────────────────────
 
@@ -8,6 +8,10 @@ setup:
 	cd backend && mix ecto.create
 	cd backend && mix ecto.migrate
 	cd backend && mix run priv/repo/seeds.exs
+	make gen-types
+
+gen-types:
+	cd packages/types && pnpm generate
 
 seed:
 	cd backend && mix run priv/repo/seeds.exs

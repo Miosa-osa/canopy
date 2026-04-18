@@ -46,6 +46,9 @@ defmodule Canopy.Sessions.Session do
              :cache_read_tokens,
              :cache_write_tokens,
              :metadata,
+             :miosa_sandbox_id,
+             :miosa_sandbox_url,
+             :miosa_sandbox_status,
              :inserted_at,
              :updated_at
            ]}
@@ -72,9 +75,15 @@ defmodule Canopy.Sessions.Session do
     field :cache_read_tokens, :integer, default: 0
     field :cache_write_tokens, :integer, default: 0
     field :metadata, :map, default: %{}
+    field :miosa_sandbox_id, :string
+    field :miosa_sandbox_url, :string
+    # pending | provisioning | ready | destroyed | skipped | failed
+    field :miosa_sandbox_status, :string
 
     timestamps()
   end
+
+  @valid_sandbox_statuses ~w(pending provisioning ready destroyed skipped failed)
 
   @required ~w(runtime_type cwd)a
   @optional ~w(
@@ -82,6 +91,7 @@ defmodule Canopy.Sessions.Session do
     wake_reason parent_session_id sequence_number external_session_id
     started_at completed_at error_reason cost_usd
     input_tokens output_tokens cache_read_tokens cache_write_tokens metadata
+    miosa_sandbox_id miosa_sandbox_url miosa_sandbox_status
   )a
 
   @doc "Changeset for creating a new session."
@@ -102,6 +112,20 @@ defmodule Canopy.Sessions.Session do
     |> cast(attrs, [:status, :started_at, :completed_at, :error_reason])
     |> validate_required([:status])
     |> validate_inclusion(:status, @valid_statuses)
+  end
+
+  @doc "Changeset for updating MIOSA sandbox fields."
+  @spec sandbox_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  def sandbox_changeset(session, attrs) do
+    session
+    |> cast(attrs, [:miosa_sandbox_id, :miosa_sandbox_url, :miosa_sandbox_status])
+    |> validate_inclusion(:miosa_sandbox_status, @valid_sandbox_statuses, allow_nil: true)
+  end
+
+  @doc "Changeset for persisting an external_session_id returned by the adapter CLI."
+  @spec resume_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  def resume_changeset(session, attrs) do
+    cast(session, attrs, [:external_session_id])
   end
 
   @doc "Changeset for recording final cost + token usage."
