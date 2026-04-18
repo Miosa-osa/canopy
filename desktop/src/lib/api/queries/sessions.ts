@@ -33,7 +33,7 @@ export interface MessageListOpts {
 export function listSessions(filters?: SessionFilters): Promise<Session[]> {
   const params = new URLSearchParams();
   if (filters?.status) params.set("status", filters.status);
-  if (filters?.runtimeType) params.set("runtime_type", filters.runtimeType);
+  if (filters?.runtimeType) params.set("runtime", filters.runtimeType);
   if (filters?.workspaceSlug) params.set("workspace", filters.workspaceSlug);
   if (filters?.agentSlug) params.set("agent_slug", filters.agentSlug);
   if (filters?.limit !== undefined) params.set("limit", String(filters.limit));

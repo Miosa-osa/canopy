@@ -57,3 +57,19 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--glass-shadow);
 }
+
+/* ── Week 4: card hover glow + card transition alignment ── */
+
+.glass-card {
+  transition:
+    transform var(--dur-normal, 240ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+    box-shadow var(--dur-normal, 240ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.glass-card:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    var(--glass-shadow),
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 4px 24px 0 oklch(from var(--accent, oklch(0.78 0.18 145)) l c h / 0.06);
+}

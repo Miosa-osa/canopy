@@ -12,6 +12,8 @@ defmodule CanopyWeb.FallbackController do
   - `{:error, %Ecto.Changeset{}}` → 422
   - `{:error, :unauthorized}` → 401
   - `{:error, :forbidden}` → 403
+  - `{:error, {:governance_blocked, rule}}` → 422
+  - `{:error, {:budget_blocked, budget, spent}}` → 422
   - `{:error, atom}` → 500 (catch-all)
 
   Add new clauses here as new domain error types are introduced in Week 1+.
@@ -73,6 +75,28 @@ defmodule CanopyWeb.FallbackController do
     conn
     |> put_status(:internal_server_error)
     |> json(%{error: "internal_server_error", message: "An internal error occurred."})
+  end
+
+  def call(conn, {:error, {:governance_blocked, rule}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{
+      error: "governance_blocked",
+      rule: %{id: rule.id, name: rule.name},
+      message: "Session blocked by governance rule"
+    })
+  end
+
+  def call(conn, {:error, {:budget_blocked, budget, spent}}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{
+      error: "budget_blocked",
+      budget_id: budget.id,
+      spent_usd: Decimal.to_string(spent),
+      limit_usd: Decimal.to_string(budget.limit_usd),
+      message: "Session blocked by budget limit"
+    })
   end
 
   def call(conn, {:error, reason}) when is_atom(reason) do

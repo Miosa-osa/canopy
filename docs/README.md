@@ -105,6 +105,24 @@ Sign-off on Week 3 (workspace protocol + file ops + persona editor + seeder
 polish). 7 parallel tracks, triple-stack verify (1026 backend / 208 vitest /
 11 cargo, all green), agent corpus 169 → 336, deferrals with targets.
 
+### [14-architecture-audit.md](./14-architecture-audit.md)
+**Full Architecture Audit — 9 Parallel Streams**
+
+Granular topology: 71 entry points mapped, 8 critical data flows traced, storage
+hot/warm/cold tiers, dependency DAG, 15 failure modes, scaling cliffs at 10x/100x/
+1000x, top 10 entropy hotspots, control point map, security attack surface,
+tiered priority matrix. **Tier 0 = 4 hours closes 5 critical findings.**
+
+### [15-phase2-report.md](./15-phase2-report.md)
+**Phase 2 Completion Record — Audit Closure + Week 4 Polish**
+
+Closed 7 audit findings (governance+budget gates, rate limiter, markdown RCE
+chain, ghost sessions, type contract, sessions index, vault HKDF). 7 parallel
+tracks, triple-stack verify (1108 backend / 277 vitest / 11 cargo, all green).
+Shell polish landed: command palette fuzzy scoring, list keyboard composable,
+motion tokens, empty/error states. Rate-limiter test-env regression caught +
+fixed in consolidation.
+
 ---
 
 ## Third-Party Attributions

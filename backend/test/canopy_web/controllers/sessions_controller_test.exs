@@ -218,6 +218,81 @@ defmodule CanopyWeb.SessionsControllerTest do
   end
 
   # ---------------------------------------------------------------------------
+  # POST /api/v1/sessions — governance + budget gate responses
+  # ---------------------------------------------------------------------------
+
+  describe "POST /api/v1/sessions — gate responses" do
+    setup do
+      setup_mock_adapter()
+      on_exit(&unregister_mock/0)
+      :ok
+    end
+
+    test "returns 422 governance_blocked when governance blocks session", %{conn: conn} do
+      # Evaluator uses "runtime" key (not "runtime_type") for runtime condition
+      insert(:governance_rule,
+        enabled: true,
+        priority: 100,
+        action: "block",
+        conditions: %{"runtime" => @mock_type}
+      )
+
+      body = %{runtime_type: @mock_type, cwd: "/tmp/project"}
+      conn = post(conn, "/api/v1/sessions", body)
+      assert response = json_response(conn, 422)
+      assert response["error"] == "governance_blocked"
+      assert is_map(response["rule"])
+      assert is_binary(response["rule"]["id"])
+      assert is_binary(response["rule"]["name"])
+      assert response["message"] == "Session blocked by governance rule"
+    end
+
+    test "returns 422 budget_blocked when budget hard ceiling is exceeded", %{conn: conn} do
+      import Ecto.Query, only: [from: 2]
+
+      insert(:budget,
+        scope_type: "global",
+        scope_id: nil,
+        period: "total",
+        limit_usd: Decimal.new("0.001"),
+        hard_ceiling: true,
+        enabled: true
+      )
+
+      completed = insert(:completed_session, cost_usd: Decimal.new("1.00"))
+
+      Canopy.Repo.update_all(
+        from(s in Canopy.Sessions.Session, where: s.id == ^completed.id),
+        set: [status: "completed", completed_at: DateTime.utc_now()]
+      )
+
+      body = %{runtime_type: @mock_type, cwd: "/tmp/project"}
+      conn = post(conn, "/api/v1/sessions", body)
+      assert response = json_response(conn, 422)
+      assert response["error"] == "budget_blocked"
+      assert is_binary(response["budget_id"])
+      assert is_binary(response["spent_usd"])
+      assert is_binary(response["limit_usd"])
+      assert response["message"] == "Session blocked by budget limit"
+    end
+
+    test "returns 202 accepted when governance requires approval", %{conn: conn} do
+      insert(:governance_rule,
+        enabled: true,
+        priority: 100,
+        action: "require_approval",
+        conditions: %{"runtime" => @mock_type}
+      )
+
+      body = %{runtime_type: @mock_type, cwd: "/tmp/project"}
+      conn = post(conn, "/api/v1/sessions", body)
+      assert response = json_response(conn, 202)
+      assert response["status"] == "pending_approval"
+      assert is_binary(response["session_id"])
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # DELETE /api/v1/sessions/:id
   # ---------------------------------------------------------------------------
 

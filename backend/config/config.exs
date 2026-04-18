@@ -61,7 +61,7 @@ config :hammer,
 
 # MIOSA client defaults (overridden by runtime.exs in prod, dev.exs in dev)
 config :canopy, :miosa_api_url, "http://localhost:4001"
-config :canopy, :miosa_api_key, "dev-placeholder-key"
+config :canopy, :miosa_api_key, ""
 
 # ---------------------------------------------------------------------------
 # CanopyMCP — MCP stdio server configuration

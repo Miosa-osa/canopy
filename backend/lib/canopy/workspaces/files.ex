@@ -195,13 +195,33 @@ defmodule Canopy.Workspaces.Files do
         abs_root = Path.expand(root)
         abs_path = Path.expand(Path.join(abs_root, rel_path))
 
-        # After expansion, verify the path is still inside (or equal to) root
-        if String.starts_with?(abs_path, abs_root <> "/") or abs_path == abs_root do
+        # Resolve symlinks before the prefix check so a symlink inside the workspace
+        # pointing outside (e.g. to /etc) is caught.
+        # :file.read_link_all/1 resolves a full symlink chain to its ultimate target.
+        # Returns {:error, _} when the path is not a symlink or doesn't exist yet
+        # (legitimate for write ops) — fall through to the expanded path in that case.
+        real_path = resolve_symlink(abs_path)
+        real_root = resolve_symlink(abs_root)
+
+        # After resolving symlinks, verify the real path is still inside root.
+        # Return the original abs_path (not real_path) so callers write to the
+        # intended symlink location, not the resolved target.
+        if String.starts_with?(real_path, real_root <> "/") or real_path == real_root do
           {:ok, abs_path}
         else
           {:error, :traversal}
         end
       end
+    end
+  end
+
+  # Resolves a full symlink chain using :file.read_link_all/1.
+  # Returns the real path string when the path is a symlink, or the original
+  # path when it is not a symlink / does not yet exist (write-path case).
+  defp resolve_symlink(path) do
+    case :file.read_link_all(to_charlist(path)) do
+      {:ok, target} -> List.to_string(target)
+      {:error, _} -> path
     end
   end
 

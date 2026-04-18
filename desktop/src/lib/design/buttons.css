@@ -855,3 +855,53 @@
 .btn-glass:active:not(:disabled) {
   transform: scale(0.97);
 }
+
+/* ===== Week 4 Shell Polish — focus rings + motion consistency ===== */
+
+/*
+ * Consistent focus-visible ring across all button families.
+ * Spec: outline: 2px solid var(--accent); outline-offset: 2px; dur-fast fade.
+ * Uses :focus-visible so mouse clicks never show the ring.
+ */
+.btn-pill:focus-visible,
+.btn-rounded:focus-visible,
+.btn-compact:focus-visible,
+.btn-glass:focus-visible {
+  outline: 2px solid var(--accent, oklch(0.78 0.18 145));
+  outline-offset: 2px;
+  transition: outline-offset var(--dur-fast, 160ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+/*
+ * Hover transition standardisation.
+ * The base transition uses "all 0.2s" which is fine, but we harmonise the
+ * background token so motion.css tokens apply consistently.
+ */
+.btn-compact:not(:disabled) {
+  transition:
+    background var(--dur-instant, 80ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+    color var(--dur-instant, 80ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+    border-color var(--dur-instant, 80ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+/*
+ * Panel slide-in: applied to inset panels (PushPanel, session context, etc.)
+ * via .canopy-panel-enter utility class.
+ */
+.canopy-panel-enter {
+  animation: slide-in-right var(--dur-normal, 240ms) var(--ease-io, cubic-bezier(0.65, 0, 0.35, 1)) both;
+}
+
+/*
+ * Reduce motion: disable all button transforms for users who prefer it.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .btn-pill,
+  .btn-rounded,
+  .btn-compact,
+  .btn-glass {
+    transition: none !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}

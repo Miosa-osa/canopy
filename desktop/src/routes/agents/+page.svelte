@@ -19,6 +19,7 @@ import { agentsQuery, fireAgentMutation, hireAgentMutation } from '$lib/api/quer
 import AgentCard from '$lib/design/patterns/AgentCard.svelte';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import type { Agent, AgentCategory, HireAgentBody } from '$lib/domain/agents/types.js';
+import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
 
 const queryClient = useQueryClient();
 
@@ -97,9 +98,31 @@ function handleHire(slug: string): void {
 function handleRun(slug: string): void {
   goto(`/sessions?agent=${slug}`);
 }
+
+// ── Keyboard navigation ──────────────────────────────────────────────────────
+
+let shortcutHelpVisible = $state(false);
+
+const kb = useListKeyboard({
+  items: () => agents,
+  onSelect: (agent) => goto(`/agents/${agent.slug}`),
+  onRefresh: () => {
+    queryClient.invalidateQueries({ queryKey: ['agents'] });
+  },
+  onHelp: () => {
+    shortcutHelpVisible = !shortcutHelpVisible;
+  },
+});
 </script>
 
-<div class="agents-page">
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div
+  class="agents-page"
+  role="region"
+  aria-label="Agents list"
+  onkeydown={kb.handleKeydown}
+  tabindex="0"
+>
   <!-- Header -->
   <header class="agents-page__header">
     <div class="agents-page__title-row">

@@ -11,6 +11,7 @@ import {
   createQuery,
   useQueryClient,
 } from '@tanstack/svelte-query';
+import { goto } from '$app/navigation';
 import { FolderOpen } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
@@ -19,6 +20,7 @@ import TemplatePicker from '$lib/design/patterns/TemplatePicker.svelte';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import WorkspaceCard from '$lib/design/patterns/WorkspaceCard.svelte';
 import type { Workspace } from '$lib/domain/workspaces/types.js';
+import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
 
 const queryClient = useQueryClient();
 
@@ -36,6 +38,14 @@ const workspaces = $derived(($wsQ.data ?? []) as Workspace[]);
 
 let pickerOpen = $state(false);
 
+const kb = useListKeyboard({
+  items: () => workspaces,
+  onSelect: (ws) => goto(`/workspaces/${ws.slug}`),
+  onRefresh: () => {
+    queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+  },
+});
+
 function handleDelete(slug: string): void {
   $deleteMut.mutate(slug, {
     onSuccess: () => {
@@ -45,7 +55,14 @@ function handleDelete(slug: string): void {
 }
 </script>
 
-<div class="wp-page">
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div
+  class="wp-page"
+  role="region"
+  aria-label="Workspaces list"
+  onkeydown={kb.handleKeydown}
+  tabindex="0"
+>
   <!-- Header -->
   <header class="wp-header">
     <div class="wp-title-row">

@@ -6,7 +6,103 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { escapeHtml, renderMarkdown } from "../markdown.js";
+import { escapeHtml, renderMarkdown, sanitizeHref } from "../markdown.js";
+
+// ── sanitizeHref — scheme allowlist ─────────────────────────────────────────
+
+describe("sanitizeHref()", () => {
+  it("allows https: URLs", () => {
+    expect(sanitizeHref("https://example.com")).toBe("https://example.com");
+  });
+
+  it("allows http: URLs", () => {
+    expect(sanitizeHref("http://example.com")).toBe("http://example.com");
+  });
+
+  it("allows mailto: URLs", () => {
+    expect(sanitizeHref("mailto:x@y.com")).toBe("mailto:x@y.com");
+  });
+
+  it("allows relative URLs (no scheme)", () => {
+    expect(sanitizeHref("/relative/path")).toBe("/relative/path");
+  });
+
+  it("blocks javascript: scheme", () => {
+    expect(sanitizeHref("javascript:alert(1)")).toBeNull();
+  });
+
+  it("blocks data: scheme", () => {
+    expect(sanitizeHref("data:text/html,<script>alert(1)</script>")).toBeNull();
+  });
+
+  it("blocks file: scheme", () => {
+    expect(sanitizeHref("file:///etc/passwd")).toBeNull();
+  });
+
+  it("blocks javascript: with unicode escape (\\u003a)", () => {
+    // The raw string contains a literal colon — unicode escape is a JS string concern,
+    // but we verify the pattern-based detection handles tricky inputs.
+    expect(sanitizeHref("javascript\u003aalert(1)")).toBeNull();
+  });
+
+  it("blocks JAVASCRIPT: (case-insensitive)", () => {
+    expect(sanitizeHref("  JAVASCRIPT:evil()  ")).toBeNull();
+  });
+});
+
+// ── renderMarkdown — link scheme filtering ───────────────────────────────────
+
+describe("renderMarkdown() — link scheme allowlist", () => {
+  it("blocks javascript: href — renders literal text span, not anchor", () => {
+    const html = renderMarkdown("[click](javascript:alert(1))");
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("fv-unsafe-link");
+    expect(html).toContain("javascript");
+  });
+
+  it("allows mailto: href", () => {
+    const html = renderMarkdown("[mail](mailto:x@y.com)");
+    expect(html).toContain('href="mailto:x@y.com"');
+    expect(html).toContain("fv-link");
+  });
+
+  it("allows https: href", () => {
+    const html = renderMarkdown("[link](https://example.com)");
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain("fv-link");
+  });
+
+  it("allows relative href (no scheme)", () => {
+    const html = renderMarkdown("[link](/relative/path)");
+    expect(html).toContain('href="/relative/path"');
+    expect(html).toContain("fv-link");
+  });
+
+  it("blocks data: href", () => {
+    const html = renderMarkdown("[link](data:text/html,<script>)");
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("fv-unsafe-link");
+  });
+
+  it("blocks file: href", () => {
+    const html = renderMarkdown("[link](file:///etc/passwd)");
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("fv-unsafe-link");
+  });
+
+  it("blocks javascript: with unicode colon escape in source string", () => {
+    // \u003a is ':', so this is "javascript:evil()" at the string level
+    const html = renderMarkdown("[link](javascript\u003aevil())");
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("fv-unsafe-link");
+  });
+
+  it("blocks JAVASCRIPT: case-insensitive with surrounding whitespace", () => {
+    const html = renderMarkdown("[link](  JAVASCRIPT:evil()  )");
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("fv-unsafe-link");
+  });
+});
 
 // ── escapeHtml ──────────────────────────────────────────────────────────────
 

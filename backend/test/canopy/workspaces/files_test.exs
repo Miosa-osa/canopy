@@ -236,6 +236,39 @@ defmodule Canopy.Workspaces.FilesTest do
   end
 
   # ---------------------------------------------------------------------------
+  # resolve_safe/2 — symlink escape guard (audit fix #4)
+  # ---------------------------------------------------------------------------
+
+  describe "resolve_safe/2 symlink guard" do
+    test "read_file returns :traversal when path is a symlink pointing outside workspace" do
+      {ws, dir} = tmp_workspace()
+
+      # Plant a symlink inside the workspace that targets an outside path
+      link_path = Path.join(dir, "escape_link")
+      File.ln_s("/etc", link_path)
+      on_exit(fn -> File.rm(link_path) end)
+
+      # Reading via the symlink name must be rejected as traversal
+      assert {:error, :traversal} = Files.read_file(ws, "escape_link")
+    end
+
+    test "write_file succeeds for non-existent paths (symlink guard falls through on enoent)" do
+      {ws, dir} = tmp_workspace()
+
+      # Writing a new file that doesn't exist yet must still work
+      assert :ok = Files.write_file(ws, "new_file.md", "content")
+      assert File.read!(Path.join(dir, "new_file.md")) == "content"
+    end
+
+    test "read_file succeeds for real files inside the workspace" do
+      {ws, dir} = tmp_workspace()
+      write_file!(dir, "legit.md", "hello")
+
+      assert {:ok, "hello"} = Files.read_file(ws, "legit.md")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # move_file/3
   # ---------------------------------------------------------------------------
 

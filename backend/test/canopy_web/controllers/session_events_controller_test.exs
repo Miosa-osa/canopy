@@ -126,6 +126,89 @@ defmodule CanopyWeb.SessionEventsControllerTest do
   # Live session — PubSub integration
   # ---------------------------------------------------------------------------
 
+  # ---------------------------------------------------------------------------
+  # Terminal-event SSE close (audit fix #2)
+  # ---------------------------------------------------------------------------
+
+  describe "GET /api/v1/sessions/:id/events — terminal events close the SSE loop" do
+    test "stream closes on system entry with event=error", %{conn: conn} do
+      session = insert(:session, status: "running", started_at: DateTime.utc_now())
+      session_id = session.id
+      topic = "session:#{session_id}"
+
+      error_entry =
+        TranscriptEntry.new(
+          :system,
+          %{"event" => "error", "message" => "subprocess crashed"},
+          sequence: 1
+        )
+
+      task =
+        Task.async(fn ->
+          Process.sleep(50)
+          Phoenix.PubSub.broadcast(PubSub, topic, {:transcript_entry, error_entry})
+        end)
+
+      conn = get(conn, "/api/v1/sessions/#{session_id}/events")
+      Task.await(task)
+
+      body = response(conn, 200)
+      assert body =~ "event: transcript_entry"
+      # done event must be sent after a terminal system entry
+      assert body =~ "event: done"
+    end
+
+    test "stream closes on system entry with event=session_expired", %{conn: conn} do
+      session = insert(:session, status: "running", started_at: DateTime.utc_now())
+      session_id = session.id
+      topic = "session:#{session_id}"
+
+      expired_entry =
+        TranscriptEntry.new(
+          :system,
+          %{"event" => "session_expired"},
+          sequence: 1
+        )
+
+      task =
+        Task.async(fn ->
+          Process.sleep(50)
+          Phoenix.PubSub.broadcast(PubSub, topic, {:transcript_entry, expired_entry})
+        end)
+
+      conn = get(conn, "/api/v1/sessions/#{session_id}/events")
+      Task.await(task)
+
+      body = response(conn, 200)
+      assert body =~ "event: done"
+    end
+
+    test "stream closes on system entry with event=cancelled", %{conn: conn} do
+      session = insert(:session, status: "running", started_at: DateTime.utc_now())
+      session_id = session.id
+      topic = "session:#{session_id}"
+
+      cancelled_entry =
+        TranscriptEntry.new(
+          :system,
+          %{"event" => "cancelled"},
+          sequence: 1
+        )
+
+      task =
+        Task.async(fn ->
+          Process.sleep(50)
+          Phoenix.PubSub.broadcast(PubSub, topic, {:transcript_entry, cancelled_entry})
+        end)
+
+      conn = get(conn, "/api/v1/sessions/#{session_id}/events")
+      Task.await(task)
+
+      body = response(conn, 200)
+      assert body =~ "event: done"
+    end
+  end
+
   describe "GET /api/v1/sessions/:id/events — live session with PubSub" do
     test "receives session_done and returns done event", %{conn: conn} do
       session = insert(:session, status: "running", started_at: DateTime.utc_now())

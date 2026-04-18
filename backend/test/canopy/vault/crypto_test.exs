@@ -67,4 +67,62 @@ defmodule Canopy.Vault.CryptoTest do
       assert result == {:error, :decryption_failed}
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # HKDF vs legacy key independence
+  # ---------------------------------------------------------------------------
+
+  describe "HKDF key and legacy key produce different keys" do
+    test "ciphertext encrypted with encrypt/3 cannot be decrypted by decrypt_legacy/4" do
+      {ciphertext, nonce} = Crypto.encrypt("secret-value", "runtime", "key")
+
+      # The HKDF and legacy SHA-256 keys differ, so cross-decryption must fail.
+      assert {:error, :decryption_failed} =
+               Crypto.decrypt_legacy(ciphertext, nonce, "runtime", "key")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # decrypt_legacy/4 -- round trips using the old SHA-256 derivation
+  # ---------------------------------------------------------------------------
+
+  describe "decrypt_legacy/4" do
+    test "can decrypt a ciphertext produced by the legacy SHA-256 key" do
+      ikm = Application.get_env(:canopy, CanopyWeb.Endpoint)[:secret_key_base] || ""
+      legacy_key = :crypto.hash(:sha256, ikm <> "canopy-vault-v1")
+
+      nonce = :crypto.strong_rand_bytes(12)
+      aad = "claude-local:api_key"
+      plaintext = "legacy-secret"
+
+      {ciphertext, tag} =
+        :crypto.crypto_one_time_aead(:aes_256_gcm, legacy_key, nonce, plaintext, aad, true)
+
+      legacy_ciphertext = ciphertext <> tag
+
+      assert {:ok, "legacy-secret"} =
+               Crypto.decrypt_legacy(legacy_ciphertext, nonce, "claude-local", "api_key")
+    end
+
+    test "decrypt_legacy/4 fails on ciphertext produced by the new HKDF key" do
+      {ciphertext, nonce} = Crypto.encrypt("new-key-value", "runtime", "field")
+
+      assert {:error, :decryption_failed} =
+               Crypto.decrypt_legacy(ciphertext, nonce, "runtime", "field")
+    end
+
+    test "decrypt_legacy/4 fails decryption with wrong nonce" do
+      ikm = Application.get_env(:canopy, CanopyWeb.Endpoint)[:secret_key_base] || ""
+      legacy_key = :crypto.hash(:sha256, ikm <> "canopy-vault-v1")
+
+      nonce = :crypto.strong_rand_bytes(12)
+      bad_nonce = :crypto.strong_rand_bytes(12)
+      aad = "r:k"
+
+      {ct, tag} = :crypto.crypto_one_time_aead(:aes_256_gcm, legacy_key, nonce, "x", aad, true)
+
+      assert {:error, :decryption_failed} =
+               Crypto.decrypt_legacy(ct <> tag, bad_nonce, "r", "k")
+    end
+  end
 end

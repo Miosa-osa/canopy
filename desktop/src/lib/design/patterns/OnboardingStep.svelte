@@ -45,7 +45,8 @@ let {
 const progressPercent = $derived(((stepIndex + 1) / totalSteps) * 100);
 </script>
 
-<section class="ows-step canopy-enter" aria-label="Step {stepIndex + 1} of {totalSteps}: {heading}">
+{#key stepIndex}
+<section class="ows-step ows-step--enter" aria-label="Step {stepIndex + 1} of {totalSteps}: {heading}">
   <!-- Progress bar -->
   <div class="ows-progress" role="progressbar" aria-valuenow={stepIndex + 1} aria-valuemin={1} aria-valuemax={totalSteps}>
     <div class="ows-progress__bar" style="width: {progressPercent}%;"></div>
@@ -66,7 +67,7 @@ const progressPercent = $derived(((stepIndex + 1) / totalSteps) * 100);
   <div class="ows-footer">
     <div class="ows-footer__left">
       {#if showBack}
-        <button class="btn-rounded btn-rounded-ghost" onclick={onBack} disabled={isProcessing}>
+        <button class="btn-compact btn-compact-ghost" onclick={onBack} disabled={isProcessing}>
           ← Back
         </button>
       {/if}
@@ -74,7 +75,7 @@ const progressPercent = $derived(((stepIndex + 1) / totalSteps) * 100);
 
     <div class="ows-footer__right">
       {#if showSkip}
-        <button class="btn-rounded btn-rounded-ghost ows-skip" onclick={onSkip} disabled={isProcessing}>
+        <button class="btn-compact btn-compact-ghost ows-skip" onclick={onSkip} disabled={isProcessing}>
           Skip for now
         </button>
       {/if}
@@ -95,6 +96,7 @@ const progressPercent = $derived(((stepIndex + 1) / totalSteps) * 100);
     </div>
   </div>
 </section>
+{/key}
 
 <style>
   .ows-step {
@@ -161,5 +163,27 @@ const progressPercent = $derived(((stepIndex + 1) / totalSteps) * 100);
   .ows-skip {
     font-size: var(--text-sm);
     color: var(--fg-subtle);
+  }
+
+  /* Step enter animation — fires on each {#key stepIndex} remount */
+  .ows-step--enter {
+    animation: fade-in-up var(--dur-normal, 240ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both;
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ows-step--enter {
+      animation: none;
+    }
   }
 </style>

@@ -127,6 +127,23 @@ defmodule Mix.Tasks.Canopy.Seed.AgentsTest do
     end
 
     @tag timeout: 120_000
+    test "persona_markdown is populated for all seeded agents (DB column, not file)" do
+      ExUnit.CaptureIO.capture_io(fn -> Task.run([]) end)
+
+      {:ok, agents} = Agents.list()
+
+      agents_with_content = Enum.filter(agents, &(is_binary(&1.persona_markdown) and &1.persona_markdown != ""))
+
+      # We can't guarantee every markdown file has body content beyond frontmatter,
+      # but the vast majority (>90%) of real agent files do.
+      pct = length(agents_with_content) / max(length(agents), 1) * 100
+
+      assert pct >= 90,
+             "Expected >=90% of agents to have persona_markdown populated, got #{Float.round(pct, 1)}% " <>
+               "(#{length(agents_with_content)} of #{length(agents)})"
+    end
+
+    @tag timeout: 120_000
     test "all seeded agents have a non-null emoji in name (emoji fallback applied)" do
       ExUnit.CaptureIO.capture_io(fn -> Task.run([]) end)
       {:ok, agents} = Agents.list()

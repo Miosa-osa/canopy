@@ -2,28 +2,32 @@
 /**
  * /sessions — Session list with status + runtime + workspace filter.
  *
- * Filter bar drives sessionsQuery() parameters reactively.
- * The ?workspace=slug URL param pre-fills the workspace selector on mount.
- * Foundation Table with status dot, agent name, runtime, workspace, duration, cost.
+ * Week 4 polish:
+ *   - WorkspaceSwitcher pattern replaces Foundation <Select> for workspace filter.
+ *   - useListKeyboard: j/k/↵/r/? keyboard nav on the session table.
+ *   - Empty/loading/error states via EmptyState + SkeletonList.
+ *   - Filter bar: status + runtime pill selects, workspace inline filter.
  *
- * TanStack QueryClientProvider assumed from root layout (+layout.svelte).
+ * The ?workspace=slug URL param pre-fills the workspace selector on mount.
  */
-// TODO: QueryClient setup assumed from layout
-import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Clock, RefreshCw } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { sessionsQuery } from '$lib/api/queries/sessions.js';
 import { workspacesQuery } from '$lib/api/queries/workspaces.js';
-import Alert from '$lib/design/foundation/alert/Alert.svelte';
 import Select from '$lib/design/foundation/select/Select.svelte';
-import Skeleton from '$lib/design/foundation/skeleton/Skeleton.svelte';
 import { Table, TableHeader } from '$lib/design/foundation/table/index.js';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
 import type { Session, SessionStatus } from '$lib/domain/sessions/types.js';
 import type { Workspace } from '$lib/domain/workspaces/types.js';
+import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
+
+const queryClient = useQueryClient();
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
@@ -53,13 +57,14 @@ const urlWorkspace = $derived(page.url.searchParams.get('workspace') ?? 'all');
 let statusFilter = $state('all');
 let runtimeFilter = $state('all');
 let workspaceFilter = $state('all');
+let shortcutHelpVisible = $state(false);
 
-// Sync workspaceFilter when the URL param changes (e.g., navigated from another page).
+// Sync workspaceFilter when the URL param changes.
 $effect(() => {
   workspaceFilter = urlWorkspace;
 });
 
-// Workspace list for the selector — loaded once, stale for 30s.
+// Workspace list for the selector.
 const workspacesOptsStore = writable(
   untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>)
 );
@@ -89,19 +94,37 @@ $effect(() => {
 
 const query = createQuery<Session[]>(queryOptsStore);
 
+const sessions = $derived(($query.data ?? []) as Session[]);
+
+// ── Keyboard navigation ──────────────────────────────────────────────────────
+
+const kb = useListKeyboard({
+  items: () => sessions,
+  onSelect: (session) => goto(`/sessions/${session.id}`),
+  onRefresh: () => {
+    queryClient.invalidateQueries({ queryKey: ['sessions'] });
+  },
+  onHelp: () => {
+    shortcutHelpVisible = !shortcutHelpVisible;
+  },
+});
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function dotColor(status: SessionStatus): 'green' | 'amber' | 'red' | 'grey' {
   switch (status) {
-    case 'running':
-      return 'green';
-    case 'error':
-      return 'red';
-    case 'paused':
-      return 'amber';
-    case 'pending':
-      return 'amber';
-    default:
-      return 'grey';
+    case 'running': return 'green';
+    case 'error': return 'red';
+    case 'paused': return 'amber';
+    case 'pending': return 'amber';
+    default: return 'grey';
   }
+}
+
+/** Compute session duration in ms from startedAt / completedAt timestamps. */
+function sessionDurationMs(s: Session): number | null {
+  if (!s.startedAt || !s.completedAt) return null;
+  return new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime();
 }
 
 function formatDuration(ms: number | null): string {
@@ -112,12 +135,20 @@ function formatDuration(ms: number | null): string {
   return `${Math.floor(secs / 60)}m ${secs % 60}s`;
 }
 
-function formatCost(usd: number): string {
-  return `$${usd.toFixed(2)}`;
+function formatCost(usd: string): string {
+  const n = parseFloat(usd);
+  return isNaN(n) ? '—' : `$${n.toFixed(2)}`;
 }
 </script>
 
-<div class="sl-page">
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div
+  class="sl-page"
+  role="region"
+  aria-label="Sessions list"
+  onkeydown={kb.handleKeydown}
+  tabindex="0"
+>
   <!-- Header -->
   <header class="sl-header">
     <h1 class="sl-title">Sessions</h1>
@@ -147,27 +178,52 @@ function formatCost(usd: number): string {
       bind:value={workspaceFilter}
       placeholder="All workspaces"
     />
+    <button
+      class="sl-refresh btn-compact btn-compact-ghost"
+      onclick={() => queryClient.invalidateQueries({ queryKey: ['sessions'] })}
+      aria-label="Refresh sessions (r)"
+      title="Refresh (r)"
+    >
+      <RefreshCw size={12} aria-hidden="true" />
+    </button>
   </div>
+
+  <!-- Shortcut help overlay -->
+  {#if shortcutHelpVisible}
+    <div class="sl-help glass-panel" role="status" aria-live="polite">
+      <span class="sl-help__title">Keyboard shortcuts</span>
+      <div class="sl-help__rows">
+        <span><kbd>j</kbd> / <kbd>↓</kbd> next</span>
+        <span><kbd>k</kbd> / <kbd>↑</kbd> prev</span>
+        <span><kbd>↵</kbd> open</span>
+        <span><kbd>r</kbd> refresh</span>
+        <span><kbd>Esc</kbd> clear</span>
+      </div>
+      <button class="sl-help__close btn-compact btn-compact-ghost" onclick={() => { shortcutHelpVisible = false; }}>✕</button>
+    </div>
+  {/if}
 
   <!-- Table or states -->
   {#if $query.isError}
-    <Alert variant="error" title="Failed to load sessions">
-      {($query.error as Error).message}
-      <button
-        class="btn-pill btn-pill-sm btn-pill-primary"
-        onclick={() => $query.refetch()}
-        style="margin-top: 8px;"
-      >
-        Retry
-      </button>
-    </Alert>
+    <EmptyState
+      title="Couldn't load sessions"
+      body={($query.error as Error).message || 'Check your connection and try again.'}
+      action="Retry"
+      onAction={() => $query.refetch()}
+    />
   {:else if $query.isLoading}
-    <div class="sl-skeleton">
-      {#each Array.from({ length: 8 }, (_, i) => i) as i (i)}
-        <Skeleton class="sl-sk-row" />
-      {/each}
+    <div class="sl-skeleton-wrap">
+      <SkeletonList count={8} height="2.5rem" gap="0.375rem" />
     </div>
-  {:else if $query.data && $query.data.length > 0}
+  {:else if sessions.length === 0}
+    <EmptyState
+      icon={Clock as never}
+      title="No sessions yet"
+      body="Type a prompt on Home to get started."
+      action="New session"
+      onAction={() => goto('/')}
+    />
+  {:else}
     <div class="sl-table-wrap">
       <Table hoverable>
         <TableHeader>
@@ -180,25 +236,27 @@ function formatCost(usd: number): string {
           </tr>
         </TableHeader>
         <tbody>
-          {#each $query.data as session (session.id)}
+          {#each sessions as session, i (session.id)}
             <!-- svelte-ignore a11y_interactive_supports_focus -->
             <tr
               class="sl-row bos-table-row"
+              class:sl-row--selected={kb.selectedIndex === i}
               role="button"
               onclick={() => goto(`/sessions/${session.id}`)}
               onkeydown={(e) => e.key === 'Enter' && goto(`/sessions/${session.id}`)}
+              aria-selected={kb.selectedIndex === i}
             >
               <td class="bos-table-cell sl-td-status">
                 <StatusDot color={dotColor(session.status)} pulse={session.status === 'running'} />
               </td>
               <td class="bos-table-cell sl-td-agent">
-                {session.agentSlug || session.agentName || '—'}
+                {session.agentSlug ?? '—'}
               </td>
               <td class="bos-table-cell sl-mono">
-                {session.runtimeName ?? session.runtimeType}
+                {session.runtimeType}
               </td>
               <td class="bos-table-cell sl-mono">
-                {formatDuration(session.durationMs)}
+                {formatDuration(sessionDurationMs(session))}
               </td>
               <td class="bos-table-cell sl-mono">
                 {formatCost(session.costUsd)}
@@ -208,11 +266,6 @@ function formatCost(usd: number): string {
         </tbody>
       </Table>
     </div>
-  {:else}
-    <EmptyState
-      title="No sessions yet."
-      body="Type a prompt on Home to get started."
-    />
   {/if}
 </div>
 
@@ -226,6 +279,7 @@ function formatCost(usd: number): string {
     height: 100%;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
+    outline: none;
   }
 
   .sl-header {
@@ -258,16 +312,60 @@ function formatCost(usd: number): string {
     width: auto;
   }
 
-  .sl-skeleton {
+  .sl-refresh {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    transition: background var(--dur-instant) var(--ease-out);
   }
 
-  :global(.sl-sk-row) {
-    height: 40px !important;
-    width: 100% !important;
-    border-radius: var(--radius-md) !important;
+  /* Shortcut help */
+  .sl-help {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-lg);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+    flex-wrap: wrap;
+    position: relative;
+  }
+
+  .sl-help__title {
+    font-weight: 600;
+    color: var(--fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 10px;
+  }
+
+  .sl-help__rows {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+  }
+
+  .sl-help__rows kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0 3px;
+    color: var(--fg);
+  }
+
+  .sl-help__close {
+    margin-left: auto;
+  }
+
+  .sl-skeleton-wrap {
+    flex: 1;
   }
 
   .sl-table-wrap {
@@ -298,6 +396,10 @@ function formatCost(usd: number): string {
     cursor: pointer;
   }
 
+  :global(.sl-row--selected) {
+    background: color-mix(in oklch, var(--fg) 5%, transparent 95%) !important;
+  }
+
   :global(.sl-td-status) {
     padding-right: 0 !important;
     width: 32px !important;
@@ -308,14 +410,6 @@ function formatCost(usd: number): string {
     font-size: var(--text-sm);
     color: var(--fg);
     font-weight: 500;
-  }
-
-  :global(.sl-td-runtime),
-  :global(.sl-td-duration),
-  :global(.sl-td-cost) {
-    font-family: var(--font-mono) !important;
-    font-size: var(--text-xs) !important;
-    color: var(--fg-muted) !important;
   }
 
   .sl-mono {

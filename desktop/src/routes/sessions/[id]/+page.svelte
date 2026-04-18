@@ -72,9 +72,17 @@ $effect(() => {
   }
 });
 
-const session = $derived($detailQuery.data ?? null);
+// SessionDetail is now { session, messages } — access the nested session record.
+const sessionDetail = $derived($detailQuery.data ?? null);
+const session = $derived(sessionDetail?.session ?? null);
 const effectiveStatus = $derived<SessionStatus>(liveStatus ?? session?.status ?? 'pending');
 const isRunning = $derived(effectiveStatus === 'running');
+
+/** Compute duration in ms from backend timestamps (durationMs doesn't exist on backend). */
+function sessionDurationMs(): number | null {
+  if (!session?.startedAt || !session?.completedAt) return null;
+  return new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime();
+}
 
 function statusDotColor(s: SessionStatus): 'green' | 'amber' | 'red' | 'grey' {
   switch (s) {
@@ -97,6 +105,11 @@ function formatDuration(ms: number | null): string {
   const secs = Math.floor(ms / 1000);
   if (secs < 60) return `${secs}s`;
   return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+}
+
+function formatCost(usd: string): string {
+  const n = parseFloat(usd);
+  return isNaN(n) ? '—' : `$${n.toFixed(4)}`;
 }
 
 async function handleCancel() {
@@ -170,9 +183,9 @@ onMount(() => {
         <div class="sd-session-info">
           <span class="sd-mono">#{sessionId.slice(0, 8)}</span>
           <span class="sd-separator" aria-hidden="true">·</span>
-          <span class="sd-mono">{formatDuration(session.durationMs)}</span>
+          <span class="sd-mono">{formatDuration(sessionDurationMs())}</span>
           <span class="sd-separator" aria-hidden="true">·</span>
-          <span class="sd-mono">${session.costUsd.toFixed(4)}</span>
+          <span class="sd-mono">{formatCost(session.costUsd)}</span>
         </div>
       {/if}
 
@@ -218,10 +231,18 @@ onMount(() => {
 
       {#if session}
         <!-- Prompt -->
-        <details class="sd-ctx-item">
-          <summary class="sd-ctx-summary">Prompt</summary>
-          <p class="sd-ctx-body sd-mono">{session.prompt}</p>
-        </details>
+        {#if session.prompt}
+          <details class="sd-ctx-item">
+            <summary class="sd-ctx-summary">Prompt</summary>
+            <p class="sd-ctx-body sd-mono">{session.prompt}</p>
+          </details>
+        {/if}
+
+        <!-- Working directory -->
+        <div class="sd-ctx-item">
+          <span class="sd-ctx-label">Directory</span>
+          <span class="sd-ctx-value sd-mono">{session.cwd}</span>
+        </div>
 
         <!-- Workspace -->
         <div class="sd-ctx-item">
@@ -239,26 +260,13 @@ onMount(() => {
           {/if}
         </div>
 
-        <!-- Sandbox URL -->
-        {#if session.sandboxUrl}
+        <!-- Model -->
+        {#if session.modelId}
           <div class="sd-ctx-item">
-            <span class="sd-ctx-label">Sandbox</span>
-            <a
-              class="sd-ctx-link sd-mono"
-              href={session.sandboxUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {session.sandboxUrl}
-            </a>
+            <span class="sd-ctx-label">Model</span>
+            <span class="sd-ctx-value sd-mono">{session.modelId}</span>
           </div>
         {/if}
-
-        <!-- Governance -->
-        <div class="sd-ctx-item">
-          <span class="sd-ctx-label">Governance</span>
-          <span class="sd-ctx-value">{session.governanceMode}</span>
-        </div>
       {:else if $detailQuery.isLoading}
         {#each Array.from({ length: 4 }, (_, i) => i) as i (i)}
           <Skeleton class="sd-sk-ctx" />

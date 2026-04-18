@@ -75,8 +75,22 @@ defmodule CanopyWeb.AgentsControllerTest do
       body = json_response(conn, 200)
       assert body["slug"] == "show-agent"
       assert body["name"] == "Show Agent"
-      # persona_content is nil when file doesn't exist in test env
       assert Map.has_key?(body, "persona_content")
+    end
+
+    test "returns persona_content from DB column, not from disk", %{conn: conn} do
+      db_persona = "# DB Persona\n\nThis content lives in the database column."
+      insert(:agent, slug: "show-db-persona", name: "DB Persona Agent", persona_markdown: db_persona)
+      conn = get(conn, "/api/v1/agents/show-db-persona")
+      body = json_response(conn, 200)
+      assert body["persona_content"] == db_persona
+    end
+
+    test "returns nil persona_content when persona_markdown is empty", %{conn: conn} do
+      insert(:agent, slug: "show-empty-persona", name: "Empty Persona", persona_markdown: "")
+      conn = get(conn, "/api/v1/agents/show-empty-persona")
+      body = json_response(conn, 200)
+      assert body["persona_content"] == nil
     end
 
     test "returns 404 when agent not found", %{conn: conn} do
@@ -90,20 +104,7 @@ defmodule CanopyWeb.AgentsControllerTest do
   # ---------------------------------------------------------------------------
 
   describe "PUT /api/v1/agents/:slug/persona" do
-    test "returns 200 with updated persona_content when file is writable", %{conn: conn} do
-      # Use a path inside a real writable location in the test env.
-      # The priv/agents/ tree may not have the agent directory; we use /tmp.
-      tmp_dir = System.tmp_dir!()
-      persona_path = "test-persona-#{System.unique_integer([:positive])}.md"
-      full_path = Path.join(tmp_dir, persona_path)
-      File.write!(full_path, "# Original")
-
-      # Insert agent with a persona_path that points into tmp so File.write! can succeed.
-      # We monkey-patch by inserting an agent whose persona_path is an absolute path;
-      # Agents.update_persona uses Path.join(priv_dir, persona_path) so we need to
-      # control what lands on disk. For the success case we let the controller call
-      # succeed and just verify the response shape — the file write will fail in the
-      # test sandbox (priv/agents/ path doesn't exist), so we test the shape contract.
+    test "returns 200 and writes persona_markdown to DB (not to disk)", %{conn: conn} do
       insert(:agent, slug: "persona-update-agent", persona_path: "engineering/placeholder.md")
 
       new_content = "# Updated persona\n\nHello from the test."
@@ -111,19 +112,26 @@ defmodule CanopyWeb.AgentsControllerTest do
       conn =
         put(conn, "/api/v1/agents/persona-update-agent/persona", %{persona_markdown: new_content})
 
-      # Either 200 (file writable) or 422 (file not writable in CI) — both are valid
-      # contract outcomes. We assert the shape for whichever status we get.
-      response_status = conn.status
+      # Now always 200 — DB write never fails on missing priv/agents/ file
+      assert %{"slug" => "persona-update-agent", "persona_content" => ^new_content} =
+               json_response(conn, 200)
 
-      assert response_status in [200, 422]
+      # Verify the DB row reflects the update (DB-backed, no file needed)
+      assert {:ok, agent} = Canopy.Agents.get_by_slug("persona-update-agent")
+      assert agent.persona_markdown == new_content
+    end
 
-      if response_status == 200 do
-        body = json_response(conn, 200)
-        assert body["slug"] == "persona-update-agent"
-        assert body["persona_content"] == new_content
-      end
+    test "update is idempotent — same content twice returns same response shape", %{conn: conn} do
+      insert(:agent, slug: "persona-idem-agent", persona_path: "engineering/placeholder.md")
+      content = "# Idempotent content"
 
-      File.rm(full_path)
+      put(conn, "/api/v1/agents/persona-idem-agent/persona", %{persona_markdown: content})
+
+      conn2 =
+        put(conn, "/api/v1/agents/persona-idem-agent/persona", %{persona_markdown: content})
+
+      body = json_response(conn2, 200)
+      assert body["persona_content"] == content
     end
 
     test "returns 404 for unknown slug", %{conn: conn} do
@@ -135,8 +143,7 @@ defmodule CanopyWeb.AgentsControllerTest do
       assert json_response(conn, 404)
     end
 
-    test "returns 200 response shape with slug and persona_content keys when agent exists and file is writable",
-         %{conn: conn} do
+    test "response shape has slug, persona_content, and persona_markdown keys", %{conn: conn} do
       insert(:agent, slug: "shape-check-agent", persona_path: "engineering/placeholder.md")
 
       conn =
@@ -144,15 +151,11 @@ defmodule CanopyWeb.AgentsControllerTest do
           persona_markdown: "# Shape check"
         })
 
-      # The action returns either 200 with the full body or 422 on file write failure.
-      assert conn.status in [200, 422]
-
-      if conn.status == 200 do
-        body = json_response(conn, 200)
-        assert Map.has_key?(body, "slug")
-        assert Map.has_key?(body, "persona_content")
-        assert body["persona_content"] == "# Shape check"
-      end
+      assert conn.status == 200
+      body = json_response(conn, 200)
+      assert Map.has_key?(body, "slug")
+      assert Map.has_key?(body, "persona_content")
+      assert body["persona_content"] == "# Shape check"
     end
   end
 

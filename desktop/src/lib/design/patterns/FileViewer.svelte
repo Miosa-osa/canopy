@@ -17,6 +17,7 @@
   import { writable } from 'svelte/store';
   import { beforeNavigate } from '$app/navigation';
   import { workspaceFileQuery, writeFileMutation } from '$lib/api/queries/workspaces.js';
+  import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
   import type { FileReadResponse } from '$lib/domain/workspaces/types.js';
   import { toasts } from '$lib/stores/toasts.svelte.js';
   import { renderMarkdown } from '$lib/utils/markdown.js';
@@ -187,11 +188,18 @@
 
   // ── Unsaved-changes guard ───────────────────────────────────────────────────
 
-  beforeNavigate(({ cancel }) => {
-    if (isDirty) {
-      // eslint-disable-next-line no-alert
-      const ok = window.confirm('You have unsaved changes. Leave anyway?');
-      if (!ok) cancel();
+  let guardOpen = $state(false);
+  let bypassGuard = $state(false);
+  let pendingNavigation: (() => void) | null = null;
+
+  beforeNavigate(({ cancel, to }) => {
+    if (isDirty && !bypassGuard) {
+      cancel();
+      pendingNavigation = () => {
+        bypassGuard = true;
+        if (to?.url) window.location.assign(to.url.href);
+      };
+      guardOpen = true;
     }
   });
 
@@ -348,6 +356,12 @@
 
   </div><!-- /fv-body -->
 </div><!-- /fv-root -->
+
+<DirtyGuardModal
+  open={guardOpen}
+  onCancel={() => { guardOpen = false; pendingNavigation = null; }}
+  onDiscard={() => { guardOpen = false; pendingNavigation?.(); pendingNavigation = null; }}
+/>
 
 <style>
   /* ── Root layout ─────────────────────────────────────────────────────────── */

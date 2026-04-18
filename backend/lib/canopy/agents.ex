@@ -68,22 +68,22 @@ defmodule Canopy.Agents do
   end
 
   @doc """
-  Updates the persona markdown file for an agent.
+  Updates the persona markdown content for an agent.
 
-  Writes `content` to the agent's `persona_path` under `priv/agents/` and
-  returns `{:ok, agent}`. Returns `{:error, :not_found}` when the slug is
-  unknown, or `{:error, :write_failed}` if the file cannot be written.
+  Writes `content` into the `persona_markdown` DB column via a changeset and
+  returns `{:ok, updated_agent}`. Returns `{:error, :not_found}` when the slug
+  is unknown, or `{:error, changeset}` on a constraint violation.
+
+  The file at `persona_path` is NOT touched — it is the seed source only and
+  is never written at runtime. `persona_markdown` is the authoritative value.
   """
   @spec update_persona(String.t(), String.t()) ::
-          {:ok, Agent.t()} | {:error, :not_found | :write_failed}
+          {:ok, Agent.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def update_persona(slug, content) when is_binary(content) do
     with {:ok, agent} <- get_by_slug(slug) do
-      path = Path.join(:code.priv_dir(:canopy), Path.join("agents", agent.persona_path))
-
-      case File.write(path, content) do
-        :ok -> {:ok, agent}
-        {:error, _reason} -> {:error, :write_failed}
-      end
+      agent
+      |> Agent.persona_changeset(content)
+      |> Repo.update()
     end
   end
 

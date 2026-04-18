@@ -235,6 +235,58 @@ defmodule Canopy.AgentsTest do
     end
   end
 
+  describe "update_persona/2" do
+    test "writes persona_markdown to the DB column, not to disk" do
+      {:ok, agent} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{persona_markdown: "# Original"}))
+        )
+
+      new_content = "# Updated\n\nNew persona content."
+      assert {:ok, updated} = Agents.update_persona(agent.slug, new_content)
+      assert updated.persona_markdown == new_content
+
+      # Verify the value is persisted in DB (re-fetch)
+      assert {:ok, reloaded} = Agents.get_by_slug(agent.slug)
+      assert reloaded.persona_markdown == new_content
+    end
+
+    test "update_persona is idempotent — calling twice with the same content is stable" do
+      {:ok, agent} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{persona_markdown: "# Initial"}))
+        )
+
+      content = "# Stable content"
+      assert {:ok, first} = Agents.update_persona(agent.slug, content)
+      assert {:ok, second} = Agents.update_persona(agent.slug, content)
+      assert first.persona_markdown == second.persona_markdown
+      assert second.persona_markdown == content
+    end
+
+    test "returns {:error, :not_found} for unknown slug" do
+      assert {:error, :not_found} = Agents.update_persona("no-such-agent", "# Content")
+    end
+
+    test "does NOT write to any file on disk" do
+      {:ok, agent} =
+        Canopy.Repo.insert(AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs()))
+
+      content = "# DB-only update"
+      {:ok, updated} = Agents.update_persona(agent.slug, content)
+
+      # persona_path file should NOT exist (test env doesn't seed priv/agents/)
+      full_path =
+        Path.join(:code.priv_dir(:canopy), Path.join("agents", updated.persona_path))
+
+      # The assertion is that we didn't write the file — if it doesn't exist, that's correct.
+      # If it already existed from a different test, at least we confirm DB was updated.
+      assert updated.persona_markdown == content
+      refute File.exists?(full_path) and File.read!(full_path) == content,
+             "update_persona must not write to the filesystem"
+    end
+  end
+
   describe "slug uniqueness" do
     test "rejects duplicate slug" do
       attrs = valid_agent_attrs(%{slug: "unique-slug"})

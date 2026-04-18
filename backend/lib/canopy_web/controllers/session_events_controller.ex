@@ -195,8 +195,19 @@ defmodule CanopyWeb.SessionEventsController do
     end
   end
 
-  # Returns true when the entry signals session completion.
-  defp done_entry?(%{kind: :system, content: %{"event" => "completed"}}), do: true
+  # Returns true when the entry signals session completion (any terminal event).
+  # Covers all event strings emitted by adapters via on_exit_error/2 or parser dispatch:
+  #   "completed"     — clean exit (exit code 0)
+  #   "error"         — non-zero exit (claude_local, codex_local, gemini_local default)
+  #   "session_expired" — codex_local stale-session detection
+  #   "cancelled"     — handle_cast(:cancel) path
+  #   "failed"        — reserved for future adapters; mirrors Sessions status value
+  @terminal_events ~w(completed error session_expired cancelled failed)
+
+  defp done_entry?(%{kind: :system, content: %{"event" => event}})
+       when event in @terminal_events,
+       do: true
+
   defp done_entry?(%{kind: :result}), do: true
   defp done_entry?(_entry), do: false
 

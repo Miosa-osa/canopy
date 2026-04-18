@@ -234,7 +234,7 @@ defmodule Mix.Tasks.Canopy.Seed.Agents do
        ) do
     with {:ok, body} <- File.read(path),
          {:ok, frontmatter} <- extract_frontmatter(body),
-         {:ok, attrs} <- build_attrs(frontmatter, path, root, final_slug) do
+         {:ok, attrs} <- build_attrs(frontmatter, body, path, root, final_slug) do
       {op, _result} = upsert(attrs, dry_run)
 
       case op do
@@ -270,7 +270,23 @@ defmodule Mix.Tasks.Canopy.Seed.Agents do
     end
   end
 
-  defp build_attrs(frontmatter, path, root, final_slug) do
+  # Extracts the body portion of a markdown file — everything after the closing
+  # `---` of the YAML frontmatter block. Returns "" when no frontmatter is found
+  # (so bare-body files still get their content stored) or when body is blank.
+  @spec extract_persona_body(String.t()) :: String.t()
+  defp extract_persona_body(raw_body) do
+    case Regex.run(@frontmatter_regex, raw_body) do
+      [full_match | _] ->
+        raw_body
+        |> String.slice(String.length(full_match)..-1//1)
+        |> String.trim()
+
+      nil ->
+        String.trim(raw_body)
+    end
+  end
+
+  defp build_attrs(frontmatter, raw_body, path, root, final_slug) do
     relative = Path.relative_to(path, root)
     raw_category = relative |> Path.split() |> List.first()
     category = normalise_category(raw_category)
@@ -310,6 +326,10 @@ defmodule Mix.Tasks.Canopy.Seed.Agents do
        name: name,
        description: frontmatter["description"],
        persona_path: relative,
+       # DB-authoritative persona content: body extracted from the markdown file
+       # after the YAML frontmatter block. persona_path remains as a backward
+       # reference to the seed source; never read at runtime.
+       persona_markdown: extract_persona_body(raw_body),
        default_runtime: default_runtime,
        default_model: frontmatter["model"],
        # Only use frontmatter heartbeat_cron — never inject a default.

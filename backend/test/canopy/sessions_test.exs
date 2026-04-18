@@ -5,6 +5,8 @@ defmodule Canopy.SessionsTest do
 
   use Canopy.DataCase, async: true
 
+  import Canopy.Factory
+
   alias Canopy.Sessions
 
   defp valid_attrs(overrides \\ %{}) do
@@ -101,6 +103,39 @@ defmodule Canopy.SessionsTest do
       {:ok, _first_msg} = Sessions.add_message(session.id, attrs)
       {:error, cs} = Sessions.add_message(session.id, attrs)
       assert %{sequence: ["has already been taken"]} = errors_on(cs)
+    end
+
+    test "redacts credential-shaped content before persisting" do
+      {:ok, session} = Sessions.create(valid_attrs())
+
+      # Simulate a user accidentally pasting an API key into a prompt
+      msg_attrs = %{
+        sequence: 0,
+        kind: "user",
+        content: %{"text" => "Use this key: sk-abcdefghijklmnopqrstuv"},
+        emitted_at: DateTime.utc_now()
+      }
+
+      assert {:ok, msg} = Sessions.add_message(session.id, msg_attrs)
+
+      # The persisted content must NOT contain the raw key
+      persisted_text = msg.content["text"]
+      refute persisted_text =~ "sk-abcdefghijklmnopqrstuv"
+      assert persisted_text =~ "***REDACTED"
+    end
+
+    test "benign message content is persisted unchanged" do
+      {:ok, session} = Sessions.create(valid_attrs())
+
+      attrs = %{
+        sequence: 0,
+        kind: "assistant",
+        content: %{"text" => "The answer is 42."},
+        emitted_at: DateTime.utc_now()
+      }
+
+      assert {:ok, msg} = Sessions.add_message(session.id, attrs)
+      assert msg.content["text"] == "The answer is 42."
     end
   end
 
@@ -253,6 +288,146 @@ defmodule Canopy.SessionsTest do
 
     test "returns error for unknown session" do
       assert {:error, :not_found} = Sessions.finalize(Ecto.UUID.generate(), %{})
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Governance + budget gate tests
+  # ---------------------------------------------------------------------------
+
+  describe "create/1 gates" do
+    test "governance :pass proceeds and creates session" do
+      # No rules in DB → evaluate/1 returns :pass
+      assert {:ok, session} = Sessions.create(valid_attrs())
+      assert session.status == "pending"
+    end
+
+    test "governance :block returns {:error, {:governance_blocked, rule}}" do
+      # Evaluator condition key for runtime_type is "runtime"
+      rule =
+        insert(:governance_rule,
+          enabled: true,
+          priority: 100,
+          action: "block",
+          conditions: %{"runtime" => "claude-local"}
+        )
+
+      result = Sessions.create(valid_attrs(%{runtime_type: "claude-local"}))
+      assert {:error, {:governance_blocked, blocked_rule}} = result
+      assert blocked_rule.id == rule.id
+    end
+
+    test "governance :warn logs and proceeds to insert" do
+      insert(:governance_rule,
+        enabled: true,
+        priority: 100,
+        action: "warn",
+        conditions: %{"runtime" => "claude-local"}
+      )
+
+      assert {:ok, session} = Sessions.create(valid_attrs())
+      assert session.status == "pending"
+    end
+
+    test "governance :require_approval inserts with status pending_approval" do
+      rule =
+        insert(:governance_rule,
+          enabled: true,
+          priority: 100,
+          action: "require_approval",
+          conditions: %{"runtime" => "claude-local"}
+        )
+
+      assert {:ok, session} = Sessions.create(valid_attrs())
+      assert session.status == "pending_approval"
+      assert session.metadata["governance_rule_id"] == rule.id
+    end
+
+    test "governance :require_approval creates an approval record" do
+      insert(:governance_rule,
+        enabled: true,
+        priority: 100,
+        action: "require_approval",
+        conditions: %{"runtime" => "claude-local"}
+      )
+
+      assert {:ok, session} = Sessions.create(valid_attrs())
+
+      approvals = Canopy.Governance.pending_approvals()
+      assert Enum.any?(approvals, &(&1.session_id == session.id))
+    end
+
+    test "budget :block returns {:error, {:budget_blocked, budget, spent}}" do
+      # Budget.changeset requires limit_usd > 0; use $0.001 with spend > limit
+      budget =
+        insert(:budget,
+          scope_type: "global",
+          scope_id: nil,
+          period: "total",
+          limit_usd: Decimal.new("0.001"),
+          soft_alert_pct: 80,
+          hard_ceiling: true,
+          enabled: true
+        )
+
+      # Completed session with cost_usd > limit — pushes total spend over ceiling
+      completed = insert(:completed_session, cost_usd: Decimal.new("0.01"))
+
+      Canopy.Repo.update_all(
+        from(s in Canopy.Sessions.Session, where: s.id == ^completed.id),
+        set: [status: "completed", completed_at: DateTime.utc_now()]
+      )
+
+      result = Sessions.create(valid_attrs())
+      assert {:error, {:budget_blocked, blocked_budget, _spent}} = result
+      assert blocked_budget.id == budget.id
+    end
+
+    test "budget :warn logs and proceeds to insert" do
+      # hard_ceiling=false → warn only even when limit exceeded
+      insert(:budget,
+        scope_type: "global",
+        scope_id: nil,
+        period: "total",
+        limit_usd: Decimal.new("0.001"),
+        soft_alert_pct: 80,
+        hard_ceiling: false,
+        enabled: true
+      )
+
+      completed = insert(:completed_session, cost_usd: Decimal.new("0.01"))
+
+      Canopy.Repo.update_all(
+        from(s in Canopy.Sessions.Session, where: s.id == ^completed.id),
+        set: [status: "completed", completed_at: DateTime.utc_now()]
+      )
+
+      assert {:ok, session} = Sessions.create(valid_attrs())
+      assert session.status == "pending"
+    end
+
+    test "combined: governance pass + budget block → budget wins" do
+      # No governance rules → evaluate/1 returns :pass
+      budget =
+        insert(:budget,
+          scope_type: "global",
+          scope_id: nil,
+          period: "total",
+          limit_usd: Decimal.new("0.001"),
+          hard_ceiling: true,
+          enabled: true
+        )
+
+      completed = insert(:completed_session, cost_usd: Decimal.new("1.00"))
+
+      Canopy.Repo.update_all(
+        from(s in Canopy.Sessions.Session, where: s.id == ^completed.id),
+        set: [status: "completed", completed_at: DateTime.utc_now()]
+      )
+
+      result = Sessions.create(valid_attrs())
+      assert {:error, {:budget_blocked, blocked_budget, _spent}} = result
+      assert blocked_budget.id == budget.id
     end
   end
 end

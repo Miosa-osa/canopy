@@ -16,6 +16,14 @@ defmodule Canopy.Vault do
     overwrites the previous ciphertext.
   - `delete/2` is idempotent — deleting a non-existent key returns `:ok`.
 
+  ## Key migration (v1 → v2)
+
+  As of 2026-04-18, key derivation upgraded from raw SHA-256 to HKDF-SHA256.
+  `do_get/2` attempts decryption with the new key first, then falls back to the
+  legacy key. On legacy-key success it silently re-encrypts the row with the new
+  key (write-on-read migration). No operator action required for dev vault rows —
+  they migrate transparently on first read after upgrade.
+
   ## Future migration
 
   This module's public API is stable. When Canopy ships the Tauri keyring
@@ -25,6 +33,8 @@ defmodule Canopy.Vault do
   """
 
   import Ecto.Query, only: [from: 2]
+
+  require Logger
 
   alias Canopy.Repo
   alias Canopy.Vault.{Credential, Crypto}
@@ -118,8 +128,32 @@ defmodule Canopy.Vault do
 
       %Credential{encrypted_value: ciphertext, nonce: nonce} ->
         case Crypto.decrypt(ciphertext, nonce, runtime_type, field_key) do
-          {:ok, plaintext} -> {:ok, plaintext}
-          {:error, :decryption_failed} -> {:error, :not_found}
+          {:ok, plaintext} ->
+            {:ok, plaintext}
+
+          {:error, :decryption_failed} ->
+            # New key failed — attempt legacy SHA-256 key (v1 rows pre-2026-04-18).
+            # On success, transparently re-encrypt with the current HKDF key.
+            case Crypto.decrypt_legacy(ciphertext, nonce, runtime_type, field_key) do
+              {:ok, plaintext} ->
+                Logger.info(
+                  "[Vault] Migrating credential to HKDF key runtime_type=#{runtime_type} " <>
+                    "field_key=#{field_key}"
+                )
+
+                # Write-on-read: re-encrypt with current key so future reads use HKDF.
+                put(runtime_type, field_key, plaintext)
+                {:ok, plaintext}
+
+              {:error, :decryption_failed} ->
+                Logger.warning(
+                  "[Vault] Decryption failed for runtime_type=#{runtime_type} " <>
+                    "field_key=#{field_key} — possible SECRET_KEY_BASE rotation. " <>
+                    "Credential requires re-entry."
+                )
+
+                {:error, :not_found}
+            end
         end
     end
   end

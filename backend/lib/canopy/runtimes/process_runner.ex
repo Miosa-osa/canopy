@@ -134,6 +134,10 @@ defmodule Canopy.Runtimes.ProcessRunner do
         event = __MODULE__.on_exit_error(code, state)
         new_state = ProcessRunner.flush_buffer(__MODULE__, state)
         ProcessRunner.emit_system_entry(new_state, event, %{exit_code: code})
+        # Persist terminal status so the session is never stuck in :running forever.
+        # Using _ = intentionally: we've already emitted a PubSub entry and logged;
+        # a DB failure here is non-fatal for the port lifecycle.
+        _ = Canopy.Sessions.update_status(state.session_id, "failed")
         {:stop, :normal, new_state}
       end
 

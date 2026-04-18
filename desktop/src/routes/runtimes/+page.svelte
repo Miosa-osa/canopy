@@ -13,21 +13,41 @@
  * TanStack QueryClientProvider assumed from root layout (+layout.svelte).
  */
 // TODO: QueryClient setup assumed from layout
-import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { goto } from '$app/navigation';
 import { runtimesQuery } from '$lib/api/queries/runtimes.js';
 import Alert from '$lib/design/foundation/alert/Alert.svelte';
 import Skeleton from '$lib/design/foundation/skeleton/Skeleton.svelte';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import RuntimeCard from '$lib/design/patterns/RuntimeCard.svelte';
 import type { Runtime } from '$lib/domain/runtimes/types.js';
+import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
 
+const queryClient = useQueryClient();
 const query = createQuery<Runtime[]>(runtimesQuery() as CreateQueryOptions<Runtime[]>);
+
+const runtimes = $derived(($query.data ?? []) as Runtime[]);
+
+const kb = useListKeyboard({
+  items: () => runtimes,
+  onSelect: (runtime) => goto(`/runtimes/${runtime.type}`),
+  onRefresh: () => {
+    queryClient.invalidateQueries({ queryKey: ['runtimes'] });
+  },
+});
 
 /** Render 9 skeleton cards while loading. */
 const skeletonRange = Array.from({ length: 9 }, (_, i) => i);
 </script>
 
-<div class="rd-page">
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<div
+  class="rd-page"
+  role="region"
+  aria-label="Runtimes list"
+  onkeydown={kb.handleKeydown}
+  tabindex="0"
+>
   <header class="rd-header">
     <h1 class="rd-title">Runtimes</h1>
     <p class="rd-subtitle">Manage AI adapter runtimes — CLI, API, and MCP server connections.</p>
@@ -40,16 +60,12 @@ const skeletonRange = Array.from({ length: 9 }, (_, i) => i);
     </div>
 
     {#if $query.isError}
-      <Alert variant="error" title="Failed to load runtimes" dismissible>
-        {($query.error as Error).message}
-        <button
-          class="btn-pill btn-pill-sm btn-pill-primary"
-          onclick={() => $query.refetch()}
-          style="margin-top: 8px;"
-        >
-          Retry
-        </button>
-      </Alert>
+      <EmptyState
+        title="Couldn't load runtimes"
+        body={($query.error as Error).message || 'Check your connection and try again.'}
+        action="Retry"
+        onAction={() => $query.refetch()}
+      />
     {:else}
       <div class="rd-grid" aria-busy={$query.isLoading}>
         {#if $query.isLoading}

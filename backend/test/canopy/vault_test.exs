@@ -105,6 +105,42 @@ defmodule Canopy.VaultTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Decryption failure logging (audit fix #5)
+  # ---------------------------------------------------------------------------
+
+  describe "get/2 — decryption failure observability" do
+    test "logs a warning when decryption fails (key rotation scenario)" do
+      import Ecto.Query
+
+      alias Canopy.Vault.Credential
+
+      # Store a valid credential
+      Vault.put("claude-local", "rotation_test_key", "original-secret")
+
+      # Corrupt the nonce directly in the DB to simulate key rotation mismatch
+      bad_nonce = :crypto.strong_rand_bytes(12)
+
+      Canopy.Repo.update_all(
+        from(c in Credential,
+          where: c.runtime_type == "claude-local" and c.field_key == "rotation_test_key"
+        ),
+        set: [nonce: bad_nonce]
+      )
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          result = Vault.get("claude-local", "rotation_test_key")
+          assert result == {:error, :not_found}
+        end)
+
+      assert log =~ "[Vault]"
+      assert log =~ "Decryption failed"
+      assert log =~ "rotation_test_key"
+      assert log =~ "SECRET_KEY_BASE rotation"
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # list_fields/1
   # ---------------------------------------------------------------------------
 

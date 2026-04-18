@@ -63,7 +63,14 @@ defmodule CanopyWeb.AgentsController do
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(conn, %{"slug" => slug}) do
     with {:ok, agent} <- Agents.get_by_slug(slug) do
-      persona_content = read_persona(agent.persona_path)
+      # Read persona_markdown from the DB row — no filesystem access at runtime.
+      # persona_path is a backward reference to the seed source file only.
+      persona_content =
+        case agent.persona_markdown do
+          nil -> nil
+          "" -> nil
+          content -> content
+        end
 
       body =
         agent
@@ -95,24 +102,25 @@ defmodule CanopyWeb.AgentsController do
 
   @spec update_persona(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update_persona(conn, %{"slug" => slug, "persona_markdown" => md}) do
-    with {:ok, agent} <- Agents.update_persona(slug, md) do
+    with {:ok, updated_agent} <- Agents.update_persona(slug, md) do
+      # Return persona_content from the updated DB row — response shape unchanged.
       body =
-        agent
+        updated_agent
         |> Map.from_struct()
         |> Map.drop([:__meta__])
-        |> Map.put(:persona_content, md)
+        |> Map.put(:persona_content, updated_agent.persona_markdown)
 
       json(conn, body)
     end
   end
 
   def update_persona(conn, %{"slug" => slug}) do
-    with {:ok, agent} <- Agents.update_persona(slug, "") do
+    with {:ok, updated_agent} <- Agents.update_persona(slug, "") do
       body =
-        agent
+        updated_agent
         |> Map.from_struct()
         |> Map.drop([:__meta__])
-        |> Map.put(:persona_content, "")
+        |> Map.put(:persona_content, updated_agent.persona_markdown)
 
       json(conn, body)
     end
@@ -204,16 +212,4 @@ defmodule CanopyWeb.AgentsController do
   defp parse_hired_filter("true"), do: true
   defp parse_hired_filter("false"), do: false
   defp parse_hired_filter(_other), do: nil
-
-  @spec read_persona(String.t() | nil) :: String.t() | nil
-  defp read_persona(nil), do: nil
-
-  defp read_persona(relative_path) do
-    path = Path.join(:code.priv_dir(:canopy), Path.join("agents", relative_path))
-
-    case File.read(path) do
-      {:ok, content} -> content
-      {:error, _reason} -> nil
-    end
-  end
 end

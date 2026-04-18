@@ -69,8 +69,27 @@ if config_env() == :prod do
   config :canopy, :miosa_api_url, miosa_api_url
   config :canopy, :miosa_api_key, miosa_api_key
 
+  bind_ip =
+    case System.get_env("PHX_BIND_IP") do
+      nil ->
+        # Default: localhost only. Network exposure requires explicit opt-in via PHX_BIND_IP.
+        {127, 0, 0, 1}
+
+      "0.0.0.0" ->
+        {0, 0, 0, 0}
+
+      "::" ->
+        {0, 0, 0, 0, 0, 0, 0, 0}
+
+      ip_string ->
+        case :inet.parse_address(String.to_charlist(ip_string)) do
+          {:ok, ip} -> ip
+          {:error, _} -> raise "PHX_BIND_IP=#{ip_string} is not a valid IP address"
+        end
+    end
+
   config :canopy, CanopyWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
-    http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}],
+    http: [ip: bind_ip],
     secret_key_base: secret_key_base
 end

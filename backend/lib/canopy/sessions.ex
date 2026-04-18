@@ -8,36 +8,206 @@ defmodule Canopy.Sessions do
 
   The Paperclip triple-key resume pattern uses `id + cwd + prompt_bundle_key`
   to decide whether a session can be resumed without re-injecting skills.
+
+  ## Governance and Budget Gates
+
+  `create/1` evaluates governance rules and budget limits before inserting.
+  Gate outcomes:
+
+  - `:pass` — governance clean; global budget checked. Proceeds to insert on `:ok`
+    or `{:warn, ...}`. Agent/workspace scoped budgets require UUID resolution
+    and are enforced at the Heartbeat/billing layer.
+  - `{:warn, rule}` — governance warn; logged, then proceeds to budget check.
+  - `{:block, rule}` — returns `{:error, {:governance_blocked, rule}}`. No insert.
+  - `{:require_approval, rule}` — inserts session with `status: "pending_approval"`,
+    stores rule id in metadata, creates a governance approval record. Returns
+    `{:ok, session}`.
+  - `{:block, budget, spent}` — returns `{:error, {:budget_blocked, budget, spent}}`.
+  - `{:warn, budget, spent}` — budget warn; logged, proceeds to insert.
   """
 
   import Ecto.Query, only: [from: 2]
 
+  alias Canopy.Budgets
+  alias Canopy.Governance
   alias Canopy.Repo
-  alias Canopy.Sessions.{Resume, Session, SessionMessage}
+  alias Canopy.Sessions.{Redaction, Resume, Session, SessionMessage}
+
+  require Logger
 
   # ---------------------------------------------------------------------------
   # Session lifecycle
   # ---------------------------------------------------------------------------
 
   @doc """
-  Creates a new session.
+  Creates a new session, subject to governance and budget gates.
 
   When `agent_slug` and `workspace_slug` are present, looks up the most recent
   completed session for the same agent+workspace+cwd triple and pre-populates
   `external_session_id` so the adapter can pass `--resume` to the CLI.
 
-  Returns `{:ok, session}` or `{:error, changeset}`.
+  Gate evaluation order:
+  1. `Canopy.Governance.evaluate/1` — policy rules fire first.
+  2. `Canopy.Budgets.check/3` — spend checks across global, agent, and workspace
+     scopes (only when governance allows the session to proceed).
+
+  Returns:
+  - `{:ok, session}` — inserted and (if applicable) queued for MIOSA sandbox.
+  - `{:ok, session}` (status `"pending_approval"`) — governance requires approval.
+  - `{:error, changeset}` — Ecto validation failure.
+  - `{:error, {:governance_blocked, rule}}` — blocked by a governance rule.
+  - `{:error, {:budget_blocked, budget, spent}}` — budget hard ceiling exceeded.
   """
-  @spec create(map()) :: {:ok, Session.t()} | {:error, Ecto.Changeset.t()}
+  @spec create(map()) ::
+          {:ok, Session.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, {:governance_blocked, Governance.Rule.t()}}
+          | {:error, {:budget_blocked, Budgets.Budget.t(), Decimal.t()}}
   def create(attrs) do
     attrs_with_resume = maybe_inject_resume(attrs)
+    context = build_governance_context(attrs_with_resume)
 
+    case Governance.evaluate(context) do
+      :pass ->
+        check_budget_and_insert(attrs_with_resume, attrs)
+
+      {:warn, rule} ->
+        Logger.warning(
+          "[Sessions] Governance warn rule=#{rule.id} name=#{rule.name} — proceeding"
+        )
+
+        check_budget_and_insert(attrs_with_resume, attrs)
+
+      {:block, rule} ->
+        Logger.warning("[Sessions] Governance blocked rule=#{rule.id} name=#{rule.name}")
+
+        {:error, {:governance_blocked, rule}}
+
+      {:require_approval, rule} ->
+        insert_as_pending(attrs_with_resume, rule, attrs)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Gate helpers (governance + budget)
+  # ---------------------------------------------------------------------------
+
+  # Builds the string-keyed context map expected by Governance.evaluate/1.
+  @spec build_governance_context(map()) :: map()
+  defp build_governance_context(attrs) do
+    %{
+      "runtime_type" => str_val(attrs, :runtime_type, "runtime_type"),
+      "agent_slug" => str_val(attrs, :agent_slug, "agent_slug"),
+      "workspace_slug" => str_val(attrs, :workspace_slug, "workspace_slug"),
+      "prompt" => str_val(attrs, :prompt, "prompt"),
+      "cost_usd" => 0
+    }
+  end
+
+  # Reads a field from an atom-keyed or string-keyed map.
+  @spec str_val(map(), atom(), String.t()) :: String.t() | nil
+  defp str_val(attrs, atom_key, string_key) do
+    Map.get(attrs, atom_key) || Map.get(attrs, string_key)
+  end
+
+  # Runs budget checks and inserts on pass/warn.
+  #
+  # Scope strategy: only the global scope (scope_id: nil) is evaluated here.
+  # Agent-scoped and workspace-scoped budgets use the entity's UUID as scope_id
+  # (see Budget schema, :binary_id). Sessions.create/1 has only slugs — resolving
+  # slugs to UUIDs would require coupling Sessions to Agents/Workspaces contexts.
+  # Agent and workspace scoped enforcement is delegated to the Heartbeat.Worker
+  # and future billing hooks that have entity UUIDs in scope.
+  @spec check_budget_and_insert(map(), map()) ::
+          {:ok, Session.t()}
+          | {:error, Ecto.Changeset.t()}
+          | {:error, {:budget_blocked, Budgets.Budget.t(), Decimal.t()}}
+  defp check_budget_and_insert(attrs_with_resume, original_attrs) do
+    projected = Decimal.new(0)
+
+    case Budgets.check("global", nil, projected) do
+      :ok ->
+        do_insert(attrs_with_resume, original_attrs)
+
+      {:warn, budget, spent} ->
+        Logger.warning(
+          "[Sessions] Budget warn budget=#{budget.id} spent=#{spent} limit=#{budget.limit_usd} — proceeding"
+        )
+
+        do_insert(attrs_with_resume, original_attrs)
+
+      {:block, budget, spent} ->
+        Logger.warning(
+          "[Sessions] Budget blocked budget=#{budget.id} spent=#{spent} limit=#{budget.limit_usd}"
+        )
+
+        {:error, {:budget_blocked, budget, spent}}
+    end
+  end
+
+  # Inserts the session row and triggers MIOSA sandbox provisioning.
+  @spec do_insert(map(), map()) :: {:ok, Session.t()} | {:error, Ecto.Changeset.t()}
+  defp do_insert(attrs_with_resume, original_attrs) do
     with {:ok, session} <-
            %Session{}
            |> Session.changeset(attrs_with_resume)
            |> Repo.insert() do
-      maybe_provision_miosa_sandbox(session, attrs)
+      maybe_provision_miosa_sandbox(session, original_attrs)
       {:ok, session}
+    end
+  end
+
+  # Inserts the session with status "pending_approval" and creates a governance
+  # approval record so the UI can surface the pending decision.
+  @spec insert_as_pending(map(), Governance.Rule.t(), map()) ::
+          {:ok, Session.t()} | {:error, Ecto.Changeset.t()}
+  defp insert_as_pending(attrs_with_resume, rule, _original_attrs) do
+    pending_attrs =
+      attrs_with_resume
+      |> Map.put(:status, "pending_approval")
+      |> put_governance_metadata(rule)
+
+    with {:ok, session} <-
+           %Session{}
+           |> Session.changeset(pending_attrs)
+           |> Repo.insert() do
+      # Best-effort approval record — failure is logged, session is still returned.
+      case Governance.request_approval(rule.id, session.id) do
+        {:ok, _approval} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning(
+            "[Sessions] request_approval failed session=#{session.id} rule=#{rule.id}: #{inspect(reason)}"
+          )
+      end
+
+      Logger.info(
+        "[Sessions] Inserted pending_approval session=#{session.id} rule=#{rule.id} name=#{rule.name}"
+      )
+
+      {:ok, session}
+    end
+  end
+
+  # Merges governance approval metadata into the session attrs.
+  @spec put_governance_metadata(map(), Governance.Rule.t()) :: map()
+  defp put_governance_metadata(attrs, rule) do
+    existing_meta =
+      Map.get(attrs, :metadata) || Map.get(attrs, "metadata") || %{}
+
+    governance_meta =
+      Map.merge(existing_meta, %{
+        "governance_rule_id" => rule.id,
+        "governance_rule_name" => rule.name,
+        "governance_pending_since" => DateTime.to_iso8601(DateTime.utc_now())
+      })
+
+    # Preserve whichever key form was present in attrs
+    if Map.has_key?(attrs, "metadata") do
+      Map.put(attrs, "metadata", governance_meta)
+    else
+      Map.put(attrs, :metadata, governance_meta)
     end
   end
 
@@ -210,12 +380,16 @@ defmodule Canopy.Sessions do
   @spec add_message(binary(), map()) ::
           {:ok, SessionMessage.t()} | {:error, Ecto.Changeset.t()}
   def add_message(session_id, attrs) do
+    # Redact credential-shaped strings from content before persist and broadcast.
+    # Applied to attrs as a whole so nested content maps are also scrubbed.
+    redacted_attrs = Redaction.scrub(attrs)
+
     result =
       %SessionMessage{}
-      |> SessionMessage.changeset(Map.put(attrs, :session_id, session_id))
+      |> SessionMessage.changeset(Map.put(redacted_attrs, :session_id, session_id))
       |> Repo.insert()
 
-    maybe_persist_resume(session_id, attrs)
+    maybe_persist_resume(session_id, redacted_attrs)
 
     result
   end

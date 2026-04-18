@@ -11,6 +11,7 @@ defmodule Canopy.Sessions.Session do
   only changes when the skill bundle changes, saving tokens on resumes.
 
   Status lifecycle: pending → running → completed | cancelled | failed
+  Governance gate: pending_approval (awaiting human approval before execution)
   """
 
   use Ecto.Schema
@@ -20,7 +21,11 @@ defmodule Canopy.Sessions.Session do
   @foreign_key_type :binary_id
   @timestamps_opts [type: :utc_datetime_usec]
 
-  @valid_statuses ~w(pending running completed cancelled failed)
+  @valid_statuses ~w(pending running completed cancelled failed pending_approval)
+
+  @doc "Returns the list of all valid session statuses."
+  @spec allowed_statuses() :: [String.t()]
+  def allowed_statuses, do: @valid_statuses
 
   @derive {Jason.Encoder,
            only: [

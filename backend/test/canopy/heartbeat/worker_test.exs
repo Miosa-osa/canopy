@@ -78,6 +78,72 @@ defmodule Canopy.Heartbeat.WorkerTest do
   end
 
   # ---------------------------------------------------------------------------
+  # heartbeat_prompt reads from persona_markdown, not from disk
+  # ---------------------------------------------------------------------------
+
+  describe "persona_markdown as prompt source" do
+    test "uses agent.persona_markdown as the session prompt when non-empty" do
+      persona = "You are a specialized test agent. Run the full test suite on every heartbeat."
+
+      agent =
+        insert(:agent,
+          slug: "worker-persona-db",
+          hired: true,
+          default_runtime: "claude-local",
+          persona_markdown: persona
+        )
+
+      assert {:ok, session_id} = Worker.perform(job_for(agent.slug))
+      assert {:ok, session} = Canopy.Sessions.get(session_id)
+      assert session.prompt == persona
+    end
+
+    test "falls back to canned prompt when persona_markdown is empty" do
+      agent =
+        insert(:agent,
+          slug: "worker-persona-empty",
+          hired: true,
+          default_runtime: "claude-local",
+          persona_markdown: ""
+        )
+
+      assert {:ok, session_id} = Worker.perform(job_for(agent.slug))
+      assert {:ok, session} = Canopy.Sessions.get(session_id)
+      assert String.contains?(session.prompt, agent.name)
+    end
+
+    test "falls back to canned prompt when persona_markdown is nil" do
+      # Force nil by inserting directly, bypassing the default in the schema.
+      {:ok, raw_agent} =
+        Canopy.Repo.insert(
+          Canopy.Agents.Agent.changeset(
+            %Canopy.Agents.Agent{},
+            %{
+              slug: "worker-persona-nil-#{System.unique_integer([:positive])}",
+              category: "engineering",
+              name: "Nil Persona Agent",
+              persona_path: "engineering/nil-persona.md",
+              hired: true,
+              default_runtime: "claude-local"
+            }
+          )
+        )
+
+      # Patch persona_markdown to nil directly via Repo.update_all
+      import Ecto.Query
+
+      Canopy.Repo.update_all(
+        from(a in Canopy.Agents.Agent, where: a.id == ^raw_agent.id),
+        set: [persona_markdown: nil]
+      )
+
+      assert {:ok, session_id} = Worker.perform(job_for(raw_agent.slug))
+      assert {:ok, session} = Canopy.Sessions.get(session_id)
+      assert String.contains?(session.prompt, raw_agent.name)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Self-rescheduling via schedule_next (indirect — through Oban.insert)
   # ---------------------------------------------------------------------------
 
@@ -106,6 +172,60 @@ defmodule Canopy.Heartbeat.WorkerTest do
         )
 
       assert {:ok, _session_id} = Worker.perform(job_for(agent.slug))
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Gate-blocked cancel semantics
+  # ---------------------------------------------------------------------------
+
+  describe "perform/1 gate-blocked cancels" do
+    test "returns {:cancel, :gate_blocked} without retry when governance blocks" do
+      agent =
+        insert(:agent,
+          slug: "worker-gov-blocked",
+          hired: true,
+          default_runtime: "claude-local"
+        )
+
+      # Block all sessions for this runtime via governance rule
+      insert(:governance_rule,
+        enabled: true,
+        priority: 100,
+        action: "block",
+        conditions: %{"runtime" => "claude-local"}
+      )
+
+      assert {:cancel, :gate_blocked} = Worker.perform(job_for(agent.slug))
+    end
+
+    test "returns {:cancel, :gate_blocked} without retry when budget blocks" do
+      import Ecto.Query, only: [from: 2]
+
+      agent =
+        insert(:agent,
+          slug: "worker-budget-blocked",
+          hired: true,
+          default_runtime: "claude-local"
+        )
+
+      insert(:budget,
+        scope_type: "global",
+        scope_id: nil,
+        period: "total",
+        limit_usd: Decimal.new("0.001"),
+        hard_ceiling: true,
+        enabled: true
+      )
+
+      completed = insert(:completed_session, cost_usd: Decimal.new("1.00"))
+
+      Canopy.Repo.update_all(
+        from(s in Canopy.Sessions.Session, where: s.id == ^completed.id),
+        set: [status: "completed", completed_at: DateTime.utc_now()]
+      )
+
+      assert {:cancel, :gate_blocked} = Worker.perform(job_for(agent.slug))
     end
   end
 end

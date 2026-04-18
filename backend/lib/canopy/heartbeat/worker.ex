@@ -25,6 +25,10 @@ defmodule Canopy.Heartbeat.Worker do
   - `{:cancel, :no_cron_expression}` — the agent has no `heartbeat_cron`. This
     should not happen if jobs are only enqueued by `Registrar.register/1`, but
     guards against schema drift.
+
+  - `{:cancel, :gate_blocked}` — governance or budget gate denied the session.
+    Gate decisions are authoritative and must not be retried. The rescheduling
+    chain continues so future heartbeats still fire (the gate may pass later).
   """
 
   use Oban.Worker, queue: :heartbeats, max_attempts: 3, unique: [period: 60]
@@ -55,9 +59,23 @@ defmodule Canopy.Heartbeat.Worker do
         Logger.warning("[Heartbeat] Agent #{slug} has no heartbeat_cron — cancelling")
         {:cancel, :no_cron_expression}
 
-      {:error, reason} ->
-        Logger.error("[Heartbeat] Session creation failed for #{slug}: #{inspect(reason)}")
-        {:error, reason}
+      {:error, {:governance_blocked, rule}} ->
+        Logger.warning(
+          "[Heartbeat] Gate blocked agent=#{slug} rule=#{rule.id} name=#{rule.name} — cancelling (no retry)"
+        )
+
+        {:cancel, :gate_blocked}
+
+      {:error, {:budget_blocked, budget, spent}} ->
+        Logger.warning(
+          "[Heartbeat] Gate blocked agent=#{slug} budget=#{budget.id} spent=#{spent} — cancelling (no retry)"
+        )
+
+        {:cancel, :gate_blocked}
+
+      {:error, err_reason} ->
+        Logger.error("[Heartbeat] Session creation failed for #{slug}: #{inspect(err_reason)}")
+        {:error, err_reason}
     end
   end
 
@@ -82,20 +100,20 @@ defmodule Canopy.Heartbeat.Worker do
   @spec default_workspace_cwd(Agents.Agent.t()) :: String.t()
   defp default_workspace_cwd(_agent), do: System.tmp_dir!()
 
-  # Reads the persona markdown from priv/agents/<persona_path> to use as the
-  # heartbeat prompt. Falls back to a canned prompt if the file is missing.
+  # Returns the heartbeat prompt for an agent.
+  #
+  # Reads agent.persona_markdown directly from the already-loaded DB row —
+  # no filesystem access at runtime. The file at persona_path is the seed
+  # source only (written by mix canopy.seed.agents). Falls back to a canned
+  # prompt when persona_markdown is nil or empty.
   @spec heartbeat_prompt(Agents.Agent.t()) :: String.t()
-  defp heartbeat_prompt(%{persona_path: nil, name: name}) do
-    canned_prompt(name)
+  defp heartbeat_prompt(%{persona_markdown: markdown, name: _name})
+       when is_binary(markdown) and markdown != "" do
+    markdown
   end
 
-  defp heartbeat_prompt(%{persona_path: path, name: name}) do
-    full_path = Path.join([:code.priv_dir(:canopy), "agents", path])
-
-    case File.read(full_path) do
-      {:ok, content} -> content
-      {:error, _reason} -> canned_prompt(name)
-    end
+  defp heartbeat_prompt(%{name: name}) do
+    canned_prompt(name)
   end
 
   @spec canned_prompt(String.t()) :: String.t()

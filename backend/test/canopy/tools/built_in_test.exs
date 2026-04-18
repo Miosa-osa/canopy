@@ -49,95 +49,217 @@ defmodule Canopy.Tools.BuiltInTest do
       assert :filesystem in by_name["read_file"].requires
       assert :filesystem in by_name["list_directory"].requires
     end
+
+    test "read_file schema declares workspace_slug as required" do
+      by_name = Map.new(BuiltIn.__canopy_tools__(), fn t -> {t.name, t} end)
+      required = get_in(by_name["read_file"].parameters, ["required"])
+      assert "workspace_slug" in required
+    end
+
+    test "list_directory schema declares workspace_slug as required" do
+      by_name = Map.new(BuiltIn.__canopy_tools__(), fn t -> {t.name, t} end)
+      required = get_in(by_name["list_directory"].parameters, ["required"])
+      assert "workspace_slug" in required
+    end
   end
 
   # ---------------------------------------------------------------------------
-  # read_file/1
+  # read_file/1 — workspace-scoped
   # ---------------------------------------------------------------------------
 
   describe "read_file/1" do
-    test "reads a file that exists" do
-      path =
-        Path.join(System.tmp_dir!(), "canopy_test_read_#{System.unique_integer([:positive])}")
-
-      content = "hello from read_file test"
-      File.write!(path, content)
-      on_exit(fn -> File.rm(path) end)
-
-      assert {:ok, ^content} = BuiltIn.read_file(%{"path" => path})
+    test "rejects call with missing workspace_slug" do
+      assert {:error, :missing_workspace_slug} = BuiltIn.read_file(%{"path" => "README.md"})
     end
 
-    test "returns an error for a missing file" do
-      assert {:error, _reason} = BuiltIn.read_file(%{"path" => "/no/such/file/xyz"})
+    test "rejects call with empty workspace_slug" do
+      assert {:error, :missing_workspace_slug} =
+               BuiltIn.read_file(%{"workspace_slug" => "", "path" => "README.md"})
     end
 
-    test "rejects path traversal (contains ..)" do
-      assert {:error, :path_traversal} = BuiltIn.read_file(%{"path" => "/tmp/../etc/passwd"})
+    test "returns workspace_not_found for an unknown slug" do
+      assert {:error, :workspace_not_found} =
+               BuiltIn.read_file(%{
+                 "workspace_slug" => "no-such-workspace-xyz",
+                 "path" => "file.txt"
+               })
+    end
+
+    test "reads a file inside the workspace" do
+      root = Path.join(System.tmp_dir!(), "canopy_ws_read_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      File.write!(Path.join(root, "hello.txt"), "workspace content")
+      on_exit(fn -> File.rm_rf!(root) end)
+
+      slug = "ws-read-#{System.unique_integer([:positive])}"
+
+      {:ok, _ws} =
+        Canopy.Workspaces.create(%{
+          slug: slug,
+          name: "Read Test Workspace",
+          root_path: root
+        })
+
+      assert {:ok, "workspace content"} =
+               BuiltIn.read_file(%{"workspace_slug" => slug, "path" => "hello.txt"})
+    end
+
+    test "rejects path traversal inside a valid workspace" do
+      root = Path.join(System.tmp_dir!(), "canopy_ws_trav_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      on_exit(fn -> File.rm_rf!(root) end)
+
+      slug = "ws-trav-#{System.unique_integer([:positive])}"
+
+      {:ok, _ws} =
+        Canopy.Workspaces.create(%{
+          slug: slug,
+          name: "Traversal Test Workspace",
+          root_path: root
+        })
+
+      # Attempt to escape workspace root via ../
+      assert {:error, :path_traversal} =
+               BuiltIn.read_file(%{"workspace_slug" => slug, "path" => "../etc/passwd"})
+    end
+
+    test "rejects absolute path inside a valid workspace" do
+      root = Path.join(System.tmp_dir!(), "canopy_ws_abs_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      on_exit(fn -> File.rm_rf!(root) end)
+
+      slug = "ws-abs-#{System.unique_integer([:positive])}"
+
+      {:ok, _ws} =
+        Canopy.Workspaces.create(%{
+          slug: slug,
+          name: "Absolute Path Test Workspace",
+          root_path: root
+        })
+
+      assert {:error, :path_traversal} =
+               BuiltIn.read_file(%{"workspace_slug" => slug, "path" => "/etc/passwd"})
     end
   end
 
   # ---------------------------------------------------------------------------
-  # list_directory/1
+  # list_directory/1 — workspace-scoped
   # ---------------------------------------------------------------------------
 
   describe "list_directory/1" do
-    test "lists files in an existing directory" do
-      dir = Path.join(System.tmp_dir!(), "canopy_ls_#{System.unique_integer([:positive])}")
-      File.mkdir_p!(dir)
-      File.write!(Path.join(dir, "a.txt"), "")
-      File.write!(Path.join(dir, "b.txt"), "")
-      on_exit(fn -> File.rm_rf!(dir) end)
+    test "rejects call with missing workspace_slug" do
+      assert {:error, :missing_workspace_slug} =
+               BuiltIn.list_directory(%{"path" => "subdir"})
+    end
 
-      assert {:ok, entries} = BuiltIn.list_directory(%{"path" => dir})
+    test "returns workspace_not_found for an unknown slug" do
+      assert {:error, :workspace_not_found} =
+               BuiltIn.list_directory(%{"workspace_slug" => "no-such-ws-xyz"})
+    end
+
+    test "lists files at the workspace root" do
+      root = Path.join(System.tmp_dir!(), "canopy_ws_ls_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      File.write!(Path.join(root, "a.txt"), "")
+      File.write!(Path.join(root, "b.txt"), "")
+      on_exit(fn -> File.rm_rf!(root) end)
+
+      slug = "ws-ls-#{System.unique_integer([:positive])}"
+
+      {:ok, _ws} =
+        Canopy.Workspaces.create(%{
+          slug: slug,
+          name: "List Test Workspace",
+          root_path: root
+        })
+
+      {:ok, entries} = BuiltIn.list_directory(%{"workspace_slug" => slug})
       names = Enum.map(entries, & &1["name"])
       assert "a.txt" in names
       assert "b.txt" in names
     end
 
     test "entries have name, type, and size keys" do
-      dir = Path.join(System.tmp_dir!(), "canopy_ls2_#{System.unique_integer([:positive])}")
-      File.mkdir_p!(dir)
-      File.write!(Path.join(dir, "file.txt"), "data")
-      on_exit(fn -> File.rm_rf!(dir) end)
+      root = Path.join(System.tmp_dir!(), "canopy_ws_ls2_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      File.write!(Path.join(root, "file.txt"), "data")
+      on_exit(fn -> File.rm_rf!(root) end)
 
-      {:ok, entries} = BuiltIn.list_directory(%{"path" => dir})
+      slug = "ws-ls2-#{System.unique_integer([:positive])}"
+
+      {:ok, _ws} =
+        Canopy.Workspaces.create(%{
+          slug: slug,
+          name: "List Entry Test",
+          root_path: root
+        })
+
+      {:ok, entries} = BuiltIn.list_directory(%{"workspace_slug" => slug})
       entry = Enum.find(entries, &(&1["name"] == "file.txt"))
       assert entry["type"] == "file"
       assert is_integer(entry["size"])
     end
 
     test "excludes hidden files by default" do
-      dir = Path.join(System.tmp_dir!(), "canopy_ls3_#{System.unique_integer([:positive])}")
-      File.mkdir_p!(dir)
-      File.write!(Path.join(dir, ".hidden"), "")
-      File.write!(Path.join(dir, "visible.txt"), "")
-      on_exit(fn -> File.rm_rf!(dir) end)
+      root = Path.join(System.tmp_dir!(), "canopy_ws_ls3_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      File.write!(Path.join(root, ".hidden"), "")
+      File.write!(Path.join(root, "visible.txt"), "")
+      on_exit(fn -> File.rm_rf!(root) end)
 
-      {:ok, entries} = BuiltIn.list_directory(%{"path" => dir})
+      slug = "ws-ls3-#{System.unique_integer([:positive])}"
+
+      {:ok, _ws} =
+        Canopy.Workspaces.create(%{
+          slug: slug,
+          name: "Hidden Test",
+          root_path: root
+        })
+
+      {:ok, entries} = BuiltIn.list_directory(%{"workspace_slug" => slug})
       names = Enum.map(entries, & &1["name"])
       refute ".hidden" in names
       assert "visible.txt" in names
     end
 
     test "includes hidden files when include_hidden is true" do
-      dir = Path.join(System.tmp_dir!(), "canopy_ls4_#{System.unique_integer([:positive])}")
-      File.mkdir_p!(dir)
-      File.write!(Path.join(dir, ".hidden"), "")
-      File.write!(Path.join(dir, "visible.txt"), "")
-      on_exit(fn -> File.rm_rf!(dir) end)
+      root = Path.join(System.tmp_dir!(), "canopy_ws_ls4_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      File.write!(Path.join(root, ".hidden"), "")
+      on_exit(fn -> File.rm_rf!(root) end)
 
-      {:ok, entries} = BuiltIn.list_directory(%{"path" => dir, "include_hidden" => true})
+      slug = "ws-ls4-#{System.unique_integer([:positive])}"
+
+      {:ok, _ws} =
+        Canopy.Workspaces.create(%{
+          slug: slug,
+          name: "Include Hidden Test",
+          root_path: root
+        })
+
+      {:ok, entries} =
+        BuiltIn.list_directory(%{"workspace_slug" => slug, "include_hidden" => true})
+
       names = Enum.map(entries, & &1["name"])
       assert ".hidden" in names
     end
 
-    test "returns error for missing directory" do
-      assert {:error, _} = BuiltIn.list_directory(%{"path" => "/no/such/dir/xyz"})
-    end
+    test "rejects path traversal inside a valid workspace" do
+      root = Path.join(System.tmp_dir!(), "canopy_ws_lt_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(root)
+      on_exit(fn -> File.rm_rf!(root) end)
 
-    test "rejects path traversal" do
+      slug = "ws-lt-#{System.unique_integer([:positive])}"
+
+      {:ok, _ws} =
+        Canopy.Workspaces.create(%{
+          slug: slug,
+          name: "List Traversal Test",
+          root_path: root
+        })
+
       assert {:error, :path_traversal} =
-               BuiltIn.list_directory(%{"path" => "/tmp/../etc"})
+               BuiltIn.list_directory(%{"workspace_slug" => slug, "path" => "../etc"})
     end
   end
 

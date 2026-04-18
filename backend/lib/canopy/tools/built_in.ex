@@ -8,14 +8,20 @@ defmodule Canopy.Tools.BuiltIn do
 
   ## Security
 
-  All filesystem tools enforce path-traversal guards. Any path that resolves
-  outside the configured allowed root (or contains `../`) is rejected with
-  `{:error, :path_traversal}`.
+  All filesystem tools are **workspace-scoped**. Callers must supply a
+  `workspace_slug` that resolves to an existing workspace; file paths are
+  relative to that workspace's `root_path` and are validated by
+  `Canopy.Workspaces.Files` (which enforces traversal guards and size limits).
+
+  Errors returned by the filesystem tools:
+    * `{:error, :missing_workspace_slug}` — `workspace_slug` key absent from args
+    * `{:error, :workspace_not_found}` — no workspace with that slug exists
+    * `{:error, :path_traversal}` — relative path escapes the workspace root
 
   ## Available Tools
 
-    * `read_file` — reads a file's text content (requires `:filesystem`)
-    * `list_directory` — lists entries in a directory (requires `:filesystem`)
+    * `read_file` — reads a file relative to a workspace (requires `:filesystem`)
+    * `list_directory` — lists entries relative to a workspace (requires `:filesystem`)
     * `search_workspace` — searches workspace slugs/names/paths
     * `get_session_context` — returns the caller's session metadata
     * `log_message` — emits a structured log at a given level
@@ -24,21 +30,32 @@ defmodule Canopy.Tools.BuiltIn do
 
   use Canopy.Tool
 
+  alias Canopy.Workspaces
+  alias Canopy.Workspaces.Files
+
   # ---------------------------------------------------------------------------
   # Tool declarations (compile-time)
   # ---------------------------------------------------------------------------
 
   tool("read_file",
     description: """
-    Read the text content of a file at the given absolute path.
+    Read the text content of a file inside a workspace.
+    The path must be relative to the workspace root — absolute paths are rejected.
     Returns the file contents as a string.
     """,
     parameters: %{
       "type" => "object",
       "properties" => %{
-        "path" => %{"type" => "string", "description" => "Absolute path to the file"}
+        "workspace_slug" => %{
+          "type" => "string",
+          "description" => "Slug of the workspace that contains the file"
+        },
+        "path" => %{
+          "type" => "string",
+          "description" => "Relative path inside the workspace (e.g. \"README.md\")"
+        }
       },
-      "required" => ["path"]
+      "required" => ["workspace_slug", "path"]
     },
     handler: {__MODULE__, :read_file, []},
     requires: [:filesystem]
@@ -46,19 +63,27 @@ defmodule Canopy.Tools.BuiltIn do
 
   tool("list_directory",
     description: """
-    List the entries (files and subdirectories) of a directory.
+    List the entries (files and subdirectories) of a directory inside a workspace.
+    The path must be relative to the workspace root.
     Returns a list of maps with `name`, `type` (file|directory), and `size` keys.
     """,
     parameters: %{
       "type" => "object",
       "properties" => %{
-        "path" => %{"type" => "string", "description" => "Absolute path to the directory"},
+        "workspace_slug" => %{
+          "type" => "string",
+          "description" => "Slug of the workspace to list files in"
+        },
+        "path" => %{
+          "type" => "string",
+          "description" => "Relative directory path inside the workspace (default: root)"
+        },
         "include_hidden" => %{
           "type" => "boolean",
           "description" => "Include dot-files (default false)"
         }
       },
-      "required" => ["path"]
+      "required" => ["workspace_slug"]
     },
     handler: {__MODULE__, :list_directory, []},
     requires: [:filesystem]
@@ -154,51 +179,67 @@ defmodule Canopy.Tools.BuiltIn do
   # Handler implementations
   # ---------------------------------------------------------------------------
 
-  @doc "Reads a file's content. Rejects path-traversal attempts."
+  @doc """
+  Reads a file's content scoped to the given workspace.
+
+  Requires `workspace_slug` and a relative `path`. The workspace root is
+  resolved via `Canopy.Workspaces.get_by_slug/1`; the file is read via
+  `Canopy.Workspaces.Files.read_file/2`, which enforces traversal guards and
+  a 10 MB size limit.
+  """
   @spec read_file(map()) :: {:ok, String.t()} | {:error, atom() | String.t()}
-  def read_file(%{"path" => path}) do
-    with :ok <- guard_traversal(path),
-         {:ok, content} <- File.read(path) do
+  def read_file(args) do
+    with {:ok, slug} <- require_slug(args),
+         {:ok, workspace} <- resolve_workspace(slug),
+         rel_path = Map.get(args, "path", ""),
+         {:ok, content} <- Files.read_file(workspace, rel_path) do
       {:ok, content}
     else
-      {:error, :path_traversal} -> {:error, :path_traversal}
-      {:error, posix} -> {:error, "Cannot read file: #{posix}"}
+      {:error, :missing_workspace_slug} -> {:error, :missing_workspace_slug}
+      {:error, :workspace_not_found} -> {:error, :workspace_not_found}
+      {:error, :traversal} -> {:error, :path_traversal}
+      {:error, :not_found} -> {:error, "File not found"}
+      {:error, :too_large} -> {:error, "File exceeds 10 MB limit"}
+      {:error, :not_utf8} -> {:error, "File is not valid UTF-8"}
+      {:error, reason} -> {:error, "Cannot read file: #{inspect(reason)}"}
     end
   end
 
-  @doc "Lists directory entries."
-  @spec list_directory(map()) :: {:ok, [map()]} | {:error, atom() | String.t()}
-  def list_directory(%{"path" => path} = args) do
-    include_hidden = Map.get(args, "include_hidden", false)
+  @doc """
+  Lists directory entries scoped to the given workspace.
 
-    with :ok <- guard_traversal(path),
-         {:ok, entries} <- File.ls(path) do
+  Requires `workspace_slug`. `path` defaults to the workspace root when absent.
+  Entries include `name`, `type` (file|directory), and `size` keys.
+  """
+  @spec list_directory(map()) :: {:ok, [map()]} | {:error, atom() | String.t()}
+  def list_directory(args) do
+    include_hidden = Map.get(args, "include_hidden", false)
+    rel_path = Map.get(args, "path", "")
+
+    with {:ok, slug} <- require_slug(args),
+         {:ok, workspace} <- resolve_workspace(slug),
+         {:ok, entries} <- Files.list_dir(workspace, rel_path) do
       results =
         entries
-        |> Enum.reject(fn name -> not include_hidden and String.starts_with?(name, ".") end)
-        |> Enum.map(fn name ->
-          full = Path.join(path, name)
-
-          type =
-            case File.stat(full) do
-              {:ok, %{type: :directory}} -> "directory"
-              _ -> "file"
-            end
-
-          size =
-            case File.stat(full) do
-              {:ok, %{size: s}} -> s
-              _ -> 0
-            end
-
-          %{"name" => name, "type" => type, "size" => size}
+        |> Enum.reject(fn e ->
+          not include_hidden and String.starts_with?(e.name, ".")
+        end)
+        |> Enum.map(fn e ->
+          %{
+            "name" => e.name,
+            "type" => if(e.is_dir, do: "directory", else: "file"),
+            "size" => e.size
+          }
         end)
         |> Enum.sort_by(& &1["name"])
 
       {:ok, results}
     else
-      {:error, :path_traversal} -> {:error, :path_traversal}
-      {:error, posix} -> {:error, "Cannot list directory: #{posix}"}
+      {:error, :missing_workspace_slug} -> {:error, :missing_workspace_slug}
+      {:error, :workspace_not_found} -> {:error, :workspace_not_found}
+      {:error, :traversal} -> {:error, :path_traversal}
+      {:error, :not_found} -> {:error, "Directory not found"}
+      {:error, reason} -> {:error, "Cannot list directory: #{inspect(reason)}"}
     end
   end
 
@@ -288,15 +329,22 @@ defmodule Canopy.Tools.BuiltIn do
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  # Rejects paths containing `..` components to prevent traversal attacks.
-  @spec guard_traversal(String.t()) :: :ok | {:error, :path_traversal}
-  defp guard_traversal(path) do
-    parts = Path.split(path)
+  # Returns {:ok, slug} when "workspace_slug" is present and non-empty.
+  @spec require_slug(map()) :: {:ok, String.t()} | {:error, :missing_workspace_slug}
+  defp require_slug(args) do
+    case Map.get(args, "workspace_slug") do
+      slug when is_binary(slug) and slug != "" -> {:ok, slug}
+      _ -> {:error, :missing_workspace_slug}
+    end
+  end
 
-    if ".." in parts do
-      {:error, :path_traversal}
-    else
-      :ok
+  # Resolves a workspace slug to a Workspace struct.
+  @spec resolve_workspace(String.t()) ::
+          {:ok, Canopy.Workspaces.Workspace.t()} | {:error, :workspace_not_found}
+  defp resolve_workspace(slug) do
+    case Workspaces.get_by_slug(slug) do
+      {:ok, workspace} -> {:ok, workspace}
+      {:error, :not_found} -> {:error, :workspace_not_found}
     end
   end
 end

@@ -4,7 +4,7 @@
  * fenced code blocks (```), unordered lists (-), ordered lists (1.),
  * links ([text](url)). All other constructs render as raw text.
  * HTML is escaped before processing — no XSS surface.
- * LOC target: ≤ 80.
+ * LOC target: ≤ 150.
  */
 
 /** Escape HTML entities so raw user content cannot inject markup. */
@@ -17,6 +17,30 @@ export function escapeHtml(raw: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * Allowlisted URL schemes for rendered links.
+ * javascript:, data:, file:, vbscript:, and all other schemes are blocked.
+ */
+const SAFE_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+
+/**
+ * Validate a URL's scheme against the allowlist.
+ * Returns the trimmed URL if safe, null if the scheme is blocked.
+ * Relative URLs (no scheme prefix) pass through — they cannot trigger JS execution.
+ */
+export function sanitizeHref(raw: string): string | null {
+  const trimmed = raw.trim();
+  // Relative URLs have no scheme — safe to pass through.
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    return SAFE_SCHEMES.has(url.protocol) ? trimmed : null;
+  } catch {
+    // Unparseable URL — treat as unsafe.
+    return null;
+  }
+}
+
 /** Apply inline spans: bold, italic, inline code, links. Input is already HTML-escaped. */
 function inlineRender(escaped: string): string {
   return (
@@ -27,11 +51,16 @@ function inlineRender(escaped: string): string {
       .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>")
       // Inline code: `code` — use a replacement function to avoid nested processing
       .replace(/`([^`]+)`/g, '<code class="fv-inline-code">$1</code>')
-      // Links: [text](url)
-      .replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer" class="fv-link">$1</a>',
-      )
+      // Links: [text](url) — sanitize href scheme before emitting anchor.
+      // Blocked schemes render as literal text so the user sees something was stripped.
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text: string, url: string) => {
+        const safe = sanitizeHref(url);
+        if (safe === null) {
+          // Emit a span with the raw [text](url) content, HTML-escaped.
+          return `<span class="fv-unsafe-link">[${text}](${escapeHtml(url)})</span>`;
+        }
+        return `<a href="${safe}" target="_blank" rel="noopener noreferrer" class="fv-link">${text}</a>`;
+      })
   );
 }
 

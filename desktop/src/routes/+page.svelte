@@ -62,8 +62,9 @@ function handleComposerSubmit(
   $sessionMut.mutate(
     {
       prompt,
-      agentSlug: agentSlug ?? 'default',
+      agentSlug: agentSlug ?? undefined,
       runtimeType: runtime ?? 'claude-code',
+      cwd: '.',
       workspaceSlug: undefined,
     },
     {
@@ -93,6 +94,12 @@ function handleRun(slug: string): void {
 // Typed data accessors — avoids NonNullable<TQueryFnData> issues in template
 const recentSessions = $derived(($recentSessionsQ.data ?? []) as Session[]);
 const pinnedAgents = $derived(($pinnedAgentsQ.data ?? []) as Agent[]);
+
+/** Compute session duration in ms from startedAt / completedAt timestamps. */
+function sessionDurationMs(s: Session): number | null {
+  if (!s.startedAt || !s.completedAt) return null;
+  return new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime();
+}
 
 /** Format duration for display. */
 function formatDuration(ms: number | null): string {
@@ -159,16 +166,16 @@ function formatRelative(iso: string): string {
             <button
               class="session-row"
               onclick={() => goto(`/sessions/${s.id}`)}
-              aria-label="Open session: {s.agentName}"
+              aria-label="Open session: {s.agentSlug ?? 'Direct prompt'}"
             >
               <StatusDot
                 color={s.status === 'running' ? 'green' : s.status === 'error' ? 'red' : 'grey'}
                 pulse={s.status === 'running'}
               />
-              <span class="session-row__agent">{s.agentName}</span>
-              <span class="session-row__runtime">{s.runtimeName}</span>
-              <span class="session-row__meta">{formatDuration(s.durationMs)}</span>
-              <span class="session-row__time">{formatRelative(s.startedAt)}</span>
+              <span class="session-row__agent">{s.agentSlug ?? 'Direct prompt'}</span>
+              <span class="session-row__runtime">{s.runtimeType}</span>
+              <span class="session-row__meta">{formatDuration(sessionDurationMs(s))}</span>
+              <span class="session-row__time">{s.startedAt ? formatRelative(s.startedAt) : '—'}</span>
             </button>
           </li>
         {/each}

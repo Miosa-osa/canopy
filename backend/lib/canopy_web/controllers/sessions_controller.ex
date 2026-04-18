@@ -89,39 +89,73 @@ defmodule CanopyWeb.SessionsController do
   def create(conn, params) do
     runtime_type = params["runtime_type"]
 
-    with {:adapter, {:ok, adapter}} <- {:adapter, Runtimes.lookup_adapter(runtime_type)},
-         {:session, {:ok, session}} <- {:session, Sessions.create(session_attrs(params))},
-         {:execute, {:ok, session_ref}} <-
-           {:execute, adapter.execute(build_context(session, params))} do
-      {:ok, _running} = Sessions.update_status(session.id, "running")
-
-      sse_url = "/api/v1/sessions/#{session.id}/events"
-
-      Logger.info(
-        "[SessionsController] started session=#{session.id} pid=#{inspect(session_ref[:pid])}"
-      )
-
-      conn
-      |> put_status(:created)
-      |> json(%{session_id: session.id, sse_url: sse_url})
-    else
-      {:adapter, {:error, :not_found}} ->
+    case Sessions.create(session_attrs(params)) do
+      {:error, {:governance_blocked, rule}} ->
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{
-          error: "unknown_runtime",
-          message: "Runtime type '#{runtime_type}' is not registered."
+          error: "governance_blocked",
+          rule: %{id: rule.id, name: rule.name},
+          message: "Session blocked by governance rule"
         })
 
-      {:session, {:error, changeset}} ->
-        {:error, changeset}
-
-      {:execute, {:error, reason}} ->
-        Logger.error("[SessionsController] adapter.execute failed: #{inspect(reason)}")
-
+      {:error, {:budget_blocked, budget, spent}} ->
         conn
         |> put_status(:unprocessable_entity)
-        |> json(%{error: "execution_failed", message: inspect(reason)})
+        |> json(%{
+          error: "budget_blocked",
+          budget_id: budget.id,
+          spent_usd: Decimal.to_string(spent),
+          limit_usd: Decimal.to_string(budget.limit_usd),
+          message: "Session blocked by budget limit"
+        })
+
+      {:ok, %{status: "pending_approval"} = session} ->
+        # Governance requires approval — session stored, no adapter spawned.
+        Logger.info("[SessionsController] pending_approval session=#{session.id}")
+
+        conn
+        |> put_status(:accepted)
+        |> json(%{
+          session_id: session.id,
+          status: "pending_approval",
+          message: "Session is awaiting governance approval"
+        })
+
+      {:ok, session} ->
+        with {:adapter, {:ok, adapter}} <- {:adapter, Runtimes.lookup_adapter(runtime_type)},
+             {:execute, {:ok, session_ref}} <-
+               {:execute, adapter.execute(build_context(session, params))} do
+          {:ok, _running} = Sessions.update_status(session.id, "running")
+
+          sse_url = "/api/v1/sessions/#{session.id}/events"
+
+          Logger.info(
+            "[SessionsController] started session=#{session.id} pid=#{inspect(session_ref[:pid])}"
+          )
+
+          conn
+          |> put_status(:created)
+          |> json(%{session_id: session.id, sse_url: sse_url})
+        else
+          {:adapter, {:error, :not_found}} ->
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{
+              error: "unknown_runtime",
+              message: "Runtime type '#{runtime_type}' is not registered."
+            })
+
+          {:execute, {:error, reason}} ->
+            Logger.error("[SessionsController] adapter.execute failed: #{inspect(reason)}")
+
+            conn
+            |> put_status(:unprocessable_entity)
+            |> json(%{error: "execution_failed", message: inspect(reason)})
+        end
+
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 

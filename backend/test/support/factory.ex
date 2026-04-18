@@ -67,6 +67,7 @@ defmodule Canopy.Factory do
       category: "engineering",
       name: sequence(:name, &"Agent #{&1}"),
       persona_path: "engineering/#{slug}.md",
+      persona_markdown: "You are a senior engineering agent. Review code, suggest improvements, and keep quality high.",
       hired: false
     }
   end

@@ -25,6 +25,15 @@ defmodule CanopyWeb.Router do
   pipeline :api do
     plug :accepts, ["json"]
 
+    # Rate limiter — honor the plug's compile_env config so tests (which set
+    # `enabled: false` in config/test.exs) bypass the limiter. Without explicit
+    # opts, the plug defaults to `enabled: true` and would 429 parallel ExUnit
+    # runs that share a global Hammer ETS bucket.
+    plug CanopyWeb.Plugs.RateLimiter,
+      scale_ms: 60_000,
+      limit: Application.compile_env(:canopy, [CanopyWeb.Plugs.RateLimiter, :limit], 100),
+      enabled: Application.compile_env(:canopy, [CanopyWeb.Plugs.RateLimiter, :enabled], true)
+
     # CORS — origins pulled from app config. See config/dev.exs and config/runtime.exs.
     # Empty list = no CORS headers sent = browser-origin calls blocked. Tauri native
     # packaged app uses ipc:// / tauri://, not CORS. This is for dev browser mode.

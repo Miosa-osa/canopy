@@ -12,6 +12,8 @@ defmodule Canopy.Workspaces.Tree do
 
   alias Canopy.Workspaces.Workspace
 
+  require Logger
+
   @default_max_depth 10
 
   defmodule FileTree do
@@ -63,36 +65,52 @@ defmodule Canopy.Workspaces.Tree do
   # ---------------------------------------------------------------------------
 
   defp build_node(abs_root, abs_path, rel_label, depth_remaining) do
-    stat = File.stat!(abs_path, time: :posix)
-    is_dir = stat.type == :directory
+    case File.stat(abs_path, time: :posix) do
+      {:error, reason} ->
+        # Unreadable path (bad permissions, broken symlink, etc.).
+        # Return a leaf node with zeroed metadata rather than crashing the tree.
+        Logger.debug("[Tree] stat failed path=#{abs_path} reason=#{inspect(reason)}")
 
-    children =
-      if is_dir and depth_remaining > 0 do
-        case File.ls(abs_path) do
-          {:ok, names} ->
-            names
-            |> Enum.sort()
-            |> Enum.map(fn name ->
-              child_abs = Path.join(abs_path, name)
-              child_rel = relative_path(abs_root, child_abs)
-              build_node(abs_root, child_abs, child_rel, depth_remaining - 1)
-            end)
+        %FileTree{
+          name: Path.basename(abs_path),
+          path: rel_label,
+          is_dir: false,
+          size: 0,
+          modified: nil,
+          children: []
+        }
 
-          {:error, _reason} ->
+      {:ok, stat} ->
+        is_dir = stat.type == :directory
+
+        children =
+          if is_dir and depth_remaining > 0 do
+            case File.ls(abs_path) do
+              {:ok, names} ->
+                names
+                |> Enum.sort()
+                |> Enum.map(fn name ->
+                  child_abs = Path.join(abs_path, name)
+                  child_rel = relative_path(abs_root, child_abs)
+                  build_node(abs_root, child_abs, child_rel, depth_remaining - 1)
+                end)
+
+              {:error, _reason} ->
+                []
+            end
+          else
             []
-        end
-      else
-        []
-      end
+          end
 
-    %FileTree{
-      name: Path.basename(abs_path),
-      path: rel_label,
-      is_dir: is_dir,
-      size: stat.size,
-      modified: posix_to_datetime(stat.mtime),
-      children: children
-    }
+        %FileTree{
+          name: Path.basename(abs_path),
+          path: rel_label,
+          is_dir: is_dir,
+          size: stat.size,
+          modified: posix_to_datetime(stat.mtime),
+          children: children
+        }
+    end
   end
 
   # Returns the path of `abs_path` relative to `abs_root`, or the basename if

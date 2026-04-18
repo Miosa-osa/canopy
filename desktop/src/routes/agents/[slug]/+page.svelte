@@ -27,6 +27,7 @@ import {
 import { Breadcrumb, BreadcrumbItem } from '$lib/design/foundation/breadcrumb';
 import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
 import PushPanel from '$lib/design/patterns/PushPanel.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
 import type { Agent, AgentDetail, HireAgentBody } from '$lib/domain/agents/types.js';
@@ -114,12 +115,18 @@ function handleTextareaKeydown(e: KeyboardEvent) {
 }
 
 // Unsaved-changes guard
-beforeNavigate(({ cancel }) => {
-  if (isDirty) {
-    // eslint-disable-next-line no-alert
-    if (!window.confirm('You have unsaved changes to this persona. Leave anyway?')) {
-      cancel();
-    }
+let guardOpen = $state(false);
+let bypassGuard = $state(false);
+let pendingNavigation: (() => void) | null = null;
+
+beforeNavigate(({ cancel, to }) => {
+  if (isDirty && !bypassGuard) {
+    cancel();
+    pendingNavigation = () => {
+      bypassGuard = true;
+      if (to?.url) window.location.assign(to.url.href);
+    };
+    guardOpen = true;
   }
 });
 
@@ -310,6 +317,12 @@ const renderedHtml = $derived(
     </div>
   {/if}
 </div>
+
+<DirtyGuardModal
+  open={guardOpen}
+  onCancel={() => { guardOpen = false; pendingNavigation = null; }}
+  onDiscard={() => { guardOpen = false; pendingNavigation?.(); pendingNavigation = null; }}
+/>
 
 <style>
   .agent-detail {

@@ -1,15 +1,25 @@
 defmodule Canopy.Agents.Agent do
   @moduledoc """
-  Ecto schema for a Canopy agent persona (Week 1 stub).
+  Ecto schema for a Canopy agent persona.
 
   An agent is a persona defined in a markdown file under `priv/agents/`. The
   `slug` matches the filename (without extension) and serves as the stable
-  public identifier. The `persona_path` is relative to `priv/agents/`.
+  public identifier. The `persona_path` is relative to `priv/agents/` and
+  acts as a backward reference to the seed source file.
+
+  ## Persona storage (Week 2+ / Track #68)
+
+  `persona_markdown` is the authoritative runtime value for an agent's persona
+  content. It is populated by `mix canopy.seed.agents` (body extracted from the
+  markdown file after the YAML frontmatter block) and updated at runtime via
+  `Canopy.Agents.update_persona/2` which writes directly to this DB column.
+
+  The file at `persona_path` is the seed source only — it is never read at
+  runtime. Do NOT use `File.read(persona_path)` in production code; read
+  `agent.persona_markdown` from the already-loaded DB row instead.
 
   Hiring an agent (`hired: true`) means the user has opted in: the heartbeat
   scheduler will activate, and the agent appears in the runtime dashboard.
-
-  Full heartbeat scheduling (Oban cron) is Week 2 scope.
   """
 
   use Ecto.Schema
@@ -27,6 +37,7 @@ defmodule Canopy.Agents.Agent do
              :name,
              :description,
              :persona_path,
+             :persona_markdown,
              :default_runtime,
              :default_model,
              :heartbeat_cron,
@@ -42,6 +53,9 @@ defmodule Canopy.Agents.Agent do
     field :name, :string
     field :description, :string
     field :persona_path, :string
+    # Authoritative runtime persona content. Supersedes the file at persona_path.
+    # Populated by mix canopy.seed.agents; updated via Agents.update_persona/2.
+    field :persona_markdown, :string, default: ""
     field :default_runtime, :string
     field :default_model, :string
     field :heartbeat_cron, :string
@@ -52,7 +66,7 @@ defmodule Canopy.Agents.Agent do
   end
 
   @required ~w(slug category name persona_path)a
-  @optional ~w(description default_runtime default_model heartbeat_cron budget_monthly_usd hired)a
+  @optional ~w(description persona_markdown default_runtime default_model heartbeat_cron budget_monthly_usd hired)a
 
   @doc "Changeset for creating or updating an agent."
   @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
@@ -72,5 +86,17 @@ defmodule Canopy.Agents.Agent do
     agent
     |> cast(%{hired: hired}, [:hired])
     |> validate_required([:hired])
+  end
+
+  @doc """
+  Changeset for updating the persona markdown content.
+
+  Sets `persona_markdown` only — does not touch any other field.
+  The caller is responsible for loading the agent row before calling this.
+  """
+  @spec persona_changeset(%__MODULE__{}, String.t()) :: Ecto.Changeset.t()
+  def persona_changeset(agent, content) when is_binary(content) do
+    agent
+    |> cast(%{persona_markdown: content}, [:persona_markdown])
   end
 end

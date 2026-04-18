@@ -156,6 +156,56 @@ defmodule Canopy.Workspaces.TreeTest do
   end
 
   # ---------------------------------------------------------------------------
+  # build/2 — partial-tree safety (audit fix #3)
+  # ---------------------------------------------------------------------------
+
+  describe "build/2 unreadable path safety" do
+    test "returns a partial tree when one file is unreadable (broken symlink)" do
+      ws = tmp_workspace()
+      # Create a real file so the root is not empty
+      create_structure(ws.root_path, ["readable.md"])
+
+      # Plant a broken symlink (target does not exist)
+      broken_link = Path.join(ws.root_path, "broken_link.md")
+      File.ln_s("/tmp/canopy-nonexistent-target-#{System.unique_integer()}", broken_link)
+
+      on_exit(fn -> File.rm(broken_link) end)
+
+      # Must NOT crash; must return a tree with partial results
+      assert {:ok, tree} = Tree.build(ws)
+      names = Enum.map(tree.children, & &1.name)
+      # The readable file must appear
+      assert "readable.md" in names
+      # The broken symlink node must appear as a leaf with zeroed metadata
+      broken_node = Enum.find(tree.children, &(&1.name == "broken_link.md"))
+      assert broken_node != nil
+      assert broken_node.is_dir == false
+      assert broken_node.size == 0
+      assert broken_node.modified == nil
+    end
+
+    test "returns tree root when stat on a child fails (inaccessible file)" do
+      ws = tmp_workspace()
+      create_structure(ws.root_path, ["accessible.md", "secret.md"])
+
+      # Make one file unreadable (restricted permissions)
+      secret = Path.join(ws.root_path, "secret.md")
+      File.chmod!(secret, 0o000)
+
+      on_exit(fn ->
+        File.chmod(secret, 0o644)
+        File.rm(secret)
+      end)
+
+      # Tree.build must return {:ok, _} not crash
+      assert {:ok, tree} = Tree.build(ws)
+      assert %Tree.FileTree{} = tree
+      names = Enum.map(tree.children, & &1.name)
+      assert "accessible.md" in names
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # JSON encoding
   # ---------------------------------------------------------------------------
 
