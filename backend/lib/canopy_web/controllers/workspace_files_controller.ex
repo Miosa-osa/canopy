@@ -174,6 +174,13 @@ defmodule CanopyWeb.WorkspaceFilesController do
     with {:ok, workspace} <- Workspaces.get_by_slug(slug) do
       case Files.write_file(workspace, rel_path, content) do
         :ok ->
+          # Fire-and-forget: update the file DB index after a successful write.
+          # If the workspace_id lookup fails (workspace not yet in DB or not indexed),
+          # the index operation fails silently — it never blocks the write response.
+          Task.start(fn ->
+            Canopy.Files.index_file(workspace.id, rel_path, %{actor: %{type: "system", id: nil}})
+          end)
+
           json(conn, %{path: rel_path, written: true})
 
         {:error, :traversal} ->

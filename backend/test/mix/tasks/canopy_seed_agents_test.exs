@@ -132,7 +132,8 @@ defmodule Mix.Tasks.Canopy.Seed.AgentsTest do
 
       {:ok, agents} = Agents.list()
 
-      agents_with_content = Enum.filter(agents, &(is_binary(&1.persona_markdown) and &1.persona_markdown != ""))
+      agents_with_content =
+        Enum.filter(agents, &(is_binary(&1.persona_markdown) and &1.persona_markdown != ""))
 
       # We can't guarantee every markdown file has body content beyond frontmatter,
       # but the vast majority (>90%) of real agent files do.

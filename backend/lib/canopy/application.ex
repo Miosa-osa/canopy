@@ -26,6 +26,10 @@ defmodule Canopy.Application do
       # 4. Phoenix PubSub — in-process message bus for realtime events
       {Phoenix.PubSub, name: Canopy.PubSub},
 
+      # 4a. Presence — user presence tracking across real-time topics.
+      #     Must start after PubSub (it subscribes to it) and before the Endpoint.
+      Canopy.Presence,
+
       # 5. Finch — HTTP connection pool used by Req (MIOSA client, quota APIs)
       {Finch, name: Canopy.Finch},
 
@@ -41,7 +45,10 @@ defmodule Canopy.Application do
       #    the boot Task below after all deps are ready.
       Canopy.Tools.Registry,
 
-      # 9. Sessions Supervisor — DynamicSupervisor; one child per running session
+      # 9. Governance Rule Cache — ETS-backed cache of enabled rules
+      Canopy.Governance.RuleCache,
+
+      # 9b. Sessions Supervisor — DynamicSupervisor; one child per running session
       Canopy.Sessions.Supervisor,
 
       # 10. Task Supervisor — for fire-and-forget tasks (e.g. boot heartbeat registration)

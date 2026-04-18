@@ -80,7 +80,13 @@ defmodule CanopyWeb.AgentsControllerTest do
 
     test "returns persona_content from DB column, not from disk", %{conn: conn} do
       db_persona = "# DB Persona\n\nThis content lives in the database column."
-      insert(:agent, slug: "show-db-persona", name: "DB Persona Agent", persona_markdown: db_persona)
+
+      insert(:agent,
+        slug: "show-db-persona",
+        name: "DB Persona Agent",
+        persona_markdown: db_persona
+      )
+
       conn = get(conn, "/api/v1/agents/show-db-persona")
       body = json_response(conn, 200)
       assert body["persona_content"] == db_persona

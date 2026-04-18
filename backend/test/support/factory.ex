@@ -19,6 +19,7 @@ defmodule Canopy.Factory do
   alias Canopy.Runtimes.{Runtime, RuntimeModel}
   alias Canopy.Sessions.{Session, SessionMessage}
   alias Canopy.Skills.Skill
+  alias Canopy.Tasks.Task
   alias Canopy.Workspaces.Workspace
 
   def runtime_factory do
@@ -67,7 +68,8 @@ defmodule Canopy.Factory do
       category: "engineering",
       name: sequence(:name, &"Agent #{&1}"),
       persona_path: "engineering/#{slug}.md",
-      persona_markdown: "You are a senior engineering agent. Review code, suggest improvements, and keep quality high.",
+      persona_markdown:
+        "You are a senior engineering agent. Review code, suggest improvements, and keep quality high.",
       hired: false
     }
   end
@@ -180,6 +182,21 @@ defmodule Canopy.Factory do
       source: "local",
       tags: [],
       enabled: true
+    }
+  end
+
+  # ---------------------------------------------------------------------------
+  # Flat task factory (legacy tasks table)
+  # ---------------------------------------------------------------------------
+
+  def task_factory do
+    %Task{
+      short_id: sequence(:short_id, &"T-#{String.pad_leading(Integer.to_string(&1), 8, "0")}"),
+      title: sequence(:title, &"Task #{&1}"),
+      description: "A test task",
+      status: "todo",
+      priority: 0,
+      labels: []
     }
   end
 end

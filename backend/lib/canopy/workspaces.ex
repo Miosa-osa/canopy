@@ -30,6 +30,15 @@ defmodule Canopy.Workspaces do
     {:ok, workspaces}
   end
 
+  @doc "Returns a workspace by id (UUID), or `{:error, :not_found}`."
+  @spec get_by_id(Ecto.UUID.t()) :: {:ok, Workspace.t()} | {:error, :not_found}
+  def get_by_id(id) do
+    case Repo.get(Workspace, id) do
+      nil -> {:error, :not_found}
+      workspace -> {:ok, workspace}
+    end
+  end
+
   @doc "Returns a workspace by slug, or `{:error, :not_found}`."
   @spec get_by_slug(String.t()) :: {:ok, Workspace.t()} | {:error, :not_found}
   def get_by_slug(slug) do

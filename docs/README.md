@@ -123,6 +123,17 @@ Shell polish landed: command palette fuzzy scoring, list keyboard composable,
 motion tokens, empty/error states. Rate-limiter test-env regression caught +
 fixed in consolidation.
 
+### [16-phase3-report.md](./16-phase3-report.md)
+**Phase 3 Completion Record — Module Backends + Self-Audit Rollback**
+
+6 module backends (Tasks/Chat/Docs/Channels/Files/Dashboard) + Notifications
++ MCP resources/prompts + Governance RuleCache + Oban concurrency bump. 12
+parallel agents dispatched, 4 tracks fully rolled back mid-phase after
+overengineering audit (auth, events, partitions cron). Wrapper modules +
+delivery-adapter patterns + config-tables-for-one-config deleted. 36 files
+removed. Triple-stack verify: 1473 backend / 277 vitest / 11 cargo.
+Documents the critical Tasks race condition (cleanup-vs-build ordering).
+
 ---
 
 ## Third-Party Attributions

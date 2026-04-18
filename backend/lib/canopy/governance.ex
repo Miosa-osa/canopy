@@ -48,7 +48,7 @@ defmodule Canopy.Governance do
 
   import Ecto.Query, only: [from: 2]
 
-  alias Canopy.Governance.{Approval, AuditLog, Evaluator, Rule}
+  alias Canopy.Governance.{Approval, AuditLog, Evaluator, Rule, RuleCache}
   alias Canopy.Repo
 
   require Logger
@@ -84,37 +84,41 @@ defmodule Canopy.Governance do
   @doc "Creates a new governance rule."
   @spec create_rule(map()) :: {:ok, Rule.t()} | {:error, Ecto.Changeset.t()}
   def create_rule(attrs) do
-    %Rule{}
-    |> Rule.changeset(attrs)
-    |> Repo.insert()
+    result = %Rule{} |> Rule.changeset(attrs) |> Repo.insert()
+    if match?({:ok, _}, result), do: RuleCache.invalidate()
+    result
   end
 
   @doc "Updates an existing governance rule."
   @spec update_rule(Rule.t(), map()) :: {:ok, Rule.t()} | {:error, Ecto.Changeset.t()}
   def update_rule(%Rule{} = rule, attrs) do
-    rule
-    |> Rule.changeset(attrs)
-    |> Repo.update()
+    result = rule |> Rule.changeset(attrs) |> Repo.update()
+    if match?({:ok, _}, result), do: RuleCache.invalidate()
+    result
   end
 
   @doc "Deletes a governance rule."
   @spec delete_rule(Rule.t()) :: {:ok, Rule.t()} | {:error, Ecto.Changeset.t()}
-  def delete_rule(%Rule{} = rule), do: Repo.delete(rule)
+  def delete_rule(%Rule{} = rule) do
+    result = Repo.delete(rule)
+    if match?({:ok, _}, result), do: RuleCache.invalidate()
+    result
+  end
 
   @doc "Enables a governance rule."
   @spec enable_rule(Rule.t()) :: {:ok, Rule.t()} | {:error, Ecto.Changeset.t()}
   def enable_rule(%Rule{} = rule) do
-    rule
-    |> Rule.enabled_changeset(true)
-    |> Repo.update()
+    result = rule |> Rule.enabled_changeset(true) |> Repo.update()
+    if match?({:ok, _}, result), do: RuleCache.invalidate()
+    result
   end
 
   @doc "Disables a governance rule."
   @spec disable_rule(Rule.t()) :: {:ok, Rule.t()} | {:error, Ecto.Changeset.t()}
   def disable_rule(%Rule{} = rule) do
-    rule
-    |> Rule.enabled_changeset(false)
-    |> Repo.update()
+    result = rule |> Rule.enabled_changeset(false) |> Repo.update()
+    if match?({:ok, _}, result), do: RuleCache.invalidate()
+    result
   end
 
   # ---------------------------------------------------------------------------

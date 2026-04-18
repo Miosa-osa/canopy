@@ -2,22 +2,7 @@ defmodule CanopyWeb.Router do
   @moduledoc """
   Phoenix router for Canopy's HTTP API.
 
-  All API routes are versioned under `/api/v1`. The OpenAPI spec is served at
-  `/api/v1/openapi` (machine-readable JSON) and `/api/v1/docs` (Swagger UI in dev).
-
-  Week 1 additions:
-  - `resources "/runtimes"` — list, get, test_environment, get_config_schema
-  - `resources "/sessions"` — create, get, cancel, list (with SSE streaming)
-  - `resources "/agents"` — list, get, hire, fire
-  - `resources "/workspaces"` — list, get, create
-  - `resources "/sandboxes"` — list, get, destroy (MIOSA-provisioned VMs)
-
-  Week 3 additions:
-  - Workspace CRUD: list, show, create, delete (soft)
-  - Workspace templates: GET /workspaces/templates
-  - Workspace file tree: GET /workspaces/:slug/tree
-  - Workspace file ops: GET/PUT/DELETE /workspaces/:slug/files/*path
-  - Workspace move: POST /workspaces/:slug/files/move
+  All API routes are versioned under `/api/v1`.
   """
 
   use CanopyWeb, :router
@@ -25,18 +10,11 @@ defmodule CanopyWeb.Router do
   pipeline :api do
     plug :accepts, ["json"]
 
-    # Rate limiter — honor the plug's compile_env config so tests (which set
-    # `enabled: false` in config/test.exs) bypass the limiter. Without explicit
-    # opts, the plug defaults to `enabled: true` and would 429 parallel ExUnit
-    # runs that share a global Hammer ETS bucket.
     plug CanopyWeb.Plugs.RateLimiter,
       scale_ms: 60_000,
       limit: Application.compile_env(:canopy, [CanopyWeb.Plugs.RateLimiter, :limit], 100),
       enabled: Application.compile_env(:canopy, [CanopyWeb.Plugs.RateLimiter, :enabled], true)
 
-    # CORS — origins pulled from app config. See config/dev.exs and config/runtime.exs.
-    # Empty list = no CORS headers sent = browser-origin calls blocked. Tauri native
-    # packaged app uses ipc:// / tauri://, not CORS. This is for dev browser mode.
     plug Corsica,
       origins: Application.compile_env(:canopy, :cors_origins, []),
       allow_credentials: true,
@@ -49,7 +27,7 @@ defmodule CanopyWeb.Router do
   scope "/api/v1", CanopyWeb do
     pipe_through :api
 
-    # Health check — always available, no auth required
+    # Health check
     get "/health", HealthController, :index
     get "/health/ready", HealthController, :ready
 
@@ -79,12 +57,12 @@ defmodule CanopyWeb.Router do
     get "/sessions/:id/messages", SessionsController, :messages
     get "/sessions/:id/events", SessionEventsController, :stream
 
-    # MIOSA compute sandboxes — derived from session sandbox columns
+    # MIOSA compute sandboxes
     get "/sandboxes", SandboxesController, :index
     get "/sandboxes/:sandbox_id", SandboxesController, :show
     delete "/sandboxes/:sandbox_id", SandboxesController, :delete
 
-    # Budget enforcement — 3-tier spend control
+    # Budget enforcement
     get "/budgets", BudgetsController, :index
     post "/budgets", BudgetsController, :create
     get "/budgets/:id", BudgetsController, :show
@@ -93,12 +71,12 @@ defmodule CanopyWeb.Router do
     get "/budgets/:id/spend", BudgetsController, :spend
     post "/budgets/:id/check", BudgetsController, :check_budget
 
-    # Skills — markdown bundles injected into agent execution environments
+    # Skills
     get "/skills", SkillsController, :index
     get "/skills/:slug", SkillsController, :show
     post "/skills/import", SkillsController, :import
 
-    # Governance — approval gates, rules, and audit log
+    # Governance
     get "/governance/rules", GovernanceController, :rules_index
     post "/governance/rules", GovernanceController, :rules_create
     put "/governance/rules/:id", GovernanceController, :rules_update
@@ -108,29 +86,111 @@ defmodule CanopyWeb.Router do
     post "/governance/approvals/:id/reject", GovernanceController, :reject
     get "/governance/audit", GovernanceController, :audit
 
-    # Tool registry — Week 2 Track F
+    # Tool registry
     get "/tools", ToolsController, :index
     get "/tools/:name", ToolsController, :show
     post "/tools/:name/dispatch", ToolsController, :dispatch
 
-    # Workspace management — Week 3 (CRUD + soft-delete)
-    # NOTE: /workspaces/templates must come before /workspaces/:slug to avoid slug conflict
+    # Workspace management
     get "/workspaces/templates", WorkspacesController, :templates
     get "/workspaces", WorkspacesController, :index
     get "/workspaces/:slug", WorkspacesController, :show
     post "/workspaces", WorkspacesController, :create
     delete "/workspaces/:slug", WorkspacesController, :delete
 
-    # Workspace file operations — Week 3
+    # Workspace file operations
     get "/workspaces/:slug/tree", WorkspaceFilesController, :tree
     get "/workspaces/:slug/files", WorkspaceFilesController, :list_dir
     post "/workspaces/:slug/files/move", WorkspaceFilesController, :move
     get "/workspaces/:slug/files/*path", WorkspaceFilesController, :read
     put "/workspaces/:slug/files/*path", WorkspaceFilesController, :write
     delete "/workspaces/:slug/files/*path", WorkspaceFilesController, :delete
+
+    # Tasks — single table
+    get "/tasks", TasksController, :index
+    post "/tasks", TasksController, :create
+    get "/tasks/:id", TasksController, :show
+    put "/tasks/:id", TasksController, :update
+    patch "/tasks/:id", TasksController, :update
+    post "/tasks/:id/assign", TasksController, :assign
+    post "/tasks/:id/complete", TasksController, :complete
+    post "/tasks/:id/reopen", TasksController, :reopen
+    delete "/tasks/:id", TasksController, :delete
+
+    # Dashboard (Command Center)
+    get "/dashboard/summary", DashboardController, :summary
+
+    # Docs
+    get "/docs/search", DocsController, :search
+    get "/docs", DocsController, :index
+    post "/docs", DocsController, :create
+    post "/docs/:id/publish", DocsController, :publish
+    post "/docs/:id/unpublish", DocsController, :unpublish
+    post "/docs/:id/archive", DocsController, :archive
+    post "/docs/:id/unarchive", DocsController, :unarchive
+    get "/docs/:id", DocsController, :show
+    put "/docs/:id", DocsController, :update
+    delete "/docs/:id", DocsController, :delete
+
+    # Doc Folders
+    get "/doc-folders/tree", DocFoldersController, :tree
+    get "/doc-folders", DocFoldersController, :index
+    post "/doc-folders", DocFoldersController, :create
+    patch "/doc-folders/:id", DocFoldersController, :update
+    delete "/doc-folders/:id", DocFoldersController, :delete
+
+    # Channels
+    get "/channels", ChannelsController, :index
+    post "/channels", ChannelsController, :create
+    post "/channels/:id/members", ChannelsController, :add_member
+    delete "/channels/:id/members/:actor_type/:actor_id", ChannelsController, :remove_member
+    get "/channels/:id/messages", ChannelsController, :list_messages
+    post "/channels/:id/messages", ChannelsController, :create_message
+    patch "/channels/:id/messages/:message_id", ChannelsController, :edit_message
+    delete "/channels/:id/messages/:message_id", ChannelsController, :delete_message
+    post "/channels/:id/messages/:message_id/reactions", ChannelsController, :add_reaction
+
+    delete "/channels/:id/messages/:message_id/reactions/:emoji",
+           ChannelsController,
+           :remove_reaction
+
+    post "/channels/:id/messages/:message_id/pin", ChannelsController, :pin_message
+    delete "/channels/:id/messages/:message_id/pin", ChannelsController, :unpin_message
+    post "/channels/:id/read", ChannelsController, :mark_read
+    get "/channels/:id/unread", ChannelsController, :unread_count
+    get "/channels/:id", ChannelsController, :show
+    patch "/channels/:id", ChannelsController, :update
+    delete "/channels/:id", ChannelsController, :delete
+
+    # Notifications
+    get "/notifications", NotificationsController, :index
+    get "/notifications/unread_count", NotificationsController, :unread_count
+    post "/notifications/read_all", NotificationsController, :read_all
+    post "/notifications/:id/read", NotificationsController, :mark_read
+    delete "/notifications/:id", NotificationsController, :delete
+
+    # Chat threads
+    get "/chat/threads", ChatController, :index
+    post "/chat/threads", ChatController, :create
+    get "/chat/threads/:id/export", ChatController, :export
+    post "/chat/threads/:id/continue", ChatController, :continue
+    get "/chat/threads/:id", ChatController, :show
+    patch "/chat/threads/:id", ChatController, :update
+    delete "/chat/threads/:id", ChatController, :delete
+
+    # Files index
+    post "/files", FilesController, :upload
+    get "/files/search", FilesController, :search
+    post "/files/scan", FilesController, :scan
+    get "/files/:id/content", FilesController, :content
+    get "/files/:id/activity", FilesController, :activity
+    get "/files/:id", FilesController, :show
+    patch "/files/:id", FilesController, :update
+    delete "/files/:id", FilesController, :delete
+    get "/files", FilesController, :index
   end
 
-  # OpenAPI spec endpoint — outside the CanopyWeb scope so the module name is literal
+  # OpenAPI spec endpoint
   scope "/api/v1" do
     pipe_through :api
     get "/openapi", OpenApiSpex.Plug.RenderSpec, []
@@ -146,7 +206,7 @@ defmodule CanopyWeb.Router do
     end
 
     scope "/api/v1" do
-      get "/docs", OpenApiSpex.Plug.SwaggerUI, path: "/api/v1/openapi"
+      get "/swagger", OpenApiSpex.Plug.SwaggerUI, path: "/api/v1/openapi"
     end
   end
 end

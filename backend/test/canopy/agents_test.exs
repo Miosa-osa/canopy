@@ -239,7 +239,10 @@ defmodule Canopy.AgentsTest do
     test "writes persona_markdown to the DB column, not to disk" do
       {:ok, agent} =
         Canopy.Repo.insert(
-          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{persona_markdown: "# Original"}))
+          AgentSchema.changeset(
+            %AgentSchema{},
+            valid_agent_attrs(%{persona_markdown: "# Original"})
+          )
         )
 
       new_content = "# Updated\n\nNew persona content."
@@ -254,7 +257,10 @@ defmodule Canopy.AgentsTest do
     test "update_persona is idempotent — calling twice with the same content is stable" do
       {:ok, agent} =
         Canopy.Repo.insert(
-          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{persona_markdown: "# Initial"}))
+          AgentSchema.changeset(
+            %AgentSchema{},
+            valid_agent_attrs(%{persona_markdown: "# Initial"})
+          )
         )
 
       content = "# Stable content"
@@ -282,6 +288,7 @@ defmodule Canopy.AgentsTest do
       # The assertion is that we didn't write the file — if it doesn't exist, that's correct.
       # If it already existed from a different test, at least we confirm DB was updated.
       assert updated.persona_markdown == content
+
       refute File.exists?(full_path) and File.read!(full_path) == content,
              "update_persona must not write to the filesystem"
     end
