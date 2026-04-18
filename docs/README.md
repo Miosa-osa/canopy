@@ -134,6 +134,16 @@ delivery-adapter patterns + config-tables-for-one-config deleted. 36 files
 removed. Triple-stack verify: 1473 backend / 277 vitest / 11 cargo.
 Documents the critical Tasks race condition (cleanup-vs-build ordering).
 
+### [17-phase4-report.md](./17-phase4-report.md)
+**Phase 4 Completion Record — Module Frontends**
+
+6 module frontends (Tasks/Chat/Docs/Channels/Files/Dashboard) + NotificationBell
++ sidebar route flips. 7 parallel agents + 1 completion pass. 6 modules moved
+from /coming-soon to real routes. Patterns reused (TranscriptView, Composer,
+PushPanel, DirtyGuardModal, ActorAvatar, WorkspaceSwitcher, SSE realtime).
+Anti-bloat scorecard: 7/8 NO-rules held, 1 deviation (detail page LOC caps
+crossed). Triple-stack: 1473 backend / 469 vitest / 11 cargo.
+
 ---
 
 ## Third-Party Attributions

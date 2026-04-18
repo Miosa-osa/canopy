@@ -15,6 +15,7 @@ import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { syncRuntimesIfStale } from '$lib/bootstrap/runtime-sync.js';
 import CommandPalette from '$lib/design/patterns/CommandPalette.svelte';
+import NotificationBell from '$lib/design/patterns/NotificationBell.svelte';
 import Sidebar from '$lib/design/patterns/Sidebar.svelte';
 import ToastContainer from '$lib/design/patterns/ToastContainer.svelte';
 import WorkspaceSwitcher from '$lib/design/patterns/WorkspaceSwitcher.svelte';
@@ -147,6 +148,9 @@ function handleKeydown(e: KeyboardEvent): void {
         </div>
 
         <div class="sidebar-footer__actions">
+          {#if !isOnboarding}
+            <NotificationBell />
+          {/if}
           <button
             class="btn-compact btn-compact-ghost btn-compact-icon"
             onclick={() => import('$app/navigation').then(({ goto }) => goto('/settings'))}
