@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agentDetailQuery,
+  agentHeartbeatsQuery,
   agentsQuery,
   createAgentMutation,
   fireAgentMutation,
@@ -115,5 +116,30 @@ describe("createAgentMutation()", () => {
     const m = createAgentMutation();
     // Verify arity — it takes exactly one argument (the body)
     expect(m.mutationFn.length).toBe(1);
+  });
+});
+
+describe("agentHeartbeatsQuery()", () => {
+  it('returns query key ["agents", slug, "heartbeats"]', () => {
+    const q = agentHeartbeatsQuery("sales-strategist");
+    expect(q.queryKey).toEqual(["agents", "sales-strategist", "heartbeats"]);
+  });
+
+  it("is disabled when slug is empty string", () => {
+    const q = agentHeartbeatsQuery("");
+    expect(q.enabled).toBe(false);
+  });
+
+  it("is enabled when slug is non-empty", () => {
+    const q = agentHeartbeatsQuery("architect");
+    expect(q.enabled).toBe(true);
+  });
+
+  it("has staleTime of 15_000", () => {
+    expect(agentHeartbeatsQuery("architect").staleTime).toBe(15_000);
+  });
+
+  it("has a queryFn function", () => {
+    expect(typeof agentHeartbeatsQuery("architect").queryFn).toBe("function");
   });
 });

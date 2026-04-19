@@ -18,7 +18,8 @@
 		class: className = ''
 	}: Props = $props();
 
-	const dots = Array.from({ length: total }, (_, i) => i);
+	// Canopy fix: $derived() so dots array recomputes if `total` prop changes after mount.
+	const dots = $derived(Array.from({ length: total }, (_, i) => i));
 </script>
 
 <div

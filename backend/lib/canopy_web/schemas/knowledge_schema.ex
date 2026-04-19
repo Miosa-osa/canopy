@@ -109,6 +109,21 @@ defmodule CanopyWeb.Schemas.KnowledgeSchema do
     })
   end
 
+  defmodule KbAssignmentList do
+    @moduledoc "List of KB-to-agent assignment records."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "KbAssignmentList",
+      type: :object,
+      properties: %{
+        data: %Schema{type: :array, items: KbAssignment}
+      },
+      required: [:data]
+    })
+  end
+
   defmodule CreateBaseBody do
     @moduledoc "Request body for creating a knowledge base."
 

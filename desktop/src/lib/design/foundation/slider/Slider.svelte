@@ -27,13 +27,15 @@
 	}: Props = $props();
 
 	const percentage = $derived(((value - min) / (max - min)) * 100);
+	// Canopy fix: generate an id so <label for> associates with the <input> — fixes a11y_label_has_associated_control.
+	const sliderId = $derived(label ? `bos-slider-${label.toLowerCase().replace(/\s+/g, '-')}` : undefined);
 </script>
 
 <div class="bos-slider-root {className}" class:bos-slider-root--disabled={disabled}>
 	{#if label || showValue}
 		<div class="bos-slider__header">
 			{#if label}
-				<label class="bos-slider__label">{label}</label>
+				<label class="bos-slider__label" for={sliderId}>{label}</label>
 			{/if}
 			{#if showValue}
 				<span class="bos-slider__value">{value}</span>
@@ -45,6 +47,7 @@
 			<div class="bos-slider__fill" style="width: {percentage}%"></div>
 		</div>
 		<input
+			id={sliderId}
 			type="range"
 			class="bos-slider__input"
 			bind:value
@@ -52,7 +55,6 @@
 			{max}
 			{step}
 			{disabled}
-			aria-label={label}
 			aria-valuemin={min}
 			aria-valuemax={max}
 			aria-valuenow={value}

@@ -88,7 +88,7 @@
 
   // ── State ────────────────────────────────────────────────────────────────────
 
-  const contentUrl = `${API_BASE}/files/${file.id}/content`;
+  const contentUrl = $derived(`${API_BASE}/files/${file.id}/content`);
   const viewer = $derived(resolveViewer(file.mimeType, file.name, file.sizeBytes));
 
   let loading = $state(false);

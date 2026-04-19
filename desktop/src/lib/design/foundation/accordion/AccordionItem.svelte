@@ -28,8 +28,9 @@
 
 	let open = $derived(ctx.isOpen(value));
 
-	const triggerId = `accordion-trigger-${value}`;
-	const contentId = `accordion-content-${value}`;
+	// Canopy fix: $derived() so IDs stay reactive if `value` prop changes after mount.
+	const triggerId = $derived(`accordion-trigger-${value}`);
+	const contentId = $derived(`accordion-content-${value}`);
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' || e.key === ' ') {

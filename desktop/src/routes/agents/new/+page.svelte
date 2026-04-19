@@ -16,6 +16,8 @@
   import { goto } from '$app/navigation';
   import { createAgentMutation, type CreateAgentBody } from '$lib/api/queries/agents.js';
   import { runtimeModelsQuery, runtimesQuery } from '$lib/api/queries/runtimes.js';
+  import { toolsQuery } from '$lib/api/queries/tools.js';
+  import type { Tool } from '$lib/domain/tools/types.js';
   import type { AgentCategory } from '$lib/domain/agents/types.js';
   import { AGENT_PRESETS } from '$lib/domain/agents/presets.js';
   import type { AgentDetail } from '$lib/domain/agents/types.js';
@@ -133,26 +135,11 @@
   });
 
   // ── Tools data ───────────────────────────────────────────────────────────────
-  // Tools endpoint not yet wired to a dedicated query file.
-  // Fetch directly and provide a typed local list.
 
-  interface ToolEntry {
-    name: string;
-    description: string | null;
-  }
-
-  let toolsList = $state<ToolEntry[]>([]);
-
-  $effect(() => {
-    fetch('http://localhost:9190/api/v1/tools')
-      .then((r) => (r.ok ? r.json() : Promise.resolve({ data: [] })))
-      .then((body: { data?: ToolEntry[] }) => {
-        toolsList = body.data ?? [];
-      })
-      .catch(() => {
-        toolsList = [];
-      });
-  });
+  const toolsQ = createQuery<Tool[]>(
+    writable(toolsQuery() as CreateQueryOptions<Tool[]>)
+  );
+  const toolsList = $derived(($toolsQ.data ?? []) as Tool[]);
 
   function toggleTool(name: string): void {
     const next = new Set(selectedTools);

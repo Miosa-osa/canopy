@@ -116,12 +116,11 @@ export const defaultConfig: SidebarConfig = {
           hidden: false,
         },
         {
-          path: "/coming-soon",
+          path: "/governance",
           label: "Governance",
           icon: "ShieldCheck",
           badge: 1,
           badgeStyle: "warn",
-          comingSoon: true,
           hidden: false,
         },
       ],

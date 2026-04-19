@@ -17,7 +17,7 @@
  */
 // TODO: QueryClient setup assumed from layout
 
-import { type CreateQueryOptions, createMutation, createQuery } from '@tanstack/svelte-query';
+import { type CreateQueryOptions, createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
 import { onMount, untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
@@ -37,6 +37,7 @@ import StatusDot from '$lib/design/patterns/StatusDot.svelte';
 import TranscriptView from '$lib/design/patterns/TranscriptView.svelte';
 import type { SessionDetail, SessionStatus, TranscriptEntry } from '$lib/domain/sessions/types.js';
 
+  const queryClient = useQueryClient();
 const sessionId = $derived(page.params.id ?? '');
 
 const detailOptsStore = writable(
@@ -117,6 +118,9 @@ async function handleCancel() {
   try {
     await $cancelMut.mutateAsync(sessionId);
     liveStatus = 'cancelled';
+    // Invalidate so session list and detail reflect cancelled status without manual refresh.
+    queryClient.invalidateQueries({ queryKey: ['sessions', sessionId] });
+    queryClient.invalidateQueries({ queryKey: ['sessions'] });
   } catch (err) {
     cancelError = err instanceof Error ? err.message : 'Cancel failed';
   }

@@ -10,6 +10,7 @@ defmodule CanopyWeb.KnowledgeController do
     POST   /knowledge-bases/:slug/files           — add file to KB
     GET    /knowledge-bases/:slug/chunks          — list chunks (paginated)
     POST   /knowledge-bases/:slug/search          — RAG lookup
+    GET    /knowledge-bases/:slug/assignments     — list agent assignments
     POST   /knowledge-bases/:slug/assignments     — assign agent
     DELETE /knowledge-bases/:slug/assignments/:agent_slug — unassign agent
     POST   /knowledge-bases/:slug/rebuild         — full re-index
@@ -229,6 +230,28 @@ defmodule CanopyWeb.KnowledgeController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{error: "missing_param", message: "query is required"})
+  end
+
+  # ---------------------------------------------------------------------------
+  # GET /knowledge-bases/:slug/assignments
+  # ---------------------------------------------------------------------------
+
+  operation :list_assignments,
+    summary: "List agent assignments for a knowledge base",
+    parameters: [
+      slug: [in: :path, type: :string, required: true]
+    ],
+    responses: [
+      ok: {"Assignment list", "application/json", KnowledgeSchema.KbAssignmentList},
+      not_found: {"Not found", "application/json", CanopyWeb.Schemas.RuntimeSchema.ErrorResponse}
+    ]
+
+  @spec list_assignments(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def list_assignments(conn, %{"slug" => slug}) do
+    with {:ok, kb} <- Knowledge.get_base(slug),
+         {:ok, assignments} <- Knowledge.list_assignments(kb.id) do
+      json(conn, %{data: assignments})
+    end
   end
 
   # ---------------------------------------------------------------------------

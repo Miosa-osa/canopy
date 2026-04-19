@@ -1,439 +1,422 @@
 <script lang="ts">
-/**
- * Home / — composer + recent sessions + pinned agents (docs/02-frontend-design.md §6.1).
- * Cabinet pattern: serif greeting, composer-centric, time-aware.
- */
+  /**
+   * Home / — command center (Canopy v2 Phase 6 Wave A Track #115).
+   * Five sections: greeting, stat strip, active agents, quick actions, recent activity.
+   * LOC target: ≤ 450.
+   */
 
-import {
-  type CreateMutationOptions,
-  type CreateQueryOptions,
-  createMutation,
-  createQuery,
-  useQueryClient,
-} from '@tanstack/svelte-query';
-import { Bot } from 'lucide-svelte';
-import { goto } from '$app/navigation';
-import { agentsQuery, hireAgentMutation } from '$lib/api/queries/agents.js';
-import { createSessionMutation, sessionsQuery } from '$lib/api/queries/sessions.js';
-import AgentCard from '$lib/design/patterns/AgentCard.svelte';
-import Composer from '$lib/design/patterns/Composer.svelte';
-import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-import Kbd from '$lib/design/patterns/Kbd.svelte';
-import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-import type { Agent, HireAgentBody } from '$lib/domain/agents/types.js';
-import type { CreateSessionBody, Session } from '$lib/domain/sessions/types.js';
+  // TODO: pull from auth when multi-user lands
+  const USER_NAME = 'Roberto';
 
-const queryClient = useQueryClient();
+  import {
+    type CreateQueryOptions,
+    createQuery,
+  } from '@tanstack/svelte-query';
+  import {
+    Activity,
+    Bell,
+    CheckSquare,
+    FileText,
+    MessageSquare,
+    Plus,
+    ShieldAlert,
+    Terminal,
+    Wallet,
+  } from 'lucide-svelte';
+  import { format, formatDistanceToNow } from 'date-fns';
+  import { goto } from '$app/navigation';
+  import { untrack } from 'svelte';
+  import { writable } from 'svelte/store';
+  import { approvalsQuery } from '$lib/api/queries/governance.js';
+  import { dashboardSummaryQuery } from '$lib/api/queries/dashboard.js';
+  import { agentsQuery } from '$lib/api/queries/agents.js';
+  import { sessionsQuery } from '$lib/api/queries/sessions.js';
+  import { tasksQuery } from '$lib/api/queries/tasks.js';
+  import { unreadCountQuery } from '$lib/api/queries/notifications.js';
+  import AgentLiveCard from '$lib/design/patterns/AgentLiveCard.svelte';
+  import Kbd from '$lib/design/patterns/Kbd.svelte';
+  import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+  import WorkspaceSwitcher from '$lib/design/patterns/WorkspaceSwitcher.svelte';
+  import { theme } from '$lib/stores/theme.svelte.js';
+  import { greetingFor } from '$lib/utils/greeting.js';
+  import type { Agent } from '$lib/domain/agents/types.js';
+  import type { DashboardSummary } from '$lib/domain/dashboard/types.js';
+  import type { Approval } from '$lib/domain/governance/types.js';
+  import type { Session } from '$lib/domain/sessions/types.js';
+  import type { Task } from '$lib/domain/tasks/types.js';
 
-/** Time-aware greeting. */
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'Good morning, Roberto.';
-  if (h >= 12 && h < 17) return 'Good afternoon, Roberto.';
-  if (h >= 17 && h < 22) return 'Good evening, Roberto.';
-  return 'Good night, Roberto.';
-}
+  // ── Greeting ─────────────────────────────────────────────────────────────────
 
-let currentGreeting = $state(greeting());
+  const greeting = $derived(greetingFor(new Date().getHours()));
+  const todayLabel = format(new Date(), 'EEEE, MMMM d, yyyy');
+  const resolvedMode = $derived(theme.resolved);
 
-// Recent sessions — last 5
-const recentSessionsQ = createQuery<Session[]>(
-  sessionsQuery({ limit: 5 }) as CreateQueryOptions<Session[]>
-);
+  // ── Queries ───────────────────────────────────────────────────────────────────
 
-// Pinned agents — hired agents only
-const pinnedAgentsQ = createQuery<Agent[]>(
-  agentsQuery({ hired: true }) as CreateQueryOptions<Agent[]>
-);
-
-const hireMut = createMutation<Agent, Error, { slug: string; body?: HireAgentBody }>(
-  hireAgentMutation() as CreateMutationOptions<Agent, Error, { slug: string; body?: HireAgentBody }>
-);
-
-const sessionMut = createMutation<Session, Error, CreateSessionBody>(
-  createSessionMutation() as CreateMutationOptions<Session, Error, CreateSessionBody>
-);
-
-function handleComposerSubmit(
-  prompt: string,
-  agentSlug: string | null,
-  runtime: string | null
-): void {
-  $sessionMut.mutate(
-    {
-      prompt,
-      agentSlug: agentSlug ?? undefined,
-      runtimeType: runtime ?? 'claude-code',
-      cwd: '.',
-      workspaceSlug: undefined,
-    },
-    {
-      onSuccess: (session) => {
-        queryClient.invalidateQueries({ queryKey: ['sessions'] });
-        goto(`/sessions/${session.id}`);
-      },
-    }
+  const dashboardOptsStore = writable(
+    untrack(() => dashboardSummaryQuery() as CreateQueryOptions<DashboardSummary>),
   );
-}
+  const dashboardQ = createQuery<DashboardSummary>(dashboardOptsStore);
 
-function handleHire(slug: string): void {
-  $hireMut.mutate(
-    { slug },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['agents'] });
-      },
-    }
+  const unreadOptsStore = writable(
+    untrack(() => unreadCountQuery() as CreateQueryOptions<{ count: number }>),
   );
-}
+  const unreadQ = createQuery<{ count: number }>(unreadOptsStore);
 
-function handleRun(slug: string): void {
-  goto(`/agents/${slug}`);
-}
+  const approvalsOptsStore = writable(
+    untrack(() => approvalsQuery('pending') as CreateQueryOptions<Approval[]>),
+  );
+  const approvalsQ = createQuery<Approval[]>(approvalsOptsStore);
 
-// Typed data accessors — avoids NonNullable<TQueryFnData> issues in template
-const recentSessions = $derived(($recentSessionsQ.data ?? []) as Session[]);
-const pinnedAgents = $derived(($pinnedAgentsQ.data ?? []) as Agent[]);
+  const hiredAgentsOptsStore = writable(
+    untrack(() => agentsQuery({ hired: true }) as CreateQueryOptions<Agent[]>),
+  );
+  const hiredAgentsQ = createQuery<Agent[]>(hiredAgentsOptsStore);
 
-/** Compute session duration in ms from startedAt / completedAt timestamps. */
-function sessionDurationMs(s: Session): number | null {
-  if (!s.startedAt || !s.completedAt) return null;
-  return new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime();
-}
+  const recentSessionsOptsStore = writable(
+    untrack(() => sessionsQuery({ limit: 5 }) as CreateQueryOptions<Session[]>),
+  );
+  const recentSessionsQ = createQuery<Session[]>(recentSessionsOptsStore);
 
-/** Format duration for display. */
-function formatDuration(ms: number | null): string {
-  if (!ms) return '—';
-  const m = Math.floor(ms / 60_000);
-  const s = Math.floor((ms % 60_000) / 1_000);
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
+  const recentTasksOptsStore = writable(
+    untrack(() => tasksQuery({ limit: 5 } as never) as CreateQueryOptions<Task[]>),
+  );
+  const recentTasksQ = createQuery<Task[]>(recentTasksOptsStore);
 
-/** Format relative time. */
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
+  // ── Derived data ──────────────────────────────────────────────────────────────
+
+  const dashboard = $derived(($dashboardQ.data ?? null) as DashboardSummary | null);
+  const activeSessionCount = $derived(dashboard?.sandboxUsageToday.runningNow ?? 0);
+  const unreadCount = $derived($unreadQ.data?.count ?? 0);
+  const pendingCount = $derived(($approvalsQ.data ?? []).length);
+
+  const spendTotal = $derived(
+    dashboard ? parseFloat(dashboard.spendThisMonth.totalUsd) : 0,
+  );
+  // Placeholder budget limit — replace with user-level budget when available
+  const SPEND_LIMIT = 100;
+  const spendPct = $derived(Math.min((spendTotal / SPEND_LIMIT) * 100, 100));
+
+  const hiredAgents = $derived(($hiredAgentsQ.data ?? []) as Agent[]);
+  const activeAgentSlugs = $derived(
+    new Set((dashboard?.activeAgents ?? []).map((a) => a.agentSlug).filter(Boolean)),
+  );
+  const activeAgents = $derived(
+    hiredAgents.filter((a) => activeAgentSlugs.has(a.slug)).slice(0, 8),
+  );
+  const extraActiveCount = $derived(
+    Math.max(0, (dashboard?.activeAgents ?? []).length - 8),
+  );
+
+  // ── Recent activity merge ─────────────────────────────────────────────────────
+
+  interface ActivityItem {
+    id: string;
+    kind: 'session' | 'task';
+    label: string;
+    timestamp: string;
+    href: string;
+  }
+
+  const recentActivity = $derived.by<ActivityItem[]>(() => {
+    const sessions = ($recentSessionsQ.data ?? []) as Session[];
+    const tasks = ($recentTasksQ.data ?? []) as Task[];
+
+    const sessionItems: ActivityItem[] = sessions.map((s) => ({
+      id: `session-${s.id}`,
+      kind: 'session' as const,
+      label: `${s.agentSlug ?? 'Direct prompt'} session ${s.status}`,
+      timestamp: s.startedAt ?? s.insertedAt,
+      href: `/sessions/${s.id}`,
+    }));
+
+    const taskItems: ActivityItem[] = tasks.map((t) => ({
+      id: `task-${t.id}`,
+      kind: 'task' as const,
+      label: `${t.title} — ${t.status}`,
+      timestamp: t.updatedAt,
+      href: `/tasks/${t.shortId}`,
+    }));
+
+    return [...sessionItems, ...taskItems]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10);
+  });
+
+  const activityLoading = $derived(
+    $recentSessionsQ.isLoading || $recentTasksQ.isLoading,
+  );
 </script>
 
-<div class="home">
-  <!-- Greeting -->
-  <header class="home__header">
-    <h1 class="home__greeting">{currentGreeting}</h1>
-    <p class="home__subtext">What are we working on?</p>
+<div class="hp-root">
+  <!-- ── Section 1: Greeting ─────────────────────────────────────────────── -->
+  <header class="hp-greeting-row">
+    <div class="hp-greeting-text">
+      <h1 class="hp-greeting">{greeting}, {USER_NAME}</h1>
+      <p class="hp-date">{todayLabel}</p>
+    </div>
+    <div class="hp-greeting-controls">
+      <WorkspaceSwitcher />
+      <span class="hp-mode-pill">{resolvedMode === 'dark' ? 'Dark' : 'Light'}</span>
+    </div>
   </header>
 
-  <!-- Composer -->
-  <section class="home__composer-wrap" aria-label="New session">
-    <Composer onSubmit={handleComposerSubmit} />
-    {#if $sessionMut.isPending}
-      <p class="home__submitting">Creating session...</p>
+  <!-- ── Section 2: Stat strip ─────────────────────────────────────────────── -->
+  <section class="hp-stat-strip" aria-label="Stats">
+    <!-- Active sessions -->
+    <button
+      class="hp-stat-card"
+      onclick={() => goto('/sessions?status=running')}
+      aria-label="Active sessions"
+    >
+      <div class="hp-stat-num-row">
+        <span class="hp-stat-num">{activeSessionCount}</span>
+        {#if activeSessionCount > 0}
+          <StatusDot color="green" pulse={true} />
+        {/if}
+      </div>
+      <span class="hp-stat-label">Active sessions</span>
+    </button>
+
+    <!-- Unread notifications -->
+    <button
+      class="hp-stat-card"
+      onclick={() => goto('/notifications?unread=true')}
+      aria-label="Unread notifications"
+    >
+      <span class="hp-stat-num">{unreadCount}</span>
+      <span class="hp-stat-label">Unread</span>
+    </button>
+
+    <!-- Pending approvals -->
+    <button
+      class="hp-stat-card"
+      class:hp-stat-card--warn={pendingCount > 0}
+      onclick={() => goto('/governance?tab=approvals')}
+      aria-label="Pending approvals"
+    >
+      <span class="hp-stat-num" class:hp-stat-num--warn={pendingCount > 0}>
+        {pendingCount}
+      </span>
+      <span class="hp-stat-label">Pending approvals</span>
+    </button>
+
+    <!-- This month spend -->
+    <button
+      class="hp-stat-card"
+      onclick={() => goto('/settings/budgets')}
+      aria-label="This month spend"
+    >
+      <span class="hp-stat-num">
+        ${spendTotal.toFixed(2)}<span class="hp-stat-limit"> / ${SPEND_LIMIT.toFixed(2)}</span>
+      </span>
+      <div class="hp-spend-bar" aria-hidden="true">
+        <div class="hp-spend-bar__fill" style="width: {spendPct}%"></div>
+      </div>
+      <span class="hp-stat-label">This month</span>
+    </button>
+  </section>
+
+  <!-- ── Section 3: Active agents ──────────────────────────────────────────── -->
+  <section class="hp-section" aria-label="Active agents">
+    <h2 class="hp-section-title">Active agents</h2>
+    {#if $hiredAgentsQ.isLoading || $dashboardQ.isLoading}
+      <div class="hp-agent-grid">
+        {#each Array(3) as _, i (i)}
+          <div class="hp-agent-skeleton" aria-hidden="true"></div>
+        {/each}
+      </div>
+    {:else if activeAgents.length === 0}
+      <p class="hp-empty">No active agents. Start a session to see live agents here.</p>
+    {:else}
+      <div class="hp-agent-grid">
+        {#each activeAgents as agent (agent.slug)}
+          <AgentLiveCard {agent} compact={true} />
+        {/each}
+      </div>
+      {#if extraActiveCount > 0}
+        <a class="hp-more-link" href="/agents?hired=true">+ {extraActiveCount} more</a>
+      {/if}
     {/if}
   </section>
 
-  <!-- Recent sessions -->
-  <section class="home__section" aria-label="Recent sessions">
-    <h2 class="home__section-title">Recent sessions</h2>
-    <div class="home__divider"></div>
+  <!-- ── Section 4: Quick actions ──────────────────────────────────────────── -->
+  <section class="hp-section" aria-label="Quick actions">
+    <h2 class="hp-section-title">Quick actions</h2>
+    <div class="hp-actions-row">
+      <button
+        class="hp-action-pill"
+        onclick={() => goto('/chat')}
+        aria-label="New chat"
+      >
+        <MessageSquare size={15} aria-hidden="true" />
+        <span>New chat</span>
+        <Kbd chord="⌘N" />
+      </button>
+      <button
+        class="hp-action-pill"
+        onclick={() => goto('/tasks?create=1')}
+        aria-label="New task"
+      >
+        <CheckSquare size={15} aria-hidden="true" />
+        <span>New task</span>
+        <Kbd chord="⌘T" />
+      </button>
+      <button
+        class="hp-action-pill"
+        onclick={() => goto('/docs?create=1')}
+        aria-label="New doc"
+      >
+        <FileText size={15} aria-hidden="true" />
+        <span>New doc</span>
+        <Kbd chord="⌘D" />
+      </button>
+      <button
+        class="hp-action-pill"
+        onclick={() => goto('/sessions?create=1')}
+        aria-label="New session"
+      >
+        <Terminal size={15} aria-hidden="true" />
+        <span>New session</span>
+        <Kbd chord="⌘S" />
+      </button>
+    </div>
+  </section>
 
-    {#if $recentSessionsQ.isLoading}
-      {#each Array(3) as _, i (i)}
-        <div class="session-row-skeleton" aria-hidden="true">
-          <div class="skeleton-dot"></div>
-          <div class="skeleton-text skeleton-text--wide"></div>
-          <div class="skeleton-text skeleton-text--narrow"></div>
-        </div>
-      {/each}
-    {:else if $recentSessionsQ.isError}
-      <div class="home__inline-error">
-        <span>Couldn't load recent sessions.</span>
-        <button
-          class="btn-compact btn-compact-ghost"
-          onclick={() => $recentSessionsQ.refetch()}
-        >Retry</button>
+  <!-- ── Section 5: Recent activity ────────────────────────────────────────── -->
+  <section class="hp-section" aria-label="Recent activity">
+    <h2 class="hp-section-title">Recent activity</h2>
+    {#if activityLoading}
+      <div class="hp-activity-list">
+        {#each Array(4) as _, i (i)}
+          <div class="hp-activity-skeleton" aria-hidden="true">
+            <div class="hp-skel-icon"></div>
+            <div class="hp-skel-text"></div>
+            <div class="hp-skel-time"></div>
+          </div>
+        {/each}
       </div>
-    {:else if recentSessions.length === 0}
-      <p class="home__empty-tip">No sessions yet. Start one above, or press <Kbd chord="⌘K" /> to open the command palette.</p>
+    {:else if recentActivity.length === 0}
+      <p class="hp-empty">No recent activity. Start using Canopy to see updates here.</p>
     {:else}
-      <ul class="session-list" role="list">
-        {#each recentSessions as s (s.id)}
+      <ul class="hp-activity-list" role="list">
+        {#each recentActivity as item (item.id)}
           <li>
             <button
-              class="session-row"
-              onclick={() => goto(`/sessions/${s.id}`)}
-              aria-label="Open session: {s.agentSlug ?? 'Direct prompt'}"
+              class="hp-activity-row"
+              onclick={() => goto(item.href)}
+              aria-label={item.label}
             >
-              <StatusDot
-                color={s.status === 'running' ? 'green' : s.status === 'error' ? 'red' : 'grey'}
-                pulse={s.status === 'running'}
-              />
-              <span class="session-row__agent">{s.agentSlug ?? 'Direct prompt'}</span>
-              <span class="session-row__runtime">{s.runtimeType}</span>
-              <span class="session-row__meta">{formatDuration(sessionDurationMs(s))}</span>
-              <span class="session-row__time">{s.startedAt ? formatRelative(s.startedAt) : '—'}</span>
+              <span class="hp-activity-icon" aria-hidden="true">
+                {#if item.kind === 'session'}
+                  <Terminal size={14} />
+                {:else}
+                  <CheckSquare size={14} />
+                {/if}
+              </span>
+              <span class="hp-activity-label">{item.label}</span>
+              <time class="hp-activity-time" datetime={item.timestamp}>
+                {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+              </time>
             </button>
           </li>
         {/each}
       </ul>
     {/if}
   </section>
-
-  <!-- Pinned agents -->
-  <section class="home__section" aria-label="Pinned agents">
-    <h2 class="home__section-title">Pinned agents</h2>
-    <div class="home__divider"></div>
-
-    {#if $pinnedAgentsQ.isLoading}
-      <div class="agent-grid">
-        {#each Array(4) as _, i (i)}
-          <div class="agent-card-skeleton" aria-hidden="true">
-            <div class="skeleton-emoji"></div>
-            <div class="skeleton-text skeleton-text--wide"></div>
-            <div class="skeleton-text skeleton-text--narrow"></div>
-          </div>
-        {/each}
-      </div>
-    {:else if pinnedAgents.length === 0}
-      <EmptyState
-        icon={Bot as never}
-        title="No agents hired yet"
-        body="Browse the agent library and hire the ones you want available here."
-        action="Browse agents"
-        onAction={() => goto('/agents')}
-      />
-    {:else}
-      <div class="agent-grid">
-        {#each pinnedAgents.slice(0, 4) as agent (agent.slug)}
-          <AgentCard
-            {agent}
-            onHire={handleHire}
-            onRun={handleRun}
-            isHiring={$hireMut.isPending && $hireMut.variables?.slug === agent.slug}
-          />
-        {/each}
-      </div>
-    {/if}
-  </section>
 </div>
 
 <style>
-  .home {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-6);
-    padding: var(--space-10) var(--space-8);
-    overflow-y: auto;
-    max-width: 760px;
-    margin: 0 auto;
-    width: 100%;
+  .hp-root {
+    flex: 1; display: flex; flex-direction: column;
+    gap: 32px; padding: var(--space-10) var(--space-8);
+    overflow-y: auto; max-width: 800px; margin: 0 auto; width: 100%;
   }
 
-  .home__header {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
+  /* Greeting */
+  .hp-greeting-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+  .hp-greeting-text { display: flex; flex-direction: column; gap: var(--space-1); }
+  .hp-greeting { font-family: var(--font-serif); font-size: 28px; font-weight: 400; color: var(--fg); margin: 0; line-height: 1.1; letter-spacing: -0.02em; }
+  .hp-date { font-size: 13px; color: var(--fg-muted); margin: 0; }
+  .hp-greeting-controls { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+  .hp-mode-pill {
+    display: inline-flex; align-items: center; padding: 2px 8px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--fg-subtle); background: var(--bg-inset);
+    border: 1px solid var(--border); border-radius: var(--radius-md); user-select: none;
   }
 
-  .home__greeting {
-    font-family: var(--font-serif);
-    font-size: var(--text-3xl);
-    font-weight: 400;
-    color: var(--fg);
-    margin: 0;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
+  /* Stat strip */
+  .hp-stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
+  .hp-stat-card {
+    display: flex; flex-direction: column; gap: var(--space-1);
+    padding: var(--space-3); background: var(--bg-inset);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    cursor: pointer; text-align: left; font-family: inherit;
+    transition: border-color var(--dur-fast) var(--ease-out);
+    min-height: 72px; justify-content: center;
   }
+  .hp-stat-card:hover { border-color: var(--cnp-accent); }
+  .hp-stat-card--warn { border-color: color-mix(in oklch, var(--signal-warn) 40%, var(--border) 60%); }
+  .hp-stat-card--warn:hover { border-color: var(--signal-warn); }
+  .hp-stat-num-row { display: flex; align-items: center; gap: var(--space-2); }
+  .hp-stat-num { font-family: var(--font-mono); font-size: 28px; font-variant-numeric: tabular-nums; line-height: 1; color: var(--fg); white-space: nowrap; }
+  .hp-stat-num--warn { color: var(--signal-warn); }
+  .hp-stat-limit { font-size: 13px; color: var(--fg-subtle); }
+  .hp-stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-subtle); }
+  .hp-spend-bar { height: 2px; background: var(--border); border-radius: 9999px; overflow: hidden; margin: 2px 0; }
+  .hp-spend-bar__fill { height: 100%; background: var(--cnp-accent); border-radius: 9999px; transition: width var(--dur-fast) var(--ease-out); }
 
-  .home__subtext {
-    font-family: var(--font-sans);
-    font-size: var(--text-lg);
-    color: var(--fg-muted);
-    margin: 0;
-    letter-spacing: -0.015em;
-  }
+  /* Sections */
+  .hp-section { display: flex; flex-direction: column; gap: var(--space-3); }
+  .hp-section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-subtle); margin: 0; padding-bottom: var(--space-2); border-bottom: 1px solid var(--border); }
+  .hp-empty { font-size: 13px; color: var(--fg-subtle); margin: 0; }
 
-  .home__composer-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
+  /* Active agents */
+  .hp-agent-grid { display: flex; flex-direction: column; gap: var(--space-1); }
+  .hp-agent-skeleton { height: 40px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--radius-md); animation: hp-pulse 1.5s ease-in-out infinite; }
+  .hp-more-link { font-size: 13px; color: var(--cnp-accent); text-decoration: none; align-self: flex-start; }
+  .hp-more-link:hover { text-decoration: underline; }
 
-  .home__submitting {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    color: var(--fg-subtle);
-    margin: 0;
-    animation: thinking-shimmer 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  /* Quick actions */
+  .hp-actions-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+  .hp-action-pill {
+    display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+    padding: var(--space-3) var(--space-2); background: var(--bg-inset);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    cursor: pointer; font-size: 13px; color: var(--fg);
+    transition: border-color var(--dur-fast) var(--ease-out); white-space: nowrap;
   }
+  .hp-action-pill:hover { border-color: var(--cnp-accent); }
+  .hp-action-pill:focus-visible { outline: 2px solid var(--cnp-accent); outline-offset: 2px; }
 
-  .home__section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
+  /* Recent activity */
+  .hp-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+  .hp-activity-row {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-2); border: none; background: transparent;
+    border-radius: var(--radius-md); cursor: pointer; width: 100%; text-align: left;
+    transition: background var(--dur-fast) var(--ease-out); min-height: 34px;
   }
-
-  .home__section-title {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: var(--fg-subtle);
-    margin: 0;
-    text-transform: uppercase;
-  }
-
-  .home__divider {
-    height: 1px;
-    background: var(--border);
-    margin-top: -var(--space-1);
-  }
-
-  .home__empty-tip {
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    color: var(--fg-subtle);
-    margin: 0;
-  }
-
-  .home__inline-error {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    color: var(--signal-error);
-  }
-
-  /* Session list */
-  .session-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .session-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    border: none;
-    background: transparent;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    width: 100%;
-    text-align: left;
-    transition: background var(--dur-instant) var(--ease-out);
-    min-height: 36px;
-  }
-
-  .session-row:hover {
-    background: color-mix(in oklch, var(--fg) 5%, transparent 95%);
-  }
-
-  .session-row__agent {
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    color: var(--fg);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .session-row__runtime,
-  .session-row__meta {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    color: var(--fg-subtle);
-    white-space: nowrap;
-  }
-
-  .session-row__time {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--fg-subtle);
-    white-space: nowrap;
-    min-width: 60px;
-    text-align: right;
-  }
-
-  /* Agent grid */
-  .agent-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: var(--space-3);
-  }
+  .hp-activity-row:hover { background: color-mix(in oklch, var(--fg) 4%, transparent 96%); }
+  .hp-activity-row:focus-visible { outline: 2px solid var(--cnp-accent); outline-offset: 2px; }
+  .hp-activity-icon { display: flex; align-items: center; color: var(--fg-subtle); flex-shrink: 0; }
+  .hp-activity-label { font-size: 13px; color: var(--fg); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hp-activity-time { font-family: var(--font-mono); font-size: 11px; color: var(--fg-subtle); white-space: nowrap; flex-shrink: 0; }
 
   /* Skeletons */
-  .session-row-skeleton {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    min-height: 36px;
-  }
+  .hp-activity-skeleton { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); min-height: 34px; }
+  .hp-skel-icon,
+  .hp-skel-text,
+  .hp-skel-time { background: var(--border); border-radius: var(--radius-sm); animation: hp-pulse 1.5s ease-in-out infinite; }
+  .hp-skel-icon { width: 14px; height: 14px; flex-shrink: 0; }
+  .hp-skel-text { flex: 1; height: 12px; max-width: 260px; }
+  .hp-skel-time { width: 56px; height: 10px; }
 
-  .skeleton-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 9999px;
-    background: var(--border);
-    flex-shrink: 0;
-    animation: pulse 1.5s ease-in-out infinite;
-  }
+  @keyframes hp-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
 
-  .skeleton-text {
-    height: 12px;
-    background: var(--border);
-    border-radius: var(--radius-sm);
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  .skeleton-text--wide {
-    flex: 1;
-    max-width: 200px;
-  }
-
-  .skeleton-text--narrow {
-    width: 60px;
-  }
-
-  .agent-card-skeleton {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-4);
-    background: var(--bg-elevated);
-    border-radius: var(--radius-xl);
-    border: 1px solid var(--border);
-    min-height: 140px;
-  }
-
-  .skeleton-emoji {
-    width: 32px;
-    height: 32px;
-    background: var(--border);
-    border-radius: var(--radius-sm);
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 0.8; }
-  }
-
-  @keyframes thinking-shimmer {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    .hp-stat-card, .hp-action-pill, .hp-activity-row, .hp-spend-bar__fill { transition: none; }
+    .hp-agent-skeleton, .hp-skel-icon, .hp-skel-text, .hp-skel-time { animation: none; }
   }
 </style>

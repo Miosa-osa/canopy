@@ -58,6 +58,11 @@ defmodule CanopyWeb.Router do
     get "/sessions/:id/messages", SessionsController, :messages
     get "/sessions/:id/events", SessionEventsController, :stream
 
+    # MIOSA settings
+    get "/miosa/health", MiosaController, :health
+    get "/miosa", MiosaController, :show
+    put "/settings/miosa", MiosaController, :update
+
     # MIOSA compute sandboxes
     get "/sandboxes", SandboxesController, :index
     get "/sandboxes/:sandbox_id", SandboxesController, :show
@@ -111,7 +116,6 @@ defmodule CanopyWeb.Router do
     get "/tasks", TasksController, :index
     post "/tasks", TasksController, :create
     get "/tasks/:id", TasksController, :show
-    put "/tasks/:id", TasksController, :update
     patch "/tasks/:id", TasksController, :update
     post "/tasks/:id/assign", TasksController, :assign
     post "/tasks/:id/complete", TasksController, :complete
@@ -124,6 +128,7 @@ defmodule CanopyWeb.Router do
     get "/knowledge-bases/:slug/chunks", KnowledgeController, :list_chunks
     post "/knowledge-bases/:slug/files", KnowledgeController, :add_file
     post "/knowledge-bases/:slug/search", KnowledgeController, :search
+    get "/knowledge-bases/:slug/assignments", KnowledgeController, :list_assignments
     post "/knowledge-bases/:slug/assignments", KnowledgeController, :assign
     delete "/knowledge-bases/:slug/assignments/:agent_slug", KnowledgeController, :unassign
     post "/knowledge-bases/:slug/rebuild", KnowledgeController, :rebuild

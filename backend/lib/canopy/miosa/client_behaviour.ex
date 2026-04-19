@@ -13,6 +13,9 @@ defmodule Canopy.Miosa.ClientBehaviour do
           status: String.t()
         }
 
+  @callback ping(opts :: keyword()) ::
+              {:ok, non_neg_integer()} | {:error, term()}
+
   @callback provision_sandbox(opts :: keyword()) ::
               {:ok, sandbox_result()} | {:error, term()}
 

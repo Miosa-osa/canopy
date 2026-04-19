@@ -40,12 +40,14 @@
 		class: className = ''
 	}: Props = $props();
 
-	const variantClass = `btn-pill-${variant}`;
-	const sizeClass = size !== 'md' ? `btn-pill-${size}` : '';
-	const blockClass = block ? 'btn-pill-block' : '';
-	const iconClass = iconOnly ? 'btn-pill-icon' : '';
-	const loadingClass = loading ? 'btn-pill-loading' : '';
-	const classes = ['btn-pill', variantClass, sizeClass, blockClass, iconClass, loadingClass, className].filter(Boolean).join(' ');
+	// Canopy fix: use $derived() so prop changes after mount update these reactive strings.
+	// Upstream uses const assignments which trigger state_referenced_locally in Svelte 5.
+	const variantClass = $derived(`btn-pill-${variant}`);
+	const sizeClass = $derived(size !== 'md' ? `btn-pill-${size}` : '');
+	const blockClass = $derived(block ? 'btn-pill-block' : '');
+	const iconClass = $derived(iconOnly ? 'btn-pill-icon' : '');
+	const loadingClass = $derived(loading ? 'btn-pill-loading' : '');
+	const classes = $derived(['btn-pill', variantClass, sizeClass, blockClass, iconClass, loadingClass, className].filter(Boolean).join(' '));
 </script>
 
 <button

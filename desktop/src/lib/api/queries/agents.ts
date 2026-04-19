@@ -127,3 +127,33 @@ export function createAgentMutation() {
     mutationFn: (body: CreateAgentBody) => createAgent(body),
   };
 }
+
+// ── Heartbeats ───────────────────────────────────────────────────────────────
+
+/** Raw heartbeat entry returned by GET /api/v1/agents/:slug/heartbeats */
+export interface AgentHeartbeat {
+  id: string;
+  agentSlug: string;
+  sessionId: string | null;
+  status: "ok" | "error" | "skipped";
+  message: string | null;
+  occurredAt: string;
+  insertedAt: string;
+}
+
+export function listAgentHeartbeats(slug: string): Promise<AgentHeartbeat[]> {
+  return apiGet<AgentHeartbeat[]>(`/agents/${slug}/heartbeats`);
+}
+
+/**
+ * Query options for an agent's heartbeat history.
+ * Backend: GET /api/v1/agents/:slug/heartbeats
+ */
+export function agentHeartbeatsQuery(slug: string) {
+  return {
+    queryKey: ["agents", slug, "heartbeats"] as const,
+    queryFn: () => listAgentHeartbeats(slug),
+    staleTime: 15_000,
+    enabled: Boolean(slug),
+  };
+}

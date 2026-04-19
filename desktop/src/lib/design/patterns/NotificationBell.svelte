@@ -204,7 +204,7 @@ function handleDropdownKeydown(e: KeyboardEvent): void {
       </div>
 
       <!-- List -->
-      <div class="nb-list" role="list">
+      <div class="nb-list" role="list" aria-label="Recent notifications">
         {#if $notifListQ.isLoading}
           <div class="nb-empty">Loading…</div>
         {:else if notifications.length === 0}
@@ -248,6 +248,18 @@ function handleDropdownKeydown(e: KeyboardEvent): void {
             </button>
           {/each}
         {/if}
+      </div>
+
+      <!-- Footer: View all link -->
+      <div class="nb-footer">
+        <a
+          class="nb-footer__link"
+          href="/notifications"
+          onclick={close}
+          aria-label="View all notifications"
+        >
+          View all
+        </a>
       </div>
     </div>
   {/if}
@@ -443,6 +455,34 @@ function handleDropdownKeydown(e: KeyboardEvent): void {
     line-clamp: 2;
     -webkit-box-orient: vertical;
     line-height: 1.4;
+  }
+
+  /* Footer — View all link */
+  .nb-footer {
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .nb-footer__link {
+    display: block;
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--fg-muted);
+    text-align: center;
+    text-decoration: none;
+    transition: color 0.1s ease, background 0.1s ease;
+  }
+
+  .nb-footer__link:hover {
+    color: var(--fg);
+    background: color-mix(in oklch, var(--fg) 4%, transparent);
+  }
+
+  .nb-footer__link:focus-visible {
+    outline: 2px solid var(--cnp-accent);
+    outline-offset: -2px;
   }
 
   /* Unread dot — right edge */

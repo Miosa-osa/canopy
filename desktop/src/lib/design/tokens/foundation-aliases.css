@@ -49,4 +49,57 @@
   --color-sidebar-accent-foreground:  var(--sidebar-accent-fg);
   --color-sidebar-border:             var(--sidebar-border);
   --color-sidebar-ring:               var(--sidebar-ring);
+
+  /* ── Foundation --bos-* token bridges ──────────────────────────────────────
+   * Foundation upstream (Button, Input, Tooltip, Select, Slider, etc.) uses
+   * --bos-* tokens with hardcoded fallbacks. These aliases override the fallbacks
+   * so Foundation components respect Canopy's Multica OKLCh palette in both modes.
+   * Upstream files are not patched to keep them diff-identical to miosa-foundation.
+   * Track #116 — Phase 6 token alignment.
+   */
+
+  /* Text */
+  --bos-v2-text-primary:                        var(--fg);
+  --bos-v2-text-secondary:                      var(--fg-muted);
+  --bos-v2-icon-primary:                        var(--fg-muted);
+  --bos-placeholder-color:                      var(--fg-subtle);
+
+  /* Backgrounds / layers */
+  --bos-v2-layer-background-primary:            var(--bg);
+  --bos-v2-layer-background-hoverOverlay:       oklch(0 0 0 / 4%);
+  --bos-v2-layer-background-overlayPanel:       var(--popover-bg);
+
+  /* Borders */
+  --bos-v2-layer-insideBorder-border:           var(--border);
+  --bos-v2-layer-insideBorder-blackBorder:      var(--border);
+  --bos-v2-layer-insideBorder-primaryBorder:    var(--border-strong);
+
+  /* Buttons */
+  --bos-v2-button-primary:                      var(--primary);
+  --bos-v2-button-pureWhiteText:                var(--primary-fg);
+  --bos-v2-button-secondary:                    var(--secondary);
+  --bos-v2-button-error:                        var(--destructive);
+  --bos-v2-button-success:                      var(--success);
+
+  /* Semantic state colors */
+  --bos-error-color:                            var(--destructive);
+  --bos-background-error-color:                 oklch(from var(--destructive) l c h / 0.1);
+  --bos-success-color:                          var(--success);
+  --bos-warning-color:                          var(--warning);
+
+  /* Tooltip */
+  --bos-tooltip:                                var(--bg-inset);
+
+  /* Typography */
+  --bos-font-family:                            var(--font-sans);
+  --bos-font-code-family:                       var(--font-mono);
+  --bos-font-xs:                                var(--text-xs);
+  --bos-font-sm:                                var(--text-sm);
+  --bos-font-base:                              var(--text-base);
+
+  /* Elevation + z-index */
+  --bos-shadow-2:                               0 4px 16px oklch(0 0 0 / 12%);
+  --bos-popover-shadow:                         0 8px 32px oklch(0 0 0 / 14%);
+  --bos-popover-radius:                         10px;
+  --bos-z-index-popover:                        1001;
 }

@@ -36,24 +36,44 @@
 		xl: '48px'
 	};
 
-	const isClickable = onclick !== undefined;
+	// Canopy fix: $derived() keeps reactivity if onclick prop changes after mount.
+	// Render as <button> when clickable — avoids a11y_no_noninteractive_tabindex on <div>.
+	const isClickable = $derived(onclick !== undefined);
 </script>
 
-<div
-	class="glass-card {className}"
-	class:osa-glass--hoverable={hoverable || isClickable}
-	style:padding={paddingMap[padding]}
-	role={isClickable ? 'button' : undefined}
-	tabindex={isClickable ? 0 : undefined}
-	{onclick}
-	onkeypress={(e) => e.key === 'Enter' && isClickable && onclick?.(e as any)}
->
-	{#if children}
-		{@render children()}
-	{/if}
-</div>
+{#if isClickable}
+	<button
+		type="button"
+		class="glass-card {className}"
+		class:osa-glass--hoverable={hoverable || isClickable}
+		style:padding={paddingMap[padding]}
+		{onclick}
+	>
+		{#if children}
+			{@render children()}
+		{/if}
+	</button>
+{:else}
+	<div
+		class="glass-card {className}"
+		class:osa-glass--hoverable={hoverable}
+		style:padding={paddingMap[padding]}
+	>
+		{#if children}
+			{@render children()}
+		{/if}
+	</div>
+{/if}
 
 <style>
+	/* When GlassCard renders as <button>, strip native button chrome */
+	button.glass-card {
+		appearance: none;
+		font-family: inherit;
+		font-size: inherit;
+		text-align: inherit;
+		width: 100%;
+	}
 	.osa-glass--hoverable {
 		cursor: pointer;
 		transition: transform 0.2s ease, box-shadow 0.2s ease;

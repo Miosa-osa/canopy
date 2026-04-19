@@ -218,6 +218,50 @@ defmodule CanopyWeb.KnowledgeControllerTest do
   end
 
   # ---------------------------------------------------------------------------
+  # GET /api/v1/knowledge-bases/:slug/assignments
+  # ---------------------------------------------------------------------------
+
+  describe "GET /api/v1/knowledge-bases/:slug/assignments" do
+    test "returns 200 with empty list when KB has no assignments", %{conn: conn} do
+      insert(:knowledge_base, slug: "list-assign-empty-kb")
+
+      conn = get(conn, "/api/v1/knowledge-bases/list-assign-empty-kb/assignments")
+      body = json_response(conn, 200)
+      assert body["data"] == []
+    end
+
+    test "returns 200 with all assignments for a KB", %{conn: conn} do
+      kb = insert(:knowledge_base, slug: "list-assign-populated-kb")
+      Knowledge.assign(kb.id, "agent-alpha")
+      Knowledge.assign(kb.id, "agent-beta")
+
+      conn = get(conn, "/api/v1/knowledge-bases/list-assign-populated-kb/assignments")
+      body = json_response(conn, 200)
+      agent_slugs = Enum.map(body["data"], & &1["agent_slug"])
+      assert "agent-alpha" in agent_slugs
+      assert "agent-beta" in agent_slugs
+    end
+
+    test "returns 404 for unknown KB slug", %{conn: conn} do
+      conn = get(conn, "/api/v1/knowledge-bases/no-such-kb/assignments")
+      assert json_response(conn, 404)
+    end
+
+    test "returned assignment has expected shape", %{conn: conn} do
+      kb = insert(:knowledge_base, slug: "list-assign-shape-kb")
+      Knowledge.assign(kb.id, "shape-agent")
+
+      conn = get(conn, "/api/v1/knowledge-bases/list-assign-shape-kb/assignments")
+      body = json_response(conn, 200)
+      [assignment] = body["data"]
+      assert assignment["agent_slug"] == "shape-agent"
+      assert Map.has_key?(assignment, "kb_id")
+      assert Map.has_key?(assignment, "priority")
+      assert Map.has_key?(assignment, "inserted_at")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # POST /api/v1/knowledge-bases/:slug/assignments
   # ---------------------------------------------------------------------------
 

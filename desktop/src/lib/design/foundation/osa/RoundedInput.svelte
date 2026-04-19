@@ -43,7 +43,8 @@
 		class: className = ''
 	}: Props = $props();
 
-	const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+	// Canopy fix: $derived() so inputId updates if `id` prop changes after mount.
+	const inputId = $derived(id || `input-${Math.random().toString(36).substr(2, 9)}`);
 </script>
 
 <div class="osa-input-group">

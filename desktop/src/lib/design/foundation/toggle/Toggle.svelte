@@ -47,6 +47,7 @@
 		id={inputId}
 		aria-checked={checked}
 		aria-disabled={disabled || undefined}
+		aria-label={label ?? 'Toggle'}
 		class="bos-toggle"
 		data-size={size}
 		data-checked={checked || undefined}

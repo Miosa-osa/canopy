@@ -31,6 +31,38 @@ defmodule Canopy.Miosa.Client do
   # ---------------------------------------------------------------------------
 
   @doc """
+  Lightweight reachability check — GETs `{base_url}/v1/health` with a 5 s timeout.
+
+  Any 2xx or 4xx response is treated as "reachable" (the remote server is up,
+  auth errors are still a connection, not a network failure). Only transport
+  errors (connection refused, DNS failure, timeout) return `{:error, reason}`.
+
+  Returns `{:ok, latency_ms}` where `latency_ms` is the round-trip time.
+  """
+  @spec ping(keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def ping(opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, 5_000)
+    start = System.monotonic_time(:millisecond)
+
+    result =
+      build_client()
+      |> Req.get(url: "/v1/health", receive_timeout: timeout)
+
+    elapsed = System.monotonic_time(:millisecond) - start
+
+    case result do
+      {:ok, %{status: status}} when status in 200..499 ->
+        {:ok, elapsed}
+
+      {:ok, %{status: status}} ->
+        {:error, {:unexpected_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
   Provisions a new MIOSA sandbox.
 
   ## Options

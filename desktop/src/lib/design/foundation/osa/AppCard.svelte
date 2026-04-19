@@ -36,15 +36,14 @@
 		children
 	}: Props = $props();
 
-	const firstLetter = title.charAt(0).toUpperCase();
+	// Canopy fix: $derived() so firstLetter updates if title prop changes after mount.
+	const firstLetter = $derived(title.charAt(0).toUpperCase());
 </script>
 
-<div
+<button
+	type="button"
 	class="osa-app-card {className}"
-	role="button"
-	tabindex="0"
 	{onclick}
-	onkeypress={(e) => e.key === 'Enter' && onclick?.(e as any)}
 >
 	{#if usagePercentage !== undefined}
 		<div class="osa-app-card__usage">{usagePercentage}%</div>
@@ -67,10 +66,14 @@
 	{#if children}
 		{@render children()}
 	{/if}
-</div>
+</button>
 
 <style>
 	.osa-app-card {
+		/* button resets */
+		appearance: none;
+		font-family: inherit;
+		/* layout */
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -83,6 +86,7 @@
 		transition: transform 0.2s ease, box-shadow 0.2s ease;
 		position: relative;
 		text-align: center;
+		width: 100%;
 	}
 	.osa-app-card:hover {
 		transform: translateY(-2px);
