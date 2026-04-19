@@ -20,8 +20,28 @@
   import StatusDot from '$lib/design/patterns/StatusDot.svelte';
   import type { CreateTaskBody, Task, TaskFilters, TaskStatus } from '$lib/domain/tasks/types.js';
   import { toasts } from '$lib/stores/toasts.svelte.js';
+  import KanbanBoard from '$lib/design/patterns/KanbanBoard.svelte';
 
   const queryClient = useQueryClient();
+
+  // ── View toggle (list | board) ────────────────────────────────────────────────
+
+  const VIEW_KEY = 'canopy.tasks.view';
+  type ViewMode = 'list' | 'board';
+
+  function loadView(): ViewMode {
+    if (typeof localStorage === 'undefined') return 'list';
+    const stored = localStorage.getItem(VIEW_KEY);
+    return stored === 'board' ? 'board' : 'list';
+  }
+
+  let viewMode = $state<ViewMode>(loadView());
+
+  $effect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(VIEW_KEY, viewMode);
+    }
+  });
 
   // ── Filter state ─────────────────────────────────────────────────────────────
 
@@ -147,6 +167,23 @@
   <!-- Header -->
   <header class="tl-header">
     <h1 class="tl-title">Tasks</h1>
+
+    <!-- View toggle: List | Board -->
+    <div class="tl-view-toggle" role="group" aria-label="View mode">
+      <button
+        class="tl-view-btn"
+        class:tl-view-btn--active={viewMode === 'list'}
+        onclick={() => (viewMode = 'list')}
+        aria-pressed={viewMode === 'list'}
+      >List</button>
+      <button
+        class="tl-view-btn"
+        class:tl-view-btn--active={viewMode === 'board'}
+        onclick={() => (viewMode = 'board')}
+        aria-pressed={viewMode === 'board'}
+      >Board</button>
+    </div>
+
     <button
       class="btn-pill btn-pill-primary btn-pill-sm"
       onclick={openCreate}
@@ -274,6 +311,11 @@
     </form>
   {/if}
 
+  <!-- Board view -->
+  {#if viewMode === 'board'}
+    <KanbanBoard filters={filters} />
+  {:else}
+
   <!-- List / states -->
   {#if $query.isError}
     <EmptyState
@@ -338,6 +380,7 @@
       </table>
     </div>
   {/if}
+  {/if}
 </div>
 
 <style>
@@ -358,6 +401,44 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: var(--space-3);
+  }
+
+  /* View toggle segmented control */
+  .tl-view-toggle {
+    display: flex;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full, 9999px);
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .tl-view-btn {
+    padding: 3px 12px;
+    border-radius: 9999px;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--fg-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+    white-space: nowrap;
+  }
+
+  .tl-view-btn:hover {
+    color: var(--fg);
+  }
+
+  .tl-view-btn--active {
+    background: color-mix(in oklch, var(--fg) 12%, transparent);
+    color: var(--fg);
+  }
+
+  .tl-view-btn:focus-visible {
+    outline: 2px solid var(--cnp-accent, oklch(0.78 0.18 145));
+    outline-offset: 2px;
   }
 
   .tl-title {

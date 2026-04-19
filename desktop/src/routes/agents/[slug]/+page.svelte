@@ -26,6 +26,7 @@ import {
 } from '$lib/api/queries/agents.js';
 import { Breadcrumb, BreadcrumbItem } from '$lib/design/foundation/breadcrumb';
 import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
+import AgentLiveCard from '$lib/design/patterns/AgentLiveCard.svelte';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
 import PushPanel from '$lib/design/patterns/PushPanel.svelte';
@@ -234,6 +235,11 @@ const renderedHtml = $derived(
       </div>
     </header>
 
+    <!-- Live session banner — shown only while agent has a running session -->
+    <div class="agent-detail__live-banner">
+      <AgentLiveCard agent={agent as Agent} full />
+    </div>
+
     <!-- Body: persona + metadata panel -->
     <div class="agent-detail__body">
       <!-- Left: persona prose / editor -->
@@ -330,6 +336,23 @@ const renderedHtml = $derived(
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+  }
+
+  /*
+   * Live session banner: sticky below the top bar, full width.
+   * AgentLiveCard internally hides itself when in idle state (no running session),
+   * but the wrapping div takes no vertical space when the card collapses to minimal
+   * height. We let the card manage its own visibility — the wrapper just provides
+   * the sticky context and horizontal padding.
+   */
+  .agent-detail__live-banner {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: var(--space-2) var(--space-5);
+    border-bottom: 1px solid transparent;
+    background: var(--bg);
+    /* Border only appears when agent is running (card has border in running state) */
   }
 
   .agent-detail__topbar {

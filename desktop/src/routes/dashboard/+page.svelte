@@ -16,9 +16,12 @@ import { writable } from 'svelte/store';
 import { untrack } from 'svelte';
 import { goto } from '$app/navigation';
 import { dashboardSummaryQuery } from '$lib/api/queries/dashboard.js';
+import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
 import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+import AgentLiveCard from '$lib/design/patterns/AgentLiveCard.svelte';
 import type { DashboardSummary, RecentSession, SpendByAgent } from '$lib/domain/dashboard/types.js';
+import type { Agent } from '$lib/domain/agents/types.js';
 import type { CreateQueryOptions } from '@tanstack/svelte-query';
 
 const queryClient = useQueryClient();
@@ -28,6 +31,20 @@ const queryOptsStore = writable(
 );
 
 const query = createQuery<DashboardSummary>(queryOptsStore);
+
+// Hired agents — used to look up full Agent objects for AgentLiveCard
+const hiredAgentsOptsStore = writable(
+  untrack(() => hiredAgentsQuery() as CreateQueryOptions<Agent[]>)
+);
+const hiredQ = createQuery<Agent[]>(hiredAgentsOptsStore);
+
+/** Map from agent slug → full Agent for cards. */
+const agentBySlug = $derived(
+  ($hiredQ.data ?? []).reduce<Record<string, Agent>>((acc, a) => {
+    acc[a.slug] = a;
+    return acc;
+  }, {})
+);
 
 const summary = $derived($query.data ?? null);
 
@@ -137,25 +154,31 @@ function handleRefresh(): void {
       {:else if !summary || summary.activeAgents.length === 0}
         <p class="cc-empty-msg">No agents are currently running.</p>
       {:else}
-        <ul class="cc-agent-list" role="list">
-          {#each summary.activeAgents as agent (agent.currentSessionId)}
-            <li class="cc-agent-row-wrap">
-            <button
-              class="cc-agent-row"
-              onclick={() => goto(`/sessions/${agent.currentSessionId}`)}
-              aria-label="Open session for {agent.agentSlug ?? 'unknown agent'}"
-            >
-              <StatusDot color="green" pulse={true} />
-              <span class="cc-agent-slug">{agent.agentSlug ?? '—'}</span>
-              <span class="cc-agent-meta">{relativeTime(agent.startedAt)}</span>
-              {#if agent.latestEntryKind}
-                <span class="cc-entry-kind">{agent.latestEntryKind}</span>
-              {/if}
-              <span class="cc-chevron" aria-hidden="true">›</span>
-            </button>
-            </li>
+        {@const visible = summary.activeAgents.slice(0, 8)}
+        {@const overflow = summary.activeAgents.length - visible.length}
+        <div class="cc-live-grid">
+          {#each visible as activeAgent (activeAgent.currentSessionId)}
+            {@const fullAgent = agentBySlug[activeAgent.agentSlug ?? '']}
+            {#if fullAgent}
+              <AgentLiveCard agent={fullAgent} compact />
+            {:else}
+              <!-- Fallback row while hiredAgentsQuery resolves -->
+              <button
+                class="cc-agent-row"
+                onclick={() => goto(`/sessions/${activeAgent.currentSessionId}`)}
+                aria-label="Open session for {activeAgent.agentSlug ?? 'unknown agent'}"
+              >
+                <StatusDot color="green" pulse={true} />
+                <span class="cc-agent-slug">{activeAgent.agentSlug ?? '—'}</span>
+                <span class="cc-agent-meta">{relativeTime(activeAgent.startedAt)}</span>
+                <span class="cc-chevron" aria-hidden="true">›</span>
+              </button>
+            {/if}
           {/each}
-        </ul>
+        </div>
+        {#if overflow > 0}
+          <a class="cc-overflow-link" href="/agents?hired=true">+ {overflow} more</a>
+        {/if}
       {/if}
     </section>
 
@@ -420,19 +443,29 @@ function handleRefresh(): void {
   }
 
   /* ── Active Agents widget ── */
-  .cc-agent-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+
+  /* 2-column grid for AgentLiveCard compact cards; collapses to 1 on narrow */
+  .cc-live-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
   }
 
-  .cc-agent-row-wrap {
-    list-style: none;
+  .cc-overflow-link {
+    display: inline-block;
+    margin-top: var(--space-1);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--fg-subtle);
+    text-decoration: none;
   }
 
+  .cc-overflow-link:hover {
+    color: var(--fg-muted);
+    text-decoration: underline;
+  }
+
+  /* Fallback row (while hiredAgentsQuery is resolving) */
   .cc-agent-row {
     display: flex;
     align-items: center;
@@ -469,15 +502,6 @@ function handleRefresh(): void {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--fg-muted);
-  }
-
-  .cc-entry-kind {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--fg-subtle);
-    background: color-mix(in oklch, var(--fg) 8%, transparent 92%);
-    border-radius: var(--radius-sm);
-    padding: 1px 5px;
   }
 
   .cc-chevron {
@@ -676,6 +700,10 @@ function handleRefresh(): void {
 
     .cc-bar-row {
       grid-template-columns: 6rem 1fr 3.5rem;
+    }
+
+    .cc-live-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>

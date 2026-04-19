@@ -17,6 +17,8 @@
 import { Activity, Brain, FilePlus, FileText, Search, Terminal, Wrench } from 'lucide-svelte';
 import { tick } from 'svelte';
 import type { TranscriptEntry } from '$lib/domain/sessions/types.js';
+import { groupTranscript } from '$lib/utils/transcript-grouping.js';
+import type { GroupedEntry } from '$lib/utils/transcript-grouping.js';
 
 // ── Icon mapping (OpenAgents pattern, adapted) ───────────────────────────────
 // Maps cleaned tool names to Lucide icons.
@@ -97,12 +99,17 @@ let showAll = $state(false);
 
 // ── Derived ──────────────────────────────────────────────────────────────────
 
+/** Full grouped list — re-computed on every SSE append (pure function, safe). */
+const groupedMessages = $derived(groupTranscript(messages));
+
 const visibleMessages = $derived(
-  messages.length > SHOW_LIMIT && !showAll ? messages.slice(messages.length - SHOW_LIMIT) : messages
+  groupedMessages.length > SHOW_LIMIT && !showAll
+    ? groupedMessages.slice(groupedMessages.length - SHOW_LIMIT)
+    : groupedMessages
 );
 
 const hiddenCount = $derived(
-  messages.length > SHOW_LIMIT && !showAll ? messages.length - SHOW_LIMIT : 0
+  groupedMessages.length > SHOW_LIMIT && !showAll ? groupedMessages.length - SHOW_LIMIT : 0
 );
 
 /** True when the last entry is a thinking entry and we are still streaming. */
@@ -148,9 +155,18 @@ function stringify(val: unknown): string {
   }
 }
 
-function entryKey(entry: TranscriptEntry): string {
-  return entry.id;
+function entryKey(grouped: GroupedEntry): string {
+  if (grouped.kind === 'single') return grouped.entry.id;
+  if (grouped.kind === 'command_group') return `cg-${grouped.commands[0].call.id}`;
+  return `tg-${grouped.tools[0].call.id}`;
 }
+
+/**
+ * Default collapsed threshold: collapse command_groups with >5 commands,
+ * collapse tool_groups with >3 tools.
+ */
+const CMD_COLLAPSE_THRESHOLD = 5;
+const TOOL_COLLAPSE_THRESHOLD = 3;
 </script>
 
 <div
@@ -178,106 +194,184 @@ function entryKey(entry: TranscriptEntry): string {
       </button>
     {/if}
 
-    {#each visibleMessages as entry (entryKey(entry))}
-      <div class="tv-entry tv-entry--{entry.kind} list-item">
+    {#each visibleMessages as grouped (entryKey(grouped))}
 
-        <!-- assistant -->
-        {#if entry.kind === 'assistant'}
-          <p class="tv-assistant-text">{entry.text}</p>
-
-        <!-- thinking — enhanced with live pulse when streaming -->
-        {:else if entry.kind === 'thinking'}
-          <div class="tv-thinking-block" class:tv-thinking-block--live={isLiveThinking && entry === messages[messages.length - 1]}>
-            <div class="tv-thinking-header">
-              <Brain size={12} class="tv-icon tv-icon--thinking" aria-hidden="true" />
-              <span class="tv-thinking-label" class:thinking={isLiveThinking}>thinking</span>
-            </div>
-            {#if entry.text && entry.text.toLowerCase() !== 'thinking' && entry.text !== 'thinking...'}
-              <p class="tv-thinking-text">{entry.text}</p>
+      <!-- ── command_group — collapsible shell run block ── -->
+      {#if grouped.kind === 'command_group'}
+        {@const failCount = grouped.exitCodes.filter((c) => c !== 0 && c !== -1).length}
+        {@const defaultOpen = grouped.commands.length <= CMD_COLLAPSE_THRESHOLD}
+        <details class="tv-group tv-group--cmd" open={defaultOpen}>
+          <summary class="tv-group-summary">
+            <span class="tv-group-chevron" aria-hidden="true">▸</span>
+            <Terminal size={12} class="tv-icon tv-icon--cmd" aria-hidden="true" />
+            <span class="tv-group-label">
+              {grouped.commands.length} shell {grouped.commands.length === 1 ? 'command' : 'commands'}
+            </span>
+            {#if failCount > 0}
+              <span class="tv-group-badge tv-group-badge--fail">{failCount} failed</span>
             {/if}
+          </summary>
+          <div class="tv-group-body">
+            {#each grouped.commands as { call, result }, cmdIdx}
+              {@const cmdPreview = argsPreview(call.toolName, call.args)}
+              {@const exitCode = grouped.exitCodes[cmdIdx]}
+              {@const rowId = `cmd-row-${call.id}`}
+              <details class="tv-cmd-row" id={rowId}>
+                <summary class="tv-cmd-row-summary">
+                  <span
+                    class="tv-exit-dot"
+                    class:tv-exit-dot--ok={exitCode === 0}
+                    class:tv-exit-dot--err={exitCode !== 0 && exitCode !== -1}
+                    aria-label={exitCode === 0 ? 'success' : exitCode === -1 ? 'unknown' : 'failed'}
+                  ></span>
+                  <span class="tv-cmd-text">$ {cmdPreview}</span>
+                </summary>
+                {#if result}
+                  <pre class="tv-cmd-output">{result.content}</pre>
+                {/if}
+              </details>
+            {/each}
           </div>
+        </details>
 
-        <!-- tool_call — collapsible card with icon + preview -->
-        {:else if entry.kind === 'tool_call'}
-          {@const toolId = entry.toolCallId}
-          {@const isOpen = expandedTools.has(toolId)}
-          {@const cleanName = cleanToolName(entry.toolName)}
-          {@const Icon = toolIcon(entry.toolName)}
-          {@const preview = argsPreview(entry.toolName, entry.args)}
-          <div class="tv-tool-call" data-tool-id={toolId}>
-            <button
-              class="tv-tool-header"
-              onclick={() => toggleTool(toolId)}
-              aria-expanded={isOpen}
-              aria-label="Toggle tool call: {cleanName}"
-            >
-              <span class="tv-tool-icon-wrap">
-                <Icon size={12} aria-hidden="true" />
-              </span>
-              <span class="tv-tool-name">{cleanName}</span>
-              {#if preview && !isOpen}
-                <span class="tv-tool-sep" aria-hidden="true">›</span>
-                <span class="tv-tool-preview">{preview}</span>
+      <!-- ── tool_group — collapsible non-shell tool block ── -->
+      {:else if grouped.kind === 'tool_group'}
+        {@const uniqueNames = [...new Set(grouped.toolNames)]}
+        {@const namesSummary = uniqueNames.slice(0, 4).join(', ') + (uniqueNames.length > 4 ? ', …' : '')}
+        {@const defaultOpen = grouped.tools.length <= TOOL_COLLAPSE_THRESHOLD}
+        <details class="tv-group tv-group--tools" open={defaultOpen}>
+          <summary class="tv-group-summary">
+            <span class="tv-group-chevron" aria-hidden="true">▸</span>
+            <Wrench size={12} class="tv-icon tv-icon--tool" aria-hidden="true" />
+            <span class="tv-group-label">
+              {grouped.tools.length} tool {grouped.tools.length === 1 ? 'call' : 'calls'}:
+            </span>
+            <span class="tv-group-names">{namesSummary}</span>
+          </summary>
+          <div class="tv-group-body">
+            {#each grouped.tools as { call, result }}
+              {@const cleanName = cleanToolName(call.toolName)}
+              {@const preview = argsPreview(call.toolName, call.args)}
+              <details class="tv-cmd-row">
+                <summary class="tv-cmd-row-summary">
+                  <span class="tv-tool-name-inline">{cleanName}</span>
+                  {#if preview}
+                    <span class="tv-tool-sep" aria-hidden="true">›</span>
+                    <span class="tv-cmd-text">{preview}</span>
+                  {/if}
+                </summary>
+                {#if result}
+                  <pre class="tv-cmd-output" class:tv-cmd-output--err={result.isError}>{result.content}</pre>
+                {/if}
+              </details>
+            {/each}
+          </div>
+        </details>
+
+      <!-- ── single entry — existing render paths unchanged ── -->
+      {:else}
+        {@const entry = grouped.entry}
+        <div class="tv-entry tv-entry--{entry.kind} list-item">
+
+          <!-- assistant -->
+          {#if entry.kind === 'assistant'}
+            <p class="tv-assistant-text">{entry.text}</p>
+
+          <!-- thinking — enhanced with live pulse when streaming -->
+          {:else if entry.kind === 'thinking'}
+            <div class="tv-thinking-block" class:tv-thinking-block--live={isLiveThinking && entry === messages[messages.length - 1]}>
+              <div class="tv-thinking-header">
+                <Brain size={12} class="tv-icon tv-icon--thinking" aria-hidden="true" />
+                <span class="tv-thinking-label" class:thinking={isLiveThinking}>thinking</span>
+              </div>
+              {#if entry.text && entry.text.toLowerCase() !== 'thinking' && entry.text !== 'thinking...'}
+                <p class="tv-thinking-text">{entry.text}</p>
               {/if}
-              <span class="tv-tool-chevron" class:open={isOpen} aria-hidden="true">▸</span>
-            </button>
-            {#if isOpen}
-              <pre class="tv-tool-args">{stringify(entry.args)}</pre>
-            {/if}
-          </div>
-
-        <!-- tool_result — tinted to match its parent tool_call -->
-        {:else if entry.kind === 'tool_result'}
-          {@const resultId = `result-${entry.toolCallId}`}
-          {@const isOpen = expandedTools.has(resultId)}
-          <div
-            class="tv-tool-result"
-            class:tv-tool-result--error={entry.isError}
-            data-parent-tool={entry.toolCallId}
-          >
-            <button
-              class="tv-tool-header tv-tool-header--result"
-              onclick={() => toggleTool(resultId)}
-              aria-expanded={isOpen}
-              aria-label="Toggle tool result"
-            >
-              <span class="tv-result-label">{entry.isError ? '✕ Error' : '✓ Result'}</span>
-              <span class="tv-tool-chevron" class:open={isOpen} aria-hidden="true">▸</span>
-            </button>
-            {#if isOpen}
-              <pre class="tv-tool-args">{entry.content}</pre>
-            {/if}
-          </div>
-
-        <!-- diff -->
-        {:else if entry.kind === 'diff'}
-          <div class="tv-diff">
-            <div class="tv-diff-header">
-              <span class="tv-diff-path">{entry.filePath}</span>
-              <span class="tv-diff-stats">
-                <span class="tv-diff-add">+{entry.additions}</span>
-                <span class="tv-diff-del">-{entry.deletions}</span>
-              </span>
-              <!-- placeholder — full diff viewer in Week 2 -->
-              <button class="tv-diff-link" onclick={() => {}}>Review Changes →</button>
             </div>
-            <pre class="tv-diff-patch">{entry.patch.slice(0, 600)}{entry.patch.length > 600 ? '\n…' : ''}</pre>
-          </div>
 
-        <!-- stdout -->
-        {:else if entry.kind === 'stdout'}
-          <pre class="tv-stdout">{entry.text}</pre>
+          <!-- tool_call — collapsible card with icon + preview -->
+          {:else if entry.kind === 'tool_call'}
+            {@const toolId = entry.toolCallId}
+            {@const isOpen = expandedTools.has(toolId)}
+            {@const cleanName = cleanToolName(entry.toolName)}
+            {@const Icon = toolIcon(entry.toolName)}
+            {@const preview = argsPreview(entry.toolName, entry.args)}
+            <div class="tv-tool-call" data-tool-id={toolId}>
+              <button
+                class="tv-tool-header"
+                onclick={() => toggleTool(toolId)}
+                aria-expanded={isOpen}
+                aria-label="Toggle tool call: {cleanName}"
+              >
+                <span class="tv-tool-icon-wrap">
+                  <Icon size={12} aria-hidden="true" />
+                </span>
+                <span class="tv-tool-name">{cleanName}</span>
+                {#if preview && !isOpen}
+                  <span class="tv-tool-sep" aria-hidden="true">›</span>
+                  <span class="tv-tool-preview">{preview}</span>
+                {/if}
+                <span class="tv-tool-chevron" class:open={isOpen} aria-hidden="true">▸</span>
+              </button>
+              {#if isOpen}
+                <pre class="tv-tool-args">{stringify(entry.args)}</pre>
+              {/if}
+            </div>
 
-        <!-- stderr -->
-        {:else if entry.kind === 'stderr'}
-          <pre class="tv-stderr">{entry.text}</pre>
+          <!-- tool_result — tinted to match its parent tool_call -->
+          {:else if entry.kind === 'tool_result'}
+            {@const resultId = `result-${entry.toolCallId}`}
+            {@const isOpen = expandedTools.has(resultId)}
+            <div
+              class="tv-tool-result"
+              class:tv-tool-result--error={entry.isError}
+              data-parent-tool={entry.toolCallId}
+            >
+              <button
+                class="tv-tool-header tv-tool-header--result"
+                onclick={() => toggleTool(resultId)}
+                aria-expanded={isOpen}
+                aria-label="Toggle tool result"
+              >
+                <span class="tv-result-label">{entry.isError ? '✕ Error' : '✓ Result'}</span>
+                <span class="tv-tool-chevron" class:open={isOpen} aria-hidden="true">▸</span>
+              </button>
+              {#if isOpen}
+                <pre class="tv-tool-args">{entry.content}</pre>
+              {/if}
+            </div>
 
-        <!-- system -->
-        {:else if entry.kind === 'system'}
-          <p class="tv-system">{entry.text}</p>
+          <!-- diff -->
+          {:else if entry.kind === 'diff'}
+            <div class="tv-diff">
+              <div class="tv-diff-header">
+                <span class="tv-diff-path">{entry.filePath}</span>
+                <span class="tv-diff-stats">
+                  <span class="tv-diff-add">+{entry.additions}</span>
+                  <span class="tv-diff-del">-{entry.deletions}</span>
+                </span>
+                <!-- placeholder — full diff viewer in Week 2 -->
+                <button class="tv-diff-link" onclick={() => {}}>Review Changes →</button>
+              </div>
+              <pre class="tv-diff-patch">{entry.patch.slice(0, 600)}{entry.patch.length > 600 ? '\n…' : ''}</pre>
+            </div>
 
-        {/if}
-      </div>
+          <!-- stdout -->
+          {:else if entry.kind === 'stdout'}
+            <pre class="tv-stdout">{entry.text}</pre>
+
+          <!-- stderr -->
+          {:else if entry.kind === 'stderr'}
+            <pre class="tv-stderr">{entry.text}</pre>
+
+          <!-- system -->
+          {:else if entry.kind === 'system'}
+            <p class="tv-system">{entry.text}</p>
+
+          {/if}
+        </div>
+      {/if}
+
     {/each}
 
     <!-- Live activity indicator when streaming and not already in thinking -->
@@ -615,6 +709,178 @@ function entryKey(entry: TranscriptEntry): string {
     font-size: var(--text-xs);
     font-style: italic;
     color: var(--fg-subtle);
+  }
+
+  /* ── Group blocks (command_group + tool_group) ─────────────────────────── */
+
+  .tv-group {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: color-mix(in oklch, var(--bg-inset) 80%, transparent 20%);
+  }
+
+  .tv-group-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    list-style: none;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+    font-weight: 500;
+    user-select: none;
+    transition: background var(--dur-instant) var(--ease-out);
+  }
+
+  .tv-group-summary::-webkit-details-marker { display: none; }
+
+  .tv-group-summary:hover {
+    background: color-mix(in oklch, var(--fg) 4%, transparent 96%);
+  }
+
+  .tv-group-chevron {
+    font-size: 10px;
+    transition: transform 0.15s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+    display: inline-block;
+    flex-shrink: 0;
+    color: var(--fg-subtle);
+  }
+
+  details[open] > .tv-group-summary > .tv-group-chevron {
+    transform: rotate(90deg);
+  }
+
+  :global(.tv-icon--cmd) {
+    color: var(--signal-thinking) !important;
+    flex-shrink: 0;
+  }
+
+  :global(.tv-icon--tool) {
+    color: var(--fg-muted) !important;
+    flex-shrink: 0;
+  }
+
+  .tv-group-label {
+    color: var(--signal-thinking);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .tv-group--tools .tv-group-label {
+    color: var(--fg-muted);
+  }
+
+  .tv-group-names {
+    color: var(--fg-subtle);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .tv-group-badge {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  .tv-group-badge--fail {
+    /* --signal-error if defined, else oklch fallback */
+    background: color-mix(in oklch, var(--signal-error, oklch(0.55 0.22 25)) 15%, transparent 85%);
+    color: var(--signal-error, oklch(0.55 0.22 25));
+  }
+
+  .tv-group-body {
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Individual command / tool rows within a group */
+  .tv-cmd-row {
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent 50%);
+  }
+
+  .tv-cmd-row:last-child { border-bottom: none; }
+
+  .tv-cmd-row-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    cursor: pointer;
+    list-style: none;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+    transition: background var(--dur-instant) var(--ease-out);
+    min-width: 0;
+  }
+
+  .tv-cmd-row-summary::-webkit-details-marker { display: none; }
+
+  .tv-cmd-row-summary:hover {
+    background: color-mix(in oklch, var(--fg) 3%, transparent 97%);
+  }
+
+  .tv-exit-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    /* neutral / unknown — uses fg-subtle tint */
+    background: color-mix(in oklch, var(--fg-subtle) 40%, transparent 60%);
+  }
+
+  .tv-exit-dot--ok {
+    /* --signal-success if defined, else oklch green */
+    background: var(--signal-success, oklch(0.65 0.18 145)); /* reconcile when token confirmed */
+  }
+
+  .tv-exit-dot--err {
+    background: var(--signal-error, oklch(0.55 0.22 25)); /* reconcile when token confirmed */
+  }
+
+  .tv-cmd-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    color: var(--fg-muted);
+  }
+
+  .tv-tool-name-inline {
+    color: var(--signal-thinking);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .tv-cmd-output {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.6;
+    color: var(--fg-muted);
+    border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent 50%);
+    overflow-x: auto;
+    max-height: 200px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: color-mix(in oklch, var(--bg-inset) 60%, transparent 40%);
+  }
+
+  .tv-cmd-output--err {
+    color: var(--signal-error, oklch(0.55 0.22 25));
+    background: color-mix(in oklch, var(--signal-error, oklch(0.55 0.22 25)) 5%, transparent 95%);
   }
 
   /* Live activity dots — breathing animation when streaming but not in thinking */
