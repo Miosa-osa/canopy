@@ -92,6 +92,50 @@ defmodule CanopyWeb.Schemas.AgentSchema do
     })
   end
 
+  defmodule CreateAgentRequest do
+    @moduledoc "Request body for POST /api/v1/agents — create a user-defined agent."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "CreateAgentRequest",
+      type: :object,
+      properties: %{
+        slug: %Schema{
+          type: :string,
+          description: "URL-safe identifier (lowercase kebab-case, 1-128 chars)"
+        },
+        name: %Schema{type: :string, description: "Display name (1-256 chars)"},
+        emoji: %Schema{type: :string, nullable: true, description: "Single emoji character"},
+        title: %Schema{
+          type: :string,
+          description: "Short role title, e.g. 'Senior Backend Engineer'"
+        },
+        description: %Schema{type: :string, nullable: true},
+        category: %Schema{type: :string, description: "One of the 19 canonical categories"},
+        persona_markdown: %Schema{
+          type: :string,
+          nullable: true,
+          description: "System-prompt body for the agent"
+        },
+        default_runtime: %Schema{type: :string, nullable: true},
+        default_model: %Schema{type: :string, nullable: true},
+        tools: %Schema{
+          type: :array,
+          items: %Schema{type: :string},
+          nullable: true,
+          description: "Tool names to enable for this agent"
+        },
+        heartbeat_cron: %Schema{
+          type: :string,
+          nullable: true,
+          description: "Cron expression for scheduled heartbeats"
+        }
+      },
+      required: [:slug, :name, :category]
+    })
+  end
+
   defmodule UpdatePersonaRequest do
     @moduledoc "Request body for PUT /api/v1/agents/:slug/persona."
 

@@ -16,6 +16,7 @@ defmodule Canopy.Factory do
   alias Canopy.Agents.Agent
   alias Canopy.Budgets.{Budget, SpendSnapshot}
   alias Canopy.Governance.{Approval, Rule}
+  alias Canopy.Knowledge.{KbAgentAssignment, KbChunk, KnowledgeBase}
   alias Canopy.Runtimes.{Runtime, RuntimeModel}
   alias Canopy.Sessions.{Session, SessionMessage}
   alias Canopy.Skills.Skill
@@ -182,6 +183,46 @@ defmodule Canopy.Factory do
       source: "local",
       tags: [],
       enabled: true
+    }
+  end
+
+  # ---------------------------------------------------------------------------
+  # Knowledge base factories
+  # ---------------------------------------------------------------------------
+
+  def knowledge_base_factory do
+    %KnowledgeBase{
+      slug: sequence(:slug, &"kb-#{&1}"),
+      name: sequence(:name, &"Knowledge Base #{&1}"),
+      description: "A test knowledge base",
+      workspace_slug: nil,
+      embedding_model: "text-embedding-3-small",
+      dimensions: 1536,
+      chunk_size: 800,
+      chunk_overlap: 100
+    }
+  end
+
+  def kb_chunk_factory do
+    content = sequence(:content, &"Chunk content number #{&1}. This is test text for embedding.")
+
+    %KbChunk{
+      knowledge_base: build(:knowledge_base),
+      source_path: sequence(:source_path, &"test/file-#{&1}.txt"),
+      chunk_index: 0,
+      content: content,
+      content_hash: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+      token_count: div(String.length(content), 4),
+      embedding: List.duplicate(0.0, 1536),
+      metadata: %{}
+    }
+  end
+
+  def kb_agent_assignment_factory do
+    %KbAgentAssignment{
+      knowledge_base: build(:knowledge_base),
+      agent_slug: sequence(:agent_slug, &"agent-#{&1}"),
+      priority: 0
     }
   end
 

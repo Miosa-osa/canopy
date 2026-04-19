@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   agentDetailQuery,
   agentsQuery,
+  createAgentMutation,
   fireAgentMutation,
   hireAgentMutation,
   updatePersonaMutation,
@@ -96,5 +97,23 @@ describe("updatePersonaMutation()", () => {
     // (calling it would make a real HTTP request)
     const fn = m.mutationFn;
     expect(fn.length).toBe(1);
+  });
+});
+
+describe("createAgentMutation()", () => {
+  it('returns mutationKey ["agents", "create"]', () => {
+    const m = createAgentMutation();
+    expect(m.mutationKey).toEqual(["agents", "create"]);
+  });
+
+  it("has a mutationFn function", () => {
+    const m = createAgentMutation();
+    expect(typeof m.mutationFn).toBe("function");
+  });
+
+  it("mutationFn accepts a CreateAgentBody argument", () => {
+    const m = createAgentMutation();
+    // Verify arity — it takes exactly one argument (the body)
+    expect(m.mutationFn.length).toBe(1);
   });
 });

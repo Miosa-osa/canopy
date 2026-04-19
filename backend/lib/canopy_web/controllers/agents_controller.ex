@@ -3,6 +3,7 @@ defmodule CanopyWeb.AgentsController do
   HTTP API for Canopy agent personas.
 
   Routes:
+    POST   /api/v1/agents                    — create a user-defined agent (hired: true)
     GET    /api/v1/agents                    — list agents (optional ?hired=true|false filter)
     GET    /api/v1/agents/:slug              — get agent detail with persona markdown
     PUT    /api/v1/agents/:slug/persona      — update persona markdown file
@@ -23,6 +24,44 @@ defmodule CanopyWeb.AgentsController do
   action_fallback CanopyWeb.FallbackController
 
   tags ["agents"]
+
+  operation :create,
+    summary: "Create a user-defined agent",
+    description: """
+    Creates a new agent from the supplied attributes and immediately hires it
+    (hired: true) so it is available for use right away.
+
+    The slug must be unique; a conflict returns 422 with changeset errors.
+    If `persona_path` is not supplied it defaults to `"user/{slug}.md"`.
+    """,
+    request_body:
+      {"Create agent", "application/json", AgentSchema.CreateAgentRequest, required: true},
+    responses: [
+      created: {"Created agent", "application/json", AgentSchema.AgentDetail},
+      unprocessable_entity:
+        {"Validation failure", "application/json", CanopyWeb.Schemas.RuntimeSchema.ErrorResponse}
+    ]
+
+  @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def create(conn, params) do
+    slug = Map.get(params, "slug", "")
+
+    attrs =
+      params
+      |> Map.put_new("persona_path", "user/#{slug}.md")
+
+    with {:ok, agent} <- Agents.create(attrs) do
+      body =
+        agent
+        |> Map.from_struct()
+        |> Map.drop([:__meta__])
+        |> Map.put(:persona_content, agent.persona_markdown)
+
+      conn
+      |> put_status(:created)
+      |> json(body)
+    end
+  end
 
   operation :index,
     summary: "List agents",

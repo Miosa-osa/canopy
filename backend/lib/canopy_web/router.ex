@@ -41,6 +41,7 @@ defmodule CanopyWeb.Router do
     get "/runtimes/:type/credentials", RuntimesController, :get_credentials
 
     # Agent management
+    post "/agents", AgentsController, :create
     get "/agents", AgentsController, :index
     get "/agents/:slug", AgentsController, :show
     put "/agents/:slug/persona", AgentsController, :update_persona
@@ -116,6 +117,18 @@ defmodule CanopyWeb.Router do
     post "/tasks/:id/complete", TasksController, :complete
     post "/tasks/:id/reopen", TasksController, :reopen
     delete "/tasks/:id", TasksController, :delete
+
+    # Knowledge Bases (RAG)
+    get "/knowledge-bases", KnowledgeController, :index
+    post "/knowledge-bases", KnowledgeController, :create
+    get "/knowledge-bases/:slug/chunks", KnowledgeController, :list_chunks
+    post "/knowledge-bases/:slug/files", KnowledgeController, :add_file
+    post "/knowledge-bases/:slug/search", KnowledgeController, :search
+    post "/knowledge-bases/:slug/assignments", KnowledgeController, :assign
+    delete "/knowledge-bases/:slug/assignments/:agent_slug", KnowledgeController, :unassign
+    post "/knowledge-bases/:slug/rebuild", KnowledgeController, :rebuild
+    get "/knowledge-bases/:slug", KnowledgeController, :show
+    delete "/knowledge-bases/:slug", KnowledgeController, :delete
 
     # Dashboard (Command Center)
     get "/dashboard/summary", DashboardController, :summary

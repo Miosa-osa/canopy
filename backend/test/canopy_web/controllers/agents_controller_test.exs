@@ -1,6 +1,7 @@
 defmodule CanopyWeb.AgentsControllerTest do
   @moduledoc """
   Tests for the AgentsController endpoints:
+    POST   /api/v1/agents                  — create user-defined agent
     GET    /api/v1/agents
     GET    /api/v1/agents/:slug
     PUT    /api/v1/agents/:slug/persona
@@ -12,6 +13,92 @@ defmodule CanopyWeb.AgentsControllerTest do
   use CanopyWeb.ConnCase, async: false
 
   import Canopy.Factory
+
+  # ---------------------------------------------------------------------------
+  # POST /api/v1/agents — create a user-defined agent
+  # ---------------------------------------------------------------------------
+
+  describe "POST /api/v1/agents" do
+    test "creates agent and returns 201 with agent detail", %{conn: conn} do
+      params = %{
+        slug: "my-support-agent",
+        name: "My Support Agent",
+        category: "support",
+        persona_markdown: "You are a helpful support agent."
+      }
+
+      conn = post(conn, "/api/v1/agents", params)
+      assert body = json_response(conn, 201)
+      assert body["slug"] == "my-support-agent"
+      assert body["name"] == "My Support Agent"
+      assert body["category"] == "support"
+      assert body["hired"] == true
+      assert body["persona_content"] == "You are a helpful support agent."
+      assert body["persona_path"] == "user/my-support-agent.md"
+    end
+
+    test "auto-hires the created agent", %{conn: conn} do
+      params = %{slug: "auto-hired-agent", name: "Auto Hired", category: "engineering"}
+      conn = post(conn, "/api/v1/agents", params)
+      assert %{"hired" => true} = json_response(conn, 201)
+    end
+
+    test "accepts optional fields: description, default_runtime, heartbeat_cron", %{conn: conn} do
+      params = %{
+        slug: "full-optional-agent",
+        name: "Full Optional",
+        category: "marketing",
+        description: "A marketing helper",
+        default_runtime: "claude-local",
+        heartbeat_cron: "*/10 * * * *"
+      }
+
+      conn = post(conn, "/api/v1/agents", params)
+      assert body = json_response(conn, 201)
+      assert body["description"] == "A marketing helper"
+      assert body["default_runtime"] == "claude-local"
+      assert body["heartbeat_cron"] == "*/10 * * * *"
+    end
+
+    test "returns 422 when required slug is missing", %{conn: conn} do
+      conn = post(conn, "/api/v1/agents", %{name: "No Slug Agent", category: "sales"})
+      assert json_response(conn, 422)
+    end
+
+    test "returns 422 when required name is missing", %{conn: conn} do
+      conn = post(conn, "/api/v1/agents", %{slug: "no-name-agent", category: "sales"})
+      assert json_response(conn, 422)
+    end
+
+    test "returns 422 when required category is missing", %{conn: conn} do
+      conn = post(conn, "/api/v1/agents", %{slug: "no-cat-agent", name: "No Cat"})
+      assert json_response(conn, 422)
+    end
+
+    test "returns 422 on slug conflict with existing agent", %{conn: conn} do
+      insert(:agent, slug: "duplicate-slug")
+
+      conn =
+        post(conn, "/api/v1/agents", %{
+          slug: "duplicate-slug",
+          name: "Duplicate",
+          category: "engineering"
+        })
+
+      assert json_response(conn, 422)
+    end
+
+    test "returns 422 when slug has invalid format (uppercase)", %{conn: conn} do
+      conn =
+        post(conn, "/api/v1/agents", %{
+          slug: "Invalid-Slug",
+          name: "Bad Slug",
+          category: "engineering"
+        })
+
+      assert json_response(conn, 422)
+    end
+  end
 
   # ---------------------------------------------------------------------------
   # GET /api/v1/agents

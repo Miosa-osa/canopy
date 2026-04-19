@@ -89,6 +89,12 @@ export const defaultConfig: SidebarConfig = {
       label: "SYSTEM",
       items: [
         {
+          path: "/knowledge",
+          label: "Knowledge",
+          icon: "BookOpen",
+          hidden: false,
+        },
+        {
           path: "/coming-soon",
           label: "Skills",
           icon: "Zap",

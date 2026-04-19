@@ -62,9 +62,9 @@ describe("defaultConfig", () => {
     expect(ws?.items).toHaveLength(7);
   });
 
-  it("SYSTEM has 4 items", () => {
+  it("SYSTEM has 5 items", () => {
     const sys = defaultConfig.groups.find((g) => g.label === "SYSTEM");
-    expect(sys?.items).toHaveLength(4);
+    expect(sys?.items).toHaveLength(5);
   });
 
   it("all items have hidden: false by default", () => {

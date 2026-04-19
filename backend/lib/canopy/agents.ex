@@ -37,6 +37,32 @@ defmodule Canopy.Agents do
   @spec list_hired() :: {:ok, [Agent.t()]}
   def list_hired, do: list(hired: true)
 
+  @doc """
+  Creates a new user-defined agent and immediately hires it.
+
+  Accepts a map with the following keys (atoms or strings):
+    - `:slug` (required) — URL-safe identifier, lowercase kebab-case
+    - `:name` (required)
+    - `:category` (required)
+    - `:persona_path` (required) — stored as-is; use a sentinel like `"user/<slug>.md"`
+    - `:description` (optional)
+    - `:persona_markdown` (optional) — the system-prompt body
+    - `:default_runtime` (optional)
+    - `:default_model` (optional)
+    - `:heartbeat_cron` (optional)
+
+  The new agent is inserted with `hired: true` so it is immediately available.
+
+  Returns `{:ok, agent}` on success, `{:error, changeset}` on validation or
+  uniqueness failure.
+  """
+  @spec create(map()) :: {:ok, Agent.t()} | {:error, Ecto.Changeset.t()}
+  def create(attrs) do
+    %Agent{}
+    |> Agent.changeset(Map.merge(%{hired: true}, normalize_attrs(attrs)))
+    |> Repo.insert()
+  end
+
   @doc "Returns an agent by slug, or `{:error, :not_found}`."
   @spec get_by_slug(String.t()) :: {:ok, Agent.t()} | {:error, :not_found}
   def get_by_slug(slug) do
@@ -111,4 +137,16 @@ defmodule Canopy.Agents do
   @spec apply_hired_filter(Ecto.Query.t(), boolean() | nil) :: Ecto.Query.t()
   defp apply_hired_filter(query, nil), do: query
   defp apply_hired_filter(query, val), do: from(a in query, where: a.hired == ^val)
+
+  # Normalise string-keyed maps to atom-keyed maps so changeset cast works
+  # regardless of whether the caller passes atom or string keys.
+  @spec normalize_attrs(map()) :: map()
+  defp normalize_attrs(attrs) when is_map(attrs) do
+    Map.new(attrs, fn
+      {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+      {k, v} -> {k, v}
+    end)
+  rescue
+    ArgumentError -> attrs
+  end
 end

@@ -7,10 +7,24 @@
 import { apiDelete, apiGet, apiPost, apiPut } from "$lib/api/client.js";
 import type {
   Agent,
+  AgentCategory,
   AgentDetail,
   AgentFilters,
   HireAgentBody,
 } from "$lib/domain/agents/types.js";
+
+/** Body for POST /api/v1/agents — user-defined agent creation. */
+export interface CreateAgentBody {
+  slug: string;
+  name: string;
+  category: AgentCategory;
+  description?: string;
+  persona_markdown?: string;
+  default_runtime?: string;
+  default_model?: string;
+  tools?: string[];
+  heartbeat_cron?: string;
+}
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
@@ -43,6 +57,10 @@ export function updateAgentPersona(
   return apiPut<AgentDetail>(`/agents/${slug}/persona`, {
     persona_markdown: personaMarkdown,
   });
+}
+
+export function createAgent(body: CreateAgentBody): Promise<AgentDetail> {
+  return apiPost<AgentDetail>("/agents", body);
 }
 
 // ── TanStack Query option factories ─────────────────────────────────────────
@@ -100,4 +118,12 @@ export function updatePersonaMutation() {
 /** Shorthand query for only hired agents — used by Composer @mention and home pinned panel. */
 export function hiredAgentsQuery() {
   return agentsQuery({ hired: true });
+}
+
+/** Mutation options to create a new user-defined agent. */
+export function createAgentMutation() {
+  return {
+    mutationKey: ["agents", "create"] as const,
+    mutationFn: (body: CreateAgentBody) => createAgent(body),
+  };
 }

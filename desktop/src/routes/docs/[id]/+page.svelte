@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * /docs/[id] — Document detail: textarea editor + markdown preview + metadata panel.
+   * /docs/[id] — Document detail: Tiptap rich editor + metadata panel.
    * CSS prefix: dd- (DocDetail)
    */
   import {
@@ -11,14 +11,11 @@
     useQueryClient,
   } from '@tanstack/svelte-query';
   import { page } from '$app/state';
-  import { Eye, Pencil } from 'lucide-svelte';
   import { untrack } from 'svelte';
   import { writable } from 'svelte/store';
   import { beforeNavigate, goto } from '$app/navigation';
   import {
     archiveDocumentMutation,
-    bodyJsonFromText,
-    bodyTextFromJson,
     deleteDocumentMutation,
     documentQuery,
     publishDocumentMutation,
@@ -28,9 +25,9 @@
   import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
   import PushPanel from '$lib/design/patterns/PushPanel.svelte';
   import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import type { Document, UpdateDocumentBody } from '$lib/domain/docs/types.js';
+  import TiptapEditor from '$lib/design/patterns/TiptapEditor.svelte';
+  import type { Document, ProseMirrorDoc, UpdateDocumentBody } from '$lib/domain/docs/types.js';
   import { toasts } from '$lib/stores/toasts.svelte.js';
-  import { renderMarkdown } from '$lib/utils/markdown.js';
 
   const docId = $derived(page.params.id ?? '');
   const queryClient = useQueryClient();
@@ -49,16 +46,17 @@
   // ── Local state ───────────────────────────────────────────────────────────────
 
   let localTitle = $state('');
-  let localBody = $state('');
+  let dirtyBodyJson = $state<ProseMirrorDoc | null>(null);
+  let dirtyBodyText = $state('');
   let titleDirty = $state(false);
   let bodyDirty = $state(false);
-  let preview = $state(false);
   let panelOpen = $state(true);
 
   $effect(() => {
     if (doc && !titleDirty && !bodyDirty) {
       localTitle = doc.title ?? '';
-      localBody = bodyTextFromJson(doc.bodyJson ?? null);
+      dirtyBodyJson = null;
+      dirtyBodyText = '';
     }
   });
 
@@ -120,9 +118,9 @@
     if (!doc || (!titleDirty && !bodyDirty)) return;
     const body: UpdateDocumentBody = {};
     if (titleDirty) body.title = localTitle.trim();
-    if (bodyDirty) {
-      body.bodyJson = bodyJsonFromText(localBody);
-      body.bodyText = localBody;
+    if (bodyDirty && dirtyBodyJson) {
+      body.bodyJson = dirtyBodyJson;
+      body.bodyText = dirtyBodyText;
     }
     $updateMut.mutate(
       { id: docId, body },
@@ -191,10 +189,12 @@
 
   function formatDate(iso: string | null | undefined): string {
     if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   }
-
-  const renderedMarkdown = $derived(preview ? renderMarkdown(localBody) : '');
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -212,21 +212,6 @@
 
     {#if doc}
       <div class="dd-actions">
-        <button
-          class="btn-compact btn-compact-secondary dd-preview-btn"
-          onclick={() => { preview = !preview; }}
-          aria-label={preview ? 'Switch to edit mode' : 'Switch to preview mode'}
-          aria-pressed={preview}
-        >
-          {#if preview}
-            <Pencil size={12} aria-hidden="true" />
-            Edit
-          {:else}
-            <Eye size={12} aria-hidden="true" />
-            Preview
-          {/if}
-        </button>
-
         <button
           class="btn-pill btn-pill-secondary btn-pill-sm"
           onclick={handlePublishToggle}
@@ -334,23 +319,20 @@
           autocomplete="off"
         />
 
-        {#if !preview}
-          <textarea
-            class="dd-editor"
-            bind:value={localBody}
-            oninput={() => { bodyDirty = true; }}
-            placeholder="Start writing…"
-            aria-label="Document body"
-            spellcheck="true"
-          ></textarea>
-          {#if isDirty}
-            <p class="dd-hint">⌘S to save</p>
-          {/if}
-        {:else}
-          <!-- svelte-ignore -->
-          <div class="dd-preview" role="article" aria-label="Document preview">
-            {@html renderedMarkdown || '<p class="dd-preview-empty">Nothing to preview.</p>'}
-          </div>
+        <!-- Rich editor — replaces textarea + preview toggle -->
+        <TiptapEditor
+          initialJson={doc.bodyJson}
+          placeholder="Write your doc…"
+          onChange={(json, text) => {
+            dirtyBodyJson = json;
+            dirtyBodyText = text;
+            bodyDirty = true;
+          }}
+          onSubmit={save}
+        />
+
+        {#if isDirty}
+          <p class="dd-hint">⌘S to save</p>
         {/if}
       {/if}
     </main>
@@ -460,12 +442,6 @@
     flex-wrap: wrap;
   }
 
-  .dd-preview-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-  }
-
   .dd-delete-btn {
     color: var(--signal-error, red);
   }
@@ -530,69 +506,11 @@
     border-bottom-color: color-mix(in oklch, var(--fg) 25%, transparent);
   }
 
-  /* Editor */
-  .dd-editor {
-    flex: 1;
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    line-height: 1.75;
-    color: var(--fg);
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
-    resize: none;
-    outline: none;
-    min-height: 400px;
-    transition: border-color var(--dur-instant) var(--ease-out);
-  }
-
-  .dd-editor:focus {
-    border-color: color-mix(in oklch, var(--fg) 40%, transparent);
-  }
-
   .dd-hint {
     margin: 0;
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--fg-subtle);
-  }
-
-  /* Preview */
-  .dd-preview {
-    flex: 1;
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    line-height: 1.75;
-    color: var(--fg);
-    padding: var(--space-2) 0;
-  }
-
-  :global(.dd-preview .fv-p) {
-    margin: 0 0 var(--space-3);
-  }
-
-  :global(.dd-preview .fv-h1, .dd-preview .fv-h2, .dd-preview .fv-h3) {
-    font-weight: 600;
-    margin: var(--space-4) 0 var(--space-2);
-    color: var(--fg);
-  }
-
-  :global(.dd-preview .fv-code-block) {
-    background: var(--bg-inset);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: var(--space-3);
-    overflow-x: auto;
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--fg-muted);
-  }
-
-  :global(.dd-preview-empty) {
-    font-style: italic;
-    color: var(--fg-subtle);
-    font-size: var(--text-sm);
   }
 
   /* Panel metadata */

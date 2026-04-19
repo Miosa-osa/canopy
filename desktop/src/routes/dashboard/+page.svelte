@@ -1,14 +1,18 @@
 <script lang="ts">
 /**
- * /dashboard — Command Center.
+ * /dashboard — System Observability.
  *
- * Three widgets inline (NO separate widget components):
- *   Row 1: Active Agents (full width)
- *   Row 2: Spend This Month (left) + Recent Sessions (right)
+ * Linear.app-style dense layout. No card-in-card nesting. No decorative emojis.
+ * All data from a single GET /api/v1/dashboard/summary (30s stale).
  *
- * Query: dashboardSummaryQuery — staleTime 30s, refetchOnWindowFocus: true.
- * Manual refresh button forces invalidation.
- * CSS prefix: cc- (Command Center)
+ * Row 1: 4 stat cards (Total Messages, Total Sessions, Success Rate, Total Tokens)
+ * Row 2: Active Agents (full width — from Wave 1)
+ * Row 3: Sandbox Usage Today | Peak Hours 30d | Traffic Sources
+ * Row 4: Token Usage This Month | Storage Overview
+ * Row 5: Top Agents by Usage | Top Tools 30d
+ * Row 6: Spend This Month | Recent Sessions
+ *
+ * CSS prefix: obs- (observability)
  */
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 import { RefreshCw } from 'lucide-svelte';
@@ -29,16 +33,13 @@ const queryClient = useQueryClient();
 const queryOptsStore = writable(
   untrack(() => dashboardSummaryQuery() as CreateQueryOptions<DashboardSummary>)
 );
-
 const query = createQuery<DashboardSummary>(queryOptsStore);
 
-// Hired agents — used to look up full Agent objects for AgentLiveCard
 const hiredAgentsOptsStore = writable(
   untrack(() => hiredAgentsQuery() as CreateQueryOptions<Agent[]>)
 );
 const hiredQ = createQuery<Agent[]>(hiredAgentsOptsStore);
 
-/** Map from agent slug → full Agent for cards. */
 const agentBySlug = $derived(
   ($hiredQ.data ?? []).reduce<Record<string, Agent>>((acc, a) => {
     acc[a.slug] = a;
@@ -50,7 +51,6 @@ const summary = $derived($query.data ?? null);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Format an ISO timestamp into a relative "Xm ago" / "Xs ago" string. */
 function relativeTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -64,7 +64,6 @@ function relativeTime(iso: string | null | undefined): string {
   return `${Math.floor(diffHr / 24)}d ago`;
 }
 
-/** Format a session's duration between insertedAt and completedAt. */
 function sessionDuration(s: RecentSession): string {
   if (!s.completedAt) return 'running';
   const ms = new Date(s.completedAt).getTime() - new Date(s.insertedAt).getTime();
@@ -74,13 +73,25 @@ function sessionDuration(s: RecentSession): string {
   return `${Math.floor(secs / 60)}m ${secs % 60}s`;
 }
 
-/** Format a USD decimal string to "$X.XX". */
-function formatUsd(raw: string): string {
-  const n = parseFloat(raw);
+function formatUsd(raw: string | number): string {
+  const n = typeof raw === 'number' ? raw : parseFloat(raw);
   return isNaN(n) ? '$—' : `$${n.toFixed(2)}`;
 }
 
-/** Compute bar width % relative to the max bar in the list (capped 4–100%). */
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
+  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
 function barWidths(agents: SpendByAgent[]): number[] {
   if (agents.length === 0) return [];
   const vals = agents.map((a) => Math.max(0, parseFloat(a.costUsd) || 0));
@@ -88,7 +99,6 @@ function barWidths(agents: SpendByAgent[]): number[] {
   return vals.map((v) => Math.max(4, Math.round((v / max) * 100)));
 }
 
-/** Map a session status string to a StatusDot color. */
 function dotColor(status: string): 'green' | 'amber' | 'red' | 'grey' {
   switch (status) {
     case 'running': return 'green';
@@ -99,26 +109,47 @@ function dotColor(status: string): 'green' | 'amber' | 'red' | 'grey' {
   }
 }
 
-/** Reactive "Updated Xm ago" label — refreshed on query data change. */
 const updatedLabel = $derived(
-  $query.dataUpdatedAt > 0 ? `Updated ${relativeTime(new Date($query.dataUpdatedAt).toISOString())}` : ''
+  $query.dataUpdatedAt > 0
+    ? `Updated ${relativeTime(new Date($query.dataUpdatedAt).toISOString())}`
+    : ''
 );
 
 function handleRefresh(): void {
   void queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
 }
+
+// Peak hours bar chart — normalised heights (4–100%)
+const peakHourBars = $derived(() => {
+  const hours = summary?.peakHours30d ?? Array(24).fill(0);
+  const max = Math.max(...hours, 1);
+  return hours.map((v) => Math.max(4, Math.round((v / max) * 100)));
+});
+
+// Token usage bars — relative widths for input vs output
+const tokenBars = $derived(() => {
+  const t = summary?.tokenUsageByPeriod;
+  if (!t || t.total === 0) return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  const norm = (n: number) => Math.max(2, Math.round((n / t.total) * 100));
+  return {
+    input: norm(t.inputTokens),
+    output: norm(t.outputTokens),
+    cacheRead: norm(t.cacheRead),
+    cacheWrite: norm(t.cacheWrite),
+  };
+});
 </script>
 
-<div class="cc-page">
-  <!-- Header -->
-  <header class="cc-header">
-    <h1 class="cc-title">Command Center</h1>
-    <div class="cc-header-actions">
+<div class="obs-page">
+  <!-- ── Header ─────────────────────────────────────────────────────────────── -->
+  <header class="obs-header">
+    <h1 class="obs-title">System Observability</h1>
+    <div class="obs-header-actions">
       {#if updatedLabel}
-        <span class="cc-updated">{updatedLabel}</span>
+        <span class="obs-updated">{updatedLabel}</span>
       {/if}
       <button
-        class="btn-compact btn-compact-ghost cc-refresh"
+        class="btn-compact btn-compact-ghost obs-refresh"
         onclick={handleRefresh}
         aria-label="Refresh dashboard"
         title="Refresh"
@@ -127,110 +158,353 @@ function handleRefresh(): void {
         <RefreshCw
           size={12}
           aria-hidden="true"
-          class={$query.isFetching ? 'cc-spin' : ''}
+          class={$query.isFetching ? 'obs-spin' : ''}
         />
-        <span class="cc-refresh-label">Refresh</span>
+        <span class="obs-refresh-label">Refresh</span>
       </button>
     </div>
   </header>
 
-  <!-- Grid -->
-  <div class="cc-grid">
-    <!-- ── Row 1: Active Agents (full width) ── -->
-    <section class="glass-card cc-widget cc-widget-full" aria-label="Active agents">
-      <div class="cc-widget-head">
-        <span class="cc-widget-title">Active Agents</span>
+  <div class="obs-grid">
+
+    <!-- ── Row 1: 4 stat cards ───────────────────────────────────────────────── -->
+
+    <!-- Total Messages -->
+    <section class="obs-widget obs-stat-card obs-span-3" aria-label="Total messages">
+      <span class="obs-stat-label">Total Messages</span>
+      {#if $query.isLoading}
+        <span class="obs-stat-num obs-stat-num-loading">—</span>
+      {:else}
+        <span class="obs-stat-num">{formatNumber(summary?.totalMessages.count ?? 0)}</span>
+      {/if}
+    </section>
+
+    <!-- Total Sessions -->
+    <section class="obs-widget obs-stat-card obs-span-3" aria-label="Total sessions">
+      <span class="obs-stat-label">Total Sessions</span>
+      {#if $query.isLoading}
+        <span class="obs-stat-num obs-stat-num-loading">—</span>
+      {:else}
+        <span class="obs-stat-num">{formatNumber(summary?.totalSessions.count ?? 0)}</span>
+      {/if}
+    </section>
+
+    <!-- Success Rate -->
+    <section class="obs-widget obs-stat-card obs-span-3" aria-label="Success rate">
+      <span class="obs-stat-label">Success Rate (30d)</span>
+      {#if $query.isLoading}
+        <span class="obs-stat-num obs-stat-num-loading">—</span>
+      {:else}
+        <span class="obs-stat-num">{summary?.successRate.rate ?? 0}<span class="obs-stat-unit">%</span></span>
+        <span class="obs-stat-sub">{summary?.successRate.completed ?? 0} ok / {summary?.successRate.failed ?? 0} failed</span>
+      {/if}
+    </section>
+
+    <!-- Total Tokens -->
+    <section class="obs-widget obs-stat-card obs-span-3" aria-label="Total tokens">
+      <span class="obs-stat-label">Total Tokens</span>
+      {#if $query.isLoading}
+        <span class="obs-stat-num obs-stat-num-loading">—</span>
+      {:else}
+        <span class="obs-stat-num">{formatNumber(summary?.totalTokens.total ?? 0)}</span>
+        <span class="obs-stat-sub">input · output · cache</span>
+      {/if}
+    </section>
+
+    <!-- ── Row 2: Active Agents (full width — Wave 1) ───────────────────────── -->
+    <section class="obs-widget obs-span-12" aria-label="Active agents">
+      <div class="obs-widget-head">
+        <span class="obs-section-label">Active Agents</span>
         {#if summary}
-          <span class="cc-badge">{summary.activeAgents.length}</span>
+          <span class="obs-badge">{summary.activeAgents.length}</span>
         {/if}
       </div>
 
       {#if $query.isLoading}
-        <div class="cc-skeleton-wrap">
+        <div class="obs-skeleton-wrap">
           <SkeletonList count={3} height="2.5rem" gap="0.5rem" />
         </div>
       {:else if $query.isError}
-        <p class="cc-error-msg">Failed to load — {($query.error as Error).message}</p>
+        <p class="obs-error-msg">Failed to load — {($query.error as Error).message}</p>
       {:else if !summary || summary.activeAgents.length === 0}
-        <p class="cc-empty-msg">No agents are currently running.</p>
+        <p class="obs-empty-msg">No agents currently running.</p>
       {:else}
         {@const visible = summary.activeAgents.slice(0, 8)}
         {@const overflow = summary.activeAgents.length - visible.length}
-        <div class="cc-live-grid">
+        <div class="obs-live-grid">
           {#each visible as activeAgent (activeAgent.currentSessionId)}
             {@const fullAgent = agentBySlug[activeAgent.agentSlug ?? '']}
             {#if fullAgent}
               <AgentLiveCard agent={fullAgent} compact />
             {:else}
-              <!-- Fallback row while hiredAgentsQuery resolves -->
               <button
-                class="cc-agent-row"
+                class="obs-agent-row"
                 onclick={() => goto(`/sessions/${activeAgent.currentSessionId}`)}
                 aria-label="Open session for {activeAgent.agentSlug ?? 'unknown agent'}"
               >
                 <StatusDot color="green" pulse={true} />
-                <span class="cc-agent-slug">{activeAgent.agentSlug ?? '—'}</span>
-                <span class="cc-agent-meta">{relativeTime(activeAgent.startedAt)}</span>
-                <span class="cc-chevron" aria-hidden="true">›</span>
+                <span class="obs-agent-slug">{activeAgent.agentSlug ?? '—'}</span>
+                <span class="obs-agent-meta">{relativeTime(activeAgent.startedAt)}</span>
+                <span class="obs-chevron" aria-hidden="true">›</span>
               </button>
             {/if}
           {/each}
         </div>
         {#if overflow > 0}
-          <a class="cc-overflow-link" href="/agents?hired=true">+ {overflow} more</a>
+          <a class="obs-overflow-link" href="/agents?hired=true">+ {overflow} more</a>
         {/if}
       {/if}
     </section>
 
-    <!-- ── Row 2 left: Spend This Month ── -->
-    <section class="glass-card cc-widget cc-widget-half" aria-label="Spend this month">
-      <div class="cc-widget-head">
-        <span class="cc-widget-title">Spend This Month</span>
-      </div>
+    <!-- ── Row 3: Sandbox Usage | Peak Hours | Traffic Sources ──────────────── -->
 
+    <!-- Sandbox Usage Today -->
+    <section class="obs-widget obs-span-4" aria-label="Sandbox usage today">
+      <span class="obs-section-label">Sandbox Usage Today</span>
       {#if $query.isLoading}
-        <div class="cc-skeleton-wrap">
-          <SkeletonList count={4} height="1.75rem" gap="0.5rem" />
-        </div>
-      {:else if $query.isError}
-        <p class="cc-error-msg">Failed to load</p>
+        <div class="obs-skeleton-wrap"><SkeletonList count={3} height="1.5rem" gap="0.5rem" /></div>
       {:else if !summary}
-        <p class="cc-empty-msg">No spend data.</p>
+        <p class="obs-empty-msg">No data.</p>
       {:else}
-        <!-- Big total -->
-        <div class="cc-spend-total" aria-label="Total spend {formatUsd(summary.spendThisMonth.totalUsd)}">
+        {@const sb = summary.sandboxUsageToday}
+        <div class="obs-kv-table">
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">Started</span>
+            <span class="obs-kv-val">{sb.started}</span>
+          </div>
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">Stopped</span>
+            <span class="obs-kv-val">{sb.stopped}</span>
+          </div>
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">Running now</span>
+            <span class="obs-kv-val">{sb.runningNow}</span>
+          </div>
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">Avg lifetime</span>
+            <span class="obs-kv-val">{sb.avgLifetimeMin}m</span>
+          </div>
+        </div>
+      {/if}
+    </section>
+
+    <!-- Peak Hours 30d — sparkline bar chart -->
+    <section class="obs-widget obs-span-5" aria-label="Peak hours last 30 days">
+      <span class="obs-section-label">Peak Hours (30d, UTC)</span>
+      {#if $query.isLoading}
+        <div class="obs-skeleton-wrap"><SkeletonList count={1} height="4rem" gap="0" /></div>
+      {:else if !summary}
+        <p class="obs-empty-msg">No data.</p>
+      {:else}
+        <div class="obs-hour-chart" role="img" aria-label="Sessions per UTC hour over last 30 days">
+          {#each peakHourBars() as height, i}
+            <div
+              class="obs-hour-bar"
+              style="height: {height}%;"
+              title="Hour {i}:00 UTC — {summary.peakHours30d[i]} sessions"
+            ></div>
+          {/each}
+        </div>
+        <div class="obs-hour-labels">
+          <span>0h</span>
+          <span>6h</span>
+          <span>12h</span>
+          <span>18h</span>
+          <span>23h</span>
+        </div>
+      {/if}
+    </section>
+
+    <!-- Traffic Sources — placeholder until feature lands -->
+    <section class="obs-widget obs-span-3" aria-label="Traffic sources">
+      <span class="obs-section-label">Traffic Sources</span>
+      <p class="obs-empty-msg">No data available.</p>
+    </section>
+
+    <!-- ── Row 4: Token Usage | Storage Overview ─────────────────────────────── -->
+
+    <!-- Token Usage This Month -->
+    <section class="obs-widget obs-span-6" aria-label="Token usage this month">
+      <span class="obs-section-label">Token Usage (30d)</span>
+      {#if $query.isLoading}
+        <div class="obs-skeleton-wrap"><SkeletonList count={4} height="1.25rem" gap="0.5rem" /></div>
+      {:else if !summary}
+        <p class="obs-empty-msg">No data.</p>
+      {:else}
+        {@const t = summary.tokenUsageByPeriod}
+        {@const bars = tokenBars()}
+        <div class="obs-token-bars">
+          <div class="obs-token-row">
+            <span class="obs-token-label">Input</span>
+            <div class="obs-token-track">
+              <div class="obs-token-fill obs-token-fill-input" style="width: {bars.input}%;"></div>
+            </div>
+            <span class="obs-token-val">{formatNumber(t.inputTokens)}</span>
+          </div>
+          <div class="obs-token-row">
+            <span class="obs-token-label">Output</span>
+            <div class="obs-token-track">
+              <div class="obs-token-fill obs-token-fill-output" style="width: {bars.output}%;"></div>
+            </div>
+            <span class="obs-token-val">{formatNumber(t.outputTokens)}</span>
+          </div>
+          <div class="obs-token-row">
+            <span class="obs-token-label">Cache read</span>
+            <div class="obs-token-track">
+              <div class="obs-token-fill obs-token-fill-cache" style="width: {bars.cacheRead}%;"></div>
+            </div>
+            <span class="obs-token-val">{formatNumber(t.cacheRead)}</span>
+          </div>
+          <div class="obs-token-row">
+            <span class="obs-token-label">Cache write</span>
+            <div class="obs-token-track">
+              <div class="obs-token-fill obs-token-fill-cache" style="width: {bars.cacheWrite}%;"></div>
+            </div>
+            <span class="obs-token-val">{formatNumber(t.cacheWrite)}</span>
+          </div>
+        </div>
+        <div class="obs-token-total">
+          Total <span class="obs-token-total-val">{formatNumber(t.total)}</span>
+        </div>
+      {/if}
+    </section>
+
+    <!-- Storage Overview -->
+    <section class="obs-widget obs-span-6" aria-label="Storage overview">
+      <span class="obs-section-label">Storage Overview</span>
+      {#if $query.isLoading}
+        <div class="obs-skeleton-wrap"><SkeletonList count={4} height="1.25rem" gap="0.5rem" /></div>
+      {:else if !summary}
+        <p class="obs-empty-msg">No data.</p>
+      {:else}
+        {@const s = summary.storageOverview}
+        <div class="obs-kv-table">
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">Workspaces</span>
+            <span class="obs-kv-val">{s.workspaces}</span>
+          </div>
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">Files indexed</span>
+            <span class="obs-kv-val">{formatNumber(s.files)}</span>
+          </div>
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">Total size</span>
+            <span class="obs-kv-val">{formatBytes(s.fileBytes)}</span>
+          </div>
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">Knowledge bases</span>
+            <span class="obs-kv-val obs-kv-muted">{s.knowledgeBases === 0 ? '—' : s.knowledgeBases}</span>
+          </div>
+          <div class="obs-kv-row">
+            <span class="obs-kv-key">KB chunks</span>
+            <span class="obs-kv-val obs-kv-muted">{s.kbChunks === 0 ? '—' : formatNumber(s.kbChunks)}</span>
+          </div>
+        </div>
+      {/if}
+    </section>
+
+    <!-- ── Row 5: Top Agents | Top Tools ─────────────────────────────────────── -->
+
+    <!-- Top Agents by Usage -->
+    <section class="obs-widget obs-span-6" aria-label="Top agents by usage">
+      <span class="obs-section-label">Top Agents (30d)</span>
+      {#if $query.isLoading}
+        <div class="obs-skeleton-wrap"><SkeletonList count={5} height="2rem" gap="0.25rem" /></div>
+      {:else if !summary || summary.topAgentsByUsage.length === 0}
+        <p class="obs-empty-msg">No agent sessions in the last 30 days.</p>
+      {:else}
+        <table class="obs-table">
+          <thead>
+            <tr>
+              <th class="obs-th">Agent</th>
+              <th class="obs-th obs-th-r">Sessions</th>
+              <th class="obs-th obs-th-r">Cost</th>
+              <th class="obs-th obs-th-r">Avg duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each summary.topAgentsByUsage as row (row.agentSlug)}
+              <tr class="obs-tr">
+                <td class="obs-td obs-td-slug">{row.agentSlug}</td>
+                <td class="obs-td obs-td-r obs-mono">{row.sessionCount}</td>
+                <td class="obs-td obs-td-r obs-mono">{formatUsd(row.totalCostUsd)}</td>
+                <td class="obs-td obs-td-r obs-mono">
+                  {row.avgDurationS != null ? `${row.avgDurationS}s` : '—'}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
+    </section>
+
+    <!-- Top Tools 30d -->
+    <section class="obs-widget obs-span-6" aria-label="Top tools last 30 days">
+      <span class="obs-section-label">Top Tools (30d)</span>
+      {#if $query.isLoading}
+        <div class="obs-skeleton-wrap"><SkeletonList count={5} height="2rem" gap="0.25rem" /></div>
+      {:else if !summary || summary.topTools30d.length === 0}
+        <p class="obs-empty-msg">No tool calls in the last 30 days.</p>
+      {:else}
+        <table class="obs-table">
+          <thead>
+            <tr>
+              <th class="obs-th">Tool</th>
+              <th class="obs-th obs-th-r">Calls</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each summary.topTools30d as row, i (i)}
+              <tr class="obs-tr">
+                <td class="obs-td obs-td-slug">{row.toolName ?? '(unknown)'}</td>
+                <td class="obs-td obs-td-r obs-mono">{row.callCount}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
+    </section>
+
+    <!-- ── Row 6: Spend This Month | Recent Sessions ──────────────────────────── -->
+
+    <!-- Spend This Month -->
+    <section class="obs-widget obs-span-6" aria-label="Spend this month">
+      <div class="obs-widget-head">
+        <span class="obs-section-label">Spend This Month</span>
+      </div>
+      {#if $query.isLoading}
+        <div class="obs-skeleton-wrap"><SkeletonList count={4} height="1.75rem" gap="0.5rem" /></div>
+      {:else if $query.isError}
+        <p class="obs-error-msg">Failed to load</p>
+      {:else if !summary}
+        <p class="obs-empty-msg">No spend data.</p>
+      {:else}
+        <div class="obs-spend-total" aria-label="Total spend {formatUsd(summary.spendThisMonth.totalUsd)}">
           {formatUsd(summary.spendThisMonth.totalUsd)}
         </div>
-
-        <!-- Per-agent bars -->
         {#if summary.spendThisMonth.byAgent.length > 0}
-          <div class="cc-bars" aria-label="Spend by agent">
+          <div class="obs-bars" aria-label="Spend by agent">
             {#each summary.spendThisMonth.byAgent as row, i (row.agentSlug)}
-              <div class="cc-bar-row">
-                <span class="cc-bar-label">{row.agentSlug}</span>
-                <div class="cc-bar-track" role="progressbar" aria-valuenow={parseFloat(row.costUsd)} aria-label={row.agentSlug}>
-                  <div
-                    class="cc-bar-fill"
-                    style="width: {barWidths(summary.spendThisMonth.byAgent)[i]}%;"
-                  ></div>
+              <div class="obs-bar-row">
+                <span class="obs-bar-label">{row.agentSlug}</span>
+                <div class="obs-bar-track" role="progressbar" aria-valuenow={parseFloat(row.costUsd)} aria-label={row.agentSlug}>
+                  <div class="obs-bar-fill" style="width: {barWidths(summary.spendThisMonth.byAgent)[i]}%;"></div>
                 </div>
-                <span class="cc-bar-value">{formatUsd(row.costUsd)}</span>
+                <span class="obs-bar-value">{formatUsd(row.costUsd)}</span>
               </div>
             {/each}
           </div>
         {:else}
-          <p class="cc-empty-msg cc-empty-msg-sm">No per-agent data yet.</p>
+          <p class="obs-empty-msg">No per-agent data yet.</p>
         {/if}
-
-        <!-- Runtime split -->
         {#if summary.spendThisMonth.byRuntime.length > 0}
-          <div class="cc-runtime-split" aria-label="Spend by runtime">
-            <span class="cc-runtime-label-head">By runtime</span>
-            <div class="cc-runtime-pills">
+          <div class="obs-runtime-split">
+            <span class="obs-runtime-head">By runtime</span>
+            <div class="obs-runtime-pills">
               {#each summary.spendThisMonth.byRuntime as rt (rt.runtimeType)}
-                <span class="cc-runtime-pill">
-                  <span class="cc-runtime-name">{rt.runtimeType}</span>
-                  <span class="cc-runtime-cost">{formatUsd(rt.costUsd)}</span>
+                <span class="obs-runtime-pill">
+                  <span class="obs-runtime-name">{rt.runtimeType}</span>
+                  <span class="obs-runtime-cost">{formatUsd(rt.costUsd)}</span>
                 </span>
               {/each}
             </div>
@@ -239,50 +513,45 @@ function handleRefresh(): void {
       {/if}
     </section>
 
-    <!-- ── Row 2 right: Recent Sessions ── -->
-    <section class="glass-card cc-widget cc-widget-half" aria-label="Recent sessions">
-      <div class="cc-widget-head">
-        <span class="cc-widget-title">Recent Sessions</span>
-      </div>
-
+    <!-- Recent Sessions -->
+    <section class="obs-widget obs-span-6" aria-label="Recent sessions">
+      <span class="obs-section-label">Recent Sessions</span>
       {#if $query.isLoading}
-        <div class="cc-skeleton-wrap">
-          <SkeletonList count={5} height="2.25rem" gap="0.375rem" />
-        </div>
+        <div class="obs-skeleton-wrap"><SkeletonList count={5} height="2.25rem" gap="0.375rem" /></div>
       {:else if $query.isError}
-        <p class="cc-error-msg">Failed to load</p>
+        <p class="obs-error-msg">Failed to load</p>
       {:else if !summary || summary.recentSessions.length === 0}
-        <p class="cc-empty-msg">No sessions yet.</p>
+        <p class="obs-empty-msg">No sessions yet.</p>
       {:else}
-        <div class="cc-session-table-wrap">
-          <table class="cc-session-table">
+        <div class="obs-table-wrap">
+          <table class="obs-table">
             <thead>
               <tr>
-                <th class="cc-th cc-th-dot"></th>
-                <th class="cc-th">Agent</th>
-                <th class="cc-th">Runtime</th>
-                <th class="cc-th">Duration</th>
-                <th class="cc-th">When</th>
+                <th class="obs-th obs-th-dot"></th>
+                <th class="obs-th">Agent</th>
+                <th class="obs-th">Runtime</th>
+                <th class="obs-th">Duration</th>
+                <th class="obs-th">When</th>
               </tr>
             </thead>
             <tbody>
               {#each summary.recentSessions as s (s.id)}
                 <!-- svelte-ignore a11y_interactive_supports_focus -->
                 <tr
-                  class="cc-session-row"
+                  class="obs-tr obs-tr-clickable"
                   role="button"
                   tabindex="0"
                   onclick={() => goto(`/sessions/${s.id}`)}
                   onkeydown={(e) => e.key === 'Enter' && goto(`/sessions/${s.id}`)}
                   aria-label="Open session {s.id}"
                 >
-                  <td class="cc-td cc-td-dot">
+                  <td class="obs-td obs-td-dot">
                     <StatusDot color={dotColor(s.status)} pulse={s.status === 'running'} />
                   </td>
-                  <td class="cc-td cc-td-agent">{s.agentSlug ?? '—'}</td>
-                  <td class="cc-td cc-mono">{s.runtimeType}</td>
-                  <td class="cc-td cc-mono">{sessionDuration(s)}</td>
-                  <td class="cc-td cc-mono">{relativeTime(s.insertedAt)}</td>
+                  <td class="obs-td obs-td-slug">{s.agentSlug ?? '—'}</td>
+                  <td class="obs-td obs-mono">{s.runtimeType}</td>
+                  <td class="obs-td obs-mono">{sessionDuration(s)}</td>
+                  <td class="obs-td obs-mono">{relativeTime(s.insertedAt)}</td>
                 </tr>
               {/each}
             </tbody>
@@ -290,12 +559,13 @@ function handleRefresh(): void {
         </div>
       {/if}
     </section>
+
   </div>
 </div>
 
 <style>
   /* ── Page shell ── */
-  .cc-page {
+  .obs-page {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
@@ -307,7 +577,7 @@ function handleRefresh(): void {
   }
 
   /* ── Header ── */
-  .cc-header {
+  .obs-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -316,7 +586,7 @@ function handleRefresh(): void {
     flex-shrink: 0;
   }
 
-  .cc-title {
+  .obs-title {
     margin: 0;
     font-family: var(--font-sans);
     font-size: var(--text-2xl);
@@ -326,89 +596,82 @@ function handleRefresh(): void {
     line-height: var(--lh-2xl);
   }
 
-  .cc-header-actions {
+  .obs-header-actions {
     display: flex;
     align-items: center;
     gap: var(--space-2);
   }
 
-  .cc-updated {
+  .obs-updated {
     font-family: var(--font-sans);
     font-size: var(--text-xs);
     color: var(--fg-subtle);
   }
 
-  .cc-refresh {
+  .obs-refresh {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
   }
 
-  .cc-refresh-label {
+  .obs-refresh-label {
     font-size: var(--text-xs);
   }
 
-  /* Spin animation for fetching state applied via :global to the Lucide icon svg */
-  :global(.cc-spin) {
-    animation: cc-rotate 1s linear infinite;
+  :global(.obs-spin) {
+    animation: obs-rotate 1s linear infinite;
   }
 
-  @keyframes cc-rotate {
+  @keyframes obs-rotate {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
   }
 
-  /* ── Grid ── */
-  .cc-grid {
+  /* ── 12-column grid ── */
+  .obs-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    gap: var(--space-4);
-    flex: 1;
-    min-height: 0;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--space-3);
   }
 
-  /* ── Widget shells ── */
-  .cc-widget {
+  .obs-span-3  { grid-column: span 3; }
+  .obs-span-4  { grid-column: span 4; }
+  .obs-span-5  { grid-column: span 5; }
+  .obs-span-6  { grid-column: span 6; }
+  .obs-span-12 { grid-column: span 12; }
+
+  /* ── Widget shell — Linear.app card style ── */
+  .obs-widget {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
     padding: var(--space-4);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
     min-height: 0;
-    overflow: hidden;
   }
 
-  /* Full-width: spans both columns */
-  .cc-widget-full {
-    grid-column: 1 / -1;
+  /* ── Section label (shared heading style) ── */
+  .obs-section-label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
   }
 
-  /* Half-width: one column each */
-  .cc-widget-half {
-    grid-column: span 1;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-
-  /* ── Widget header ── */
-  .cc-widget-head {
+  /* ── Widget head (label + badge) ── */
+  .obs-widget-head {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     flex-shrink: 0;
   }
 
-  .cc-widget-title {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--fg-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-  }
-
-  .cc-badge {
+  .obs-badge {
     font-family: var(--font-mono);
     font-size: 10px;
     font-weight: 600;
@@ -419,59 +682,83 @@ function handleRefresh(): void {
     line-height: 1.5;
   }
 
+  /* ── Stat cards (Row 1) ── */
+  .obs-stat-card {
+    gap: var(--space-1);
+  }
+
+  .obs-stat-num {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 700;
+    font-feature-settings: "tnum";
+    color: var(--fg);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .obs-stat-num-loading {
+    color: var(--fg-subtle);
+  }
+
+  .obs-stat-unit {
+    font-size: 18px;
+    font-weight: 500;
+    margin-left: 2px;
+  }
+
+  .obs-stat-sub {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    color: var(--fg-subtle);
+    letter-spacing: 0.02em;
+  }
+
   /* ── Skeleton / error / empty ── */
-  .cc-skeleton-wrap {
+  .obs-skeleton-wrap {
     flex: 1;
   }
 
-  .cc-error-msg {
+  .obs-error-msg {
     font-family: var(--font-sans);
     font-size: var(--text-sm);
     color: var(--signal-error);
     margin: 0;
   }
 
-  .cc-empty-msg {
+  .obs-empty-msg {
     font-family: var(--font-sans);
     font-size: var(--text-sm);
     color: var(--fg-subtle);
     margin: 0;
   }
 
-  .cc-empty-msg-sm {
-    font-size: var(--text-xs);
-  }
-
-  /* ── Active Agents widget ── */
-
-  /* 2-column grid for AgentLiveCard compact cards; collapses to 1 on narrow */
-  .cc-live-grid {
+  /* ── Active Agents widget (Row 2) ── */
+  .obs-live-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-2);
   }
 
-  .cc-overflow-link {
+  .obs-overflow-link {
     display: inline-block;
-    margin-top: var(--space-1);
     font-family: var(--font-sans);
     font-size: var(--text-xs);
     color: var(--fg-subtle);
     text-decoration: none;
   }
 
-  .cc-overflow-link:hover {
+  .obs-overflow-link:hover {
     color: var(--fg-muted);
     text-decoration: underline;
   }
 
-  /* Fallback row (while hiredAgentsQuery is resolving) */
-  .cc-agent-row {
+  .obs-agent-row {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-2);
-    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     width: 100%;
     background: transparent;
@@ -481,16 +768,16 @@ function handleRefresh(): void {
     transition: background var(--dur-instant) var(--ease-out);
   }
 
-  .cc-agent-row:hover {
+  .obs-agent-row:hover {
     background: color-mix(in oklch, var(--fg) 5%, transparent 95%);
   }
 
-  .cc-agent-row:focus-visible {
+  .obs-agent-row:focus-visible {
     outline: 2px solid color-mix(in oklch, var(--fg) 40%, transparent 60%);
     outline-offset: 2px;
   }
 
-  .cc-agent-slug {
+  .obs-agent-slug {
     font-family: var(--font-sans);
     font-size: var(--text-sm);
     font-weight: 500;
@@ -498,45 +785,257 @@ function handleRefresh(): void {
     flex: 1;
   }
 
-  .cc-agent-meta {
+  .obs-agent-meta {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--fg-muted);
   }
 
-  .cc-chevron {
+  .obs-chevron {
     color: var(--fg-subtle);
     font-size: 14px;
     line-height: 1;
     flex-shrink: 0;
   }
 
-  /* ── Spend widget ── */
-  .cc-spend-total {
+  /* ── KV table (Sandbox, Storage) ── */
+  .obs-kv-table {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .obs-kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  .obs-kv-key {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--fg-subtle);
+  }
+
+  .obs-kv-val {
     font-family: var(--font-mono);
-    font-size: var(--text-3xl, 2rem);
-    font-weight: 700;
+    font-size: 12px;
+    font-feature-settings: "tnum";
     color: var(--fg);
-    letter-spacing: -0.03em;
+    font-weight: 500;
+  }
+
+  .obs-kv-muted {
+    color: var(--fg-subtle);
+  }
+
+  /* ── Peak hours bar chart ── */
+  .obs-hour-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 56px;
+    flex-shrink: 0;
+  }
+
+  .obs-hour-bar {
+    flex: 1;
+    background: var(--cnp-accent, color-mix(in oklch, var(--fg) 60%, transparent 40%));
+    border-radius: 2px 2px 0 0;
+    min-height: 3px;
+    opacity: 0.75;
+    transition: opacity var(--dur-instant);
+  }
+
+  .obs-hour-bar:hover {
+    opacity: 1;
+  }
+
+  .obs-hour-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-subtle);
+    padding-top: 2px;
+  }
+
+  /* ── Token usage bars ── */
+  .obs-token-bars {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .obs-token-row {
+    display: grid;
+    grid-template-columns: 6rem 1fr 3.5rem;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .obs-token-label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    color: var(--fg-subtle);
+    white-space: nowrap;
+  }
+
+  .obs-token-track {
+    height: 5px;
+    background: color-mix(in oklch, var(--fg) 8%, transparent 92%);
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  .obs-token-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width var(--dur-normal) var(--ease-io);
+  }
+
+  .obs-token-fill-input {
+    background: var(--cnp-accent, color-mix(in oklch, var(--fg) 60%, transparent 40%));
+  }
+
+  .obs-token-fill-output {
+    background: color-mix(in oklch, var(--fg) 40%, transparent 60%);
+  }
+
+  .obs-token-fill-cache {
+    background: color-mix(in oklch, var(--fg) 20%, transparent 80%);
+  }
+
+  .obs-token-val {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-feature-settings: "tnum";
+    color: var(--fg-muted);
+    text-align: right;
+  }
+
+  .obs-token-total {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    color: var(--fg-subtle);
+    padding-top: var(--space-1);
+    border-top: 1px solid var(--border);
+  }
+
+  .obs-token-total-val {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  /* ── Shared table styles ── */
+  .obs-table-wrap {
+    overflow-x: auto;
+    flex: 1;
+  }
+
+  .obs-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .obs-th {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fg-subtle);
+    padding: var(--space-1) var(--space-2);
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .obs-th-r { text-align: right; }
+
+  .obs-th-dot {
+    width: 20px;
+    padding-right: 0;
+  }
+
+  .obs-tr {
+    transition: background var(--dur-instant) var(--ease-out);
+  }
+
+  .obs-tr-clickable {
+    cursor: pointer;
+  }
+
+  .obs-tr-clickable:hover {
+    background: color-mix(in oklch, var(--fg) 4%, transparent 96%);
+  }
+
+  .obs-tr-clickable:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--fg) 40%, transparent 60%);
+    outline-offset: -2px;
+  }
+
+  .obs-td {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--fg);
+    padding: var(--space-2);
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent 50%);
+    white-space: nowrap;
+  }
+
+  .obs-td-dot {
+    padding-right: 0;
+    width: 20px;
+  }
+
+  .obs-td-slug {
+    font-weight: 500;
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .obs-td-r {
+    text-align: right;
+  }
+
+  .obs-mono {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+    font-feature-settings: "tnum";
+  }
+
+  /* ── Spend widget ── */
+  .obs-spend-total {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    font-feature-settings: "tnum";
+    color: var(--fg);
+    letter-spacing: -0.02em;
     line-height: 1;
     flex-shrink: 0;
   }
 
-  .cc-bars {
+  .obs-bars {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
     flex-shrink: 0;
   }
 
-  .cc-bar-row {
+  .obs-bar-row {
     display: grid;
     grid-template-columns: 8rem 1fr 4rem;
     align-items: center;
     gap: var(--space-2);
   }
 
-  .cc-bar-label {
+  .obs-bar-label {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--fg-muted);
@@ -545,34 +1044,31 @@ function handleRefresh(): void {
     white-space: nowrap;
   }
 
-  .cc-bar-track {
-    height: 6px;
+  .obs-bar-track {
+    height: 5px;
     background: color-mix(in oklch, var(--fg) 8%, transparent 92%);
     border-radius: 9999px;
     overflow: hidden;
   }
 
-  .cc-bar-fill {
+  .obs-bar-fill {
     height: 100%;
-    background: linear-gradient(
-      90deg,
-      color-mix(in oklch, var(--fg) 50%, transparent 50%),
-      color-mix(in oklch, var(--fg) 30%, transparent 70%)
-    );
+    background: var(--cnp-accent, color-mix(in oklch, var(--fg) 50%, transparent 50%));
     border-radius: 9999px;
     transition: width var(--dur-normal) var(--ease-io);
   }
 
-  .cc-bar-value {
+  .obs-bar-value {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
+    font-feature-settings: "tnum";
     color: var(--fg-muted);
     text-align: right;
     white-space: nowrap;
   }
 
   /* ── Runtime split ── */
-  .cc-runtime-split {
+  .obs-runtime-split {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
@@ -581,7 +1077,7 @@ function handleRefresh(): void {
     flex-shrink: 0;
   }
 
-  .cc-runtime-label-head {
+  .obs-runtime-head {
     font-family: var(--font-sans);
     font-size: 10px;
     font-weight: 600;
@@ -590,13 +1086,13 @@ function handleRefresh(): void {
     letter-spacing: 0.07em;
   }
 
-  .cc-runtime-pills {
+  .obs-runtime-pills {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1);
   }
 
-  .cc-runtime-pill {
+  .obs-runtime-pill {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -605,104 +1101,43 @@ function handleRefresh(): void {
     color: var(--fg-muted);
     background: color-mix(in oklch, var(--fg) 6%, transparent 94%);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     padding: 2px 8px;
   }
 
-  .cc-runtime-name {
+  .obs-runtime-name {
     color: var(--fg);
     font-weight: 500;
   }
 
-  .cc-runtime-cost {
+  .obs-runtime-cost {
     color: var(--fg-muted);
   }
 
-  /* ── Recent Sessions widget ── */
-  .cc-session-table-wrap {
-    overflow-x: auto;
-    flex: 1;
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .obs-span-3,
+    .obs-span-4,
+    .obs-span-5,
+    .obs-span-6 {
+      grid-column: span 6;
+    }
   }
 
-  .cc-session-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .cc-th {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--fg-muted);
-    padding: var(--space-1) var(--space-2);
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-  }
-
-  .cc-th-dot {
-    width: 24px;
-    padding-right: 0;
-  }
-
-  .cc-session-row {
-    cursor: pointer;
-    transition: background var(--dur-instant) var(--ease-out);
-  }
-
-  .cc-session-row:hover {
-    background: color-mix(in oklch, var(--fg) 4%, transparent 96%);
-  }
-
-  .cc-session-row:focus-visible {
-    outline: 2px solid color-mix(in oklch, var(--fg) 40%, transparent 60%);
-    outline-offset: -2px;
-  }
-
-  .cc-td {
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    color: var(--fg);
-    padding: var(--space-2) var(--space-2);
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent 50%);
-    white-space: nowrap;
-  }
-
-  .cc-td-dot {
-    padding-right: 0;
-    width: 24px;
-  }
-
-  .cc-td-agent {
-    font-weight: 500;
-    max-width: 10rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .cc-mono {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    color: var(--fg-muted);
-  }
-
-  /* ── Responsive: collapse to single column on narrow viewports ── */
-  @media (max-width: 680px) {
-    .cc-grid {
-      grid-template-columns: 1fr;
+  @media (max-width: 640px) {
+    .obs-span-3,
+    .obs-span-4,
+    .obs-span-5,
+    .obs-span-6,
+    .obs-span-12 {
+      grid-column: span 12;
     }
 
-    .cc-widget-half {
-      grid-column: 1 / -1;
+    .obs-bar-row {
+      grid-template-columns: 6rem 1fr 3rem;
     }
 
-    .cc-bar-row {
-      grid-template-columns: 6rem 1fr 3.5rem;
-    }
-
-    .cc-live-grid {
+    .obs-live-grid {
       grid-template-columns: 1fr;
     }
   }
