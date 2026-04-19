@@ -424,7 +424,7 @@ $effect(() => {
     font-family: var(--font-sans);
     font-size: var(--text-base);
     color: var(--fg);
-    caret-color: var(--accent);
+    caret-color: var(--cnp-accent);
   }
 
   .cnp-cp__input::placeholder {

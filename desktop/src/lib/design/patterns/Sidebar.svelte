@@ -4,6 +4,7 @@
  * Groups: Cockpit | Workspace | System.
  * Active route highlighted via SvelteKit page state.
  * Badges on items with counts. Collapsible via ui.sidebarCollapsed.
+ * Groups + item order driven by sidebarConfig store (localStorage-persisted).
  * LOC target: ≤ 200.
  */
 
@@ -30,12 +31,34 @@ import {
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { ui } from '$lib/stores/ui.svelte.js';
+import { sidebarConfig } from '$lib/stores/sidebar-config.svelte.js';
 import StatusDot from './StatusDot.svelte';
 
 // lucide-svelte v1 components are Svelte 4 class-based — not assignable to the
 // Svelte 5 Component<Props> type. Use unknown to hold references and cast
 // through unknown at the svelte:component call site.
 type IconComponent = unknown;
+
+// Local icon lookup — keeps icon resolution inside the component, not in the store.
+const ICON_MAP: Record<string, IconComponent> = {
+  BarChart2: BarChart2 as IconComponent,
+  Bot: Bot as IconComponent,
+  Box: Box as IconComponent,
+  Briefcase: Briefcase as IconComponent,
+  Calendar: Calendar as IconComponent,
+  CheckSquare: CheckSquare as IconComponent,
+  FileText: FileText as IconComponent,
+  FolderOpen: FolderOpen as IconComponent,
+  Hash: Hash as IconComponent,
+  History: History as IconComponent,
+  Inbox: Inbox as IconComponent,
+  LayoutTemplate: LayoutTemplate as IconComponent,
+  MessageCircle: MessageCircle as IconComponent,
+  Monitor: Monitor as IconComponent,
+  ShieldCheck: ShieldCheck as IconComponent,
+  Terminal: Terminal as IconComponent,
+  Zap: Zap as IconComponent,
+};
 
 interface NavItem {
   label: string;
@@ -51,80 +74,22 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const groups: NavGroup[] = [
-  {
-    label: 'COCKPIT',
-    items: [
-      { label: 'Runtimes', path: '/runtimes', icon: Monitor as IconComponent },
-      { label: 'Sessions', path: '/sessions', icon: History as IconComponent },
-      { label: 'Agents', path: '/agents', icon: Bot as IconComponent },
-      { label: 'Workspaces', path: '/workspaces', icon: Briefcase as IconComponent },
-      { label: 'Sandboxes', path: '/sandboxes', icon: Box as IconComponent },
-      { label: 'Command Center', path: '/dashboard', icon: Terminal as IconComponent },
-    ],
-  },
-  {
-    label: 'WORKSPACE',
-    items: [
-      {
-        label: 'Inbox',
-        path: '/coming-soon',
-        icon: Inbox as IconComponent,
-        badge: 7,
-        comingSoon: true,
-      },
-      {
-        label: 'Schedule',
-        path: '/coming-soon',
-        icon: Calendar as IconComponent,
-        comingSoon: true,
-      },
-      {
-        label: 'Chat',
-        path: '/chat',
-        icon: MessageCircle as IconComponent,
-      },
-      {
-        label: 'Channels',
-        path: '/channels',
-        icon: Hash as IconComponent,
-      },
-      { label: 'Files', path: '/files', icon: FolderOpen as IconComponent },
-      { label: 'Docs', path: '/docs', icon: FileText as IconComponent },
-      {
-        label: 'Tasks',
-        path: '/tasks',
-        icon: CheckSquare as IconComponent,
-      },
-    ],
-  },
-  {
-    label: 'SYSTEM',
-    items: [
-      { label: 'Skills', path: '/coming-soon', icon: Zap as IconComponent, comingSoon: true },
-      {
-        label: 'Templates',
-        path: '/coming-soon',
-        icon: LayoutTemplate as IconComponent,
-        comingSoon: true,
-      },
-      {
-        label: 'Analytics',
-        path: '/coming-soon',
-        icon: BarChart2 as IconComponent,
-        comingSoon: true,
-      },
-      {
-        label: 'Governance',
-        path: '/coming-soon',
-        icon: ShieldCheck as IconComponent,
-        badge: 1,
-        badgeStyle: 'warn',
-        comingSoon: true,
-      },
-    ],
-  },
-];
+// Derive visible groups from the config store — hidden items are filtered out.
+const groups = $derived<NavGroup[]>(
+  sidebarConfig.config.groups.map((g) => ({
+    label: g.label,
+    items: g.items
+      .filter((item) => !item.hidden)
+      .map((item) => ({
+        label: item.label,
+        path: item.path,
+        icon: ICON_MAP[item.icon] ?? (Monitor as IconComponent),
+        badge: item.badge,
+        badgeStyle: item.badgeStyle,
+        comingSoon: item.comingSoon,
+      })),
+  }))
+);
 
 const collapsed = $derived(ui.sidebarCollapsed);
 

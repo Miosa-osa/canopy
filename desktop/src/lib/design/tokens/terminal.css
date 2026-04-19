@@ -7,7 +7,7 @@
 :root {
   --term-bg: color-mix(in oklch, var(--bg-inset) 96%, black 4%);
   --term-fg: var(--fg);
-  --term-cursor: var(--accent);
+  --term-cursor: var(--cnp-accent);
 
   /* Standard ANSI 8 */
   --term-black: color-mix(in oklch, var(--bg) 92%, var(--fg) 8%);
@@ -16,7 +16,7 @@
   --term-yellow: color-mix(in oklch, var(--signal-warn) 82%, var(--fg) 18%);
   --term-blue: color-mix(in oklch, var(--signal-info) 82%, var(--fg) 18%);
   --term-magenta: color-mix(in oklch, var(--signal-thinking) 82%, var(--fg) 18%);
-  --term-cyan: color-mix(in oklch, var(--accent) 68%, var(--fg) 32%);
+  --term-cyan: color-mix(in oklch, var(--cnp-accent) 68%, var(--fg) 32%);
   --term-white: var(--fg-muted);
 
   /* Bright variants — L + 0.08 approximated via higher fg mix */
@@ -26,6 +26,6 @@
   --term-bright-yellow: color-mix(in oklch, var(--signal-warn) 70%, var(--fg) 30%);
   --term-bright-blue: color-mix(in oklch, var(--signal-info) 70%, var(--fg) 30%);
   --term-bright-magenta: color-mix(in oklch, var(--signal-thinking) 70%, var(--fg) 30%);
-  --term-bright-cyan: color-mix(in oklch, var(--accent) 55%, var(--fg) 45%);
+  --term-bright-cyan: color-mix(in oklch, var(--cnp-accent) 55%, var(--fg) 45%);
   --term-bright-white: var(--fg);
 }

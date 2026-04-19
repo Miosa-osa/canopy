@@ -322,7 +322,7 @@ const showBack = $derived(currentStep > 0);
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--accent);
+    background: var(--cnp-accent);
     display: inline-block;
   }
 
@@ -385,7 +385,7 @@ const showBack = $derived(currentStep > 0);
   }
 
   .owz-template-card:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--cnp-accent);
     outline-offset: 2px;
   }
 
@@ -439,18 +439,18 @@ const showBack = $derived(currentStep > 0);
   }
 
   .owz-agent-pill:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--cnp-accent);
     outline-offset: 2px;
   }
 
   .owz-agent-pill--hired {
-    border-color: var(--accent);
+    border-color: var(--cnp-accent);
     color: var(--fg);
-    background: oklch(from var(--accent) l c h / 0.08);
+    background: oklch(from var(--cnp-accent) l c h / 0.08);
   }
 
   .owz-hired-badge {
-    color: var(--accent);
+    color: var(--cnp-accent);
     font-size: var(--text-xs);
     font-weight: 700;
   }

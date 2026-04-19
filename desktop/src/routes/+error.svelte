@@ -72,7 +72,7 @@ const message = $derived(page.error?.message ?? 'Unknown error');
   }
 
   .error-link {
-    color: var(--accent);
+    color: var(--cnp-accent);
     text-decoration: none;
     font-size: var(--text-sm);
     padding: var(--space-2) var(--space-4);
@@ -89,7 +89,7 @@ const message = $derived(page.error?.message ?? 'Unknown error');
   }
 
   .error-link:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--cnp-accent);
     outline-offset: 2px;
   }
 </style>

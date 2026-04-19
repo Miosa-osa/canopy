@@ -134,7 +134,7 @@ function handleCta(e: MouseEvent) {
   .rc-card:focus-visible {
     box-shadow:
       var(--glass-shadow),
-      0 0 0 2px var(--accent);
+      0 0 0 2px var(--cnp-accent);
   }
 
   .rc-header {

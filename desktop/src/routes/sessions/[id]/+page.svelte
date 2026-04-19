@@ -526,7 +526,7 @@ onMount(() => {
   }
 
   .sd-workspace-chip:focus-visible {
-    outline: 2px solid var(--accent, currentColor);
+    outline: 2px solid var(--cnp-accent, currentColor);
     outline-offset: 2px;
   }
 

@@ -117,7 +117,7 @@ const progressPercent = $derived(((stepIndex + 1) / totalSteps) * 100);
 
   .ows-progress__bar {
     height: 100%;
-    background: var(--accent);
+    background: var(--cnp-accent);
     border-radius: 1px;
     transition: width var(--dur-normal) var(--ease-out);
   }

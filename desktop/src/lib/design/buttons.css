@@ -860,14 +860,16 @@
 
 /*
  * Consistent focus-visible ring across all button families.
- * Spec: outline: 2px solid var(--accent); outline-offset: 2px; dur-fast fade.
+ * Spec: outline: 2px solid var(--cnp-accent); outline-offset: 2px; dur-fast fade.
  * Uses :focus-visible so mouse clicks never show the ring.
+ * --cnp-accent is the user-configurable accent (theme store). --accent is the
+ * Multica shadcn token (neutral grey), which we avoid here.
  */
 .btn-pill:focus-visible,
 .btn-rounded:focus-visible,
 .btn-compact:focus-visible,
 .btn-glass:focus-visible {
-  outline: 2px solid var(--accent, oklch(0.78 0.18 145));
+  outline: 2px solid var(--cnp-accent, oklch(0.78 0.18 145));
   outline-offset: 2px;
   transition: outline-offset var(--dur-fast, 160ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
 }

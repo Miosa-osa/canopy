@@ -571,8 +571,8 @@ function formatDate(iso: string | null): string {
   }
 
   .fi-tag-chip--active {
-    background: color-mix(in oklch, var(--accent) 12%, transparent 88%);
-    border-color: color-mix(in oklch, var(--accent) 40%, transparent 60%);
+    background: color-mix(in oklch, var(--cnp-accent) 12%, transparent 88%);
+    border-color: color-mix(in oklch, var(--cnp-accent) 40%, transparent 60%);
     color: var(--fg);
   }
 

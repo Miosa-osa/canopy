@@ -1,5 +1,6 @@
 /* Canopy v2 — Motion Tokens
- * Easings, durations, keyframes. From FRONTEND-DESIGN.md §3.
+ * Easings, durations, keyframes.
+ * Multica additions: entrance-spin (icon load), chat-impulse (running state).
  * Motion is functional, never decorative.
  * Respects prefers-reduced-motion.
  */
@@ -13,6 +14,35 @@
   --dur-fast: 160ms;
   --dur-normal: 240ms;
   --dur-slow: 400ms;
+}
+
+/* ── Multica: entrance spin (icon reveal on page load) ─────────────────────── */
+
+@keyframes entrance-spin {
+  0% { transform: rotate(0deg); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: rotate(360deg); opacity: 1; }
+}
+
+.canopy-entrance-spin {
+  animation: entrance-spin 0.6s ease-out forwards;
+}
+
+/* ── Multica: chat-impulse (running agent ring pulse — no outer glow) ──────── */
+
+@keyframes chat-impulse {
+  0%, 100% {
+    color: var(--fg-muted);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--fg) 10%, transparent);
+  }
+  50% {
+    color: var(--brand);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--brand) 40%, transparent);
+  }
+}
+
+.canopy-chat-impulse {
+  animation: chat-impulse 1.6s ease-in-out infinite;
 }
 
 @keyframes agent-pulse {
@@ -111,7 +141,9 @@
   .list-item,
   .canopy-pulse,
   .canopy-shim,
-  .canopy-enter {
+  .canopy-enter,
+  .canopy-entrance-spin,
+  .canopy-chat-impulse {
     animation: none;
   }
 

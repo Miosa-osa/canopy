@@ -319,7 +319,7 @@ function handleKeydown(e: KeyboardEvent): void {
   }
 
   .tp-template:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--cnp-accent);
     outline-offset: 2px;
   }
 

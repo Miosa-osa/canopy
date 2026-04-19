@@ -1,25 +1,52 @@
 /* Foundation token alias layer
- * Maps Foundation's --dt* / --dbg* / --dbd* names to Canopy's OKLCh tokens.
- * Do NOT define colors here — only aliases. Source of truth stays in oklch.css.
- * Import after oklch.css so the vars resolve correctly.
+ * Maps Foundation's --dt* / --dbg* / --dbd* names to Canopy's color tokens.
+ * Also bridges Multica's shadcn-style semantic names used by bits-ui components.
+ * Do NOT define colors here — only aliases. Source of truth stays in colors.css.
+ * Import after colors.css so the vars resolve correctly.
  */
 
 :root,
 [data-theme="dark"],
 [data-theme="light"],
 .dark {
-  /* Text tokens */
-  --dt: var(--fg);
+  /* ── Foundation OSA text tokens ─────────────────────────────────────────── */
+  --dt:  var(--fg);
   --dt2: var(--fg-muted);
   --dt3: var(--fg-subtle);
   --dt4: var(--fg-subtle);
 
-  /* Background tokens */
-  --dbg: var(--bg);
+  /* ── Foundation OSA background tokens ──────────────────────────────────── */
+  --dbg:  var(--bg);
   --dbg2: var(--bg-elevated);
   --dbg3: var(--bg-inset);
 
-  /* Border tokens */
-  --dbd: var(--border);
+  /* ── Foundation OSA border tokens ──────────────────────────────────────── */
+  --dbd:  var(--border);
   --dbd2: var(--border);
+
+  /* ── Multica shadcn-style semantic bridges (used by bits-ui + any
+   *    component that references --card, --popover, etc.) ─────────────────── */
+  --card:               var(--bg-elevated);
+  --card-foreground:    var(--fg);
+  --popover:            var(--popover-bg);
+  --popover-foreground: var(--fg);
+  --muted:              var(--bg-inset);
+  --input:              var(--input-border);
+  --destructive:        var(--destructive);
+  --success:            var(--success);
+  --warning:            var(--warning);
+  --info:               var(--info);
+  --priority:           var(--priority);
+  --brand:              var(--brand);
+  --brand-foreground:   var(--brand-fg);
+
+  /* Sidebar shadcn aliases */
+  --color-sidebar:                    var(--sidebar);
+  --color-sidebar-foreground:         var(--sidebar-fg);
+  --color-sidebar-primary:            var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-fg);
+  --color-sidebar-accent:             var(--sidebar-accent);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-fg);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-ring:               var(--sidebar-ring);
 }

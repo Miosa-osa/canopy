@@ -1,10 +1,13 @@
 /* Canopy v2 — Root Stylesheet
  * Import order: tokens → Foundation aliases → glass → buttons → Tailwind → @theme bridge → resets
  * Tailwind v4 CSS-first config — no tailwind.config.js needed.
+ *
+ * Color system: Multica OKLCh palette (colors.css replaces oklch.css).
+ * oklch.css retained as a backward-compat shim that re-exports the new vars.
  */
 
 /* 1. Design tokens */
-@import "./lib/design/tokens/oklch.css";
+@import "./lib/design/tokens/colors.css";
 @import "./lib/design/tokens/typography.css";
 @import "./lib/design/tokens/spacing.css";
 @import "./lib/design/tokens/radius.css";
@@ -20,93 +23,101 @@
 @import "tailwindcss";
 
 /* 3. @theme inline — maps CSS vars to Tailwind utility classes.
- * Paperclip / Cabinet pattern: tokens drive Tailwind, not the reverse.
  * Uses --cnp-* prefixed vars to avoid shadcn name collisions.
  */
 @theme inline {
-  /* Colors — use our canonical token names */
-  --color-bg: var(--bg);
-  --color-bg-elevated: var(--bg-elevated);
-  --color-bg-inset: var(--bg-inset);
-  --color-sidebar: var(--sidebar);
-  --color-border: var(--border);
+  /* Colors — Canopy semantic token names */
+  --color-bg:           var(--bg);
+  --color-bg-elevated:  var(--bg-elevated);
+  --color-bg-inset:     var(--bg-inset);
+  --color-sidebar:      var(--sidebar);
+  --color-border:       var(--border);
   --color-border-strong: var(--border-strong);
-  --color-fg: var(--fg);
-  --color-fg-muted: var(--fg-muted);
-  --color-fg-subtle: var(--fg-subtle);
-  --color-signal-running: var(--signal-running);
-  --color-signal-thinking: var(--signal-thinking);
-  --color-signal-warn: var(--signal-warn);
-  --color-signal-error: var(--signal-error);
-  --color-signal-info: var(--signal-info);
-  /* Use --cnp-accent to hold our green — avoids shadcn --accent collision */
-  --color-accent: var(--cnp-accent);
-  --color-accent-hover: var(--cnp-accent-hover);
-  --color-accent-fg: var(--cnp-accent-fg);
+  --color-fg:           var(--fg);
+  --color-fg-muted:     var(--fg-muted);
+  --color-fg-subtle:    var(--fg-subtle);
+  --color-signal-running:   var(--signal-running);
+  --color-signal-thinking:  var(--signal-thinking);
+  --color-signal-warn:      var(--signal-warn);
+  --color-signal-error:     var(--signal-error);
+  --color-signal-info:      var(--signal-info);
+  --color-brand:        var(--brand);
+  --color-brand-fg:     var(--brand-fg);
+  /* Use --cnp-accent to hold user accent — avoids shadcn --accent collision */
+  --color-accent:       var(--cnp-accent);
+  --color-accent-fg:    var(--cnp-accent-fg);
 
   /* Typography */
-  --font-family-sans: var(--font-sans);
+  --font-family-sans:  var(--font-sans);
   --font-family-serif: var(--font-serif);
-  --font-family-mono: var(--font-mono);
-  --font-size-3xl: var(--text-3xl);
-  --font-size-2xl: var(--text-2xl);
-  --font-size-xl: var(--text-xl);
-  --font-size-lg: var(--text-lg);
+  --font-family-mono:  var(--font-mono);
+  --font-size-3xl:  var(--text-3xl);
+  --font-size-2xl:  var(--text-2xl);
+  --font-size-xl:   var(--text-xl);
+  --font-size-lg:   var(--text-lg);
   --font-size-base: var(--text-base);
-  --font-size-sm: var(--text-sm);
-  --font-size-xs: var(--text-xs);
+  --font-size-sm:   var(--text-sm);
+  --font-size-xs:   var(--text-xs);
 
   /* Spacing */
-  --spacing-0: var(--space-0);
-  --spacing-1: var(--space-1);
-  --spacing-2: var(--space-2);
-  --spacing-3: var(--space-3);
-  --spacing-4: var(--space-4);
-  --spacing-5: var(--space-5);
-  --spacing-6: var(--space-6);
-  --spacing-8: var(--space-8);
+  --spacing-0:  var(--space-0);
+  --spacing-1:  var(--space-1);
+  --spacing-2:  var(--space-2);
+  --spacing-3:  var(--space-3);
+  --spacing-4:  var(--space-4);
+  --spacing-5:  var(--space-5);
+  --spacing-6:  var(--space-6);
+  --spacing-8:  var(--space-8);
   --spacing-10: var(--space-10);
   --spacing-12: var(--space-12);
 
   /* Radius */
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
+  --radius-sm:  var(--radius-sm);
+  --radius-md:  var(--radius-md);
+  --radius-lg:  var(--radius-lg);
+  --radius-xl:  var(--radius-xl);
   --radius-2xl: var(--radius-2xl);
 
   /* Motion */
   --ease-out: var(--ease-out);
-  --ease-in: var(--ease-in);
-  --ease-io: var(--ease-io);
+  --ease-in:  var(--ease-in);
+  --ease-io:  var(--ease-io);
   --duration-instant: var(--dur-instant);
-  --duration-fast: var(--dur-fast);
-  --duration-normal: var(--dur-normal);
-  --duration-slow: var(--dur-slow);
+  --duration-fast:    var(--dur-fast);
+  --duration-normal:  var(--dur-normal);
+  --duration-slow:    var(--dur-slow);
 }
 
-/* 4. Canopy alias layer — renames our tokens to --cnp-* for safe @theme reference */
-:root,
-[data-theme="dark"],
-[data-theme="light"] {
-  --cnp-accent: var(--accent);
-  --cnp-accent-hover: var(--accent-hover);
-  --cnp-accent-fg: var(--accent-fg);
-}
-
-/* Foundation Modal uses bg-background / text-muted-foreground from Tailwind classes.
- * These minimal aliases let the copied Modal.svelte render correctly without
- * re-introducing the full shadcn bridge. Only the subset Modal actually uses.
+/* 4. Canopy alias layer
+ * --cnp-accent: user-configurable accent (default = Multica brand blue).
+ * theme.svelte.ts overrides --user-accent on document.documentElement at runtime.
+ * Foundation Modal uses --background / --foreground — minimal aliases kept here.
  */
 :root,
 [data-theme="dark"],
-[data-theme="light"] {
-  --background: var(--bg);
-  --foreground: var(--fg);
-  --muted-foreground: var(--fg-muted);
-  --ring: var(--cnp-accent);
-  --radius: 8px;
+[data-theme="light"],
+.dark {
+  --cnp-accent:    var(--user-accent);
+  --cnp-accent-fg: var(--user-accent-fg);
+
+  /* Foundation Modal compat */
+  --background:        var(--bg);
+  --foreground:        var(--fg);
+  --muted-foreground:  var(--fg-muted);
+  --ring:              var(--cnp-accent);
+  --radius:            0.625rem;
 }
+
+/* 5. Multica base layer — scrollbar + body defaults */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar        { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track  { background: var(--scrollbar-track); }
+*::-webkit-scrollbar-thumb  { background: var(--scrollbar-thumb); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 /* 6. Minimal resets — only what Tailwind v4 doesn't cover */
 *,
@@ -123,6 +134,8 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Auto-insert 1/4em space between CJK and Latin (Multica base.css) */
+  text-autospace: ideograph-alpha ideograph-numeric;
 }
 
 body {

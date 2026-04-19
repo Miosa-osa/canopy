@@ -77,7 +77,7 @@ const label = $derived(ui.theme === 'dark' ? 'Switch to light mode' : 'Switch to
   }
 
   .theme-toggle:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--cnp-accent);
     outline-offset: 2px;
   }
 </style>

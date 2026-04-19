@@ -679,13 +679,13 @@
   }
 
   :global(.fv-link) {
-    color: var(--accent);
+    color: var(--cnp-accent);
     text-decoration: underline;
     text-underline-offset: 2px;
-    text-decoration-color: color-mix(in oklch, var(--accent) 50%, transparent 50%);
+    text-decoration-color: color-mix(in oklch, var(--cnp-accent) 50%, transparent 50%);
   }
 
   :global(.fv-link:hover) {
-    text-decoration-color: var(--accent);
+    text-decoration-color: var(--cnp-accent);
   }
 </style>

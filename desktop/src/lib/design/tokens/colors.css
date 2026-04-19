@@ -1,0 +1,147 @@
+/* Canopy v2 — Color Tokens (Multica palette)
+ * Source: Multica packages/ui/styles/tokens.css
+ * Format: OKLCh — Multica already authors in OKLCh; no conversion needed.
+ * Convention: Canopy token names (--bg, --fg, etc.) map to Multica semantics.
+ *
+ * Dark mode is canonical. Light mode is :root + [data-theme="light"].
+ * [data-theme="dark"] and .dark are kept for backward compat with Foundation
+ * primitives and legacy code still reading those selectors.
+ */
+
+/* ── Light mode (default) ─────────────────────────────────────────────────── */
+
+:root,
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg:          oklch(1 0 0);           /* Multica --background light */
+  --bg-elevated: oklch(1 0 0);           /* Multica --card light */
+  --bg-inset:    oklch(0.967 0.001 286.375); /* Multica --muted light */
+  --sidebar:     oklch(0.985 0 0);       /* Multica --sidebar light */
+  --popover-bg:  oklch(1 0 0);           /* Multica --popover light */
+
+  /* Foreground */
+  --fg:          oklch(0.141 0.005 285.823); /* Multica --foreground light */
+  --fg-muted:    oklch(0.552 0.016 285.938); /* Multica --muted-foreground light */
+  --fg-subtle:   oklch(0.705 0.015 286.067); /* Multica --ring light (used for placeholders) */
+
+  /* Borders + inputs */
+  --border:        oklch(0.92 0.004 286.32);     /* Multica --border light */
+  --border-strong: oklch(0.552 0.016 285.938);   /* derived: muted-fg as stronger border */
+  --input-border:  oklch(0.92 0.004 286.32);     /* Multica --input light */
+  --ring:          oklch(0.705 0.015 286.067);   /* Multica --ring light */
+
+  /* Primary (interactive — default dark-on-light button face) */
+  --primary:    oklch(0.21 0.006 285.885);  /* Multica --primary light */
+  --primary-fg: oklch(0.985 0 0);           /* Multica --primary-foreground light */
+
+  /* Secondary */
+  --secondary:    oklch(0.967 0.001 286.375); /* Multica --secondary light */
+  --secondary-fg: oklch(0.21 0.006 285.885);  /* Multica --secondary-foreground light */
+
+  /* Accent (accent + sidebar active state) */
+  --accent:    oklch(0.967 0.001 286.375); /* Multica --accent light */
+  --accent-fg: oklch(0.21 0.006 285.885);  /* Multica --accent-foreground light */
+
+  /* Sidebar */
+  --sidebar-fg:          oklch(0.141 0.005 285.823); /* Multica --sidebar-foreground light */
+  --sidebar-primary:     oklch(0.21 0.006 285.885);  /* Multica --sidebar-primary light */
+  --sidebar-primary-fg:  oklch(0.985 0 0);           /* Multica --sidebar-primary-foreground light */
+  --sidebar-accent:      oklch(0.95 0.002 286.375);  /* Multica --sidebar-accent light */
+  --sidebar-accent-fg:   oklch(0.21 0.006 285.885);  /* Multica --sidebar-accent-foreground light */
+  --sidebar-border:      oklch(0.92 0.004 286.32);   /* Multica --sidebar-border light */
+  --sidebar-ring:        oklch(0.705 0.015 286.067); /* Multica --sidebar-ring light */
+
+  /* Brand + semantic */
+  --brand:     oklch(0.55 0.16 255);  /* Multica --brand light */
+  --brand-fg:  oklch(0.985 0 0);      /* Multica --brand-foreground light */
+  --success:   oklch(0.55 0.16 145);  /* Multica --success light */
+  --warning:   oklch(0.75 0.16 85);   /* Multica --warning light */
+  --info:      oklch(0.55 0.18 250);  /* Multica --info light */
+  --priority:  oklch(0.65 0.18 50);   /* Multica --priority light */
+  --destructive: oklch(0.577 0.245 27.325); /* Multica --destructive light */
+
+  /* Signal aliases (Canopy convention — map to Multica semantics) */
+  --signal-running:   var(--success);
+  --signal-thinking:  var(--brand);
+  --signal-warn:      var(--warning);
+  --signal-error:     var(--destructive);
+  --signal-info:      var(--info);
+
+  /* User-configurable accent (default = brand blue) */
+  --user-accent:    oklch(0.55 0.16 255);
+  --user-accent-fg: oklch(0.985 0 0);
+
+  /* Scrollbar */
+  --scrollbar-thumb:       oklch(0 0 0 / 10%);
+  --scrollbar-thumb-hover: oklch(0 0 0 / 18%);
+  --scrollbar-track:       transparent;
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────── */
+
+[data-theme="dark"],
+.dark {
+  /* Backgrounds */
+  --bg:          oklch(0.18 0.005 285.823);  /* Multica --background dark */
+  --bg-elevated: oklch(0.21 0.006 285.885);  /* Multica --card dark */
+  --bg-inset:    oklch(0.274 0.006 286.033); /* Multica --muted dark */
+  --sidebar:     oklch(0.21 0.006 285.885);  /* Multica --sidebar dark */
+  --popover-bg:  oklch(0.21 0.006 285.885);  /* Multica --popover dark */
+
+  /* Foreground */
+  --fg:          oklch(0.985 0 0);           /* Multica --foreground dark */
+  --fg-muted:    oklch(0.705 0.015 286.067); /* Multica --muted-foreground dark */
+  --fg-subtle:   oklch(0.552 0.016 285.938); /* Multica --chart-2 / ring dark */
+
+  /* Borders + inputs */
+  --border:        oklch(1 0 0 / 10%);          /* Multica --border dark */
+  --border-strong: oklch(1 0 0 / 20%);          /* derived: stronger translucent border */
+  --input-border:  oklch(1 0 0 / 15%);          /* Multica --input dark */
+  --ring:          oklch(0.552 0.016 285.938);  /* Multica --ring dark */
+
+  /* Primary */
+  --primary:    oklch(0.92 0.004 286.32);    /* Multica --primary dark */
+  --primary-fg: oklch(0.21 0.006 285.885);   /* Multica --primary-foreground dark */
+
+  /* Secondary */
+  --secondary:    oklch(0.274 0.006 286.033); /* Multica --secondary dark */
+  --secondary-fg: oklch(0.985 0 0);           /* Multica --secondary-foreground dark */
+
+  /* Accent */
+  --accent:    oklch(0.274 0.006 286.033); /* Multica --accent dark */
+  --accent-fg: oklch(0.985 0 0);           /* Multica --accent-foreground dark */
+
+  /* Sidebar */
+  --sidebar-fg:          oklch(0.985 0 0);           /* Multica --sidebar-foreground dark */
+  --sidebar-primary:     oklch(0.488 0.243 264.376); /* Multica --sidebar-primary dark */
+  --sidebar-primary-fg:  oklch(0.985 0 0);           /* Multica --sidebar-primary-foreground dark */
+  --sidebar-accent:      oklch(0.274 0.006 286.033); /* Multica --sidebar-accent dark */
+  --sidebar-accent-fg:   oklch(0.985 0 0);           /* Multica --sidebar-accent-foreground dark */
+  --sidebar-border:      oklch(1 0 0 / 10%);         /* Multica --sidebar-border dark */
+  --sidebar-ring:        oklch(0.552 0.016 285.938); /* Multica --sidebar-ring dark */
+
+  /* Brand + semantic */
+  --brand:     oklch(0.65 0.16 255);  /* Multica --brand dark */
+  --brand-fg:  oklch(0.985 0 0);
+  --success:   oklch(0.65 0.15 145);  /* Multica --success dark */
+  --warning:   oklch(0.70 0.16 85);   /* Multica --warning dark */
+  --info:      oklch(0.65 0.18 250);  /* Multica --info dark */
+  --priority:  oklch(0.70 0.18 50);   /* Multica --priority dark */
+  --destructive: oklch(0.704 0.191 22.216); /* Multica --destructive dark */
+
+  /* Signal aliases */
+  --signal-running:   var(--success);
+  --signal-thinking:  var(--brand);
+  --signal-warn:      var(--warning);
+  --signal-error:     var(--destructive);
+  --signal-info:      var(--info);
+
+  /* User-configurable accent (default = brand blue) */
+  --user-accent:    oklch(0.65 0.16 255);
+  --user-accent-fg: oklch(0.985 0 0);
+
+  /* Scrollbar */
+  --scrollbar-thumb:       oklch(1 0 0 / 8%);
+  --scrollbar-thumb-hover: oklch(1 0 0 / 18%);
+  --scrollbar-track:       transparent;
+}

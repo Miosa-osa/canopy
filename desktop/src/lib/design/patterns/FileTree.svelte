@@ -173,7 +173,7 @@ const rootNode = $derived($treeQ.data ?? null);
 
   .ft-root:focus-visible {
     outline: none;
-    box-shadow: inset 2px 0 0 var(--accent);
+    box-shadow: inset 2px 0 0 var(--cnp-accent);
   }
 
   .ft-list {
