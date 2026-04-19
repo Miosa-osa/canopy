@@ -24,6 +24,7 @@
     updateTagsMutation,
   } from '$lib/api/queries/files.js';
   import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
+  import FilePreview from '$lib/design/patterns/FilePreview.svelte';
   import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
   import type { FileActivity, FileRecord, UpdateTagsBody } from '$lib/domain/files/types.js';
   import { toasts } from '$lib/stores/toasts.svelte.js';
@@ -208,6 +209,11 @@
       {($fileQ.error as Error).message ?? 'Failed to load file.'}
     </p>
   {:else if file}
+    <!-- Preview section -->
+    <section class="fd-preview" aria-label="File preview">
+      <FilePreview {file} workspaceSlug={file.workspaceId} />
+    </section>
+
     <div class="fd-body">
       <!-- Left: metadata + tags -->
       <main class="fd-main">
@@ -405,6 +411,13 @@
     font-family: var(--font-sans);
     font-size: var(--text-sm);
     color: var(--signal-error, red);
+  }
+
+  /* Preview section */
+  .fd-preview {
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
 
   /* Body: two columns */

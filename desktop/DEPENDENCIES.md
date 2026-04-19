@@ -38,6 +38,25 @@ Pins tightened from `^3` to `^3.22.4` to satisfy extension peer declarations.
 
 ---
 
+## File Viewers
+
+Added in Phase 5 Wave 3 Track #110 (2026-04-18).
+
+| Package | Version | Purpose | Track |
+|---|---|---|---|
+| `pdfjs-dist` | `^5.3.31` | Mozilla PDF.js — renders PDF files to canvas via WASM worker; framework-agnostic | File preview |
+| `docx-preview` | `^0.3.6` | Renders DOCX (Word) files into a DOM element in-browser; no server round-trip | File preview |
+| `xlsx` | `^0.18.5` | SheetJS community build — reads XLSX/XLS ArrayBuffers and converts sheets to HTML tables | File preview |
+
+Notes:
+- `pdfjs-dist` worker is loaded via `?url` Vite import — zero SSR issues, tree-shaken from server bundle.
+- `docx-preview` renders into a caller-provided DOM element via `renderAsync`.
+- `xlsx` is dynamically imported inside `onMount` to avoid SSR and reduce initial bundle.
+- PPTX rendering is deferred — no library installed. `FilePreview.svelte` shows a "download to open" fallback.
+- Video and audio use native `<video>` / `<audio>` tags — no additional library.
+
+---
+
 ## Skipped / Already Covered
 
 | Capability | Decision |
