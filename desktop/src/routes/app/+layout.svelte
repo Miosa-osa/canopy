@@ -183,6 +183,7 @@ import Sidebar from '$lib/components/layout/Sidebar.svelte';
     function handleKeyDown(e: KeyboardEvent) {
       const meta = e.metaKey || e.ctrlKey;
       if (meta && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); paletteStore.toggle(); return; }
+      if (!meta && e.key === '[' && !e.altKey && !e.shiftKey) { e.preventDefault(); toggleSidebar(); return; }
       if (!meta) return;
       if (e.key === '\\') { e.preventDefault(); toggleSidebar(); return; }
       if (e.key === ',') { e.preventDefault(); goto('/app/settings'); return; }
