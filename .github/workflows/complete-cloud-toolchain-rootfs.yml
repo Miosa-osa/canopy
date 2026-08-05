@@ -1,0 +1,174 @@
+name: Complete Cloud Toolchain RootFS
+
+on:
+  push:
+    branches: [agent/complete-cloud-toolchain-rootfs-20260805]
+    paths: [.github/workflows/complete-cloud-toolchain-rootfs.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: complete-cloud-toolchain-rootfs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  manufacture:
+    name: Manufacture and verify complete x86-64 rootfs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Build exact toolchain image
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > Dockerfile <<'DOCKERFILE'
+          FROM ubuntu:24.04
+          ENV DEBIAN_FRONTEND=noninteractive
+          ENV PATH=/root/.cargo/bin:/root/.wasmtime/bin:/root/.wasmer/bin:/opt/lean/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+          SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              ca-certificates curl git jq zstd xz-utils unzip file \
+              build-essential clang lld cmake ninja-build pkg-config \
+              flex bison autoconf automake libtool mcpp libmcpp-dev \
+              libsqlite3-dev libffi-dev libncurses-dev libz3-dev libssl-dev \
+              python3 python3-dev \
+              erlang-base erlang-dev erlang-tools erlang-crypto erlang-ssl erlang-inets elixir \
+              z3 cvc5 openssh-client podman buildah skopeo gh \
+            && rm -rf /var/lib/apt/lists/*
+
+          RUN curl -sSfL https://sh.rustup.rs | sh -s -- -y --default-toolchain none \
+            && rustup toolchain install nightly-2026-04-15 --profile minimal \
+                 --component rustfmt --component clippy --target wasm32-unknown-unknown \
+            && rustup toolchain install stable --profile minimal \
+            && rustup default nightly-2026-04-15
+
+          ARG LEAN_SHA256=07a633cc8d9151cbc08825ea4cdda50d4b02a2c9cb852c0131b13046f49cad7f
+          RUN curl -fL --retry 5 --retry-all-errors \
+                -o /tmp/lean.tar.zst \
+                https://github.com/leanprover/lean4/releases/download/v4.31.0/lean-4.31.0-linux.tar.zst \
+            && echo "${LEAN_SHA256}  /tmp/lean.tar.zst" | sha256sum -c - \
+            && mkdir -p /opt/lean \
+            && tar --zstd -xf /tmp/lean.tar.zst -C /opt/lean --strip-components=1 \
+            && rm /tmp/lean.tar.zst
+
+          RUN curl -sSfL https://wasmtime.dev/install.sh | bash \
+            && curl -sSfL https://get.wasmer.io | sh \
+            && cargo +stable install --locked wasm-tools
+
+          RUN if apt-cache show souffle >/dev/null 2>&1; then \
+                apt-get update && apt-get install -y --no-install-recommends souffle && rm -rf /var/lib/apt/lists/*; \
+              else \
+                git clone --depth 1 --branch 2.5 https://github.com/souffle-lang/souffle.git /tmp/souffle \
+                  || git clone --depth 1 https://github.com/souffle-lang/souffle.git /tmp/souffle; \
+                cmake -S /tmp/souffle -B /tmp/souffle/build -G Ninja \
+                  -DCMAKE_BUILD_TYPE=Release -DSOUFFLE_USE_CURSES=OFF; \
+                cmake --build /tmp/souffle/build --parallel 2; \
+                cmake --install /tmp/souffle/build; \
+                rm -rf /tmp/souffle; \
+              fi
+
+          RUN set -euo pipefail; \
+              rustc --version --verbose; cargo --version; rustfmt --version; cargo clippy --version; \
+              lean --version; lake --version; \
+              erl -noshell -eval 'io:format("OTP ~s~n", [erlang:system_info(otp_release)]), halt().'; \
+              elixir --version; mix --version; \
+              wasmtime --version; wasmer --version; wasm-tools --version; \
+              z3 --version; cvc5 --version; souffle --version; \
+              gh --version | head -n 1; ssh -V; \
+              podman --version; buildah --version; skopeo --version
+
+          RUN printf 'fn main(){println!("RUST_EXACT_ALIVE:{}", 19+23);}\n' >/tmp/alive.rs \
+            && rustc /tmp/alive.rs -o /usr/local/bin/rust-exact-alive \
+            && /usr/local/bin/rust-exact-alive \
+            && printf 'theorem answer : 19 + 23 = 42 := by decide\n#eval 19 + 23\n' >/tmp/Alive.lean \
+            && lean /tmp/Alive.lean \
+            && printf '(module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))\n' >/tmp/add.wat \
+            && wasm-tools parse /tmp/add.wat -o /tmp/add.wasm \
+            && wasm-tools validate /tmp/add.wasm \
+            && test "$(wasmtime run --invoke add /tmp/add.wasm 19 23 | tr -d '\r')" = "42" \
+            && erl -noshell -eval '42 = 19 + 23, io:format("ERLANG_EXACT_ALIVE:42~n"), halt().' \
+            && elixir -e '42 = 19 + 23; IO.puts("ELIXIR_EXACT_ALIVE:42")' \
+            && printf '(set-logic QF_LIA)\n(declare-const x Int)\n(assert (= x 42))\n(check-sat)\n' >/tmp/alive.smt2 \
+            && test "$(z3 /tmp/alive.smt2 | tail -n 1)" = "sat" \
+            && test "$(cvc5 /tmp/alive.smt2 | tail -n 1)" = "sat" \
+            && printf '.decl edge(x:number,y:number)\n.decl path(x:number,y:number)\n.output path\nedge(1,2).\nedge(2,3).\npath(x,y) :- edge(x,y).\npath(x,z) :- path(x,y), edge(y,z).\n' >/tmp/alive.dl \
+            && mkdir /tmp/souffle-out \
+            && souffle -D /tmp/souffle-out /tmp/alive.dl \
+            && grep -F $'1\t3' /tmp/souffle-out/path.csv
+
+          RUN cat >/usr/local/bin/cloud-toolchain-versions <<'EOF'
+          #!/usr/bin/env bash
+          set -u
+          rustc --version --verbose
+          cargo --version
+          rustfmt --version
+          cargo clippy --version
+          lean --version
+          lake --version
+          erl -noshell -eval 'io:format("OTP ~s~n", [erlang:system_info(otp_release)]), halt().'
+          elixir --version
+          mix --version
+          wasmtime --version
+          wasmer --version
+          wasm-tools --version
+          z3 --version
+          cvc5 --version
+          souffle --version
+          gh --version | head -n 1
+          ssh -V
+          podman --version
+          buildah --version
+          skopeo --version
+          EOF
+          RUN chmod +x /usr/local/bin/cloud-toolchain-versions
+          DOCKERFILE
+
+          docker build --progress=plain -t chatman-cloud-toolchain:2026-08-05 .
+
+      - name: Execute complete image before export
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm chatman-cloud-toolchain:2026-08-05 /usr/local/bin/cloud-toolchain-versions | tee versions.txt
+          docker run --rm chatman-cloud-toolchain:2026-08-05 /usr/local/bin/rust-exact-alive | tee -a versions.txt
+          docker run --rm chatman-cloud-toolchain:2026-08-05 lean /tmp/Alive.lean | tee -a versions.txt
+          docker run --rm chatman-cloud-toolchain:2026-08-05 \
+            bash -lc 'wasmtime run --invoke add /tmp/add.wasm 19 23' | tee -a versions.txt
+
+      - name: Export rootfs and manufacture receipt
+        shell: bash
+        env:
+          BASE_SHA: 02ae9fbf51121d8af5fa08a652419ff8e668a8c0
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          cid="$(docker create chatman-cloud-toolchain:2026-08-05)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker export "$cid" | zstd -19 -T0 -o out/chatman-complete-cloud-toolchain-x86_64-rootfs.tar.zst
+          cp versions.txt out/VERSIONS.txt
+          sha256sum out/chatman-complete-cloud-toolchain-x86_64-rootfs.tar.zst >out/SHA256SUMS
+          ROOTFS_SHA="$(awk '{print $1}' out/SHA256SUMS)"
+          jq -n \
+            --arg state ALIVE \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg ref "$GITHUB_REF" \
+            --arg base "$BASE_SHA" \
+            --arg head "$GITHUB_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg rootfs_sha256 "$ROOTFS_SHA" \
+            '{state:$state,subject:{repository:$repository,ref:$ref,base_sha:$base,head_sha:$head},execution:{run_id:$run_id,runner:"ubuntu-24.04",architecture:"x86_64"},artifact:{name:"chatman-complete-cloud-toolchain-x86_64-rootfs.tar.zst",sha256:$rootfs_sha256},replay:["zstd -dc ROOTFS.tar.zst | tar -xf - -C ROOTFS","chroot ROOTFS /usr/local/bin/cloud-toolchain-versions","chroot ROOTFS /usr/local/bin/rust-exact-alive"]}' >out/receipt.json
+          sha256sum out/VERSIONS.txt out/receipt.json >>out/SHA256SUMS
+          cat out/SHA256SUMS
+          cat out/receipt.json
+
+      - name: Upload complete execution capsule
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatman-complete-cloud-toolchain-x86_64-rootfs
+          path: out/
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
