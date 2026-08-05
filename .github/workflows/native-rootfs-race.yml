@@ -1,0 +1,142 @@
+name: Native RootFS Race
+
+on:
+  push:
+    branches: [agent/complete-cloud-toolchain-rootfs-20260805]
+    paths: [.github/workflows/native-rootfs-race.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-rootfs:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Build and verify self-contained native image
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > Dockerfile <<'DOCKERFILE'
+          FROM ubuntu:24.04 AS souffle-builder
+          ENV DEBIAN_FRONTEND=noninteractive
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              ca-certificates git cmake ninja-build build-essential flex bison sqlite3 python3 \
+              libsqlite3-dev libffi-dev libncurses-dev zlib1g-dev mcpp libmcpp-dev libomp-dev \
+            && rm -rf /var/lib/apt/lists/*
+          RUN git clone --depth 1 --branch 2.5 https://github.com/souffle-lang/souffle.git /src \
+              || git clone --depth 1 https://github.com/souffle-lang/souffle.git /src
+          RUN cmake -S /src -B /src/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DSOUFFLE_USE_CURSES=OFF \
+              && cmake --build /src/build --parallel 2 \
+              && DESTDIR=/souffle-root cmake --install /src/build
+
+          FROM ubuntu:24.04
+          ENV DEBIAN_FRONTEND=noninteractive
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              bash coreutils findutils grep sed gawk file jq ca-certificates \
+              z3 cvc5 openssh-client podman buildah skopeo gh \
+              docker.io containerd runc uidmap fuse-overlayfs slirp4netns \
+              libsqlite3-0 libffi8 libncurses6 zlib1g libomp5 \
+            && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
+          COPY --from=souffle-builder /souffle-root/ /
+          RUN cat >/tmp/alive.smt2 <<'EOF'
+          (set-logic QF_LIA)
+          (declare-const x Int)
+          (assert (= x 42))
+          (check-sat)
+          EOF
+          RUN cat >/tmp/alive.dl <<'EOF'
+          .decl edge(x:number,y:number)
+          .decl path(x:number,y:number)
+          .output path
+          edge(1,2).
+          edge(2,3).
+          path(x,y) :- edge(x,y).
+          path(x,z) :- path(x,y), edge(y,z).
+          EOF
+          RUN cat >/usr/local/bin/verify-native-surface <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          gh --version | head -n 1
+          ssh -V
+          rm -f /tmp/replay-key /tmp/replay-key.pub
+          ssh-keygen -q -t ed25519 -N '' -f /tmp/replay-key
+          z3 --version
+          cvc5 --version | head -n 1
+          souffle --version
+          podman --version
+          buildah --version
+          skopeo --version
+          docker --version
+          dockerd --version
+          containerd --version
+          runc --version | head -n 1
+          test "$(z3 /tmp/alive.smt2 | tail -n 1)" = sat
+          test "$(cvc5 /tmp/alive.smt2 | tail -n 1)" = sat
+          rm -rf /tmp/souffle-replay && mkdir /tmp/souffle-replay
+          souffle -D /tmp/souffle-replay /tmp/alive.dl
+          grep -F $'1\t3' /tmp/souffle-replay/path.csv
+          echo NATIVE_ROOTFS_ALIVE
+          EOF
+          RUN chmod +x /usr/local/bin/verify-native-surface && /usr/local/bin/verify-native-surface
+          DOCKERFILE
+          docker build --progress=plain -t chatman-native-rootfs:race .
+          docker run --rm chatman-native-rootfs:race /usr/local/bin/verify-native-surface | tee /tmp/producer.log
+
+      - name: Export, split, reconstruct, and chroot replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out rootfs
+          cid="$(docker create chatman-native-rootfs:race)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker export "$cid" | zstd -3 -T0 -o out/native-rootfs.tar.zst
+          sha256sum out/native-rootfs.tar.zst > out/ROOTFS_SHA256
+          split -b 240MiB -d -a 2 out/native-rootfs.tar.zst out/native-rootfs.tar.zst.part-
+          rm out/native-rootfs.tar.zst
+          (cd out && sha256sum native-rootfs.tar.zst.part-* > SHA256SUMS.parts)
+          cat out/native-rootfs.tar.zst.part-* > out/native-rootfs.tar.zst
+          sha256sum -c out/ROOTFS_SHA256
+          zstd -dc out/native-rootfs.tar.zst | tar -xf - -C rootfs
+          chroot rootfs /usr/local/bin/verify-native-surface | tee out/ROOTFS_REPLAY.log
+          cp /tmp/producer.log out/PRODUCER_REPLAY.log
+          rm out/native-rootfs.tar.zst
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-rootfs-race-metadata
+          path: |
+            out/ROOTFS_SHA256
+            out/SHA256SUMS.parts
+            out/ROOTFS_REPLAY.log
+            out/PRODUCER_REPLAY.log
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-rootfs-race-part-00
+          path: out/native-rootfs.tar.zst.part-00
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-rootfs-race-part-01
+          path: out/native-rootfs.tar.zst.part-01
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-rootfs-race-part-02
+          path: out/native-rootfs.tar.zst.part-02
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-rootfs-race-part-03
+          path: out/native-rootfs.tar.zst.part-03
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
