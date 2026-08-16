@@ -1,0 +1,96 @@
+skill_id: ad-creative
+skill_path: skills/ad-creative/SKILL.md
+skill_name: "Paid Ad Creative Brief Producer"
+
+tier: structured_ai
+category: marketing
+temperature_gate: warm
+
+role_affinity:
+  - marketing-head
+  - paid-ads
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - campaigns                          # ad creative belongs to campaign
+  - ad_variants                        # per-variant performance tracking
+  - assets                             # visual assets (images/video URLs)
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_fetch
+  - web_search
+
+required_mcps:
+  - filesystem
+  - google-drive
+
+required_integrations:
+  ads: meta-ads-api
+  ad_research: meta-ad-library
+  asset_storage: google-drive
+  design: figma-api
+  analytics: meta-conversions-api
+
+credentials_required:
+  - META_ADS_API_TOKEN
+  - META_ADS_AD_ACCOUNT_ID
+  - FIGMA_API_KEY
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - ad_type_selected_with_reasoning
+  - specificity_score_gte_8
+  - mechanism_referenced
+  - voice_matched
+  - compliance_passed
+  - variant_count_gte_3
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - traffic_acquisition
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - traffic_acquisition
+    - copy_messaging
+
+output:
+  location: "output/ad-creative/{date}-ad-brief-type-{1-8}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: ad-creative-brief
+    type: direct
+    format: markdown
+    structure: w-ad-creative-8-type
+  receiver: ad-platform
+
+next_skill_routing:
+  on_complete:
+    - condition: "ad_type_1_profile_funnel"
+      recommend: ig-profile-funnel
+    - condition: "call_funnel_traffic"
+      recommend: post-booking-nurture
+    - condition: "landing_page_needed"
+      recommend: landing-page
+    - condition: "organic_lift_desired"
+      recommend: content-calendar
+  on_fail:
+    escalate_to: marketing-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

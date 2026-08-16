@@ -149,6 +149,22 @@ defmodule CanopyWeb.AgentsControllerTest do
       assert "all-hired" in slugs
       assert "all-not-hired" in slugs
     end
+
+    test "filters by category and q params", %{conn: conn} do
+      insert(:agent,
+        slug: "backend-architect",
+        name: "Backend Architect",
+        category: "engineering"
+      )
+
+      insert(:agent, slug: "sales-coach", name: "Sales Coach", category: "sales")
+
+      conn = get(conn, "/api/v1/agents?category=engineering&q=backend")
+      assert %{"data" => data} = json_response(conn, 200)
+      slugs = Enum.map(data, & &1["slug"])
+      assert "backend-architect" in slugs
+      refute "sales-coach" in slugs
+    end
   end
 
   # ---------------------------------------------------------------------------

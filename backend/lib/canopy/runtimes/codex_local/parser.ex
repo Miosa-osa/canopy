@@ -3,10 +3,7 @@ defmodule Canopy.Runtimes.CodexLocal.Parser do
   Pure functions that translate Codex's `--json` (JSONL) stream lines
   into `Canopy.Runtimes.TranscriptEntry` structs.
 
-  Provenance: derived from Paperclip's `parse.ts`
-  (packages/adapters/codex-local/src/server/parse.ts).
-  The TypeScript original accumulated state in a mutable loop; this
-  implementation is fully stateless — callers pass one raw JSON binary and
+  Implementation is fully stateless — callers pass one raw JSON binary and
   receive zero or more entries.
 
   ## Codex event → TranscriptEntry mapping
@@ -124,7 +121,6 @@ defmodule Canopy.Runtimes.CodexLocal.Parser do
   "unknown session" error — indicating the prior session ID is stale and the
   caller should retry with a fresh session.
 
-  Pattern derived from Paperclip's `isCodexUnknownSessionError`.
   """
   @spec unknown_session_error?(String.t(), String.t()) :: boolean()
   def unknown_session_error?(stdout, stderr) do

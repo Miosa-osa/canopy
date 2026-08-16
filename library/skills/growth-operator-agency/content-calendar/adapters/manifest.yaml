@@ -1,0 +1,95 @@
+skill_id: content-calendar
+skill_path: skills/content-calendar/SKILL.md
+skill_name: "30-Day Content Calendar Planner"
+
+tier: structured_ai
+category: marketing
+temperature_gate: warm
+
+role_affinity:
+  - marketing-head
+  - content-strategist
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - posts                              # calendar slot registry
+  - campaigns                          # calendar tied to offer campaign
+
+tools:
+  - file_read
+  - file_write
+  - web_search
+
+required_mcps:
+  - filesystem
+  - notion
+
+required_integrations:
+  scheduling: buffer-api
+  project_mgmt: notion-api
+  analytics:
+    - google-analytics-4
+    - platform-native-analytics
+
+credentials_required:
+  - BUFFER_ACCESS_TOKEN
+  - NOTION_API_KEY
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - 30_day_calendar_complete
+  - pillar_ratio_40_30_20_10_enforced
+  - content_to_conversion_bridge_mapped
+  - core_four_channel_mix_applied
+  - per_post_brief_generated
+  - platform_specific_cadence_respected
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - content_strategy
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - content_strategy
+
+output:
+  location: "output/content-calendar/{date}-30day-calendar.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: content-calendar
+    type: plan
+    format: markdown
+    structure: w-content-calendar-30-day
+  receiver: creator
+
+next_skill_routing:
+  on_complete:
+    - condition: "youtube_slot"
+      recommend: write-youtube
+    - condition: "short_form_slot"
+      recommend: write-reel
+    - condition: "linkedin_slot"
+      recommend: write-linkedin-post
+    - condition: "x_thread_slot"
+      recommend: write-x-thread
+    - condition: "stories_slot"
+      recommend: story-sequence
+    - condition: "anchor_ready"
+      recommend: repurpose
+  on_fail:
+    escalate_to: marketing-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

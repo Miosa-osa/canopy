@@ -2,10 +2,10 @@ defmodule Canopy.Sessions.Resume do
   @moduledoc """
   Manages external session ID persistence and lookup for session resume.
 
-  Implements the OpenAgents lift #3: persist `{workspace_slug, agent_slug, cwd}`
-  → `external_session_id` on every `:result` event from an adapter. On new
-  session creation, look up the most recent `external_session_id` for this
-  agent+workspace+cwd triple and inject it so the adapter can pass `--resume`.
+  Persists `{workspace_slug, agent_slug, cwd}` → `external_session_id` on every
+  `:result` event from an adapter. On new session creation, looks up the most
+  recent `external_session_id` for this agent+workspace+cwd triple and injects
+  it so the adapter can pass `--resume`.
 
   ## Lookup rules
 
@@ -14,7 +14,7 @@ defmodule Canopy.Sessions.Resume do
   - `inserted_at` within the last 30 days — stale context caches are avoided.
   - `cwd` matches exactly after `Path.expand/1` normalization.
   - `prompt_bundle_key` matches when both stored and current are non-empty
-    (Paperclip triple-key fallback; ignored when either side is absent).
+    (triple-key fallback; ignored when either side is absent).
 
   ## Cross-layer contract
 
@@ -144,7 +144,7 @@ defmodule Canopy.Sessions.Resume do
     stored_clean = to_string(stored) |> String.trim()
     current_clean = to_string(current) |> String.trim()
 
-    # Skip check when either side is absent — Paperclip triple-key is optional.
+    # Skip check when either side is absent — triple-key match is optional.
     stored_clean == "" or current_clean == "" or stored_clean == current_clean
   end
 end

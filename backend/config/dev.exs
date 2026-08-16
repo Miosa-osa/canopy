@@ -51,6 +51,8 @@ config :canopy, dev_routes: true
 config :canopy, :cors_origins, [
   "http://localhost:5280",
   "http://127.0.0.1:5280",
+  "http://localhost:5281",
+  "http://127.0.0.1:5281",
   "tauri://localhost",
   "http://tauri.localhost"
 ]

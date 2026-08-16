@@ -73,6 +73,10 @@ defmodule Canopy.MixProject do
       {:hammer_backend_redis, "~> 6.1", optional: true},
       # YAML parsing for agent persona frontmatter (mix canopy.seed.agents)
       {:yaml_elixir, "~> 2.11"},
+      # Real PTY allocation for Claude Code and other interactive CLIs.
+      # erlexec uses openpty(3) to give the child process a genuine /dev/pts pair,
+      # eliminating the "no stdin data received" warning from pipe-based Port.open.
+      {:erlexec, "~> 2.0"},
       # Test-only
       {:mox, "~> 1.2", only: :test},
       {:ex_machina, "~> 2.8", only: :test},
@@ -91,7 +95,13 @@ defmodule Canopy.MixProject do
   defp aliases do
     [
       setup: ["deps.get", "ecto.setup"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
+      "ecto.setup": [
+        "ecto.create",
+        "ecto.migrate",
+        "run priv/repo/seeds.exs",
+        "canopy.seed.agents",
+        "canopy.seed.skills"
+      ],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

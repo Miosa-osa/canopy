@@ -20,6 +20,16 @@ defmodule CanopyWeb.Schemas.SkillSchema do
         slug: %Schema{type: :string, description: "Stable URL-safe identifier"},
         name: %Schema{type: :string},
         description: %Schema{type: :string, nullable: true},
+        kind: %Schema{
+          type: :string,
+          enum: ["prompt", "workflow", "reference"],
+          description: "Skill kind — determines how it is presented and organized"
+        },
+        frontmatter: %Schema{
+          type: :object,
+          nullable: true,
+          description: "Optional parsed YAML frontmatter, e.g. {\"when\": \"code-review\"}"
+        },
         provider_format: %Schema{
           type: :string,
           enum: ["claude", "agents_md", "generic"],
@@ -28,7 +38,7 @@ defmodule CanopyWeb.Schemas.SkillSchema do
         content: %Schema{type: :string, description: "Markdown body of the skill"},
         content_hash: %Schema{
           type: :string,
-          description: "SHA256 of content — used as Paperclip prompt_bundle_key"
+          description: "SHA256 of content — used as the prompt bundle key"
         },
         source: %Schema{
           type: :string,
@@ -58,6 +68,27 @@ defmodule CanopyWeb.Schemas.SkillSchema do
         data: %Schema{type: :array, items: Skill}
       },
       required: [:data]
+    })
+  end
+
+  defmodule UpdateSkillRequest do
+    @moduledoc "Request body for PUT /api/v1/skills/:slug."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "UpdateSkillRequest",
+      type: :object,
+      properties: %{
+        name: %Schema{type: :string},
+        description: %Schema{type: :string, nullable: true},
+        kind: %Schema{type: :string, enum: ["prompt", "workflow", "reference"]},
+        frontmatter: %Schema{type: :object, nullable: true},
+        content: %Schema{type: :string},
+        provider_format: %Schema{type: :string, enum: ["claude", "agents_md", "generic"]},
+        tags: %Schema{type: :array, items: %Schema{type: :string}},
+        enabled: %Schema{type: :boolean}
+      }
     })
   end
 
@@ -96,6 +127,61 @@ defmodule CanopyWeb.Schemas.SkillSchema do
         }
       },
       required: [:imported, :errors]
+    })
+  end
+
+  defmodule AssignSkillRequest do
+    @moduledoc "Request body for POST /api/v1/agents/:slug/skills."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "AssignSkillRequest",
+      type: :object,
+      properties: %{
+        skill_slug: %Schema{type: :string, description: "Slug of the skill to assign"},
+        priority: %Schema{
+          type: :integer,
+          description: "Injection priority — lower value = injected first (default 0)"
+        }
+      },
+      required: [:skill_slug]
+    })
+  end
+
+  defmodule AgentSkillAssignment do
+    @moduledoc "A skill assignment with joined skill data."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "AgentSkillAssignment",
+      type: :object,
+      properties: %{
+        id: %Schema{type: :string, format: :uuid},
+        agent_slug: %Schema{type: :string},
+        skill_slug: %Schema{type: :string},
+        priority: %Schema{type: :integer},
+        enabled: %Schema{type: :boolean},
+        inserted_at: %Schema{type: :string, format: :"date-time"},
+        skill: Skill
+      },
+      required: [:id, :agent_slug, :skill_slug, :priority, :enabled]
+    })
+  end
+
+  defmodule AgentSkillAssignmentList do
+    @moduledoc "List of skill assignments for an agent."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "AgentSkillAssignmentList",
+      type: :object,
+      properties: %{
+        data: %Schema{type: :array, items: AgentSkillAssignment}
+      },
+      required: [:data]
     })
   end
 end

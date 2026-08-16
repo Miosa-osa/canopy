@@ -30,6 +30,7 @@ defmodule Canopy.Budgets do
 
   import Ecto.Query, only: [from: 2]
 
+  alias Canopy.Analytics.Emitter
   alias Canopy.Budgets.{Budget, SpendSnapshot}
   alias Canopy.Repo
   alias Canopy.Sessions.Session
@@ -223,8 +224,37 @@ defmodule Canopy.Budgets do
     spent = Decimal.add(current, projected)
 
     result = classify_spend(budget, spent)
+    emit_budget_telemetry(result, budget, spent)
     merged = merge_result(acc, result, budget, spent)
     evaluate_budgets(rest, scope_type, scope_id, projected, merged)
+  end
+
+  @spec emit_budget_telemetry(:ok | :warn | :block, Budget.t(), Decimal.t()) :: :ok
+  defp emit_budget_telemetry(:ok, _budget, _spent), do: :ok
+
+  defp emit_budget_telemetry(:warn, budget, spent) do
+    Emitter.budget_warned(%{}, %{
+      budget_id: budget.id,
+      scope_type: budget.scope_type,
+      scope_id: budget.scope_id,
+      limit_usd: budget.limit_usd,
+      spent: spent
+    })
+
+    :ok
+  end
+
+  defp emit_budget_telemetry(:block, budget, spent) do
+    Emitter.budget_blocked(%{}, %{
+      budget_id: budget.id,
+      scope_type: budget.scope_type,
+      scope_id: budget.scope_id,
+      limit_usd: budget.limit_usd,
+      spent: spent,
+      reason: "hard_ceiling"
+    })
+
+    :ok
   end
 
   @spec classify_spend(Budget.t(), Decimal.t()) :: :ok | :warn | :block

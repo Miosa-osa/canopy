@@ -5,7 +5,14 @@
  * createQuery() / createMutation() in component scripts.
  */
 
-import { apiDelete, apiGet, apiPost, apiPut } from "$lib/api/client.js";
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut,
+} from "$lib/api/client.js";
+import { toCamel } from "$lib/api/case.js";
 import type {
   CreateWorkspaceBody,
   DirEntry,
@@ -20,19 +27,10 @@ import type {
 } from "$lib/domain/workspaces/types.js";
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
-
-interface ListEnvelope<T> {
-  data: T[];
-}
-
-interface DetailEnvelope<T> {
-  data: T;
-}
-
-interface DirListEnvelope {
-  data: DirEntry[];
-  path: string;
-}
+//
+// NOTE: apiGet/apiPost/apiDelete in client.ts already unwrap the Phoenix
+// {data: ...} envelope. The backend sends snake_case; toCamel() converts
+// keys to camelCase so TypeScript domain types (rootPath, isDir, etc.) match.
 
 export async function listWorkspaces(
   filters?: WorkspaceFilters,
@@ -40,17 +38,13 @@ export async function listWorkspaces(
   const params = new URLSearchParams();
   if (filters?.includeDeleted) params.set("include_deleted", "true");
   const qs = params.toString();
-  const response = await apiGet<ListEnvelope<Workspace>>(
-    `/workspaces${qs ? `?${qs}` : ""}`,
-  );
-  return response.data;
+  const raw = await apiGet<unknown>(`/workspaces${qs ? `?${qs}` : ""}`);
+  return toCamel(raw) as Workspace[];
 }
 
 export async function getWorkspace(slug: string): Promise<WorkspaceDetail> {
-  const response = await apiGet<DetailEnvelope<WorkspaceDetail>>(
-    `/workspaces/${slug}`,
-  );
-  return response.data;
+  const raw = await apiGet<unknown>(`/workspaces/${slug}`);
+  return toCamel(raw) as WorkspaceDetail;
 }
 
 export async function createWorkspace(
@@ -63,11 +57,8 @@ export async function createWorkspace(
     description: body.description ?? null,
     template_slug: body.templateSlug ?? null,
   };
-  const response = await apiPost<DetailEnvelope<Workspace>>(
-    "/workspaces",
-    payload,
-  );
-  return response.data;
+  const raw = await apiPost<unknown>("/workspaces", payload);
+  return toCamel(raw) as Workspace;
 }
 
 export function deleteWorkspace(slug: string): Promise<void> {
@@ -75,17 +66,13 @@ export function deleteWorkspace(slug: string): Promise<void> {
 }
 
 export async function listTemplates(): Promise<WorkspaceTemplate[]> {
-  const response = await apiGet<ListEnvelope<WorkspaceTemplate>>(
-    "/workspaces/templates",
-  );
-  return response.data;
+  const raw = await apiGet<unknown>("/workspaces/templates");
+  return toCamel(raw) as WorkspaceTemplate[];
 }
 
 export async function getFileTree(slug: string): Promise<FileTreeNode> {
-  const response = await apiGet<DetailEnvelope<FileTreeNode>>(
-    `/workspaces/${slug}/tree`,
-  );
-  return response.data;
+  const raw = await apiGet<unknown>(`/workspaces/${slug}/tree`);
+  return toCamel(raw) as FileTreeNode;
 }
 
 export async function listDir(
@@ -93,10 +80,8 @@ export async function listDir(
   path: string = "",
 ): Promise<DirEntry[]> {
   const qs = path ? `?path=${encodeURIComponent(path)}` : "";
-  const response = await apiGet<DirListEnvelope>(
-    `/workspaces/${slug}/files${qs}`,
-  );
-  return response.data;
+  const raw = await apiGet<unknown>(`/workspaces/${slug}/files${qs}`);
+  return toCamel(raw) as DirEntry[];
 }
 
 export function readFile(
@@ -208,6 +193,31 @@ export function deleteWorkspaceMutation() {
   };
 }
 
+export interface UpdateWorkspaceBody {
+  name?: string;
+  rootPath?: string;
+}
+
+export async function updateWorkspace(
+  slug: string,
+  body: UpdateWorkspaceBody,
+): Promise<Workspace> {
+  const payload: Record<string, string> = {};
+  if (body.name !== undefined) payload.name = body.name;
+  if (body.rootPath !== undefined) payload.root_path = body.rootPath;
+  const raw = await apiPatch<unknown>(`/workspaces/${slug}`, payload);
+  return toCamel(raw) as Workspace;
+}
+
+/** Mutation options to update a workspace's name or root_path. */
+export function updateWorkspaceMutation() {
+  return {
+    mutationKey: ["workspaces", "update"] as const,
+    mutationFn: ({ slug, body }: { slug: string; body: UpdateWorkspaceBody }) =>
+      updateWorkspace(slug, body),
+  };
+}
+
 /** Mutation options to write a file. */
 export function writeFileMutation(slug: string) {
   return {
@@ -230,5 +240,57 @@ export function moveFileMutation(slug: string) {
   return {
     mutationKey: ["workspaces", slug, "move-file"] as const,
     mutationFn: (body: FileMoveBody) => moveFile(slug, body),
+  };
+}
+
+// ── Init job API calls ───────────────────────────────────────────────────────
+
+export interface StartInitResponse {
+  jobId: string;
+  streamUrl: string;
+}
+
+export async function startInitJob(
+  slug: string,
+  cloneUrl?: string,
+): Promise<StartInitResponse> {
+  const payload = cloneUrl ? { clone_url: cloneUrl } : {};
+  const raw = await apiPost<{ job_id: string; stream_url: string }>(
+    `/workspaces/${slug}/init`,
+    payload,
+  );
+  return {
+    jobId: raw.job_id,
+    stream_url: raw.stream_url,
+  } as unknown as StartInitResponse;
+}
+
+export async function cancelInitJob(
+  slug: string,
+  jobId: string,
+): Promise<void> {
+  await apiPost<unknown>(`/workspaces/${slug}/init/${jobId}/cancel`, {});
+}
+
+/** Query options for polling the latest init job for a workspace. */
+export function workspaceInitJobQuery(slug: string, jobId: string) {
+  return {
+    queryKey: ["workspaces", slug, "init", jobId] as const,
+    queryFn: async () => {
+      const raw = await apiGet<unknown>(`/workspaces/${slug}/init/${jobId}`);
+      return toCamel(raw) as import("$lib/domain/workspaces/types.js").InitJob;
+    },
+    refetchInterval: (query: { state: { data?: { status?: string } } }) => {
+      const status = query.state.data?.status;
+      if (
+        status === "succeeded" ||
+        status === "failed" ||
+        status === "cancelled"
+      ) {
+        return false as const;
+      }
+      return 2000;
+    },
+    enabled: Boolean(slug) && Boolean(jobId),
   };
 }

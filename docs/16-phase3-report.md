@@ -128,7 +128,7 @@ Mid-phase self-audit caught systemic overengineering patterns. 12 agents were di
 | 74 | Business events | full build | full build | **DELETED** |
 | 75 | MCP resources + prompts | full | full | **KEPT** (audit Tier 1 win) |
 | 76 | Scaling prep | RuleCache + Oban + partitioning | full build | RuleCache + Oban kept; Partitions DELETED |
-| 77 | Tasks (Multica lift) | 4-table hierarchy | full build (race with #83) | Collapsed to 1 table by #84 |
+| 77 | Tasks | 4-table hierarchy | full build (race with #83) | Collapsed to 1 table by #84 |
 | 78 | Chat | threads + junction + exporter | full | Junction DELETED; threads + exporter kept |
 | 79 | Docs | docs + folders + versions + extractor | full | Versions + extractor DELETED; docs + folders kept |
 | 80 | Channels | 5 tables + parser module | partial (rate-limit) | Parser module DELETED, inlined |

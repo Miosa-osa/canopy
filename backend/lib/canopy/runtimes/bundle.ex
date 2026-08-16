@@ -3,8 +3,7 @@ defmodule Canopy.Runtimes.Bundle do
   Shared utilities for RuntimeAdapter implementations.
 
   Provides two primitives used by any adapter that supports content-addressed
-  prompt bundles (the Paperclip prompt-bundle-key pattern) and session-ID
-  generation:
+  prompt bundles and session-ID generation:
 
   - `compute_key/2` — SHA-256 over the agent markdown + skills list, producing
     a 64-character hex string.  When the stored key matches the computed key on

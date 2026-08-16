@@ -48,11 +48,36 @@ defmodule Canopy.Application do
       # 9. Governance Rule Cache — ETS-backed cache of enabled rules
       Canopy.Governance.RuleCache,
 
+      # 9a. Analytics Breadcrumbs — per-run ETS ring buffer; flushed to DB
+      #     on run completion. Public ETS table allows direct hot-path writes
+      #     from any process without a GenServer round-trip.
+      Canopy.Analytics.Breadcrumbs,
+
+      # 9aa. Schedule Dispatcher — periodic evaluator that scans active specs,
+      #      marks late/missed runs, and emits :canopy.schedule.* telemetry.
+      #      Wraps Canopy.Heartbeat.Worker (Oban) — does not replace it.
+      Canopy.Schedule.Dispatcher,
+
       # 9b. Sessions Supervisor — DynamicSupervisor; one child per running session
       Canopy.Sessions.Supervisor,
 
+      # 9c. Pty Registry — unique Registry for PtyBridge lookups (session_id → pid)
+      {Registry, keys: :unique, name: Canopy.Sessions.PtyRegistry},
+
+      # 9d. Pty Supervisor — DynamicSupervisor; one PtyBridge child per live terminal
+      {DynamicSupervisor, name: Canopy.Sessions.PtySupervisor, strategy: :one_for_one},
+
+      # 9e. Scrollback Registry — unique Registry for ScrollbackStore lookups (session_id → pid)
+      {Registry, keys: :unique, name: Canopy.Sessions.ScrollbackRegistry},
+
+      # 9f. Scrollback Supervisor — DynamicSupervisor; one ScrollbackStore per live session
+      Canopy.Sessions.ScrollbackSupervisor,
+
       # 10. Task Supervisor — for fire-and-forget tasks (e.g. boot heartbeat registration)
       {Task.Supervisor, name: Canopy.TaskSupervisor},
+
+      # 10a. Init Registry — tracks running init task pids for cancellation
+      {Registry, keys: :unique, name: Canopy.Workspaces.InitRegistry},
 
       # 10. Phoenix Endpoint — HTTP server, last so all deps are ready
       CanopyWeb.Endpoint
@@ -67,9 +92,74 @@ defmodule Canopy.Application do
       unless Application.get_env(:canopy, :env, :prod) == :test do
         Task.Supervisor.start_child(Canopy.TaskSupervisor, fn ->
           Process.sleep(500)
+
+          # Hire Iris (Analytics) before HeartbeatRegistrar runs so her cron
+          # is picked up in the same boot pass.
+          case Canopy.Analytics.Iris.hire_if_missing() do
+            {:ok, _agent} ->
+              :ok
+
+            {:error, reason} ->
+              require Logger
+
+              Logger.warning(
+                "[Canopy.Application] Iris hire_if_missing failed (non-fatal): " <>
+                  inspect(reason)
+              )
+          end
+
+          # Hire Conductor (Build) — primary chat agent in the Build cockpit
+          # that delegates to runtime adapters.
+          case Canopy.Build.Conductor.hire_if_missing() do
+            {:ok, _agent} ->
+              :ok
+
+            {:error, reason} ->
+              require Logger
+
+              Logger.warning(
+                "[Canopy.Application] Conductor hire_if_missing failed (non-fatal): " <>
+                  inspect(reason)
+              )
+          end
+
           HeartbeatRegistrar.register_all_hired()
           Canopy.Tools.register_all_builtins()
+
+          # Register the super-module tool surfaces alongside the built-ins.
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Analytics)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Sandboxes)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Schedule)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Templates)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.SkillCurator)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.RuntimeAdapter)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Drive)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Build)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Runtimes)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Kanban)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Relay)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Reviews)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Workspace)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.WorkspaceEngine)
+          Canopy.Tools.Registry.register_module(Canopy.Tools.Engine)
+
+          Canopy.Analytics.Iris.register_tools()
+          Canopy.Analytics.Iris.announce_online()
+          Canopy.Build.Conductor.register_tools()
+          Canopy.Build.Conductor.announce_online()
         end)
+      end
+
+      # Install agent hooks at boot. Wrapped so a bad FS state never crashes startup.
+      try do
+        Canopy.Hooks.Manager.install!()
+      rescue
+        e ->
+          require Logger
+
+          Logger.warning(
+            "[Canopy.Application] Hook install failed (non-fatal): #{Exception.message(e)}"
+          )
       end
 
       {:ok, pid}

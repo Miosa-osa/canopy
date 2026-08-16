@@ -4,7 +4,13 @@
  * createQuery() / createMutation() in component scripts.
  */
 
-import { apiDelete, apiGet, apiPatch, apiPost } from "$lib/api/client.js";
+import {
+  API_BASE,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+} from "$lib/api/client.js";
 import type {
   AddMemberBody,
   AddReactionBody,
@@ -54,6 +60,10 @@ export function deleteChannel(id: string): Promise<void> {
   return apiDelete<void>(`/channels/${id}`);
 }
 
+export function listMembers(channelId: string): Promise<ChannelMember[]> {
+  return apiGet<ChannelMember[]>(`/channels/${channelId}/members`);
+}
+
 export function addMember(
   channelId: string,
   body: AddMemberBody,
@@ -71,7 +81,7 @@ export function removeMember(
   );
 }
 
-export function listMessages(
+export async function listMessages(
   channelId: string,
   opts?: MessageListOpts,
 ): Promise<MessagePage> {
@@ -79,9 +89,33 @@ export function listMessages(
   if (opts?.before) params.set("before", opts.before);
   if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
   const qs = params.toString();
-  return apiGet<MessagePage>(
-    `/channels/${channelId}/messages${qs ? `?${qs}` : ""}`,
+  // Manual fetch: the auto-unwrap in apiGet strips has_more from the envelope
+  const res = await fetch(
+    `${API_BASE}/channels/${channelId}/messages${qs ? `?${qs}` : ""}`,
+    { headers: { "Content-Type": "application/json" } },
   );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = (await res.json()) as {
+    data: Record<string, unknown>[];
+    has_more: boolean;
+  };
+  const messages = (json.data ?? []).map((m) => ({
+    id: m.id as string,
+    channelId: m.channel_id as string,
+    authorType: m.author_type as string,
+    authorId: (m.author_id as string) ?? null,
+    bodyMarkdown: m.body_markdown as string,
+    bodyRenderedHtml: (m.body_rendered_html as string) ?? null,
+    replyToId: (m.reply_to_id as string) ?? null,
+    threadCount: (m.thread_count as number) ?? 0,
+    editedAt: (m.edited_at as string) ?? null,
+    deletedAt: (m.deleted_at as string) ?? null,
+    mentions: (m.mentions as string[]) ?? [],
+    attachments: (m.attachments as Record<string, unknown>) ?? {},
+    insertedAt: m.inserted_at as string,
+    updatedAt: m.updated_at as string,
+  })) as ChannelMessage[];
+  return { data: messages, hasMore: json.has_more ?? false };
 }
 
 export function sendMessage(
@@ -197,6 +231,16 @@ export function deleteChannelMutation() {
   return {
     mutationKey: ["channels", "delete"] as const,
     mutationFn: (id: string) => deleteChannel(id),
+  };
+}
+
+/** Query options for channel members. */
+export function channelMembersQuery(channelId: string) {
+  return {
+    queryKey: ["channels", channelId, "members"] as const,
+    queryFn: () => listMembers(channelId),
+    staleTime: 30_000,
+    enabled: Boolean(channelId),
   };
 }
 

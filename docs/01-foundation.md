@@ -3,7 +3,6 @@
 **Date:** 2026-04-17
 **Status:** Comprehensive plan. Awaiting Roberto's approval before any code.
 **Supersedes:** Previous FOUNDATION.md draft
-**Source dossiers:** `/tmp/competitor-research/analysis/{cabinet,multica,core-oss,superhq,gradient-bang,paperclip}.md`
 
 ---
 
@@ -26,22 +25,17 @@ Not a chat app. Not a notebook. Not a knowledge base. **A cockpit for agent exec
 | Rust sidecar | `src-tauri/` with filesystem.rs | Minimal |
 | Design | No token system, no component primitives, inconsistent spacing/color | The visible gap |
 
-### Scope Comparison (we have MORE than competitors)
+### Scope vs Polish
 
-| Competitor | Scope | Polish |
-|-----------|-------|--------|
-| Cabinet | Markdown KB + agents + cron + terminal | HIGH |
-| Multica | Kanban + agents-as-teammates + 9 runtimes | HIGH |
-| Core-OSS | Notion+Slack clone (email/cal/chat/files) | HIGH |
-| SuperHQ | VM-isolated agents + auth gateway | HIGH |
-| Paperclip | Company OS (org chart + heartbeats + skills) | HIGH |
-| **Canopy (now)** | **All of the above + 330 agents + heartbeat + governance + 5-layer org + virtual office** | **LOW** |
+**Scope:** markdown KB + agents + cron + terminal + kanban + 9 runtimes + email/cal/chat/files + VM-isolated agents + org chart + heartbeats + skills + governance + 5-layer org + 330 agents.
+
+**Polish:** LOW. We have all the surfaces, but no design system rigor.
 
 ### The Diagnosis
 
-**We're not behind on features. We're 3–5× ahead on scope.** The gap is polish, design system, UX craftsmanship. Competitors ship less → look premium. We ship more → look unpolished.
+**We're not behind on features. We're far ahead on scope.** The gap is polish, design system, UX craftsmanship.
 
-The fix is not "build more features." The fix is: **proper foundation, lift polished UI from competitors, wire to our superior backend.**
+The fix is: **proper foundation, polished UI, wire to our superior backend.**
 
 ---
 
@@ -62,21 +56,17 @@ Canopy v2 is a Tauri desktop app. You launch it and see:
 
 ### The Differentiator
 
-- **Cabinet** = 3 runtimes, no VMs, markdown-centric
-- **Multica** = 9 runtimes but only as backend, kanban-centric, no desktop
-- **SuperHQ** = 3 runtimes, VMs, macOS-only, Rust
-- **Paperclip** = 8 runtimes via plugins, no desktop (yet), org-chart-centric
-- **Canopy v2** = **9+ runtimes + MIOSA sandboxes + desktop-first + markdown workspace protocol + heartbeat governance + plugin adapters**
+**Canopy v2** = 9+ runtimes + MIOSA sandboxes + desktop-first + markdown workspace protocol + heartbeat governance + plugin adapters.
 
 Nobody else combines runtime management with provisioned compute. That's the moat.
 
 ---
 
-## 3. Competitor Synthesis — What Lands Where
+## 3. Pattern Inventory — What Lands Where
 
-Full mapping of every lift, sized by effort.
+Full mapping of patterns, sized by effort.
 
-### From Cabinet → Design system + composer UX
+### Design system + composer UX
 
 | Pattern | Canopy v2 destination | Effort |
 |---------|----------------------|--------|
@@ -90,7 +80,7 @@ Full mapping of every lift, sized by effort.
 | sessionStorage session reconnect | `domain/sessions/reconnect.ts` | S |
 | Structured epilogue block (` ```canopy ` with SUMMARY/CONTEXT/ARTIFACT) | `protocol/agent-epilogue.md` + backend parser | M |
 
-### From Multica → Data model + realtime
+### Data model + realtime
 
 | Pattern | Canopy v2 destination | Effort |
 |---------|----------------------|--------|
@@ -99,16 +89,16 @@ Full mapping of every lift, sized by effort.
 | WS-as-invalidation with 100ms debounce → query cache | `desktop/src/lib/api/realtime.ts` | M |
 | Skills as markdown in Postgres, injected per-provider | `backend/lib/canopy/skills/` + `protocol/skills.md` | L |
 
-### From Core-OSS → Shell + module architecture
+### Shell + module architecture
 
 | Pattern | Canopy v2 destination | Effort |
 |---------|----------------------|--------|
 | Inset card shell (sidebar bg shows through gap) | `desktop/src/routes/+layout.svelte` | S |
 | Module lazy loading (each route its own bundle) | SvelteKit dynamic imports | S |
 | Push-panel pattern (sibling to main, not overlay) | `desktop/src/lib/design/patterns/PushPanel.svelte` | M |
-| Zustand replacement: Svelte 5 runes + module-local stores, NOT global sprawl | discipline rule | — |
+| Svelte 5 runes + module-local stores, NOT global sprawl | discipline rule | — |
 
-### From SuperHQ → Defer (runtime hardening phase)
+### Sandbox / runtime hardening (Phase 2)
 
 | Pattern | Canopy v2 destination | Effort | Phase |
 |---------|----------------------|--------|-------|
@@ -117,7 +107,7 @@ Full mapping of every lift, sized by effort.
 | Checkpoint-resume boot for sandbox VMs | MIOSA's problem, not ours | — | N/A |
 | Lazy diff-on-expand + Keep/Discard commit review | `desktop/src/lib/design/patterns/DiffReview.svelte` | M | Phase 2 |
 
-### From Gradient-bang → Defer (voice phase)
+### Voice (Phase 3)
 
 | Pattern | Canopy v2 destination | Phase |
 |---------|----------------------|-------|
@@ -125,7 +115,7 @@ Full mapping of every lift, sized by effort.
 | Fire-and-forget tools with `request_id` correlation | needed for any voice tool | Phase 3 |
 | `LLMServiceConfig` abstraction | applies to our `RuntimeAdapter.listModels` | reference |
 
-### From Paperclip → Adapter contract (PRIMARY LIFT)
+### Adapter contract (PRIMARY)
 
 | Pattern | Canopy v2 destination | Effort |
 |---------|----------------------|--------|
@@ -170,10 +160,10 @@ Full mapping of every lift, sized by effort.
 | Component primitives | shadcn-svelte (Bits UI) | Headless + fully customizable; shadcn patterns you know | Skeleton (opinionated), Melt raw (boilerplate) |
 | Styling | Tailwind 4 + OKLCh tokens | CSS var-based tokens, Tailwind 4 is faster + native nesting | Tailwind 3 (slower), CSS-in-JS (runtime cost) |
 | State (local) | Svelte 5 runes | Zero library overhead | Zustand (not needed), Redux (never) |
-| State (server) | TanStack Query Svelte | Cache + SSE invalidation (Multica pattern) | Custom fetch + stores (duplicates truth) |
+| State (server) | TanStack Query Svelte | Cache + SSE invalidation | Custom fetch + stores (duplicates truth) |
 | Router | SvelteKit file-based | Native | — |
 | Terminal | xterm.js + xterm addons | Industry standard | — |
-| Markdown editor | Tiptap | Extension-rich, used by Cabinet + Paperclip | ProseMirror direct (too low), Milkdown (smaller community) |
+| Markdown editor | Tiptap | Extension-rich, broad ecosystem | ProseMirror direct (too low), Milkdown (smaller community) |
 | Icons | Lucide Svelte | Consistent, tree-shakeable | — |
 | 3D (virtual office, optional) | Threlte v8 | Svelte-native Three.js | — |
 
@@ -192,7 +182,7 @@ Full mapping of every lift, sized by effort.
 
 | Concern | Pick | Why |
 |---------|------|-----|
-| Package manager | pnpm | Fast, strict, good for monorepo (Paperclip uses it) |
+| Package manager | pnpm | Fast, strict, good for monorepo |
 | Build | Vite (via SvelteKit) | Native |
 | Lint + format | Biome | Replaces ESLint + Prettier with one tool, 10× faster |
 | TS | strict mode, branded types for IDs | No `any` anywhere |
@@ -308,7 +298,7 @@ canopy/                                    # v2 — monorepo, one codebase
 │   │   ├── lib/
 │   │   │   ├── design/                    # L1 — design system
 │   │   │   │   ├── tokens/
-│   │   │   │   │   ├── oklch.css          # color tokens (Cabinet pattern)
+│   │   │   │   │   ├── oklch.css          # color tokens
 │   │   │   │   │   ├── radius.css         # calc() scale
 │   │   │   │   │   ├── typography.css
 │   │   │   │   │   ├── motion.css         # keyframes + transitions
@@ -321,19 +311,19 @@ canopy/                                    # v2 — monorepo, one codebase
 │   │   │   │   │   ├── Tabs.svelte
 │   │   │   │   │   └── ...
 │   │   │   │   └── patterns/              # composed patterns
-│   │   │   │       ├── Composer.svelte           # Cabinet pattern
-│   │   │   │       ├── ActorAvatar.svelte        # Multica pattern
+│   │   │   │       ├── Composer.svelte           # prompt input
+│   │   │   │       ├── ActorAvatar.svelte        # unified avatar
 │   │   │   │       ├── LiveTerminal.svelte       # xterm + glow
-│   │   │   │       ├── PushPanel.svelte          # Core-OSS pattern
-│   │   │   │       ├── DiffReview.svelte         # SuperHQ pattern (deferred)
-│   │   │   │       ├── RuntimeCard.svelte        # Paperclip-inspired
-│   │   │   │       ├── RuntimeConfigForm.svelte  # Paperclip schema-driven
-│   │   │   │       ├── TranscriptView.svelte     # Paperclip TranscriptEntry
-│   │   │   │       └── CommandPalette.svelte     # Paperclip pattern
+│   │   │   │       ├── PushPanel.svelte          # right-side sibling panel
+│   │   │   │       ├── DiffReview.svelte         # diff Keep/Discard (deferred)
+│   │   │   │       ├── RuntimeCard.svelte        # runtime display card
+│   │   │   │       ├── RuntimeConfigForm.svelte  # schema-driven form
+│   │   │   │       ├── TranscriptView.svelte     # TranscriptEntry renderer
+│   │   │   │       └── CommandPalette.svelte     # ⌘K overlay
 │   │   │   │
 │   │   │   ├── domain/                    # L2 — business logic (TS)
 │   │   │   │   ├── runtimes/
-│   │   │   │   │   ├── types.ts           # RuntimeAdapter interface (from Paperclip)
+│   │   │   │   │   ├── types.ts           # RuntimeAdapter interface
 │   │   │   │   │   ├── registry.ts        # client-side registry
 │   │   │   │   │   ├── detect.ts          # calls Tauri to scan PATH
 │   │   │   │   │   └── adapters/          # per-runtime TS adapters if needed
@@ -342,7 +332,7 @@ canopy/                                    # v2 — monorepo, one codebase
 │   │   │   │   │   └── persona.ts
 │   │   │   │   ├── sessions/
 │   │   │   │   │   ├── types.ts           # Session, TranscriptEntry
-│   │   │   │   │   ├── reconnect.ts       # sessionStorage pattern (Cabinet)
+│   │   │   │   │   ├── reconnect.ts       # sessionStorage pattern
 │   │   │   │   │   └── epilogue.ts        # parse ```canopy block
 │   │   │   │   ├── workspaces/
 │   │   │   │   ├── miosa/                 # optional frontend MIOSA calls
@@ -389,7 +379,7 @@ canopy/                                    # v2 — monorepo, one codebase
 │   │   │   ├── filesystem.rs              # workspace FS ops
 │   │   │   ├── vault.rs                   # keyring wrapper
 │   │   │   └── miosa.rs                   # optional MIOSA proxy from Rust
-│   │   └── auth_gateway.rs                # (Phase 2, from SuperHQ)
+│   │   └── auth_gateway.rs                # (Phase 2)
 │   ├── capabilities/
 │   ├── icons/
 │   ├── Cargo.toml
@@ -444,7 +434,7 @@ canopy/                                    # v2 — monorepo, one codebase
 ### Week 1: Backend — Runtimes + Adapter Contract
 
 - Ecto schemas: `runtimes`, `sessions`, `session_messages`, `agents`, `workspaces`, `credentials_ref`
-- `Canopy.Runtimes.Adapter` behaviour (Paperclip `ServerAdapterModule` port)
+- `Canopy.Runtimes.Adapter` behaviour (`ServerAdapterModule`-style contract)
 - `Canopy.Runtimes.Registry` GenServer with pause/resume
 - Implement 3 adapters first: `ClaudeLocal`, `CodexLocal`, `GeminiLocal`
 - OpenAPISpex schemas for all runtime endpoints
@@ -475,9 +465,9 @@ canopy/                                    # v2 — monorepo, one codebase
 
 ### Week 4: Frontend — Shell + Tokens + Runtime Dashboard
 
-- OKLCh token system (from Cabinet dossier)
+- OKLCh token system
 - shadcn-svelte primitives installed + themed
-- Inset shell layout (from Core-OSS)
+- Inset shell layout
 - Runtime Dashboard page: cards with status, version, quota, launch button
 - `RuntimeConfigForm.svelte` driven by `getConfigSchema()` from backend
 - Dark/light toggle works, tokens consistent
@@ -486,7 +476,7 @@ canopy/                                    # v2 — monorepo, one codebase
 
 ### Week 5: Frontend — Composer + Sessions + Workspaces
 
-- Composer card (Cabinet pattern) with agent picker, runtime picker, `@mention`
+- Composer card with agent picker, runtime picker, `@mention`
 - `LiveTerminal.svelte` with xterm + glow pulse + TranscriptEntry renderer
 - Session history page + session chain view
 - Workspace file tree + markdown editor (Tiptap)
@@ -543,7 +533,7 @@ Only 4. Not 15.
 
 1. **Approve this synthesis?** (or redline specific sections)
 2. **Folder naming:** rename `canopy/` → `canopy-legacy/` and create fresh `canopy/`? OR keep old + sibling `canopy-v2/`?
-3. **Paperclip license verification:** I need to confirm Paperclip's LICENSE allows lifting the adapter contract with attribution (quick check, takes 30 seconds). Proceed with lifting if permissive, otherwise re-implement from spec. **Yes/no to do this check now?**
+3. **Implementation strategy:** clean-room re-implementation of the adapter contract (no third-party code). **Confirm?**
 4. **Who builds:** you solo (Svelte-heavy, will take the full 6 weeks), or parallel with Pedro/Abdul/Nejd (faster, but needs delegation docs for each person)?
 
 ---
@@ -551,7 +541,7 @@ Only 4. Not 15.
 ## 9. Open Questions (non-blocking)
 
 - **Virtual pixel-art office** — keep, drop, or defer to Phase 2?
-- **Multi-workspace** — one-at-a-time (Cabinet) or switcher (Multica)?
+- **Multi-workspace** — one-at-a-time or switcher?
 - **330+ agent library** — port all, or curate down to top 50 for v0.1?
 - **Skills marketplace** — needed for v0.1 or later?
 - **Community plugin registry for adapters** — v0.1 or later?

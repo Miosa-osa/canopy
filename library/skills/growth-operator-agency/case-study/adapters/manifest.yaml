@@ -1,0 +1,70 @@
+skill_id: case-study
+skill_path: skills/case-study/SKILL.md
+skill_name: "Client Result → Case Study Converter"
+
+tier: structured_ai
+category: scale
+temperature_gate: warm
+
+role_affinity:
+  - scale-head
+  - case-study
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - contacts
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - isomorphic_fit_verified
+  - raw_interview_captured
+  - 6_level_hierarchy_classified
+  - multiple_format_outputs
+  - ftc_disclosure
+  - client_approval
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - copy_messaging
+    - lifecycle_optimization
+  write:
+    - copy_messaging
+
+output:
+  location: "output/case-study/{date}-case-study-{client-slug}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: case-study
+    type: inform
+    format: markdown
+    structure: w-case-study
+  receiver: prospects + marketing assets
+
+next_skill_routing:
+  on_complete:
+    - condition: "vsl_needs_insert"
+      recommend: build-vsl
+    - condition: "ad_variant_needed"
+      recommend: ad-creative
+    - condition: "organic_distribution_planned"
+      recommend: write-linkedin-post
+  on_fail:
+    escalate_to: scale-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

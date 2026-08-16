@@ -1,0 +1,59 @@
+openapi: 3.1.0
+info:
+  title: build-positioning
+  version: 1.0.0
+  x-skill-source: ../SKILL.md
+  x-signal-tuple: { mode: linguistic, genre: positioning-doc, type: inform, format: markdown, structure: w-positioning-doc-7-section }
+servers:
+  - url: https://{host}/api/v1
+    variables: { host: { default: growth-os.local } }
+security: [ { GrowthOSKey: [] } ]
+paths:
+  /skills/build-positioning/execute:
+    post:
+      summary: Execute build-positioning (7-section Positioning Document — Vehicle Switch, Unique Mechanism, Core Belief)
+      x-evidence-gate: [all_7_sections_complete, mechanism_named_and_differentiated, core_belief_statement_passes_3am_test, narrative_passes_isomorphic_check, market_sophistication_stage_matched, signal_score_gte_0_8, blind_output_test_passed]
+      x-streaming: not-required
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Input' } } } }
+      responses:
+        '200': { description: Passed, content: { application/json: { schema: { $ref: '#/components/schemas/Output' } } } }
+        '400': { description: Bad inputs }
+        '401': { description: Unauthorized }
+        '403': { description: Scope violation (INV-8) }
+        '422': { description: Held (quality gate failed — fix-paths returned) }
+        '429': { description: Rate-limited }
+        '500': { description: Runtime error }
+components:
+  securitySchemes: { GrowthOSKey: { type: apiKey, in: header, name: X-Growth-OS-Key } }
+  schemas:
+    Input:
+      type: object
+      required: [skill, inputs, context_profile_id]
+      properties:
+        skill: { type: string, const: build-positioning }
+        inputs:
+          type: object
+          required: [audience_intelligence_system_score, creator_identity_matrix_score]
+          properties:
+            audience_intelligence_system_score: { type: number, minimum: 60 }
+            creator_identity_matrix_score: { type: number, minimum: 50 }
+            offer_architecture_score: { type: number, minimum: 10 }
+            icp_doc_ref: { type: string, description: Path to ICP Document }
+            market_research_brief_ref: { type: string, description: Path to Market Research Brief }
+            market_sophistication_stage: { type: string, enum: [naive, aware, skeptical, exhausted], description: the VSL director 4-stage hint }
+        context_profile_id: { type: string }
+        options:
+          type: object
+          properties: { stream: { type: boolean, default: false }, dry_run: { type: boolean, default: false } }
+    Output:
+      type: object
+      required: [artifact_ref, status, quality_score, signal_theory_tuple]
+      properties:
+        artifact_ref: { type: string, description: "output/build-positioning/{date}-positioning-doc.md" }
+        status: { type: string, enum: [passed, held, failed] }
+        quality_score: { type: number, minimum: 0, maximum: 1 }
+        signal_theory_tuple:
+          type: object
+          properties: { mode: { type: string }, genre: { type: string }, type: { type: string }, format: { type: string }, structure: { type: string } }
+        cost_tokens: { type: integer }
+        evidence_ref: { type: string }

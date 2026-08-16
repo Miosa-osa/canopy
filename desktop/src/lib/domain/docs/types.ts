@@ -82,6 +82,8 @@ export interface Document {
   publishedAt: string | null;
   tags: string[];
   archivedAt: string | null;
+  /** Non-null when a governance rule queued this doc for human review. */
+  reviewId: string | null;
   insertedAt: string;
   updatedAt: string;
 }

@@ -1,0 +1,68 @@
+skill_id: revenue-report
+skill_path: skills/revenue-report/SKILL.md
+skill_name: "Revenue Analysis + Forecasting Producer"
+
+tier: reasoning_ai
+category: scale
+temperature_gate: warm
+
+role_affinity:
+  - scale-head
+  - financial
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - all_metrics_pulled_from_source
+  - ltv_cac_computed
+  - revenue_mix_analyzed
+  - forecast_generated
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - offer_architecture
+    - lifecycle_optimization
+    - operational_intelligence
+  write:
+    - offer_architecture
+    - operational_intelligence
+
+output:
+  location: "output/revenue-report/{date}-revenue-report-{period}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: revenue-report
+    type: inform
+    format: markdown
+    structure: w-revenue-report
+  receiver: creator + finance + scale lead
+
+next_skill_routing:
+  on_complete:
+    - condition: "ltv_cac_below_3"
+      recommend: design-offer
+    - condition: "funnel_economics_broken"
+      recommend: build-funnel
+    - condition: "churn_high"
+      recommend: retention-check
+  on_fail:
+    escalate_to: scale-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: false

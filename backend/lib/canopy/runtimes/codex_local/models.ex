@@ -2,8 +2,7 @@ defmodule Canopy.Runtimes.CodexLocal.Models do
   @moduledoc """
   Canonical Codex model metadata — context windows and capabilities.
 
-  Model IDs verified against Paperclip's `index.ts` and `codex-args.ts`
-  (packages/adapters/codex-local/src/index.ts, April 2026).
+  Model IDs sourced from OpenAI Codex docs (April 2026).
 
   Two entry points:
 

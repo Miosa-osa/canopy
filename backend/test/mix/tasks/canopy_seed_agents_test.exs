@@ -61,6 +61,19 @@ defmodule Mix.Tasks.Canopy.Seed.AgentsTest do
       assert Map.has_key?(result, "closer-marketing")
       assert map_size(result) == 3
     end
+
+    test "same-category collisions use full relative path so no source file is dropped" do
+      paths = [
+        "/root/growth/team-a/researcher.md",
+        "/root/growth/team-b/researcher.md"
+      ]
+
+      result = Task.build_slug_map(paths, "/root")
+
+      assert map_size(result) == 2
+      assert Map.has_key?(result, "researcher-growth-team-a-researcher")
+      assert Map.has_key?(result, "researcher-growth-team-b-researcher")
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -169,6 +182,18 @@ defmodule Mix.Tasks.Canopy.Seed.AgentsTest do
         assert length(parts) == 5,
                "invalid heartbeat_cron for #{agent.slug}: #{agent.heartbeat_cron}"
       end)
+    end
+
+    @tag timeout: 120_000
+    test "seeded agents preserve org and UI metadata in config" do
+      ExUnit.CaptureIO.capture_io(fn -> Task.run([]) end)
+
+      {:ok, agent} = Agents.get_by_slug("growth-ceo")
+      assert agent.config["source"] == "bundled"
+      assert agent.config["emoji"] == "📈"
+      assert agent.config["title"] == "Growth CEO"
+      assert agent.config["context_tier"] == "l0"
+      assert agent.config["persona_path"] == "growth/growth-operator-agency/growth-ceo.md"
     end
 
     @tag timeout: 120_000

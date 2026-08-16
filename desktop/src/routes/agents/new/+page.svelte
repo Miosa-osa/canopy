@@ -18,8 +18,15 @@
   import { runtimeModelsQuery, runtimesQuery } from '$lib/api/queries/runtimes.js';
   import { toolsQuery } from '$lib/api/queries/tools.js';
   import type { Tool } from '$lib/domain/tools/types.js';
+  import { TOOL_BUNDLE_GROUPS, categorizeTools } from '$lib/domain/tools/bundles.js';
   import type { AgentCategory } from '$lib/domain/agents/types.js';
   import { AGENT_PRESETS } from '$lib/domain/agents/presets.js';
+  import {
+    CAPABILITY_PRESETS,
+    CAPABILITY_PRESET_META,
+    type CapabilityPreset,
+    type Capability,
+  } from '$lib/domain/agents/config.js';
   import type { AgentDetail } from '$lib/domain/agents/types.js';
   import type { Runtime, RuntimeModel } from '$lib/domain/runtimes/types.js';
   import { toasts } from '$lib/stores/toasts.svelte.js';
@@ -40,6 +47,8 @@
   let selectedTools = $state<Set<string>>(new Set());
   let heartbeatCron = $state('');
   let advancedOpen = $state(false);
+  let selectedCapabilities = $state<Set<Capability>>(new Set());
+  let collapsedBundleGroups = $state<Set<string>>(new Set());
 
   // Validation errors shown on submit attempt
   let submitAttempted = $state(false);
@@ -147,6 +156,60 @@
       next.delete(name);
     } else {
       next.add(name);
+    }
+    selectedTools = next;
+  }
+
+  // ── Tool bundle helpers ───────────────────────────────────────────────────────
+
+  const categorized = $derived(categorizeTools(toolsList, TOOL_BUNDLE_GROUPS));
+
+  function selectAll(): void {
+    selectedTools = new Set(toolsList.map((t) => t.name));
+  }
+
+  function clearAll(): void {
+    selectedTools = new Set();
+  }
+
+  function selectBundle(bundleId: string): void {
+    const group = TOOL_BUNDLE_GROUPS.flatMap((g) => g.bundles).find((b) => b.id === bundleId);
+    if (!group) return;
+    const next = new Set(selectedTools);
+    const available = new Set(toolsList.map((t) => t.name));
+    for (const toolName of group.tools) {
+      if (available.has(toolName)) next.add(toolName);
+    }
+    selectedTools = next;
+  }
+
+  function toggleBundleGroup(groupId: string): void {
+    const next = new Set(collapsedBundleGroups);
+    if (next.has(groupId)) {
+      next.delete(groupId);
+    } else {
+      next.add(groupId);
+    }
+    collapsedBundleGroups = next;
+  }
+
+  // ── Capability preset helpers ─────────────────────────────────────────────────
+
+  const PRESET_ORDER: CapabilityPreset[] = ['observer', 'reviewer', 'developer', 'admin'];
+
+  function applyCapabilityPreset(preset: CapabilityPreset): void {
+    selectedCapabilities = new Set(CAPABILITY_PRESETS[preset]);
+    // Auto-select tool bundles that match this preset
+    const next = new Set(selectedTools);
+    const available = new Set(toolsList.map((t) => t.name));
+    for (const group of TOOL_BUNDLE_GROUPS) {
+      for (const bundle of group.bundles) {
+        if (bundle.suggestedCapabilities === preset) {
+          for (const toolName of bundle.tools) {
+            if (available.has(toolName)) next.add(toolName);
+          }
+        }
+      }
     }
     selectedTools = next;
   }
@@ -388,21 +451,92 @@
     <!-- ── Tools section ────────────────────────────────────────────────── -->
     {#if toolsList.length > 0}
       <section class="na-section">
-        <h2 class="na-section-label">Tools <span class="na-optional-label">(optional)</span></h2>
-        <div class="na-tool-chips" role="group" aria-label="Select tools">
-          {#each toolsList as tool (tool.name)}
-            <button
-              type="button"
-              class="btn-pill btn-pill-sm na-tool-chip"
-              class:na-tool-chip--active={selectedTools.has(tool.name)}
-              onclick={() => toggleTool(tool.name)}
-              aria-pressed={selectedTools.has(tool.name)}
-              title={tool.description ?? tool.name}
-            >
-              {tool.name}
+        <div class="na-tools-header">
+          <h2 class="na-section-label">Tools <span class="na-optional-label">(optional)</span></h2>
+          <div class="na-tools-global-controls">
+            <button type="button" class="btn-pill btn-pill-ghost btn-pill-sm na-preset-chip" onclick={selectAll}>
+              Select all
             </button>
-          {/each}
+            <button type="button" class="btn-pill btn-pill-ghost btn-pill-sm na-preset-chip" onclick={clearAll}>
+              Clear all
+            </button>
+            <span class="na-tools-count">{selectedTools.size} / {toolsList.length}</span>
+          </div>
         </div>
+
+        <!-- Bundled groups -->
+        {#each TOOL_BUNDLE_GROUPS as group (group.id)}
+          {@const groupTools = categorized.bundled.get(group.id) ?? []}
+          {#if groupTools.length > 0}
+            {@const isCollapsed = collapsedBundleGroups.has(group.id)}
+            <div class="na-bundle-group">
+              <div class="na-bundle-group-header">
+                <button
+                  type="button"
+                  class="na-bundle-group-toggle"
+                  onclick={() => toggleBundleGroup(group.id)}
+                  aria-expanded={!isCollapsed}
+                >
+                  <span class="na-bundle-group-arrow" class:na-bundle-group-arrow--open={!isCollapsed}>▶</span>
+                  {group.label}
+                  <span class="na-bundle-group-count">({groupTools.length})</span>
+                </button>
+                {#each group.bundles as bundle (bundle.id)}
+                  {@const bundleTools = categorized.bundled.get(bundle.id) ?? []}
+                  {#if bundleTools.length > 0}
+                    <button
+                      type="button"
+                      class="btn-pill btn-pill-ghost btn-pill-sm na-preset-chip"
+                      onclick={() => selectBundle(bundle.id)}
+                      title={bundle.description}
+                    >
+                      + {bundle.name}
+                    </button>
+                  {/if}
+                {/each}
+              </div>
+              {#if !isCollapsed}
+                <div class="na-tool-chips" role="group" aria-label="Tools in {group.label}">
+                  {#each groupTools as tool (tool.name)}
+                    <button
+                      type="button"
+                      class="btn-pill btn-pill-sm na-tool-chip"
+                      class:na-tool-chip--active={selectedTools.has(tool.name)}
+                      onclick={() => toggleTool(tool.name)}
+                      aria-pressed={selectedTools.has(tool.name)}
+                      title={tool.description ?? tool.name}
+                    >
+                      {tool.name}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/if}
+        {/each}
+
+        <!-- Unbundled / Other tools -->
+        {#if categorized.unbundled.length > 0}
+          <div class="na-bundle-group">
+            <div class="na-bundle-group-header">
+              <span class="na-bundle-group-label">Other tools</span>
+            </div>
+            <div class="na-tool-chips" role="group" aria-label="Other tools">
+              {#each categorized.unbundled as tool (tool.name)}
+                <button
+                  type="button"
+                  class="btn-pill btn-pill-sm na-tool-chip"
+                  class:na-tool-chip--active={selectedTools.has(tool.name)}
+                  onclick={() => toggleTool(tool.name)}
+                  aria-pressed={selectedTools.has(tool.name)}
+                  title={tool.description ?? tool.name}
+                >
+                  {tool.name}
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </section>
     {/if}
 
@@ -420,6 +554,28 @@
 
       {#if advancedOpen}
         <div class="na-advanced-body">
+          <!-- Capability presets -->
+          <div class="na-field">
+            <span class="na-label">Capability preset</span>
+            <div class="na-presets" role="group" aria-label="Capability presets">
+              {#each PRESET_ORDER as preset (preset)}
+                {@const meta = CAPABILITY_PRESET_META[preset]}
+                <button
+                  type="button"
+                  class="btn-pill btn-pill-ghost btn-pill-sm na-preset-chip"
+                  class:na-preset-chip--active={CAPABILITY_PRESETS[preset].length === selectedCapabilities.size &&
+                    CAPABILITY_PRESETS[preset].every((c) => selectedCapabilities.has(c))}
+                  onclick={() => applyCapabilityPreset(preset)}
+                  title={meta.description}
+                >
+                  {meta.label}
+                </button>
+              {/each}
+            </div>
+            <span class="na-hint">Presets set capability permissions and auto-select matching tool bundles.</span>
+          </div>
+
+          <!-- Heartbeat cron -->
           <div class="na-field">
             <label class="na-label" for="agent-cron">Heartbeat cron <span class="na-optional-label">(optional)</span></label>
             <input
@@ -752,6 +908,95 @@
   }
 
   .na-tool-chip--active {
+    background: color-mix(in oklch, var(--cnp-accent, oklch(0.55 0.18 250)) 12%, transparent);
+    border-color: var(--cnp-accent, oklch(0.55 0.18 250));
+    color: var(--fg);
+  }
+
+  /* ── Tools section — bundle layout ───────────────────────────────────── */
+
+  .na-tools-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .na-tools-global-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+
+  .na-tools-count {
+    font-size: 11px;
+    color: var(--fg-subtle);
+    white-space: nowrap;
+  }
+
+  .na-bundle-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .na-bundle-group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .na-bundle-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    transition: color 0.1s;
+  }
+
+  .na-bundle-group-toggle:hover {
+    color: var(--fg);
+  }
+
+  .na-bundle-group-label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+  }
+
+  .na-bundle-group-arrow {
+    font-size: 8px;
+    display: inline-block;
+    transition: transform 0.12s var(--ease-out, ease);
+  }
+
+  .na-bundle-group-arrow--open {
+    transform: rotate(90deg);
+  }
+
+  .na-bundle-group-count {
+    font-size: 10px;
+    color: var(--fg-subtle);
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .na-preset-chip--active {
     background: color-mix(in oklch, var(--cnp-accent, oklch(0.55 0.18 250)) 12%, transparent);
     border-color: var(--cnp-accent, oklch(0.55 0.18 250));
     color: var(--fg);

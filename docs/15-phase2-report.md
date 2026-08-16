@@ -203,7 +203,7 @@ Post-fix: 1108 tests, 0 failures (15.7s total).
 
 **Week 4 Shell Polish** work mostly landed in Track #70 as part of Phase 2. Remaining Week 4 items are the Credo cleanup + a11y sweep (lightweight, Day 5 bundle).
 
-**Week 5** is Tasks module (Multica pattern). The Phase 2 architecture audit identified that scaling prep (Oban concurrency, indexes, ETS caches) should precede the productivity modules. Recommend ordering:
+**Week 5** is the Tasks module. The Phase 2 architecture audit identified that scaling prep (Oban concurrency, indexes, ETS caches) should precede the productivity modules. Recommend ordering:
 
 1. **Week 4** — 2-day Credo + a11y sweep, then start scaling-prep migrations (ETS governance cache, Oban concurrency bump)
 2. **Week 5** — Tasks module with scaling floor already raised

@@ -1,6 +1,23 @@
-# Canopy v2 — Agent Operating Protocol
+# Canopy — Agent Operating Protocol
 
 Read this before touching any file in this repo.
+
+## What This Is
+
+A desktop terminal workspace that survives a quit. Named sessions, git worktrees,
+and PTY rehydration. The product is persistence — your terminals, directories, and
+AI agent conversations come back after restart.
+
+The 19-module vision (Inbox, Schedule, Chat, Channels, Files, Docs, Tasks, Dashboard,
+Analytics, Skills, Templates, Sandboxes, Governance, etc.) is parked. Routes still
+exist but are hidden from the sidebar. Do not remove them — they can be re-enabled.
+
+## Build Order
+
+1. Session persistence — `save_state/0` + `restore_state/0` (JSON to disk)
+2. PTY rehydration — scrollback + screen state save/restore
+3. Agent session resume — `claude --resume <uuid>` on relaunch
+4. Named workspaces — layout + sessions + worktrees as a restoreable unit
 
 ## Authoritative Docs (read first, always)
 

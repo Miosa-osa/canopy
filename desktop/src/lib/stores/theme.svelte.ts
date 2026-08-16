@@ -15,7 +15,7 @@
 
 export type ThemeMode = "light" | "dark" | "system";
 
-// ── Preset accent palette (Multica-derived hues + Canopy green) ───────────────
+// ── Preset accent palette (curated hues + Canopy green) ──────────────────────
 
 export interface AccentPreset {
   label: string;

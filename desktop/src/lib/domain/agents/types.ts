@@ -5,25 +5,25 @@
 
 /** 19 canonical categories from the agents directory. */
 export type AgentCategory =
-  | 'academic'
-  | 'creative-content'
-  | 'design'
-  | 'engineering'
-  | 'executive'
-  | 'game-development'
-  | 'growth'
-  | 'marketing'
-  | 'operations'
-  | 'paid-media'
-  | 'product'
-  | 'project-management'
-  | 'revenue'
-  | 'sales'
-  | 'spatial-computing'
-  | 'specialized'
-  | 'support'
-  | 'technology'
-  | 'testing';
+  | "academic"
+  | "creative-content"
+  | "design"
+  | "engineering"
+  | "executive"
+  | "game-development"
+  | "growth"
+  | "marketing"
+  | "operations"
+  | "paid-media"
+  | "product"
+  | "project-management"
+  | "revenue"
+  | "sales"
+  | "spatial-computing"
+  | "specialized"
+  | "support"
+  | "technology"
+  | "testing";
 
 /** Agent summary for the library grid. Matches backend /api/v1/agents shape. */
 export interface Agent {
@@ -41,6 +41,8 @@ export interface Agent {
   defaultRuntime: string | null;
   heartbeatCron: string | null;
   tools: string[];
+  personaPath?: string;
+  config?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,8 +50,18 @@ export interface Agent {
 /** Full agent detail — includes persona markdown for the editor. */
 export interface AgentDetail extends Agent {
   personaMarkdown: string;
-  skills: string[];
-  contextTier: 'l0' | 'l1' | 'l2';
+  skills?: string[];
+  contextTier?: "l0" | "l1" | "l2";
+}
+
+export interface WorkspaceAgentSyncResult {
+  workspaceSlug: string;
+  rootPath: string;
+  scanned: number;
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors: Array<{ path: string; reason: string }>;
 }
 
 /** Filters applied on the library grid. */

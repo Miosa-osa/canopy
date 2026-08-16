@@ -1,0 +1,71 @@
+skill_id: lead-magnet
+skill_path: skills/lead-magnet/SKILL.md
+skill_name: "Lead Magnet Designer (9 the acquisition economist Types)"
+
+tier: structured_ai
+category: nurture
+temperature_gate: warm
+
+role_affinity:
+  - nurture-head
+  - lead-magnet
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - funnels
+  - assets
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - type_selected_with_reasoning
+  - value_equation_score_gte_150
+  - bridge_to_offer_explicit
+  - specific_outcome_promised
+  - delivery_automation_wired
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+  write:
+    - education_nurture.lead_magnets_published
+    - funnel_systems.lead_magnets_active
+
+output:
+  location: "output/lead-magnet/{date}-{type}-{title-slug}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: lead-magnet-brief
+    type: inform
+    format: markdown
+    structure: w-lead-magnet-brief
+  receiver: prospect + designer + copywriter
+
+next_skill_routing:
+  on_complete:
+    - condition: "default"
+      recommend: email-sequence
+    - condition: "opt_in_page_needed"
+      recommend: landing-page
+    - condition: "traffic_needed"
+      recommend: ad-creative
+  on_fail:
+    escalate_to: nurture-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

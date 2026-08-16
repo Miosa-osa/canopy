@@ -14,7 +14,7 @@ import {
   useQueryClient,
 } from '@tanstack/svelte-query';
 import { goto } from '$app/navigation';
-import { createWorkspaceMutation, workspaceTemplatesQuery } from '$lib/api/queries/workspaces.js';
+import { createWorkspaceMutation, startInitJob, workspaceTemplatesQuery } from '$lib/api/queries/workspaces.js';
 import type { CreateWorkspaceBody, Workspace, WorkspaceTemplate } from '$lib/domain/workspaces/types.js';
 
 interface Props {
@@ -45,13 +45,19 @@ let selectedTemplate = $state<WorkspaceTemplate | null>(null);
 let formSlug = $state('');
 let formRootPath = $state('');
 let formDescription = $state('');
+let formCloneUrl = $state('');
 let formError = $state('');
+
+function isValidCloneUrl(url: string): boolean {
+  return url === '' || url.startsWith('http') || url.startsWith('git@');
+}
 
 function selectTemplate(t: WorkspaceTemplate): void {
   selectedTemplate = t;
   formSlug = t.slug;
   formRootPath = `~/canopy-workspaces/${t.slug}`;
   formDescription = '';
+  formCloneUrl = '';
   formError = '';
 }
 
@@ -60,6 +66,7 @@ function handleClose(): void {
   formSlug = '';
   formRootPath = '';
   formDescription = '';
+  formCloneUrl = '';
   formError = '';
   onClose();
 }
@@ -81,6 +88,10 @@ async function handleSubmit(e: SubmitEvent): Promise<void> {
     formError = 'Root path is required.';
     return;
   }
+  if (formCloneUrl.trim() && !isValidCloneUrl(formCloneUrl.trim())) {
+    formError = 'Clone URL must start with http or git@.';
+    return;
+  }
 
   const body: CreateWorkspaceBody = {
     slug: formSlug.trim(),
@@ -91,8 +102,20 @@ async function handleSubmit(e: SubmitEvent): Promise<void> {
   };
 
   $createMut.mutate(body, {
-    onSuccess: (workspace) => {
+    onSuccess: async (workspace) => {
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      // Fire init job if clone URL was provided — store job_id so detail page picks it up
+      const cloneUrl = formCloneUrl.trim() || undefined;
+      if (cloneUrl) {
+        try {
+          const resp = await startInitJob(workspace.slug, cloneUrl);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(`canopy.ws.${workspace.slug}.init_job_id`, resp.jobId);
+          }
+        } catch {
+          // Non-fatal — workspace was created; user can retry init from detail page
+        }
+      }
       handleClose();
       void goto(`/workspaces/${workspace.slug}`);
     },
@@ -216,6 +239,19 @@ function handleKeydown(e: KeyboardEvent): void {
               type="text"
               bind:value={formDescription}
               placeholder="What is this workspace for?"
+            />
+          </div>
+
+          <div class="tp-field">
+            <label class="tp-label" for="tp-clone">Git clone URL <span class="tp-optional">(optional — triggers init)</span></label>
+            <input
+              id="tp-clone"
+              class="tp-input tp-input--mono"
+              type="text"
+              bind:value={formCloneUrl}
+              placeholder="https://github.com/org/repo.git"
+              autocomplete="off"
+              spellcheck="false"
             />
           </div>
 

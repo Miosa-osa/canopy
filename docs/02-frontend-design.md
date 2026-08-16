@@ -25,8 +25,7 @@
 
 - **Linear** — density, keyboard, monochrome discipline
 - **Cursor** — terminal-adjacent, developer-first, dark default
-- **Paperclip** — zero border radius, oklch tokens, shadcn rigor
-- **Cabinet** — editorial typography, composer-centric home
+- Editorial typography, composer-centric home, oklch tokens, shadcn rigor
 - **Avoid:** Notion's roundness, Slack's color chaos, generic shadcn-looking-like-shadcn
 
 ---
@@ -76,7 +75,7 @@
 /* signal + accent stay identical — perceptually balanced in both modes */
 ```
 
-### Terminal palette (derived via `color-mix`, Cabinet pattern)
+### Terminal palette (derived via `color-mix`)
 
 ```css
 --term-bg:       color-mix(in oklch, var(--bg-inset) 96%, black 4%);
@@ -159,7 +158,7 @@ Mono: 400 and 500 only.
 --radius-2xl: calc(var(--radius) * 2);          /* 16px — composer card */
 ```
 
-Not zero-radius (Paperclip). **Pill for primary CTAs (Foundation migration D1 — finalized 2026-04-17).** Rounded (8px) for inline utility controls, forms, segmented controls. Glass pill for overlay contexts.
+Not zero-radius. **Pill for primary CTAs (Foundation migration D1 — finalized 2026-04-17).** Rounded (8px) for inline utility controls, forms, segmented controls. Glass pill for overlay contexts.
 
 ### Motion
 
@@ -236,18 +235,18 @@ shadcn-svelte has been removed. Foundation provides Bits UI-backed equivalents.
 
 ### L1 — Patterns (Canopy-specific compositions)
 
-| Component | Purpose | Built from |
-|-----------|---------|-----------|
-| `Composer.svelte` | Input surface: agent picker + runtime picker + `@mention` + textarea | Cabinet pattern |
-| `ActorAvatar.svelte` | Unified avatar for humans (initials) + agents (Bot icon) | Multica pattern |
-| `LiveTerminal.svelte` | xterm.js + glow-pulse wrapper + TranscriptEntry side panel | Cabinet + Paperclip |
-| `TranscriptView.svelte` | Renders `TranscriptEntry` union: assistant/thinking/tool_call/tool_result/diff/stdout/stderr/system | Paperclip pattern |
-| `RuntimeCard.svelte` | Card for one runtime: icon, status dot, version, quota, launch btn | Paperclip-inspired |
-| `RuntimeConfigForm.svelte` | Declarative form driven by adapter `getConfigSchema()` | Paperclip pattern |
-| `PushPanel.svelte` | 340px right-side sibling panel (not overlay) | Core-OSS pattern |
-| `DiffReview.svelte` | File tree of changed files, expand → diff, Keep/Discard | SuperHQ pattern (Phase 2) |
-| `CommandPalette.svelte` | Global ⌘K overlay, fuzzy search all actions | standard |
-| `AgentCard.svelte` | Agent in library grid + roster | custom |
+| Component | Purpose |
+|-----------|---------|
+| `Composer.svelte` | Input surface: agent picker + runtime picker + `@mention` + textarea |
+| `ActorAvatar.svelte` | Unified avatar for humans (initials) + agents (Bot icon) |
+| `LiveTerminal.svelte` | xterm.js + glow-pulse wrapper + TranscriptEntry side panel |
+| `TranscriptView.svelte` | Renders `TranscriptEntry` union: assistant/thinking/tool_call/tool_result/diff/stdout/stderr/system |
+| `RuntimeCard.svelte` | Card for one runtime: icon, status dot, version, quota, launch btn |
+| `RuntimeConfigForm.svelte` | Declarative form driven by adapter `getConfigSchema()` |
+| `PushPanel.svelte` | 340px right-side sibling panel (not overlay) |
+| `DiffReview.svelte` | File tree of changed files, expand → diff, Keep/Discard (Phase 2) |
+| `CommandPalette.svelte` | Global ⌘K overlay, fuzzy search all actions |
+| `AgentCard.svelte` | Agent in library grid + roster |
 | `SessionRow.svelte` | Row in sessions list: agent, runtime, duration, status, cost | custom |
 | `QuotaGauge.svelte` | Circular progress for runtime quota windows | custom |
 | `KbdChord.svelte` | Keyboard shortcut display: `⌘⇧K` | custom |
@@ -302,7 +301,7 @@ SIDEBAR
 
 Collapse to icon-only (48px) on narrow windows. State persisted in Tauri Store.
 
-### Main content shell (Core-OSS inset trick)
+### Main content shell (inset trick)
 
 ```css
 /* canonical shell — gives the "premium desktop app" feel */
@@ -805,10 +804,10 @@ canopy/desktop/src/
 ## 15. What We Do NOT Build in v0.1
 
 - Virtual pixel-art office (defer)
-- Multi-user (defer, Paperclip took this on and regretted the complexity)
-- Voice interface (defer — Gradient-bang lessons bookmark)
+- Multi-user (defer — complexity not worth v0.1 scope)
+- Voice interface (defer — bookmark for v0.2)
 - Mobile / web version (never — this is desktop-first)
-- SuperHQ's VM sandbox (MIOSA handles this externally)
+- VM sandboxes (MIOSA handles this externally)
 - Plugin marketplace UI (v0.2)
 - Skills marketplace (v0.2)
 - Billing / subscription UI (v0.2 — open source, self-host is free)
@@ -823,6 +822,6 @@ Not 15 questions. Just 3.
 
 1. **Does the aesthetic direction feel right?** Cockpit-like, monochrome + green accent, dark-default, editorial serif for moments, dense but structured. Yes / redline / different direction entirely?
 2. **Is the screen inventory complete?** Home, Runtimes, Runtime Detail, Sessions, Session Detail (live), Agents, Agent Detail, Workspaces, Workspace Detail, Sandboxes, Settings (6 subpages), Onboarding. Am I missing a surface?
-3. **Composer-on-home vs separate "new session" page?** Cabinet does composer-on-home (what I specced). Some operators prefer Home as a dashboard and composer as a dedicated route. Your call.
+3. **Composer-on-home vs separate "new session" page?** Specced as composer-on-home. Some operators prefer Home as a dashboard and composer as a dedicated route. Your call.
 
 Approve and I can start Week 4 scaffolding the moment the backend is ready.

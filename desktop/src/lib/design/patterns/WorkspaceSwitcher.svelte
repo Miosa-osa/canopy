@@ -10,11 +10,12 @@ import { type CreateQueryOptions, createQuery } from "@tanstack/svelte-query";
 import { ChevronDown } from "lucide-svelte";
 import { untrack } from "svelte";
 import { writable } from "svelte/store";
-import { goto } from "$app/navigation";
 import { workspacesQuery } from "$lib/api/queries/workspaces.js";
 import type { Workspace } from "$lib/domain/workspaces/types.js";
+import { activeWorkspace } from "$lib/stores/active-workspace.svelte.js";
 import { ui } from "$lib/stores/ui.svelte.js";
 import { toasts } from "$lib/stores/toasts.svelte.js";
+import NewWorkspaceDialog from "$lib/design/patterns/workspace/NewWorkspaceDialog.svelte";
 
 // ── TanStack Query (canonical writable+untrack+$effect bridge) ───────────────
 
@@ -44,6 +45,7 @@ let searchQuery = $state("");
 let activeIndex = $state(0);
 let triggerEl = $state<HTMLButtonElement | null>(null);
 let searchEl = $state<HTMLInputElement | null>(null);
+let newDialogOpen = $state(false);
 
 const isOpen = $derived(ui.workspaceSwitcherOpen);
 
@@ -66,6 +68,20 @@ const triggerLabel = $derived(
     ? `${emojiFor(currentWorkspace)} ${currentWorkspace.name}`
     : "📁 No workspace",
 );
+
+// Auto-select the first workspace when none is saved in localStorage.
+$effect(() => {
+  if (!ui.currentWorkspaceSlug && workspaces.length > 0) {
+    ui.setCurrentWorkspace(workspaces[0].slug);
+  }
+});
+
+// Keep the active-workspace store in sync with the workspace pool whenever
+// the API list updates. This is what makes `setActive(slug)` resolvable
+// downstream and refreshes name/rootPath after a rename.
+$effect(() => {
+  activeWorkspace.syncPool(workspaces);
+});
 
 // Reset activeIndex when filtered list changes
 $effect(() => {
@@ -95,8 +111,20 @@ function close(): void {
 
 function select(ws: Workspace): void {
   ui.setCurrentWorkspace(ws.slug);
+  // Mirror to the active-workspace store so name/rootPath propagate to
+  // every module that reads `activeWorkspace.*`.
+  activeWorkspace.setActive(ws.slug);
   toasts.success(`Switched to ${ws.name}`);
   close();
+}
+
+function openNewDialog(): void {
+  close();
+  newDialogOpen = true;
+}
+
+function closeNewDialog(): void {
+  newDialogOpen = false;
 }
 
 function handleTriggerKeydown(e: KeyboardEvent): void {
@@ -187,7 +215,7 @@ function handleBackdropClick(e: MouseEvent): void {
           <p class="ws-empty__text">No workspaces yet.</p>
           <button
             class="btn-compact btn-compact-ghost ws-cta"
-            onclick={() => { close(); goto("/workspaces"); }}
+            onclick={openNewDialog}
           >
             Create your first workspace
           </button>
@@ -221,14 +249,17 @@ function handleBackdropClick(e: MouseEvent): void {
     <div class="ws-footer">
       <button
         class="ws-new-btn"
-        onclick={() => { close(); goto("/workspaces"); }}
-        aria-label="Manage workspaces"
+        onclick={openNewDialog}
+        aria-label="Create new workspace"
       >
         + New workspace
       </button>
     </div>
   </div>
 {/if}
+
+<!-- New workspace dialog (rendered as a sibling so backdrop can cover the popover) -->
+<NewWorkspaceDialog open={newDialogOpen} onClose={closeNewDialog} />
 
 <style>
   /* Trigger */

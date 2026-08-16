@@ -42,6 +42,8 @@ import type {
   FolderTreeNode,
 } from "$lib/domain/docs/types.js";
 import type { Workspace } from "$lib/domain/workspaces/types.js";
+import ViewPicker from "$lib/design/primitives/ViewPicker.svelte";
+import type { ViewState } from "$lib/design/primitives/ViewPicker.svelte";
 import { ui } from "$lib/stores/ui.svelte.js";
 import { toasts } from "$lib/stores/toasts.svelte.js";
 
@@ -86,13 +88,16 @@ function toggleFolder(id: string): void {
 
 let rawSearch = $state("");
 let searchDebounced = $state("");
-let debounceTimer = $state<ReturnType<typeof setTimeout> | null>(null);
+// Plain let (not $state) — reading+writing a reactive timer inside $effect causes
+// effect_update_depth_exceeded because the effect re-runs on every write.
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 $effect(() => {
   const val = rawSearch;
   if (debounceTimer !== null) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     searchDebounced = val;
+    debounceTimer = null;
   }, 300);
 });
 
@@ -146,6 +151,8 @@ const createMut = createMutation<Document, Error, CreateDocumentBody>({
     toasts.error(`Failed to create document: ${err.message}`);
   },
 });
+
+let view = $state<ViewState>({ layout: 'list', density: 'comfortable', sort: 'recent' });
 
 function handleNewDoc(): void {
   if (!selectedWorkspace) {
@@ -234,6 +241,7 @@ function formatDate(iso: string): string {
           spellcheck={false}
         />
       </div>
+      <ViewPicker routeSlug="docs" bind:view />
       <button
         class="btn-pill btn-pill-primary btn-pill-sm dl-new-btn"
         onclick={handleNewDoc}
@@ -269,7 +277,6 @@ function formatDate(iso: string): string {
             <!-- svelte-ignore a11y_interactive_supports_focus -->
             <button
               class="dl-doc-row"
-              role="button"
               onclick={() => goto(`/docs/${doc.id}`)}
               aria-label="Open {doc.title}"
             >
@@ -286,6 +293,15 @@ function formatDate(iso: string): string {
               <div class="dl-doc-meta">
                 <span class="dl-doc-author">{doc.authorId}</span>
                 <time class="dl-doc-date" datetime={doc.updatedAt}>{formatDate(doc.updatedAt)}</time>
+                {#if doc.reviewId}
+                  <!-- svelte-ignore a11y_click_events_have_key_events -->
+                  <a
+                    class="dl-badge dl-badge--review"
+                    href="/reviews/{doc.reviewId}"
+                    aria-label="Under review — view review"
+                    onclick={(e) => e.stopPropagation()}
+                  >Under review</a>
+                {/if}
                 {#if doc.published}
                   <span class="dl-badge dl-badge--pub">Published</span>
                 {:else}
@@ -646,5 +662,17 @@ function formatDate(iso: string): string {
     background: var(--bg-inset);
     color: var(--fg-subtle);
     border: 1px solid var(--border);
+  }
+
+  .dl-badge--review {
+    background: color-mix(in oklch, oklch(0.78 0.15 85) 20%, transparent 80%);
+    color: color-mix(in oklch, oklch(0.55 0.15 85) 90%, var(--fg) 10%);
+    border: 1px solid color-mix(in oklch, oklch(0.78 0.15 85) 40%, transparent 60%);
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .dl-badge--review:hover {
+    background: color-mix(in oklch, oklch(0.78 0.15 85) 30%, transparent 70%);
   }
 </style>

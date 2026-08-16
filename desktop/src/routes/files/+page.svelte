@@ -1,1298 +1,738 @@
 <script lang="ts">
-/**
- * /files — Bucket-style file browser (Track #108).
- *
- * Layout:
- *   Left pane (≤260px): BUCKETS list = workspaces, quota display, + New Bucket
- *   Right pane (flex): breadcrumb + actions + search + file table + empty/drop zone
- *
- * Architecture notes:
- *   - Workspace = Bucket (no schema change — workspace_id scopes all files).
- *   - Folders are implicit: a file's `path` encodes its folder hierarchy.
- *   - Folder creation = upload a zero-byte Blob at {folderName}/.gitkeep.
- *   - Quota: used = sum(sizeBytes) for workspace; limit = 1 GB constant.
- *     TODO: wire per-workspace quota from backend when quota column lands.
- *
- * CSS prefix: fb- (FileBucket)
- * LOC target: ≤ 450
- */
-import {
-  type CreateMutationOptions,
-  type CreateQueryOptions,
-  createMutation,
-  createQuery,
-  useQueryClient,
-} from "@tanstack/svelte-query";
-import { FileSearch, FolderOpen, RefreshCw } from "lucide-svelte";
-import { untrack } from "svelte";
-import { writable } from "svelte/store";
-import { goto } from "$app/navigation";
-import {
-  filesQuery,
-  fileIcon,
-  formatBytes,
-  scanWorkspaceMutation,
-  searchFilesQuery,
-  uploadFileMutation,
-} from "$lib/api/queries/files.js";
-import { workspacesQuery } from "$lib/api/queries/workspaces.js";
-import EmptyState from "$lib/design/patterns/EmptyState.svelte";
-import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
-import { Table, TableHeader } from "$lib/design/foundation/table/index.js";
-import type { FileRecord } from "$lib/domain/files/types.js";
-import type { Workspace } from "$lib/domain/workspaces/types.js";
-import { ui } from "$lib/stores/ui.svelte.js";
+  /**
+   * /files — Project explorer for the active workspace.
+   *
+   * Layout (2 columns):
+   *
+   *   ┌─────────────────┬─────────────────────────────────────┐
+   *   │ Workspaces list │ breadcrumb / search / new / refresh │
+   *   │ (FilesWorkspace ├─────────────────────────────────────┤
+   *   │  Picker)        │ <FileTree>                          │
+   *   │                 ├─────────────────────────────────────┤
+   *   │                 │ <FileViewerPane> (when file picked) │
+   *   └─────────────────┴─────────────────────────────────────┘
+   *
+   * Reuses:
+   *   • FileTree foundation primitive — `$lib/design/foundation/file-tree`
+   *   • FileViewerPane mosaic primitive — `$lib/design/patterns/mosaic/panes`
+   *   • activeWorkspace singleton — `$lib/stores/active-workspace.svelte`
+   *   • useWorkspaceState hook — persists per-workspace expanded paths
+   *
+   * NOT a bucket-style upload UI — that was the old /files. See
+   * `wiring/files-explorer-rebuild-wiring.md`.
+   *
+   * CSS prefix: fexp- (Files Explorer Page)
+   * LOC target: ≤ 350
+   */
+  import { ChevronRight, FolderOpen, Plus, RefreshCw, X } from "lucide-svelte";
+  import { goto } from "$app/navigation";
 
-const QUOTA_BYTES = 1_073_741_824; // 1 GB — TODO: wire from backend quota column
-const queryClient = useQueryClient();
+  import FileTree from "$lib/design/foundation/file-tree/FileTree.svelte";
+  import FilesWorkspacePicker from "$lib/design/patterns/files/FilesWorkspacePicker.svelte";
+  import FileSearchBar from "$lib/design/patterns/files/FileSearchBar.svelte";
+  import FileViewerPane from "$lib/design/patterns/mosaic/panes/FileViewerPane.svelte";
+  import { useWorkspaceState } from "$lib/api/queries/workspace-states.js";
+  import type { DirEntry } from "$lib/domain/workspaces/types.js";
+  import type { FileViewerPaneConfig } from "$lib/domain/file-viewer/types.js";
+  import { activeWorkspace } from "$lib/stores/active-workspace.svelte.js";
+  import { toast } from "$lib/design/foundation/toast/toast.js";
+  import { uploadFile } from "$lib/api/queries/files.js";
 
-// ── Workspaces (buckets) ─────────────────────────────────────────────────────
+  // ── Active workspace plumbing ─────────────────────────────────────────────
+  const slug = $derived(activeWorkspace.slug);
+  const name = $derived(activeWorkspace.name);
+  const rootPath = $derived(activeWorkspace.rootPath);
 
-const workspacesOptsStore = writable(
-  untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>),
-);
-const workspacesQ = createQuery<Workspace[]>(workspacesOptsStore);
-const workspaces = $derived(($workspacesQ.data ?? []) as Workspace[]);
+  // ── Per-workspace persisted UI state (expanded folder paths) ──────────────
+  // Keyed under "files.expandedPaths" so reopening /files restores the tree.
+  const expanded = useWorkspaceState<string[]>("files.expandedPaths", []);
 
-const currentSlug = $derived(ui.currentWorkspaceSlug ?? "");
-const currentWorkspace = $derived(workspaces.find((w) => w.slug === currentSlug) ?? null);
-
-// ── Files for current workspace (all — used for quota + folder nav) ──────────
-
-const allFilesOptsStore = writable(
-  untrack(
-    () =>
-      filesQuery({ workspace: currentSlug || undefined }) as CreateQueryOptions<FileRecord[]>,
-  ),
-);
-$effect(() => {
-  allFilesOptsStore.set(
-    filesQuery({ workspace: currentSlug || undefined }) as CreateQueryOptions<FileRecord[]>,
-  );
-});
-const allFilesQ = createQuery<FileRecord[]>(allFilesOptsStore);
-const allFiles = $derived(($allFilesQ.data ?? []) as FileRecord[]);
-
-// Per-workspace used bytes (client-side sum for quota display)
-const usedBytes = $derived(allFiles.reduce((acc, f) => acc + f.sizeBytes, 0));
-
-// Per-workspace file counts for left-pane display
-// Map<slug, { count, bytes }> — built from currently-loaded data only
-const workspaceStats = $derived(() => {
-  const map = new Map<string, { count: number; bytes: number }>();
-  for (const f of allFiles) {
-    const slug = workspaces.find((w) => w.id === f.workspaceId)?.slug ?? "";
-    if (!slug) continue;
-    const existing = map.get(slug) ?? { count: 0, bytes: 0 };
-    map.set(slug, { count: existing.count + 1, bytes: existing.bytes + f.sizeBytes });
+  function handleFolderToggle(path: string, willBeExpanded: boolean): void {
+    const current = expanded.value ?? [];
+    const next = willBeExpanded
+      ? Array.from(new Set([...current, path]))
+      : current.filter((p) => p !== path);
+    expanded.set(next);
   }
-  return map;
-});
 
-// ── Path navigation ───────────────────────────────────────────────────────────
+  // ── Selected file (drives the preview pane) ───────────────────────────────
+  let selectedEntry = $state<DirEntry | null>(null);
 
-let currentPath = $state(""); // "" = root
+  const previewConfig = $derived<FileViewerPaneConfig | null>(
+    selectedEntry && slug
+      ? { workspaceSlug: slug, path: selectedEntry.path }
+      : null,
+  );
 
-function pathSegments(p: string): { label: string; path: string }[] {
-  if (!p) return [];
-  const parts = p.split("/").filter(Boolean);
-  return parts.map((label, i) => ({
-    label,
-    path: parts.slice(0, i + 1).join("/"),
-  }));
-}
+  function handleFileSelect(entry: DirEntry): void {
+    selectedEntry = entry;
+  }
 
-// Files visible in current path (one level only — not recursive)
-const visibleFiles = $derived(() => {
-  if (isSearching) return searchedFiles;
-  const prefix = currentPath ? `${currentPath}/` : "";
-  return allFiles.filter((f) => {
-    if (!f.path.startsWith(prefix)) return false;
-    const remainder = f.path.slice(prefix.length);
-    // exclude .gitkeep sentinel files from display
-    if (remainder === ".gitkeep") return false;
-    // only show direct children (no nested slash in remainder)
-    return !remainder.slice(0, -1).includes("/") || remainder.endsWith("/.gitkeep");
-  });
-});
+  // ── Tree refresh ──────────────────────────────────────────────────────────
+  // The FileTree primitive exposes `refresh()` and `clearSelection()` as
+  // imperative methods accessible via `bind:this`. We type as `unknown`
+  // and narrow at call-site so a Svelte version bump can't break this.
+  type TreeHandle = { refresh: () => void; clearSelection: () => void };
+  let treeRef = $state<TreeHandle | null>(null);
 
-// Derive unique subfolder names at current level
-const subfolders = $derived(() => {
-  const prefix = currentPath ? `${currentPath}/` : "";
-  const seen = new Set<string>();
-  for (const f of allFiles) {
-    if (!f.path.startsWith(prefix)) continue;
-    const remainder = f.path.slice(prefix.length);
-    const slash = remainder.indexOf("/");
-    if (slash !== -1) {
-      const folder = remainder.slice(0, slash);
-      seen.add(folder);
+  function handleRefresh(): void {
+    if (treeRef) {
+      treeRef.refresh();
+      toast.info("Refreshed", "File tree reloaded from disk.");
     }
   }
-  return Array.from(seen).sort();
-});
 
-// ── Search ────────────────────────────────────────────────────────────────────
+  // ── New file modal ────────────────────────────────────────────────────────
+  let newFileOpen = $state(false);
+  let newFilename = $state("");
+  let newFileError = $state<string | null>(null);
+  let isCreating = $state(false);
 
-let rawSearch = $state("");
-let searchQ = $state("");
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
+  function handleNewFile(): void {
+    newFilename = "";
+    newFileError = null;
+    newFileOpen = true;
+  }
 
-function onSearchInput(e: Event): void {
-  rawSearch = (e.currentTarget as HTMLInputElement).value;
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    searchQ = rawSearch;
-  }, 300);
-}
+  function closeNewFileModal(): void {
+    newFileOpen = false;
+    newFilename = "";
+    newFileError = null;
+  }
 
-const isSearching = $derived(searchQ.trim().length > 0);
+  async function submitNewFile(): Promise<void> {
+    const name = newFilename.trim();
+    if (!name || !slug) return;
 
-const searchOptsStore = writable(
-  untrack(
-    () =>
-      searchFilesQuery(currentSlug, searchQ) as CreateQueryOptions<FileRecord[]>,
-  ),
-);
-$effect(() => {
-  searchOptsStore.set(
-    searchFilesQuery(currentSlug, searchQ) as CreateQueryOptions<FileRecord[]>,
+    isCreating = true;
+    newFileError = null;
+
+    try {
+      // Build the path: if a file is currently selected, create in its parent
+      // directory; otherwise create at the workspace root.
+      const dir = selectedEntry
+        ? selectedEntry.path.split("/").slice(0, -1).join("/")
+        : "";
+      const path = dir ? `${dir}/${name}` : name;
+
+      await uploadFile({
+        workspaceSlug: slug,
+        path,
+        file: new File([""], name),
+      });
+
+      toast.success("File created", path);
+      closeNewFileModal();
+      treeRef?.refresh();
+    } catch (err) {
+      newFileError = err instanceof Error ? err.message : "Failed to create file";
+    } finally {
+      isCreating = false;
+    }
+  }
+
+  // ── Breadcrumb segments derived from the selected entry's path ────────────
+  function pathSegments(p: string): { label: string; path: string }[] {
+    if (!p) return [];
+    const parts = p.split("/").filter(Boolean);
+    return parts.map((label, i) => ({
+      label,
+      path: parts.slice(0, i + 1).join("/"),
+    }));
+  }
+
+  const breadcrumb = $derived(
+    selectedEntry ? pathSegments(selectedEntry.path) : [],
   );
-});
-const searchResultQ = createQuery<FileRecord[]>(searchOptsStore);
-const searchedFiles = $derived(($searchResultQ.data ?? []) as FileRecord[]);
-
-// ── Upload (single file) ──────────────────────────────────────────────────────
-
-let uploadOpen = $state(false);
-let uploadFile = $state<File | null>(null);
-let uploadPath = $state("");
-let uploadError = $state<string | null>(null);
-
-const uploadMut = createMutation<FileRecord, Error, { workspaceSlug: string; path: string; file: File }>(
-  uploadFileMutation() as CreateMutationOptions<FileRecord, Error, { workspaceSlug: string; path: string; file: File }>,
-);
-
-function handleFileInput(e: Event): void {
-  const input = e.currentTarget as HTMLInputElement;
-  uploadFile = input.files?.[0] ?? null;
-  if (uploadFile && !uploadPath) {
-    uploadPath = currentPath ? `${currentPath}/${uploadFile.name}` : uploadFile.name;
-  }
-}
-
-function handleUploadSubmit(e: Event): void {
-  e.preventDefault();
-  if (!uploadFile || !currentSlug) return;
-  uploadError = null;
-  $uploadMut.mutate(
-    { workspaceSlug: currentSlug, path: uploadPath || uploadFile.name, file: uploadFile },
-    {
-      onSuccess: () => {
-        uploadFile = null;
-        uploadPath = "";
-        uploadOpen = false;
-        queryClient.invalidateQueries({ queryKey: ["files"] });
-      },
-      onError: (err) => {
-        uploadError = err.message;
-      },
-    },
-  );
-}
-
-// ── Upload folder (webkitdirectory) ──────────────────────────────────────────
-
-let folderUploadProgress = $state<{ done: number; total: number } | null>(null);
-let folderInputEl = $state<HTMLInputElement | null>(null);
-
-async function handleFolderUpload(e: Event): Promise<void> {
-  const input = e.currentTarget as HTMLInputElement;
-  const fileList = Array.from(input.files ?? []);
-  if (!fileList.length || !currentSlug) return;
-
-  folderUploadProgress = { done: 0, total: fileList.length };
-
-  for (const file of fileList) {
-    const relativePath = (file as File & { webkitRelativePath: string }).webkitRelativePath;
-    const targetPath = currentPath
-      ? `${currentPath}/${relativePath}`
-      : relativePath;
-
-    await new Promise<void>((resolve) => {
-      $uploadMut.mutate(
-        { workspaceSlug: currentSlug, path: targetPath, file },
-        {
-          onSuccess: () => {
-            folderUploadProgress = {
-              done: (folderUploadProgress?.done ?? 0) + 1,
-              total: folderUploadProgress?.total ?? fileList.length,
-            };
-            resolve();
-          },
-          onError: () => {
-            folderUploadProgress = {
-              done: (folderUploadProgress?.done ?? 0) + 1,
-              total: folderUploadProgress?.total ?? fileList.length,
-            };
-            resolve();
-          },
-        },
-      );
-    });
-  }
-
-  queryClient.invalidateQueries({ queryKey: ["files"] });
-  folderUploadProgress = null;
-  // Reset the input so the same folder can be re-selected
-  if (folderInputEl) folderInputEl.value = "";
-}
-
-// ── Folder creation ───────────────────────────────────────────────────────────
-
-let newFolderOpen = $state(false);
-let newFolderName = $state("");
-let folderError = $state<string | null>(null);
-let folderInputEl2 = $state<HTMLInputElement | null>(null);
-
-$effect(() => {
-  if (newFolderOpen) {
-    setTimeout(() => folderInputEl2?.focus(), 0);
-  }
-});
-
-async function handleCreateFolder(): Promise<void> {
-  const name = newFolderName.trim();
-  if (!name || !currentSlug) return;
-  folderError = null;
-
-  const sentinelPath = currentPath
-    ? `${currentPath}/${name}/.gitkeep`
-    : `${name}/.gitkeep`;
-
-  const emptyBlob = new File([""], ".gitkeep", { type: "application/octet-stream" });
-
-  await new Promise<void>((resolve) => {
-    $uploadMut.mutate(
-      { workspaceSlug: currentSlug, path: sentinelPath, file: emptyBlob },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["files"] });
-          newFolderName = "";
-          newFolderOpen = false;
-          resolve();
-        },
-        onError: (err) => {
-          folderError = err.message;
-          resolve();
-        },
-      },
-    );
-  });
-}
-
-// ── Scan mutation ─────────────────────────────────────────────────────────────
-
-const scanMut = createMutation<void, Error, string>(
-  scanWorkspaceMutation() as CreateMutationOptions<void, Error, string>,
-);
-
-function handleScan(): void {
-  if (!currentSlug) return;
-  $scanMut.mutate(currentSlug, {
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["files"] });
-    },
-  });
-}
-
-// ── Drag-and-drop ─────────────────────────────────────────────────────────────
-
-let isDragOver = $state(false);
-
-function handleDragOver(e: DragEvent): void {
-  e.preventDefault();
-  isDragOver = true;
-}
-
-function handleDragLeave(): void {
-  isDragOver = false;
-}
-
-function handleDrop(e: DragEvent): void {
-  e.preventDefault();
-  isDragOver = false;
-  if (!currentSlug) return;
-  const droppedFiles = Array.from(e.dataTransfer?.files ?? []);
-  if (!droppedFiles.length) return;
-
-  let done = 0;
-  folderUploadProgress = { done: 0, total: droppedFiles.length };
-
-  for (const file of droppedFiles) {
-    const targetPath = currentPath ? `${currentPath}/${file.name}` : file.name;
-    $uploadMut.mutate(
-      { workspaceSlug: currentSlug, path: targetPath, file },
-      {
-        onSuccess: () => {
-          done++;
-          folderUploadProgress = { done, total: droppedFiles.length };
-          if (done === droppedFiles.length) {
-            queryClient.invalidateQueries({ queryKey: ["files"] });
-            folderUploadProgress = null;
-          }
-        },
-        onError: () => {
-          done++;
-          folderUploadProgress = { done, total: droppedFiles.length };
-          if (done === droppedFiles.length) {
-            queryClient.invalidateQueries({ queryKey: ["files"] });
-            folderUploadProgress = null;
-          }
-        },
-      },
-    );
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function fileName(f: FileRecord): string {
-  const parts = f.path.split("/");
-  return parts[parts.length - 1] ?? f.name;
-}
 </script>
 
-<div class="fb-layout">
-  <!-- ── Left pane: Buckets ───────────────────────────────────────────────── -->
-  <aside class="fb-sidebar" aria-label="Buckets">
-    <div class="fb-sidebar-header">
-      <span class="fb-label">BUCKETS</span>
-    </div>
+<div class="fexp">
+  <!-- Left pane: workspaces -->
+  <FilesWorkspacePicker />
 
-    <div class="fb-bucket-list" role="listbox" aria-label="Workspace buckets">
-      {#if $workspacesQ.isLoading}
-        <div class="fb-sidebar-skeleton">
-          <SkeletonList count={4} height="2.25rem" gap="2px" />
-        </div>
-      {:else if workspaces.length === 0}
-        <p class="fb-sidebar-empty">No workspaces yet.</p>
-      {:else}
-        {#each workspaces as ws (ws.slug)}
-          {@const stats = workspaceStats().get(ws.slug)}
-          <button
-            class="fb-bucket-row"
-            class:fb-bucket-row--active={ws.slug === currentSlug}
-            role="option"
-            aria-selected={ws.slug === currentSlug}
-            onclick={() => {
-              ui.setCurrentWorkspace(ws.slug);
-              currentPath = "";
-              rawSearch = "";
-              searchQ = "";
-            }}
-          >
-            <span class="fb-bucket-icon" aria-hidden="true">
-              <FolderOpen size={13} />
-            </span>
-            <span class="fb-bucket-meta">
-              <span class="fb-bucket-name">{ws.name}</span>
-              <span class="fb-bucket-stat">
-                {stats ? `${stats.count} file${stats.count !== 1 ? "s" : ""}` : "—"}
-                ·
-                <!-- TODO: wire per-workspace quota from backend when quota column lands -->
-                {stats ? formatBytes(stats.bytes) : "0 B"} / {formatBytes(QUOTA_BYTES)}
-              </span>
-            </span>
-          </button>
-        {/each}
-      {/if}
-    </div>
-
-    <div class="fb-sidebar-footer">
-      <button
-        class="fb-new-bucket btn-compact btn-compact-ghost"
-        onclick={() => goto("/workspaces")}
-        aria-label="Create new workspace bucket"
-      >
-        + New Bucket
-      </button>
-    </div>
-  </aside>
-
-  <!-- ── Right pane: File browser ─────────────────────────────────────────── -->
-  <main class="fb-main">
-    {#if !currentSlug}
-      <!-- No workspace selected -->
-      <div class="fb-no-bucket">
-        <EmptyState
-          icon={FolderOpen as never}
-          title="Select a bucket"
-          body="Choose a workspace from the left to browse its files."
-        />
+  <!-- Right pane: project explorer -->
+  <main class="fexp__main">
+    {#if !slug}
+      <!-- No workspace active — show a graceful empty state. -->
+      <div class="fexp__no-ws">
+        <FolderOpen size={32} aria-hidden="true" />
+        <h2 class="fexp__no-ws-title">No workspace active</h2>
+        <p class="fexp__no-ws-body">
+          Pick a workspace from the left, or create a new one.
+        </p>
+        <button
+          type="button"
+          class="fexp__new-cta"
+          onclick={() => goto("/workspaces?new=true")}
+        >
+          <Plus size={13} aria-hidden="true" />
+          New workspace
+        </button>
       </div>
     {:else}
-      <!-- Top bar: breadcrumb + actions -->
-      <div class="fb-topbar">
-        <!-- Breadcrumb -->
-        <nav class="fb-breadcrumb" aria-label="File path">
-          <button
-            class="fb-crumb fb-crumb-root"
-            class:fb-crumb--active={currentPath === ""}
-            onclick={() => { currentPath = ""; }}
-          >
-            {currentWorkspace?.name ?? "Root"}
-          </button>
-          {#each pathSegments(currentPath) as seg (seg.path)}
-            <span class="fb-crumb-sep" aria-hidden="true">/</span>
-            <button
-              class="fb-crumb"
-              class:fb-crumb--active={seg.path === currentPath}
-              onclick={() => { currentPath = seg.path; }}
+      <!-- Top bar: breadcrumb + search + actions -->
+      <header class="fexp__topbar">
+        <nav class="fexp__crumbs" aria-label="Selected file path">
+          <span class="fexp__crumb fexp__crumb--root" title={rootPath ?? ""}>
+            {name ?? slug}
+          </span>
+          {#if rootPath}
+            <span class="fexp__crumb-path" title={rootPath}>{rootPath}</span>
+          {/if}
+          {#each breadcrumb as seg, i (seg.path)}
+            <span class="fexp__crumb-sep" aria-hidden="true">
+              <ChevronRight size={12} />
+            </span>
+            <span
+              class="fexp__crumb"
+              class:fexp__crumb--active={i === breadcrumb.length - 1}
             >
               {seg.label}
-            </button>
+            </span>
           {/each}
         </nav>
 
-        <!-- Action buttons -->
-        <div class="fb-actions">
-          {#if folderUploadProgress}
-            <span class="fb-progress-label" aria-live="polite">
-              Uploading {folderUploadProgress.done} of {folderUploadProgress.total}…
-            </span>
-          {/if}
+        <div class="fexp__search">
+          <FileSearchBar workspaceSlug={slug} />
+        </div>
 
-          <!-- + Folder -->
-          {#if !newFolderOpen}
-            <button
-              class="btn-pill btn-pill-ghost btn-pill-sm"
-              onclick={() => { newFolderOpen = true; newFolderName = ""; folderError = null; }}
-              aria-label="Create new folder"
-            >
-              + Folder
-            </button>
+        <div class="fexp__actions">
+          <button
+            type="button"
+            class="fexp__btn"
+            onclick={handleNewFile}
+            aria-label="Create new file"
+            title="New file"
+          >
+            <Plus size={12} aria-hidden="true" />
+            <span>New</span>
+          </button>
+          <button
+            type="button"
+            class="fexp__btn fexp__btn--icon"
+            onclick={handleRefresh}
+            aria-label="Refresh file tree"
+            title="Refresh tree"
+          >
+            <RefreshCw size={12} aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      <!-- Tree + preview (vertical split) -->
+      <div class="fexp__split">
+        <section class="fexp__tree" aria-label="File tree">
+          {#key slug}
+            <FileTree
+              bind:this={treeRef}
+              workspaceSlug={slug}
+              onFileSelect={handleFileSelect}
+              onFolderToggle={handleFolderToggle}
+              initialExpanded={expanded.value ?? []}
+              initialSelected={selectedEntry?.path ?? null}
+              hideHidden={true}
+            />
+          {/key}
+        </section>
+
+        <section class="fexp__preview" aria-label="File preview">
+          {#if previewConfig}
+            <header class="fexp__preview-header">
+              <span class="fexp__preview-name">
+                {selectedEntry?.name ?? ""}
+              </span>
+              <span class="fexp__preview-path" title={selectedEntry?.path ?? ""}>
+                {selectedEntry?.path ?? ""}
+              </span>
+            </header>
+            <div class="fexp__preview-body">
+              {#key `${slug}:${selectedEntry?.path}`}
+                <FileViewerPane config={previewConfig} />
+              {/key}
+            </div>
           {:else}
-            <div class="fb-inline-folder" role="group" aria-label="New folder name">
-              <input
-                bind:this={folderInputEl2}
-                class="fb-inline-input"
-                type="text"
-                placeholder="folder-name"
-                bind:value={newFolderName}
-                aria-label="New folder name"
-                onkeydown={(e) => {
-                  if (e.key === "Enter") handleCreateFolder();
-                  if (e.key === "Escape") { newFolderOpen = false; folderError = null; }
-                }}
-              />
-              <button
-                class="btn-compact btn-compact-ghost"
-                onclick={handleCreateFolder}
-                disabled={!newFolderName.trim() || $uploadMut.isPending}
-                aria-label="Confirm folder creation"
-              >
-                OK
-              </button>
-              <button
-                class="btn-compact btn-compact-ghost"
-                onclick={() => { newFolderOpen = false; folderError = null; }}
-                aria-label="Cancel folder creation"
-              >
-                ✕
-              </button>
-              {#if folderError}
-                <span class="fb-inline-error" role="alert">{folderError}</span>
-              {/if}
+            <div class="fexp__preview-empty">
+              <p class="fexp__preview-empty-title">No file selected</p>
+              <p class="fexp__preview-empty-body">
+                Click a file in the tree above to preview it here.
+              </p>
             </div>
           {/if}
-
-          <!-- + Upload -->
-          <button
-            class="btn-pill btn-pill-primary btn-pill-sm"
-            onclick={() => { uploadOpen = !uploadOpen; }}
-            aria-expanded={uploadOpen}
-            aria-label="Upload file"
-          >
-            + Upload
-          </button>
-
-          <!-- + Upload Folder (hidden native input) -->
-          <button
-            class="btn-pill btn-pill-ghost btn-pill-sm"
-            onclick={() => folderInputEl?.click()}
-            disabled={$uploadMut.isPending}
-            aria-label="Upload an entire folder"
-          >
-            + Upload Folder
-          </button>
-          <input
-            bind:this={folderInputEl}
-            type="file"
-            class="fb-hidden-input"
-            multiple
-            webkitdirectory
-            aria-hidden="true"
-            tabindex="-1"
-            onchange={handleFolderUpload}
-          />
-
-          <!-- Scan -->
-          <button
-            class="fb-scan btn-compact btn-compact-ghost"
-            onclick={handleScan}
-            disabled={$scanMut.isPending}
-            aria-label="Re-index workspace files"
-            title="Scan workspace"
-          >
-            <span class:fb-spin={$scanMut.isPending}>
-              <RefreshCw size={11} aria-hidden="true" />
-            </span>
-          </button>
-        </div>
+        </section>
       </div>
-
-      <!-- Inline upload form -->
-      {#if uploadOpen}
-        <form
-          class="fb-upload-form glass-panel"
-          onsubmit={handleUploadSubmit}
-          novalidate
-        >
-          <label class="fb-upload-label">
-            <span class="fb-hint">File</span>
-            <input
-              class="fb-upload-file-input"
-              type="file"
-              onchange={handleFileInput}
-              aria-label="Choose file to upload"
-              required
-            />
-          </label>
-          <label class="fb-upload-label">
-            <span class="fb-hint">Path in workspace</span>
-            <input
-              class="fb-upload-path"
-              type="text"
-              placeholder={currentPath ? `${currentPath}/filename.ext` : "filename.ext"}
-              bind:value={uploadPath}
-              aria-label="Destination path within workspace"
-            />
-          </label>
-          <div class="fb-upload-actions">
-            {#if uploadError}
-              <span class="fb-upload-error" role="alert">{uploadError}</span>
-            {/if}
-            <button
-              class="btn-pill btn-pill-primary btn-pill-sm"
-              type="submit"
-              disabled={$uploadMut.isPending || !uploadFile || !currentSlug}
-            >
-              {$uploadMut.isPending ? "Uploading…" : "Upload"}
-            </button>
-            <button
-              class="btn-compact btn-compact-ghost"
-              type="button"
-              onclick={() => { uploadOpen = false; uploadError = null; }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      {/if}
-
-      <!-- Search row -->
-      <div class="fb-search-row">
-        <input
-          class="fb-search"
-          type="search"
-          placeholder="Search files in this workspace…"
-          value={rawSearch}
-          oninput={onSearchInput}
-          aria-label="Search files"
-          spellcheck={false}
-          autocomplete="off"
-        />
-        <!-- Quota badge for selected workspace -->
-        <span class="fb-quota" title="Storage used / quota">
-          {formatBytes(usedBytes)} / {formatBytes(QUOTA_BYTES)}
-        </span>
-      </div>
-
-      <!-- File content area -->
-      {#if $allFilesQ.isError}
-        <EmptyState
-          icon={FileSearch as never}
-          title="Couldn't load files"
-          body={($allFilesQ.error as Error).message || "Check your connection and try again."}
-          action="Retry"
-          onAction={() => $allFilesQ.refetch()}
-        />
-      {:else if $allFilesQ.isLoading}
-        <div class="fb-skeleton-wrap">
-          <SkeletonList count={8} height="2.25rem" gap="2px" />
-        </div>
-      {:else}
-        {@const displayedFiles = visibleFiles()}
-        {@const displayedFolders = isSearching ? [] : subfolders()}
-
-        {#if displayedFiles.length === 0 && displayedFolders.length === 0}
-          <!-- Empty state / drop zone -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="fb-dropzone"
-            class:fb-dropzone--active={isDragOver}
-            ondragover={handleDragOver}
-            ondragleave={handleDragLeave}
-            ondrop={handleDrop}
-            aria-label="Drop files here to upload"
-          >
-            <FileSearch size={32} aria-hidden="true" class="fb-dz-icon" />
-            <p class="fb-dz-title">
-              {isSearching ? `No files matching "${searchQ}"` : "Drop files here to upload"}
-            </p>
-            <p class="fb-dz-body">
-              {#if isSearching}
-                Try a different term or clear the search.
-              {:else if isDragOver}
-                Drop to upload to /{currentPath || (currentWorkspace?.name ?? "root")}
-              {:else}
-                Drag files here or use + Upload above.
-              {/if}
-            </p>
-            {#if isSearching}
-              <button
-                class="btn-pill btn-pill-ghost btn-pill-sm"
-                onclick={() => { rawSearch = ""; searchQ = ""; }}
-              >
-                Clear search
-              </button>
-            {/if}
-          </div>
-        {:else}
-          <!-- File table — rows sit on page bg, no card wrapper -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="fb-table-wrap"
-            ondragover={handleDragOver}
-            ondragleave={handleDragLeave}
-            ondrop={handleDrop}
-            class:fb-table-wrap--dragover={isDragOver}
-          >
-            {#if isDragOver}
-              <div class="fb-drag-overlay" aria-hidden="true">
-                Drop to upload to /{currentPath || (currentWorkspace?.name ?? "root")}
-              </div>
-            {/if}
-
-            <Table hoverable>
-              <TableHeader>
-                <tr>
-                  <th class="fb-th fb-th-icon"></th>
-                  <th class="fb-th">Name</th>
-                  <th class="fb-th">Size</th>
-                  <th class="fb-th">Tags</th>
-                  <th class="fb-th">Last indexed</th>
-                </tr>
-              </TableHeader>
-              <tbody>
-                <!-- Subfolder rows -->
-                {#each displayedFolders as folder (folder)}
-                  <!-- svelte-ignore a11y_interactive_supports_focus -->
-                  <tr
-                    class="fb-row bos-table-row"
-                    role="button"
-                    onclick={() => {
-                      currentPath = currentPath ? `${currentPath}/${folder}` : folder;
-                    }}
-                    onkeydown={(e) => {
-                      if (e.key === "Enter") {
-                        currentPath = currentPath ? `${currentPath}/${folder}` : folder;
-                      }
-                    }}
-                  >
-                    <td class="bos-table-cell fb-td-icon" aria-hidden="true">📁</td>
-                    <td class="bos-table-cell fb-td-name fb-td-folder">{folder}/</td>
-                    <td class="bos-table-cell fb-mono">—</td>
-                    <td class="bos-table-cell">—</td>
-                    <td class="bos-table-cell fb-mono">—</td>
-                  </tr>
-                {/each}
-
-                <!-- File rows -->
-                {#each displayedFiles as file (file.id)}
-                  <!-- svelte-ignore a11y_interactive_supports_focus -->
-                  <tr
-                    class="fb-row bos-table-row"
-                    role="button"
-                    onclick={() => goto(`/files/${file.id}`)}
-                    onkeydown={(e) => e.key === "Enter" && goto(`/files/${file.id}`)}
-                  >
-                    <td class="bos-table-cell fb-td-icon" aria-hidden="true">
-                      {fileIcon(file.extension)}
-                    </td>
-                    <td class="bos-table-cell fb-td-name">
-                      {fileName(file)}
-                    </td>
-                    <td class="bos-table-cell fb-mono">
-                      {formatBytes(file.sizeBytes)}
-                    </td>
-                    <td class="bos-table-cell fb-td-tags">
-                      {#each file.tags as tag (tag)}
-                        <span class="fb-tag-badge">{tag}</span>
-                      {/each}
-                    </td>
-                    <td class="bos-table-cell fb-mono">
-                      {formatDate(file.lastIndexedAt)}
-                    </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </Table>
-          </div>
-        {/if}
-      {/if}
     {/if}
   </main>
 </div>
 
+<!-- New file modal -->
+{#if newFileOpen}
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="fexp-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Create new file"
+    onkeydown={(e) => { if (e.key === 'Escape') closeNewFileModal(); }}
+  >
+    <div class="fexp-modal">
+      <div class="fexp-modal__head">
+        <span class="fexp-modal__label">New File</span>
+        <button
+          class="fexp-modal__close"
+          onclick={closeNewFileModal}
+          aria-label="Close"
+        >
+          <X size={14} aria-hidden="true" />
+        </button>
+      </div>
+
+      <div class="fexp-modal__body">
+        <label class="fexp-field">
+          <span class="fexp-field__label">Filename</span>
+          <input
+            class="fexp-input"
+            type="text"
+            placeholder="e.g. notes.md"
+            bind:value={newFilename}
+            aria-required="true"
+            onkeydown={(e) => { if (e.key === 'Enter') submitNewFile(); }}
+            autofocus
+          />
+        </label>
+
+        {#if selectedEntry}
+          <p class="fexp-modal__hint">
+            Will be created in:
+            <code>{selectedEntry.path.split("/").slice(0, -1).join("/") || "/"}</code>
+          </p>
+        {/if}
+
+        {#if newFileError}
+          <p class="fexp-modal__error">{newFileError}</p>
+        {/if}
+      </div>
+
+      <div class="fexp-modal__foot">
+        <button
+          class="fexp-btn fexp-btn--ghost"
+          onclick={closeNewFileModal}
+          disabled={isCreating}
+        >
+          Cancel
+        </button>
+        <button
+          class="fexp-btn fexp-btn--primary"
+          onclick={submitNewFile}
+          disabled={isCreating || !newFilename.trim()}
+        >
+          {isCreating ? "Creating..." : "Create"}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
-  /* ── Layout ── */
-  .fb-layout {
+  .fexp {
     display: flex;
     height: 100%;
     overflow: hidden;
   }
 
-  /* ── Left pane ── */
-  .fb-sidebar {
-    width: 240px;
-    min-width: 200px;
-    max-width: 260px;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid var(--border);
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .fb-sidebar-header {
-    padding: var(--space-4) var(--space-3) var(--space-2);
-    flex-shrink: 0;
-  }
-
-  .fb-label {
-    font-family: var(--font-sans);
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--fg-subtle);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .fb-bucket-list {
+  .fexp__main {
     flex: 1;
-    overflow-y: auto;
-    padding: 0 var(--space-1);
-  }
-
-  .fb-sidebar-skeleton {
-    padding: var(--space-2);
-  }
-
-  .fb-sidebar-empty {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    color: var(--fg-subtle);
-    padding: var(--space-3) var(--space-2);
-    margin: 0;
-  }
-
-  .fb-bucket-row {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-2);
-    width: 100%;
-    padding: var(--space-1) var(--space-2);
-    background: transparent;
-    border: none;
-    border-left: 1px solid transparent;
-    border-radius: 0;
-    cursor: pointer;
-    text-align: left;
-    transition:
-      background var(--dur-instant) var(--ease-out),
-      border-color var(--dur-instant) var(--ease-out);
-    min-height: 40px;
-  }
-
-  .fb-bucket-row:hover {
-    background: color-mix(in oklch, var(--fg) 4%, transparent 96%);
-  }
-
-  .fb-bucket-row--active {
-    border-left-color: var(--cnp-accent);
-    background: var(--bg-inset);
-  }
-
-  .fb-bucket-icon {
-    flex-shrink: 0;
-    color: var(--fg-subtle);
-    margin-top: 2px;
-  }
-
-  .fb-bucket-meta {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    overflow: hidden;
     min-width: 0;
+  }
+
+  /* ── No workspace state ── */
+  .fexp__no-ws {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-8);
+    text-align: center;
+    color: var(--fg-subtle);
   }
 
-  .fb-bucket-name {
+  .fexp__no-ws-title {
+    margin: 0;
     font-family: var(--font-sans);
-    font-size: 13px;
-    color: var(--fg-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 450;
-  }
-
-  .fb-bucket-row--active .fb-bucket-name {
+    font-size: var(--text-base);
     color: var(--fg);
     font-weight: 500;
   }
 
-  .fb-bucket-stat {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--fg-subtle);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .fexp__no-ws-body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    max-width: 320px;
+    line-height: 1.6;
   }
 
-  .fb-sidebar-footer {
-    border-top: 1px solid var(--border);
-    padding: var(--space-1);
-    flex-shrink: 0;
-  }
-
-  .fb-new-bucket {
-    width: 100%;
-    text-align: left;
-    font-size: var(--text-xs);
-    color: var(--fg-subtle);
-    padding: var(--space-1) var(--space-2);
-    min-height: 28px;
-  }
-
-  .fb-new-bucket:hover {
-    color: var(--fg-muted);
-  }
-
-  /* ── Right pane ── */
-  .fb-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-width: 0;
-  }
-
-  .fb-no-bucket {
-    flex: 1;
-    display: flex;
+  .fexp__new-cta {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--cnp-accent, #6e8df1);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 80ms ease-out;
+  }
+
+  .fexp__new-cta:hover {
+    opacity: 0.9;
   }
 
   /* ── Top bar ── */
-  .fb-topbar {
-    display: flex;
+  .fexp__topbar {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 360px) auto;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    flex-wrap: wrap;
   }
 
-  .fb-breadcrumb {
+  .fexp__crumbs {
     display: flex;
     align-items: center;
-    gap: 2px;
-    flex: 1;
+    gap: var(--space-1);
     min-width: 0;
     overflow: hidden;
   }
 
-  .fb-crumb {
+  .fexp__crumb {
     font-family: var(--font-sans);
     font-size: 13px;
     color: var(--fg-muted);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 2px var(--space-1);
-    border-radius: var(--radius-sm);
     white-space: nowrap;
-    transition: color var(--dur-instant) var(--ease-out);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
   }
 
-  .fb-crumb:hover {
-    color: var(--fg);
-  }
-
-  .fb-crumb--active {
+  .fexp__crumb--root {
     color: var(--fg);
     font-weight: 500;
-    cursor: default;
   }
 
-  .fb-crumb-sep {
+  .fexp__crumb--active {
+    color: var(--fg);
+    font-weight: 500;
+  }
+
+  .fexp__crumb-path {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--fg-subtle);
-    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 360px;
+    margin-left: var(--space-2);
   }
 
-  .fb-actions {
+  .fexp__crumb-sep {
+    display: inline-flex;
+    color: var(--fg-subtle);
+  }
+
+  .fexp__search {
+    min-width: 0;
+  }
+
+  .fexp__actions {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     flex-shrink: 0;
-    flex-wrap: wrap;
   }
 
-  .fb-progress-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--fg-muted);
-  }
-
-  .fb-inline-folder {
-    display: flex;
+  .fexp__btn {
+    display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-  }
-
-  .fb-inline-input {
-    background: var(--bg-inset);
+    padding: 4px var(--space-2);
+    background: transparent;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 2px var(--space-2);
-    font-family: var(--font-sans);
-    font-size: 13px;
-    color: var(--fg);
-    outline: none;
-    width: 160px;
-    transition: border-color var(--dur-instant) var(--ease-out);
-  }
-
-  .fb-inline-input:focus {
-    border-color: var(--border-strong);
-  }
-
-  .fb-inline-input::placeholder {
-    color: var(--fg-subtle);
-  }
-
-  .fb-inline-error {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    color: var(--signal-error);
-  }
-
-  .fb-scan {
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: var(--fg-muted);
-    min-width: 28px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 80ms ease-out;
   }
 
-  .fb-scan:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+  .fexp__btn:hover {
+    background: var(--bg-inset);
+    color: var(--fg);
   }
 
-  :global(.fb-spin) {
-    display: flex;
-    animation: fb-rotate 1s linear infinite;
+  .fexp__btn--icon {
+    padding: 4px;
   }
 
-  @keyframes fb-rotate {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
-
-  /* ── Upload form ── */
-  .fb-upload-form {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .fb-upload-label {
+  /* ── Split: tree (top) + preview (bottom) ── */
+  .fexp__split {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    min-height: 0;
+    overflow: hidden;
   }
 
-  .fb-hint {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    color: var(--fg-subtle);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
-  .fb-upload-file-input,
-  .fb-upload-path {
-    background: var(--bg-inset);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: var(--space-1) var(--space-2);
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    color: var(--fg);
-    outline: none;
-  }
-
-  .fb-upload-path {
-    width: 240px;
-  }
-
-  .fb-upload-path::placeholder {
-    color: var(--fg-subtle);
-  }
-
-  .fb-upload-actions {
+  .fexp__tree {
+    flex: 1 1 50%;
+    min-height: 200px;
+    overflow: hidden;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+  }
+
+  .fexp__preview {
+    flex: 1 1 50%;
+    min-height: 200px;
+    border-top: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  .fexp__preview-header {
+    display: flex;
+    align-items: baseline;
     gap: var(--space-2);
-    margin-left: auto;
-  }
-
-  .fb-upload-error {
-    font-family: var(--font-sans);
-    font-size: var(--text-xs);
-    color: var(--signal-error);
-  }
-
-  /* ── Search row ── */
-  .fb-search-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
     padding: var(--space-2) var(--space-4);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
 
-  .fb-search {
-    flex: 1;
-    background: var(--bg-inset);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: var(--space-1) var(--space-3);
+  .fexp__preview-name {
     font-family: var(--font-sans);
     font-size: 13px;
     color: var(--fg);
-    outline: none;
-    transition: border-color var(--dur-instant) var(--ease-out);
+    font-weight: 500;
   }
 
-  .fb-search:focus {
-    border-color: var(--border-strong);
-  }
-
-  .fb-search::placeholder {
-    color: var(--fg-subtle);
-  }
-
-  .fb-quota {
+  .fexp__preview-path {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--fg-subtle);
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    flex-shrink: 0;
   }
 
-  /* ── Skeleton ── */
-  .fb-skeleton-wrap {
+  .fexp__preview-body {
     flex: 1;
-    padding: var(--space-3) var(--space-4);
+    min-height: 0;
     overflow: hidden;
   }
 
-  /* ── Drop zone (empty state) ── */
-  .fb-dropzone {
+  .fexp__preview-empty {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--space-3);
-    padding: var(--space-12) var(--space-8);
+    gap: var(--space-2);
+    padding: var(--space-6);
     text-align: center;
-    border: 2px dashed transparent;
-    transition: border-color var(--dur-instant) var(--ease-out);
-    margin: var(--space-4);
-    border-radius: var(--radius-sm);
-  }
-
-  .fb-dropzone--active {
-    border-color: var(--cnp-accent);
-  }
-
-  :global(.fb-dz-icon) {
     color: var(--fg-subtle);
-    opacity: 0.5;
   }
 
-  .fb-dz-title {
-    font-family: var(--font-sans);
-    font-size: var(--text-base);
-    font-weight: 500;
-    color: var(--fg-muted);
+  .fexp__preview-empty-title {
     margin: 0;
-  }
-
-  .fb-dz-body {
     font-family: var(--font-sans);
     font-size: var(--text-sm);
-    color: var(--fg-subtle);
+    font-weight: 500;
+    color: var(--fg-muted);
+  }
+
+  .fexp__preview-empty-body {
     margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
     max-width: 320px;
-    line-height: 1.6;
+    line-height: 1.5;
   }
 
-  /* ── Table ── */
-  .fb-table-wrap {
-    flex: 1;
-    overflow: auto;
-    position: relative;
-  }
-
-  .fb-table-wrap--dragover {
-    outline: 2px dashed var(--cnp-accent);
-    outline-offset: -2px;
-  }
-
-  .fb-drag-overlay {
-    position: absolute;
+  /* ── New file modal ── */
+  .fexp-overlay {
+    position: fixed;
     inset: 0;
-    background: color-mix(in oklch, var(--cnp-accent) 6%, transparent 94%);
+    background: color-mix(in oklch, var(--bg) 60%, transparent 40%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--font-sans);
-    font-size: var(--text-sm);
-    color: var(--fg-muted);
-    z-index: 10;
-    pointer-events: none;
+    z-index: 50;
+    padding: var(--space-4);
   }
 
-  .fb-th {
+  .fexp-modal {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    width: 100%;
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px color-mix(in oklch, var(--bg) 0%, transparent 70%);
+  }
+
+  .fexp-modal__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .fexp-modal__label {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  .fexp-modal__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--fg-muted);
+  }
+
+  .fexp-modal__close:hover {
+    background: color-mix(in oklch, var(--fg) 8%, transparent 92%);
+    color: var(--fg);
+  }
+
+  .fexp-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+  }
+
+  .fexp-modal__foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-5);
+    border-top: 1px solid var(--border);
+  }
+
+  .fexp-modal__hint {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    color: var(--fg-subtle);
+  }
+
+  .fexp-modal__hint code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-muted);
+  }
+
+  .fexp-modal__error {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: #f87171;
+  }
+
+  .fexp-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .fexp-field__label {
     font-family: var(--font-sans);
     font-size: 11px;
     font-weight: 600;
     color: var(--fg-muted);
-    padding: var(--space-2) var(--space-3);
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    letter-spacing: 0.06em;
     text-transform: uppercase;
-    white-space: nowrap;
+    letter-spacing: 0.05em;
   }
 
-  .fb-th-icon {
-    width: 32px;
-    padding-right: 0;
-  }
-
-  :global(.fb-row) {
-    cursor: pointer;
-    border-bottom: 1px solid var(--border);
-  }
-
-  :global(.fb-row:last-child) {
-    border-bottom: none;
-  }
-
-  :global(.fb-row:hover) {
-    background: color-mix(in oklch, var(--fg) 4%, transparent 96%);
-  }
-
-  :global(.fb-td-icon) {
-    width: 32px !important;
-    padding-right: 0 !important;
-    font-size: 15px;
-    line-height: 1;
-  }
-
-  :global(.fb-td-name) {
-    font-family: var(--font-sans);
+  .fexp-input {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    font-family: var(--font-mono);
     font-size: 13px;
     color: var(--fg);
-    font-weight: 450;
-    max-width: 300px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    outline: none;
+    transition: border-color 80ms ease-out;
+    width: 100%;
+    box-sizing: border-box;
   }
 
-  :global(.fb-td-folder) {
-    color: var(--fg-muted);
+  .fexp-input:focus {
+    border-color: var(--border-strong);
+  }
+
+  .fexp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
     font-weight: 500;
+    cursor: pointer;
+    transition: background 80ms ease-out, opacity 80ms ease-out;
+    border: 1px solid transparent;
   }
 
-  .fb-mono {
-    font-family: var(--font-mono);
-    font-size: 12px;
+  .fexp-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .fexp-btn--ghost {
+    background: transparent;
+    border-color: var(--border);
     color: var(--fg-muted);
   }
 
-  :global(.fb-td-tags) {
-    white-space: nowrap;
+  .fexp-btn--ghost:not(:disabled):hover {
+    background: color-mix(in oklch, var(--fg) 6%, transparent 94%);
+    color: var(--fg);
   }
 
-  .fb-tag-badge {
-    display: inline-block;
-    padding: 0 var(--space-1);
-    background: color-mix(in oklch, var(--fg) 8%, transparent 92%);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--fg-muted);
-    margin-right: 3px;
-    line-height: 1.6;
+  .fexp-btn--primary {
+    background: var(--cnp-accent, #6e8df1);
+    border-color: var(--cnp-accent, #6e8df1);
+    color: white;
   }
 
-  .fb-hidden-input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-    pointer-events: none;
+  .fexp-btn--primary:not(:disabled):hover {
+    opacity: 0.9;
   }
 </style>

@@ -1,0 +1,84 @@
+skill_id: landing-page
+skill_path: skills/landing-page/SKILL.md
+skill_name: "4-Page Landing Stack Builder"
+
+tier: reasoning_ai
+category: sales
+temperature_gate: warm
+
+role_affinity:
+  - sales-head
+  - sales-ops
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # offer/positioning/icp/voice/funnel/vsl/tripwire/objection docs + final stack
+  - campaigns                          # stack tied to campaign + funnel
+  - pages                              # 4-page stack entities
+  - variants                           # 4 variants per page
+  - case_studies                       # isomorphic-fit ranking for offer page
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_search
+  - web_fetch
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - 4_pages_produced
+  - 4_variants_per_page
+  - rmbc_7_section_outline_on_offer_page
+  - mobile_first_structure
+  - mechanism_threaded
+  - voice_match_verified
+  - cta_single_per_page
+  - faq_pre_frames_top_objections
+  - signal_score_gte_0_8
+  - blind_output_test_3_of_3
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - funnel_systems
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - copy_messaging.proven_headlines
+    - copy_messaging.proven_hooks
+    - funnel_systems.active_funnels
+
+output:
+  location: "output/landing-page/{date}-landing-stack-{funnel-archetype}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: landing-page
+    type: direct
+    format: markdown
+    structure: w-4-page-stack-w-4-variants-w-rmbc-7-section
+  receiver: prospect
+
+next_skill_routing:
+  on_complete:
+    - condition: "paid_traffic_pending"
+      recommend: ad-creative
+    - condition: "nurture_sequence_needed"
+      recommend: email-sequence
+    - condition: "calendar_booking_flow"
+      recommend: post-booking-nurture
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true
+  mobile_render_verified: true

@@ -179,6 +179,50 @@ defmodule CanopyWeb.WorkspacesControllerTest do
   end
 
   # ---------------------------------------------------------------------------
+  # PATCH /api/v1/workspaces/:slug
+  # ---------------------------------------------------------------------------
+
+  describe "PATCH /api/v1/workspaces/:slug" do
+    test "updates root_path with a valid existing directory and returns 200", %{conn: conn} do
+      ws = insert_workspace(%{slug: "patch-ws"})
+      new_dir = tmp_dir()
+
+      conn =
+        patch(conn, "/api/v1/workspaces/#{ws.slug}", %{"root_path" => new_dir})
+
+      assert %{"data" => data} = json_response(conn, 200)
+      assert data["root_path"] == new_dir
+      assert data["slug"] == ws.slug
+    end
+
+    test "persists the updated root_path in the database", %{conn: conn} do
+      ws = insert_workspace(%{slug: "patch-persist-ws"})
+      new_dir = tmp_dir()
+
+      patch(conn, "/api/v1/workspaces/#{ws.slug}", %{"root_path" => new_dir})
+
+      {:ok, reloaded} = Canopy.Workspaces.get_by_slug(ws.slug)
+      assert reloaded.root_path == new_dir
+    end
+
+    test "returns 422 when root_path does not exist on disk", %{conn: conn} do
+      ws = insert_workspace(%{slug: "patch-bad-path-ws"})
+
+      conn =
+        patch(conn, "/api/v1/workspaces/#{ws.slug}", %{
+          "root_path" => "/this/path/absolutely/does/not/exist/ever"
+        })
+
+      assert %{"error" => "root_path_not_found"} = json_response(conn, 422)
+    end
+
+    test "returns 404 when workspace slug is unknown", %{conn: conn} do
+      conn = patch(conn, "/api/v1/workspaces/no-such-slug", %{"root_path" => tmp_dir()})
+      assert json_response(conn, 404)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # DELETE /api/v1/workspaces/:slug
   # ---------------------------------------------------------------------------
 

@@ -2,8 +2,7 @@ defmodule Canopy.Runtimes.ClaudeLocal do
   @moduledoc """
   Runtime adapter for Claude Code CLI — the `claude` binary from Anthropic.
 
-  Implements `Canopy.Runtimes.Adapter`. Derived from Paperclip's `claude-local`
-  adapter (packages/adapters/claude-local/src/server/execute.ts).
+  Implements `Canopy.Runtimes.Adapter`.
 
   Behaviour is split across focused sub-modules:
 
@@ -18,7 +17,7 @@ defmodule Canopy.Runtimes.ClaudeLocal do
   | `Parser`  | stream-json → TranscriptEntry translation         |
   | `Runner`  | GenServer owning the claude subprocess Port       |
 
-  Canopy additions over Paperclip: PubSub broadcast on `"session:<id>"`,
+  Canopy-specific behaviour: PubSub broadcast on `"session:<id>"`,
   `Canopy.Sessions.append_message/2` for DB persistence, `CANOPY_MIOSA_SANDBOX_URL`
   when a sandbox is provisioned, and `CANOPY_SESSION_ID` for agent self-correlation.
 

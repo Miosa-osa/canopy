@@ -16,10 +16,14 @@ defmodule Canopy.Factory do
   alias Canopy.Agents.Agent
   alias Canopy.Budgets.{Budget, SpendSnapshot}
   alias Canopy.Governance.{Approval, Rule}
+  alias Canopy.Heartbeats.Heartbeat
   alias Canopy.Knowledge.{KbAgentAssignment, KbChunk, KnowledgeBase}
+  alias Canopy.Reviews.Review
   alias Canopy.Runtimes.{Runtime, RuntimeModel}
+  alias Canopy.Runs.Run
   alias Canopy.Sessions.{Session, SessionMessage}
   alias Canopy.Skills.Skill
+  alias Canopy.Missions.{Milestone, Mission}
   alias Canopy.Tasks.Task
   alias Canopy.Workspaces.Workspace
 
@@ -177,6 +181,8 @@ defmodule Canopy.Factory do
       slug: sequence(:slug, &"skill-#{&1}"),
       name: sequence(:name, &"Skill #{&1}"),
       description: "A test skill",
+      kind: "prompt",
+      frontmatter: nil,
       provider_format: "generic",
       content: content,
       content_hash: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
@@ -227,6 +233,20 @@ defmodule Canopy.Factory do
   end
 
   # ---------------------------------------------------------------------------
+  # Heartbeat factory
+  # ---------------------------------------------------------------------------
+
+  def heartbeat_factory do
+    %Heartbeat{
+      session_id: Ecto.UUID.generate(),
+      kind: :output,
+      byte_count: 42,
+      preview: "hello from pty",
+      meta: %{}
+    }
+  end
+
+  # ---------------------------------------------------------------------------
   # Flat task factory (legacy tasks table)
   # ---------------------------------------------------------------------------
 
@@ -238,6 +258,144 @@ defmodule Canopy.Factory do
       status: "todo",
       priority: 0,
       labels: []
+    }
+  end
+
+  # ---------------------------------------------------------------------------
+  # Issues, Goals, Routines, Projects factories
+  # ---------------------------------------------------------------------------
+
+  def project_factory do
+    %Canopy.Projects.Project{
+      slug: sequence(:slug, &"project-#{&1}"),
+      name: sequence(:name, &"Project #{&1}"),
+      description: "A test project",
+      workspace_slug: "default",
+      status: "active"
+    }
+  end
+
+  def issue_factory do
+    %Canopy.Issues.Issue{
+      short_id: sequence(:short_id, &"I-#{String.pad_leading(Integer.to_string(&1), 8, "0")}"),
+      title: sequence(:title, &"Issue #{&1}"),
+      description: "A test issue",
+      status: "open",
+      priority: 0,
+      workspace_slug: "default",
+      labels: []
+    }
+  end
+
+  def goal_factory do
+    %Canopy.Goals.Goal{
+      short_id: sequence(:short_id, &"G-#{String.pad_leading(Integer.to_string(&1), 8, "0")}"),
+      title: sequence(:title, &"Goal #{&1}"),
+      description: "A test goal",
+      status: "proposed",
+      priority: 0,
+      workspace_slug: "default",
+      progress_pct: 0
+    }
+  end
+
+  # ---------------------------------------------------------------------------
+  # Reviews factory
+  # ---------------------------------------------------------------------------
+
+  def review_factory do
+    %Review{
+      workspace_slug: "default",
+      kind: "artifact",
+      artifact_type: "doc",
+      artifact_id: Ecto.UUID.generate(),
+      artifact_preview: "# Draft doc\n\nThis is a preview of the artifact.",
+      agent_id: "backend-engineer-engineering",
+      status: "pending",
+      requested_at: DateTime.utc_now() |> DateTime.truncate(:second),
+      expires_at:
+        DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(86_400, :second)
+    }
+  end
+
+  def tool_call_review_factory do
+    %Review{
+      workspace_slug: "default",
+      kind: "tool_call",
+      tool_name: "exec_shell",
+      tool_args: %{"command" => "rm -rf /tmp/old-build"},
+      session_id: Ecto.UUID.generate(),
+      agent_id: "backend-engineer-engineering",
+      status: "pending",
+      requested_at: DateTime.utc_now() |> DateTime.truncate(:second),
+      expires_at:
+        DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.add(86_400, :second)
+    }
+  end
+
+  # ---------------------------------------------------------------------------
+  # Runs factory
+  # ---------------------------------------------------------------------------
+
+  def run_factory do
+    %Run{
+      short_id:
+        sequence(:run_short_id, &"R-#{String.pad_leading(Integer.to_string(&1), 8, "0")}"),
+      workspace_slug: "default",
+      status: "queued",
+      usage_json: %{},
+      started_at: DateTime.utc_now() |> DateTime.truncate(:second)
+    }
+  end
+
+  def running_run_factory do
+    build(:run, status: "running", process_pid: 12_345)
+  end
+
+  def finished_run_factory do
+    build(:run,
+      status: "succeeded",
+      finished_at: DateTime.utc_now() |> DateTime.truncate(:second),
+      usage_json: %{"tokens_in" => 1000, "tokens_out" => 500, "cost_usd" => "0.015"}
+    )
+  end
+
+  def routine_factory do
+    %Canopy.Routines.Routine{
+      short_id: sequence(:short_id, &"R-#{String.pad_leading(Integer.to_string(&1), 8, "0")}"),
+      name: sequence(:name, &"Routine #{&1}"),
+      description: "A test routine",
+      cron: "0 9 * * 1",
+      prompt_template: "Run weekly standup for {{workspace}} on {{date}}",
+      creates: "task",
+      workspace_slug: "default",
+      enabled: true,
+      run_count: 0
+    }
+  end
+
+  # ---------------------------------------------------------------------------
+  # Mission + Milestone factories
+  # ---------------------------------------------------------------------------
+
+  def mission_factory do
+    %Mission{
+      title: sequence(:title, &"Mission #{&1}"),
+      description: "A test mission",
+      status: "planning",
+      workspace_slug: sequence(:workspace_slug, &"workspace-#{&1}"),
+      priority: 3
+    }
+  end
+
+  def milestone_factory do
+    %Milestone{
+      title: sequence(:title, &"Milestone #{&1}"),
+      description: "A test milestone",
+      status: "pending",
+      order: 0,
+      depends_on_ids: [],
+      validation_spec: %{}
     }
   end
 end

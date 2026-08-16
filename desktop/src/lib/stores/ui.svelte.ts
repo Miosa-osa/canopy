@@ -7,19 +7,40 @@
 type Theme = "dark" | "light";
 
 const LS_WORKSPACE_KEY = "canopy.currentWorkspaceSlug";
+const LS_WORKSPACE_RAIL_KEY = "canopy.showWorkspaceRail";
+const LS_SIDEBAR_COLLAPSED_KEY = "canopy.sidebar.collapsed";
+/** Below this viewport width the sidebar auto-collapses on first construction. */
+const NARROW_VIEWPORT_PX = 800;
 
 class UIStore {
   theme = $state<Theme>("dark");
   sidebarCollapsed = $state(false);
   commandPaletteOpen = $state(false);
+  keywordSearchOpen = $state(false);
+  newSessionModalOpen = $state(false);
   currentWorkspaceSlug = $state<string | null>(null);
   workspaceSwitcherOpen = $state(false);
+  showWorkspaceRail = $state(false);
 
   constructor() {
     // Lazy-read persisted workspace slug on first construction (SSR-safe).
     if (typeof localStorage !== "undefined") {
       const saved = localStorage.getItem(LS_WORKSPACE_KEY);
       if (saved) this.currentWorkspaceSlug = saved;
+      this.showWorkspaceRail =
+        localStorage.getItem(LS_WORKSPACE_RAIL_KEY) === "true";
+
+      // Sidebar collapsed state — persisted preference wins; otherwise
+      // auto-collapse on narrow viewports for first-run mobile users.
+      const persistedCollapsed = localStorage.getItem(LS_SIDEBAR_COLLAPSED_KEY);
+      if (persistedCollapsed !== null) {
+        this.sidebarCollapsed = persistedCollapsed === "true";
+      } else if (
+        typeof window !== "undefined" &&
+        window.innerWidth < NARROW_VIEWPORT_PX
+      ) {
+        this.sidebarCollapsed = true;
+      }
     }
   }
 
@@ -37,8 +58,16 @@ class UIStore {
     this.setTheme(this.theme === "dark" ? "light" : "dark");
   }
 
-  toggleSidebar() {
-    this.sidebarCollapsed = !this.sidebarCollapsed;
+  /** Set sidebar collapsed state and persist to localStorage (SSR-safe). */
+  setSidebarCollapsed(collapsed: boolean): void {
+    this.sidebarCollapsed = collapsed;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(LS_SIDEBAR_COLLAPSED_KEY, String(collapsed));
+    }
+  }
+
+  toggleSidebar(): void {
+    this.setSidebarCollapsed(!this.sidebarCollapsed);
   }
 
   openCommandPalette() {
@@ -47,6 +76,14 @@ class UIStore {
 
   closeCommandPalette() {
     this.commandPaletteOpen = false;
+  }
+
+  openKeywordSearch(): void {
+    this.keywordSearchOpen = true;
+  }
+
+  closeKeywordSearch(): void {
+    this.keywordSearchOpen = false;
   }
 
   /** Set the active workspace slug and persist to localStorage (SSR-safe). */
@@ -61,6 +98,14 @@ class UIStore {
     }
   }
 
+  openNewSessionModal(): void {
+    this.newSessionModalOpen = true;
+  }
+
+  closeNewSessionModal(): void {
+    this.newSessionModalOpen = false;
+  }
+
   openWorkspaceSwitcher(): void {
     this.workspaceSwitcherOpen = true;
   }
@@ -71,6 +116,17 @@ class UIStore {
 
   toggleWorkspaceSwitcher(): void {
     this.workspaceSwitcherOpen = !this.workspaceSwitcherOpen;
+  }
+
+  setWorkspaceRail(show: boolean): void {
+    this.showWorkspaceRail = show;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(LS_WORKSPACE_RAIL_KEY, String(show));
+    }
+  }
+
+  toggleWorkspaceRail(): void {
+    this.setWorkspaceRail(!this.showWorkspaceRail);
   }
 }
 

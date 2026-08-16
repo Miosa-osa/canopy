@@ -51,6 +51,15 @@ defmodule Canopy.Tools do
   end
 
   @doc """
+  Same as `dispatch/2` but accepts opts. Pass `run_id:` to record a
+  `tool_call` breadcrumb against the active run.
+  """
+  @spec dispatch(String.t(), map(), keyword()) :: {:ok, term()} | {:error, term()}
+  def dispatch(name, args, opts) when is_binary(name) and is_map(args) and is_list(opts) do
+    Registry.dispatch(name, args, opts)
+  end
+
+  @doc """
   Registers all tools declared in `Canopy.Tools.BuiltIn`.
 
   Called from the Application supervisor Task after the Registry GenServer

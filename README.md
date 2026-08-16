@@ -1,11 +1,32 @@
-# Canopy v2
+# Canopy
 
-Canopy is a desktop platform that manages every AI agent runtime on your machine — Claude Code,
-Codex, Gemini, Cursor, OpenCode, Aider, Windsurf, Pi, Hermes — with MIOSA-provisioned compute
-sandboxes, credential vault, session history, workspace protocol, and governance. The runtimes
-are the product.
+A desktop terminal workspace that survives a quit. Named sessions, git worktrees, and PTY
+rehydration — so when you close the app or reboot, your terminals, working directories, and
+AI agent conversations come back where you left them.
 
-Not a chat app. Not a notebook. Not a knowledge base. **A cockpit for agent execution.**
+Built on Ghostty + tmux habits. Not a chat app. Not a notebook. **A terminal workspace that
+doesn't forget.**
+
+## What it does (current scope)
+
+- **Sessions** — named terminal sessions with cwd, command, and status
+- **Runtimes** — agent runtime configs (Claude, Codex, Gemini, etc.)
+- **Workspaces** — named layouts of sessions + worktrees you can open and close
+- **Command Center** — direct terminal access
+- **Build** — build view
+
+## What it will do (build order)
+
+1. **Session persistence** — `save_state/0` writes active sessions to disk on quit, `restore_state/0` reads on launch
+2. **PTY rehydration** — save terminal scrollback + screen state, restore on launch, relaunch command in the right directory
+3. **Agent session resume** — capture which `claude`/`codex` session UUID was in which pane, pass `--resume` on relaunch
+4. **Named workspaces** — save a layout + sessions + worktrees as a named workspace, restore on open
+
+## What it doesn't do (anymore)
+
+The 19-module vision (Inbox, Schedule, Chat, Channels, Files, Docs, Tasks, Dashboard, Analytics,
+Skills, Templates, Sandboxes, Governance, etc.) is parked. Those routes still exist in the codebase
+but are hidden from the sidebar. They can be re-enabled when needed.
 
 ---
 

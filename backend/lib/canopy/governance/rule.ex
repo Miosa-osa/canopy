@@ -11,6 +11,7 @@ defmodule Canopy.Governance.Rule do
     - "require_approval" — Pause execution until a human approves.
     - "warn"             — Log a warning and continue.
     - "log"              — Record to audit log and continue silently.
+    - "require_review"   — Queue artifact or tool-call for human review before it lands.
 
   Conditions (jsonb keys evaluated by `Canopy.Governance.Evaluator`):
     - "runtime"        — Exact match on session runtime_type.
@@ -18,6 +19,14 @@ defmodule Canopy.Governance.Rule do
     - "workspace_slug" — Exact match on session workspace_slug.
     - "prompt_regex"   — Regex match on session prompt.
     - "cost_over"      — True when session cost_usd exceeds this number.
+
+  `:requires_review` rule conditions (evaluated by `Canopy.Governance.Reviewer`):
+    - "match"           — "artifact" or "tool_call".
+    - "artifact_types"  — Optional list of artifact types to match (null = all).
+    - "tool_names"      — Optional list of tool names to match (null = all).
+    - "agent_ids"       — Optional list of agent IDs to match (null = all).
+    - "workspace_slugs" — Optional list of workspace slugs to match (null = all).
+    - "min_risk"        — Future-proof numeric threshold (currently unused).
   """
 
   use Ecto.Schema
@@ -26,7 +35,7 @@ defmodule Canopy.Governance.Rule do
   @primary_key {:id, :binary_id, autogenerate: true}
   @timestamps_opts [type: :utc_datetime_usec]
 
-  @valid_actions ~w(block require_approval warn log)
+  @valid_actions ~w(block require_approval warn log require_review)
 
   @derive {Jason.Encoder,
            only: [

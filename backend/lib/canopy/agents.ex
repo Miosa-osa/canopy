@@ -13,6 +13,7 @@ defmodule Canopy.Agents do
   import Ecto.Query, only: [from: 2]
 
   alias Canopy.Agents.Agent
+  alias Canopy.Agents.WorkspaceSync
   alias Canopy.Heartbeat.Registrar
   alias Canopy.Repo
 
@@ -21,14 +22,20 @@ defmodule Canopy.Agents do
 
   Options:
   - `:hired` — `true` to return only hired agents, `false` for unhired, `nil` for all.
+  - `:category` — filter by canonical top-level category.
+  - `:query` — case-insensitive search across slug, name, description, and org metadata.
   """
   @spec list(keyword()) :: {:ok, [Agent.t()]}
   def list(opts \\ []) do
     hired_filter = Keyword.get(opts, :hired)
+    category_filter = Keyword.get(opts, :category)
+    query_filter = Keyword.get(opts, :query)
 
     query =
       from(a in Agent, order_by: [asc: a.category, asc: a.name])
       |> apply_hired_filter(hired_filter)
+      |> apply_category_filter(category_filter)
+      |> apply_query_filter(query_filter)
 
     {:ok, Repo.all(query)}
   end
@@ -107,11 +114,24 @@ defmodule Canopy.Agents do
           {:ok, Agent.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def update_persona(slug, content) when is_binary(content) do
     with {:ok, agent} <- get_by_slug(slug) do
-      agent
-      |> Agent.persona_changeset(content)
-      |> Repo.update()
+      with {:ok, updated_agent} <-
+             agent
+             |> Agent.persona_changeset(content)
+             |> Repo.update(),
+           :ok <- WorkspaceSync.write_persona_body(updated_agent.persona_path, content) do
+        {:ok, updated_agent}
+      end
     end
   end
+
+  @doc """
+  Imports `.canopy/agents/**/*.md` from a workspace into runtime agent rows.
+
+  The markdown files remain the portable source. The database row is the runtime
+  cache used by sessions, heartbeats, MCP prompts, and the UI.
+  """
+  @spec sync_workspace(String.t()) :: {:ok, WorkspaceSync.sync_result()} | {:error, term()}
+  def sync_workspace(workspace_slug), do: WorkspaceSync.sync(workspace_slug)
 
   @doc """
   Fires an agent: sets `hired: false` and cancels pending heartbeat jobs.
@@ -137,6 +157,31 @@ defmodule Canopy.Agents do
   @spec apply_hired_filter(Ecto.Query.t(), boolean() | nil) :: Ecto.Query.t()
   defp apply_hired_filter(query, nil), do: query
   defp apply_hired_filter(query, val), do: from(a in query, where: a.hired == ^val)
+
+  @spec apply_category_filter(Ecto.Query.t(), String.t() | nil) :: Ecto.Query.t()
+  defp apply_category_filter(query, nil), do: query
+  defp apply_category_filter(query, ""), do: query
+
+  defp apply_category_filter(query, category),
+    do: from(a in query, where: a.category == ^category)
+
+  @spec apply_query_filter(Ecto.Query.t(), String.t() | nil) :: Ecto.Query.t()
+  defp apply_query_filter(query, nil), do: query
+  defp apply_query_filter(query, ""), do: query
+
+  defp apply_query_filter(query, raw_query) do
+    pattern = "%#{String.downcase(raw_query)}%"
+
+    from(a in query,
+      where:
+        like(fragment("lower(?)", a.slug), ^pattern) or
+          like(fragment("lower(?)", a.name), ^pattern) or
+          like(fragment("lower(coalesce(?, ''))", a.description), ^pattern) or
+          like(fragment("lower(coalesce(?->>'team', ''))", a.config), ^pattern) or
+          like(fragment("lower(coalesce(?->>'department', ''))", a.config), ^pattern) or
+          like(fragment("lower(coalesce(?->>'division', ''))", a.config), ^pattern)
+    )
+  end
 
   # Normalise string-keyed maps to atom-keyed maps so changeset cast works
   # regardless of whether the caller passes atom or string keys.

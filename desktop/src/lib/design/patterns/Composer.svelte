@@ -1,9 +1,9 @@
 <script lang="ts">
 /**
- * Composer — primary prompt input surface (Cabinet pattern lift).
+ * Composer — primary prompt input surface.
  * Features: autogrow MentionInput (13px mono), agent picker popover,
  * runtime picker popover, cross-entity @mention with live dropdown, ⌘↵ submit.
- * No focus ring — border darkens on focus (Cabinet detail).
+ * No focus ring — border darkens on focus.
  *
  * @mention wiring: MentionInput handles the full dropdown lifecycle
  * (agents + workspaces + tasks + channels). Selecting an item inserts "@slug ".
@@ -12,23 +12,34 @@
 import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
 import { Bot, ChevronDown } from 'lucide-svelte';
 import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
+import { runtimesQuery } from '$lib/api/queries/runtimes.js';
 import type { Agent } from '$lib/domain/agents/types.js';
+import type { Runtime } from '$lib/domain/runtimes/types.js';
 import Kbd from './Kbd.svelte';
 import MentionInput from './MentionInput.svelte';
 
 interface Props {
   onSubmit?: (prompt: string, agentSlug: string | null, runtime: string | null, mentions?: string[]) => void;
   placeholder?: string;
+  value?: string;
   class?: string;
 }
 
-let { onSubmit, placeholder = 'What are we working on?', class: className = '' }: Props = $props();
+let {
+  onSubmit,
+  placeholder = 'What are we working on?',
+  value = $bindable(''),
+  class: className = '',
+}: Props = $props();
 
 // Hired agents from API — powers the agent picker button
 const hiredQ = createQuery<Agent[]>(hiredAgentsQuery() as CreateQueryOptions<Agent[]>);
 const hiredAgents = $derived(($hiredQ.data ?? []) as Agent[]);
+const runtimesQ = createQuery<Runtime[]>(runtimesQuery() as CreateQueryOptions<Runtime[]>);
+const runtimeOptions = $derived(
+  dedupeRuntimes((($runtimesQ.data ?? []) as Runtime[]).filter((runtime) => runtime.kind === 'cli')),
+);
 
-let prompt = $state('');
 let selectedAgent = $state<string | null>(null);
 let selectedRuntime = $state<string | null>(null);
 let agentPickerOpen = $state(false);
@@ -43,7 +54,7 @@ function handleMentionSubmit(text: string, mentions: string[]): void {
     hiredAgents.some((a) => a.slug === slug)
   );
   onSubmit?.(trimmed, selectedAgent ?? firstAgentMention ?? null, selectedRuntime, mentions);
-  prompt = '';
+  value = '';
 }
 
 /** Open agent picker button (distinct from @mention inline). */
@@ -58,17 +69,54 @@ function selectAgentFromPicker(agent: Agent): void {
   agentPickerOpen = false;
 }
 
-const runtimeOptions = [
-  { slug: 'claude-code', name: 'Claude Code', model: 'claude-3-5-sonnet' },
-  { slug: 'codex', name: 'Codex', model: 'o3' },
-  { slug: 'gemini', name: 'Gemini', model: 'gemini-2.0-pro' },
-];
+function isRuntimeInstalled(runtime: Runtime): boolean {
+  return runtime.status === 'installed' || (runtime as Runtime & { installed?: boolean }).installed === true;
+}
+
+function runtimeSubLabel(runtime: Runtime): string {
+  if (!isRuntimeInstalled(runtime)) return 'not installed';
+  return runtime.version || runtime.type;
+}
+
+function runtimeGroupKey(runtime: Runtime): string {
+  if (runtime.binaryPath) return runtime.binaryPath;
+  return runtime.type.replace(/-local$/, '');
+}
+
+function runtimeRank(runtime: Runtime): number {
+  const priority = ['claude-local', 'codex-local', 'opencode-local', 'aider-local', 'gemini-local'];
+  const priorityIndex = priority.indexOf(runtime.type);
+  const priorityScore = priorityIndex === -1 ? 0 : 100 - priorityIndex;
+  return (
+    priorityScore +
+    (isRuntimeInstalled(runtime) ? 20 : 0) +
+    (runtime.type.endsWith('-local') ? 10 : 0) +
+    (runtime.authProfile ? 2 : 0)
+  );
+}
+
+function dedupeRuntimes(runtimes: Runtime[]): Runtime[] {
+  const best = new Map<string, Runtime>();
+  for (const runtime of runtimes) {
+    const key = runtimeGroupKey(runtime);
+    const existing = best.get(key);
+    if (!existing || runtimeRank(runtime) > runtimeRank(existing)) {
+      best.set(key, runtime);
+    }
+  }
+  return [...best.values()].sort(
+    (a, b) =>
+      Number(isRuntimeInstalled(b)) - Number(isRuntimeInstalled(a)) ||
+      runtimeRank(b) - runtimeRank(a) ||
+      a.name.localeCompare(b.name),
+  );
+}
 </script>
 
 <div class="cnp-composer {className}">
   <!-- MentionInput replaces the raw textarea — handles @mention autocomplete + ⌘Enter -->
   <MentionInput
-    bind:value={prompt}
+    bind:value
     {placeholder}
     onSubmit={handleMentionSubmit}
     class="cnp-composer__mention-input"
@@ -122,23 +170,30 @@ const runtimeOptions = [
           aria-expanded={runtimePickerOpen}
           aria-label="Select runtime"
         >
-          {selectedRuntime ? runtimeOptions.find((r) => r.slug === selectedRuntime)?.name ?? 'Runtime' : '⚙ runtime'}
+          {selectedRuntime ? runtimeOptions.find((r) => r.type === selectedRuntime)?.name ?? selectedRuntime : '⚙ runtime'}
           <ChevronDown size={10} aria-hidden="true" />
         </button>
 
         {#if runtimePickerOpen}
           <div class="cnp-picker-dropdown glass" role="listbox" aria-label="Select runtime">
-            {#each runtimeOptions as r (r.slug)}
-              <button
-                class="cnp-picker-option"
-                role="option"
-                aria-selected={selectedRuntime === r.slug}
-                onclick={() => { selectedRuntime = r.slug; runtimePickerOpen = false; }}
-              >
-                <span class="cnp-picker-option__name">{r.name}</span>
-                <span class="cnp-picker-option__sub">{r.model}</span>
-              </button>
-            {/each}
+            {#if $runtimesQ.isLoading}
+              <p class="cnp-picker-empty">Loading runtimes…</p>
+            {:else if runtimeOptions.length === 0}
+              <p class="cnp-picker-empty">No runtimes registered.</p>
+            {:else}
+              {#each runtimeOptions as r (r.type)}
+                <button
+                  class="cnp-picker-option"
+                  role="option"
+                  aria-selected={selectedRuntime === r.type}
+                  disabled={!isRuntimeInstalled(r)}
+                  onclick={() => { if (isRuntimeInstalled(r)) { selectedRuntime = r.type; runtimePickerOpen = false; } }}
+                >
+                  <span class="cnp-picker-option__name">{r.name}</span>
+                  <span class="cnp-picker-option__sub">{runtimeSubLabel(r)}</span>
+                </button>
+              {/each}
+            {/if}
           </div>
         {/if}
       </div>
@@ -147,8 +202,8 @@ const runtimeOptions = [
     <!-- Submit -->
     <button
       class="btn-pill btn-pill-primary btn-pill-sm cnp-composer__submit"
-      onclick={() => handleMentionSubmit(prompt, [])}
-      disabled={!prompt.trim()}
+      onclick={() => handleMentionSubmit(value, [])}
+      disabled={!value.trim()}
       aria-label="Submit prompt (⌘↵)"
     >
       Submit <Kbd chord="⌘↵" />
@@ -236,6 +291,15 @@ const runtimeOptions = [
   .cnp-picker-option:hover,
   .cnp-picker-option[aria-selected='true'] {
     background: color-mix(in oklch, var(--fg) 8%, transparent 92%);
+  }
+
+  .cnp-picker-option:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .cnp-picker-option:disabled:hover {
+    background: transparent;
   }
 
   .cnp-picker-option__name {

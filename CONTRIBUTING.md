@@ -6,9 +6,8 @@ Contributions welcome.
 
 - **Architecture:** [`docs/01-foundation.md`](./docs/01-foundation.md) — platform design, tech stack, build order
 - **UX:** [`docs/02-frontend-design.md`](./docs/02-frontend-design.md) — design system and component patterns
-- **Lifted patterns:** [`docs/03-steal-synthesis.md`](./docs/03-steal-synthesis.md) — competitor patterns with attribution decisions
-- **Feature inventory:** [`docs/04-platform-breakdown.md`](./docs/04-platform-breakdown.md) — full feature list with provenance
-- **Third-party notices:** [`NOTICE.md`](./NOTICE.md) — attribution for adapted open-source patterns
+- **Feature inventory:** [`docs/04-platform-breakdown.md`](./docs/04-platform-breakdown.md) — full feature list
+- **Third-party notices:** [`NOTICE.md`](./NOTICE.md) — first-party component provenance
 
 ## Before You Start
 
@@ -38,8 +37,3 @@ than one area, tag the relevant owner in your PR.
 | `desktop/`, `src-tauri/` | frontend-svelte specialist |
 | Root files, `docs/`, `.github/`, `packages/` | devops-engineer |
 
-## Attribution Requirement
-
-Any pattern adapted from Cabinet, Multica, Core-OSS, SuperHQ, Gradient-bang,
-or Paperclip must be documented in `docs/03-steal-synthesis.md` and attributed
-in `NOTICE.md`. See existing entries for the required format.

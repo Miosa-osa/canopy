@@ -64,6 +64,59 @@ defmodule Canopy.AgentsTest do
       {:ok, agents} = Agents.list(hired: false)
       assert Enum.all?(agents, &(not &1.hired))
     end
+
+    test "filters by category" do
+      {:ok, _engineering} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{category: "engineering"}))
+        )
+
+      {:ok, _sales} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(%AgentSchema{}, valid_agent_attrs(%{category: "sales"}))
+        )
+
+      {:ok, agents} = Agents.list(category: "sales")
+      assert agents != []
+      assert Enum.all?(agents, &(&1.category == "sales"))
+    end
+
+    test "filters by query across name, slug, description, and org metadata" do
+      {:ok, _match_name} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(
+            %AgentSchema{},
+            valid_agent_attrs(%{slug: "offer-agent", name: "Offer Architect"})
+          )
+        )
+
+      {:ok, _match_team} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(
+            %AgentSchema{},
+            valid_agent_attrs(%{
+              slug: "team-agent",
+              name: "Team Agent",
+              config: %{"team" => "foundations"}
+            })
+          )
+        )
+
+      {:ok, _miss} =
+        Canopy.Repo.insert(
+          AgentSchema.changeset(
+            %AgentSchema{},
+            valid_agent_attrs(%{slug: "support-agent", name: "Support Agent"})
+          )
+        )
+
+      {:ok, offer_agents} = Agents.list(query: "offer")
+      assert Enum.any?(offer_agents, &(&1.slug == "offer-agent"))
+      refute Enum.any?(offer_agents, &(&1.slug == "support-agent"))
+
+      {:ok, team_agents} = Agents.list(query: "foundations")
+      assert Enum.any?(team_agents, &(&1.slug == "team-agent"))
+    end
   end
 
   describe "list_hired/0" do

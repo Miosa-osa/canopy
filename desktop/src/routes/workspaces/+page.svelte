@@ -21,6 +21,8 @@ import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import WorkspaceCard from '$lib/design/patterns/WorkspaceCard.svelte';
 import type { Workspace } from '$lib/domain/workspaces/types.js';
 import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
 
 const queryClient = useQueryClient();
 
@@ -37,6 +39,7 @@ const deleteMut = createMutation<void, Error, string>(
 const workspaces = $derived(($wsQ.data ?? []) as Workspace[]);
 
 let pickerOpen = $state(false);
+let view = $state<ViewState>({ layout: 'grid', density: 'comfortable', sort: 'recent' });
 
 const kb = useListKeyboard({
   items: () => workspaces,
@@ -61,19 +64,21 @@ function handleDelete(slug: string): void {
   role="region"
   aria-label="Workspaces list"
   onkeydown={kb.handleKeydown}
-  tabindex="0"
 >
   <!-- Header -->
   <header class="wp-header">
     <div class="wp-title-row">
       <h1 class="wp-title">Workspaces</h1>
-      <button
-        class="btn-pill btn-pill-primary btn-pill-sm"
-        onclick={() => { pickerOpen = true; }}
-        aria-label="Create a new workspace"
-      >
-        + New workspace
-      </button>
+      <div style="display:flex;align-items:center;gap:var(--space-2)">
+        <ViewPicker routeSlug="workspaces" bind:view />
+        <button
+          class="btn-pill btn-pill-primary btn-pill-sm"
+          onclick={() => { pickerOpen = true; }}
+          aria-label="Create a new workspace"
+        >
+          + New workspace
+        </button>
+      </div>
     </div>
   </header>
 

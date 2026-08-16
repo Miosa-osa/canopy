@@ -3,15 +3,20 @@
  * Dark monochrome glassmorphism — no color, only light/dark-mode glass.
  */
 
-:root,
-[data-theme="light"] {
+:root {
   --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-border: rgba(0, 0, 0, 0.08);
   --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.12);
   --glass-blur: blur(20px) saturate(180%);
 }
 
-:root,
+[data-theme="light"] {
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+  --glass-blur: blur(20px) saturate(180%);
+}
+
 [data-theme="dark"],
 .dark {
   --glass-bg: rgba(28, 28, 30, 0.8);

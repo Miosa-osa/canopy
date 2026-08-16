@@ -34,17 +34,14 @@ const sandboxes = $derived(
 let destroyingId = $state<string | null>(null);
 
 const destroyMutation = createMutation(
-  writable(untrack(() => deleteSandboxMutation("")))
+  writable(untrack(() => deleteSandboxMutation()))
 );
 
 async function handleDestroy(sandbox: Sandbox): Promise<void> {
   if (destroyingId) return;
   destroyingId = sandbox.sandbox_id;
   try {
-    const mutation = createMutation(
-      writable(deleteSandboxMutation(sandbox.sandbox_id))
-    );
-    await $destroyMutation.mutateAsync(undefined, {
+    await $destroyMutation.mutateAsync(sandbox.sandbox_id, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
       },
@@ -147,7 +144,7 @@ function formatRelative(iso: string | null | undefined): string {
 
           <span class="sb-status-label sb-mono">{sandbox.status}</span>
 
-          <span class="sb-time sb-mono">{formatRelative(null)}</span>
+          <span class="sb-time sb-mono">{formatRelative(sandbox.inserted_at)}</span>
 
           <span class="sb-actions">
             {#if sandbox.status !== "destroyed"}

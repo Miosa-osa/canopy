@@ -2,9 +2,7 @@ defmodule Canopy.Runtimes.ClaudeLocal.Models do
   @moduledoc """
   Canonical Claude model metadata — context windows, costs, capabilities.
 
-  Model IDs verified against Paperclip's `models.ts`
-  (packages/adapters/claude-local/src/server/models.ts).
-  Context windows and pricing sourced from Anthropic docs (April 2026).
+  Model IDs, context windows, and pricing sourced from Anthropic docs (April 2026).
 
   Two entry points:
 

@@ -24,105 +24,61 @@ export interface SidebarConfig {
   groups: SidebarGroupConfig[];
 }
 
-const LS_KEY = "canopy.sidebar.config";
+// Bumped from canopy.sidebar.config → canopy.sidebar.config.v2 so the
+// stripped default (6 visible items) takes effect even when a user has the
+// old 30-item layout saved in localStorage. The merge logic preserves
+// per-item hidden flags from saved config, so without a key bump the old
+// "everything visible" state would override the new defaults.
+const LS_KEY = "canopy.sidebar.config.v2";
 
 // Verbatim copy of the 3-group layout from Sidebar.svelte — single source of truth.
+// Stripped 2026-08-16: only COCKPIT core remains visible. Everything else is
+// hidden: true. Routes still exist, they're just off the sidebar. Reversible
+// via the settings/sidebar page or by flipping hidden back to false here.
 export const defaultConfig: SidebarConfig = {
   groups: [
     {
       label: "COCKPIT",
       items: [
-        {
-          path: "/runtimes",
-          label: "Runtimes",
-          icon: "Monitor",
-          hidden: false,
-        },
-        {
-          path: "/sessions",
-          label: "Sessions",
-          icon: "History",
-          hidden: false,
-        },
+        { path: "/build", label: "Build", icon: "Hammer", hidden: false },
+        { path: "/runtimes", label: "Runtimes", icon: "Monitor", hidden: false },
+        { path: "/sessions", label: "Sessions", icon: "History", hidden: false },
         { path: "/agents", label: "Agents", icon: "Bot", hidden: false },
-        {
-          path: "/workspaces",
-          label: "Workspaces",
-          icon: "Briefcase",
-          hidden: false,
-        },
-        { path: "/sandboxes", label: "Sandboxes", icon: "Box", hidden: false },
-        {
-          path: "/dashboard",
-          label: "Command Center",
-          icon: "Terminal",
-          hidden: false,
-        },
+        { path: "/workspaces", label: "Workspaces", icon: "Briefcase", hidden: false },
+        { path: "/command-center", label: "Command Center", icon: "Terminal", hidden: false },
+        { path: "/sandboxes", label: "Sandboxes", icon: "Box", hidden: true },
+        { path: "/agent-control", label: "Agent Control", icon: "Gauge", hidden: true },
+        { path: "/activity", label: "Activity", icon: "Activity", hidden: true },
+        { path: "/review", label: "Review", icon: "ShieldCheck", hidden: true },
+        { path: "/workbench", label: "Workbench", icon: "LayoutGrid", hidden: true },
       ],
     },
     {
       label: "WORKSPACE",
       items: [
-        {
-          path: "/coming-soon",
-          label: "Inbox",
-          icon: "Inbox",
-          badge: 7,
-          comingSoon: true,
-          hidden: false,
-        },
-        {
-          path: "/coming-soon",
-          label: "Schedule",
-          icon: "Calendar",
-          comingSoon: true,
-          hidden: false,
-        },
-        { path: "/chat", label: "Chat", icon: "MessageCircle", hidden: false },
-        { path: "/channels", label: "Channels", icon: "Hash", hidden: false },
-        { path: "/files", label: "Files", icon: "FolderOpen", hidden: false },
-        { path: "/docs", label: "Docs", icon: "FileText", hidden: false },
-        { path: "/tasks", label: "Tasks", icon: "CheckSquare", hidden: false },
+        { path: "/notifications", label: "Inbox", icon: "Inbox", badge: 7, hidden: true },
+        { path: "/schedule", label: "Schedule", icon: "Calendar", hidden: true },
+        { path: "/chat", label: "Chat", icon: "MessageCircle", hidden: true },
+        { path: "/channels", label: "Channels", icon: "Hash", hidden: true },
+        { path: "/files", label: "Files", icon: "FolderOpen", hidden: true },
+        { path: "/docs", label: "Docs", icon: "FileText", hidden: true },
+        { path: "/tasks", label: "Tasks", icon: "CheckSquare", hidden: true },
+        { path: "/issues", label: "Issues", icon: "CircleDot", hidden: true },
+        { path: "/my-issues", label: "My issues", icon: "UserCheck", hidden: true },
       ],
     },
     {
       label: "SYSTEM",
       items: [
-        {
-          path: "/knowledge",
-          label: "Knowledge",
-          icon: "BookOpen",
-          hidden: false,
-        },
-        {
-          path: "/coming-soon",
-          label: "Skills",
-          icon: "Zap",
-          comingSoon: true,
-          hidden: false,
-        },
-        {
-          path: "/coming-soon",
-          label: "Templates",
-          icon: "LayoutTemplate",
-          comingSoon: true,
-          hidden: false,
-        },
-        {
-          path: "/coming-soon",
-          label: "Analytics",
-          icon: "BarChart2",
-          comingSoon: true,
-          hidden: false,
-        },
-        {
-          path: "/governance",
-          label: "Governance",
-          icon: "ShieldCheck",
-          badge: 1,
-          badgeStyle: "warn",
-          hidden: false,
-        },
+        { path: "/drive", label: "Drive", icon: "FolderKanban", hidden: true },
+        { path: "/skills", label: "Skills", icon: "Zap", hidden: true },
+        { path: "/templates", label: "Templates", icon: "LayoutTemplate", hidden: true },
+        { path: "/analytics", label: "Analytics", icon: "BarChart2", hidden: true },
+        { path: "/projects", label: "Projects", icon: "FolderKanban", hidden: true },
+        { path: "/team", label: "Team", icon: "Users", hidden: true },
+        { path: "/goals", label: "Goals", icon: "Target", hidden: true },
+        { path: "/routines", label: "Routines", icon: "Repeat", hidden: true },
+        { path: "/governance", label: "Governance", icon: "ShieldCheck", badge: 1, badgeStyle: "warn", hidden: true },
       ],
     },
   ],
@@ -156,11 +112,19 @@ function mergeWithDefault(saved: SidebarConfig): SidebarConfig {
         (g) => g.label === defaultGroup.label,
       );
 
-      // Items from saved that still exist in defaultConfig (preserves order + hidden).
+      const defaultsByKey = new Map(
+        defaultGroup.items.map((item) => [`${item.path}:${item.label}`, item]),
+      );
+
+      // Items from saved that still exist in defaultConfig.
+      // Preserve saved order + hidden, but refresh default metadata such as icon/badge.
       const survivingItems: SidebarItemConfig[] = savedGroup
         ? savedGroup.items.filter((i) =>
             valid.has(`${defaultGroup.label}:${i.path}:${i.label}`),
-          )
+          ).map((item) => ({
+            ...(defaultsByKey.get(`${item.path}:${item.label}`) ?? item),
+            hidden: item.hidden,
+          }))
         : [];
 
       // Keys already represented in surviving items.

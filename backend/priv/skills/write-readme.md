@@ -22,7 +22,7 @@ A README is a Signal. Resolve all 5 dimensions before writing: Mode (linguistic/
 Two sentences max. The problem it solves and for whom.
 
 ## Quick start
-Minimum commands to get it running. No prose — just steps.
+Minimum commands to get it running. No prose - just steps.
 
 ## Architecture
 One diagram or one paragraph. Structure before detail.
@@ -31,7 +31,7 @@ One diagram or one paragraph. Structure before detail.
 Table of env vars with type, default, and description.
 
 ## Development
-Prerequisites → install → run → test. Four commands max.
+Prerequisites -> install -> run -> test. Four commands max.
 
 ## Deployment
 Environment-specific instructions. Link to runbooks if complex.
@@ -41,10 +41,10 @@ Environment-specific instructions. Link to runbooks if complex.
 
 ### Anti-patterns to eliminate
 
-- **Wall-of-text intros** — cut everything before the first actionable line
-- **Excessive feature lists** — show, don't tell; link to docs instead
-- **Stale badges** — only include badges with live CI backing
-- **Generic "Contributing" sections** — either link to CONTRIBUTING.md or omit
+- **Wall-of-text intros** - cut everything before the first actionable line
+- **Excessive feature lists** - show, don't tell; link to docs instead
+- **Stale badges** - only include badges with live CI backing
+- **Generic "Contributing" sections** - either link to CONTRIBUTING.md or omit
 
 ### Signal quality checks
 

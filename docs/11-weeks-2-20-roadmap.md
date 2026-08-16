@@ -31,7 +31,7 @@ Week 16  Governance UI (approval flows + audit log)
 Week 17  Multi-user + RBAC + invites
          ┌─────────────── v1.0 SHIP ──────────────────┐
 Week 18  Real-time collab (CRDT / Yjs for docs)
-Week 19  Voice layer (Pipecat — OpenAgents + Gradient-bang lifts)
+Week 19  Voice layer (Pipecat pipeline)
 Week 20  Installer, notarize, auto-update, DMG, docs site
 ```
 
@@ -49,7 +49,7 @@ Every week ends with a commit + `docs/NN-weekN-report.md` audit gate.
 |-------|-------|-------------------|
 | **A. MIOSA client** | Real HTTP client for external MIOSA API. `POST /v1/sandboxes`, `exec/3`, `destroy/1`. Reads `MIOSA_API_URL` + `MIOSA_API_KEY` from runtime config. | `lib/canopy/miosa/client.ex` (~150), `lib/canopy/miosa.ex` real impl, tests |
 | **B. Heartbeat Oban worker** | `Canopy.Heartbeat.Worker` impl `Oban.Worker`. Reads `agent.heartbeat_cron`, fires `Canopy.Sessions.create/1` on schedule. Registers cron entries on agent hire. | `lib/canopy/heartbeat/worker.ex` (~120), `lib/canopy/heartbeat/registrar.ex` (~80) |
-| **C. Session resume persistence** | OpenAgents pattern #3. Persist `{workspace_id, agent_slug} → external_session_id` on every `:result` entry. On new session creation, look up + pass `--resume <id>` via adapter args. | `lib/canopy/sessions/resume.ex` (~100), migration, adapter args lookup |
+| **C. Session resume persistence** | Persist `{workspace_id, agent_slug} → external_session_id` on every `:result` entry. On new session creation, look up + pass `--resume <id>` via adapter args. | `lib/canopy/sessions/resume.ex` (~100), migration, adapter args lookup |
 | **D. OpenAPI → TS generation** | `mix canopy.gen.openapi` writes `packages/types/src/api.ts`. Wire into `pnpm -C desktop typecheck` pipeline. | `lib/mix/tasks/canopy.gen.openapi.ex`, `packages/types/package.json` gen script |
 
 Parallel-safe: A + B touch backend/lib/canopy/{miosa, heartbeat, sessions}/* (no overlap). C touches sessions + adapter args (coordinate with A, B before merging). D is meta/tooling.
@@ -58,8 +58,8 @@ Parallel-safe: A + B touch backend/lib/canopy/{miosa, heartbeat, sessions}/* (no
 
 | Track | Scope |
 |-------|-------|
-| **E. Skills table + API** | Multica pattern — markdown in Postgres, imported from registries. `lib/canopy/skills/*`, `GET/POST /api/v1/skills`, `mix canopy.seed.skills` |
-| **F. Tool registry** | Core-OSS `@tool` macro pattern in Elixir. Tools registered at boot, exposed via `list_tools/0`. Used by adapters via MCP or system-prompt injection. |
+| **E. Skills table + API** | Markdown in Postgres, imported from registries. `lib/canopy/skills/*`, `GET/POST /api/v1/skills`, `mix canopy.seed.skills` |
+| **F. Tool registry** | `@tool` macro pattern in Elixir. Tools registered at boot, exposed via `list_tools/0`. Used by adapters via MCP or system-prompt injection. |
 | **G. Governance gates** | Approval rules: "block session if runtime X AND workspace Y AND prompt matches regex Z". API + middleware plug. |
 | **H. Budget enforcement** | 3-tier (visibility / soft alert 80% / hard ceiling). Per-agent + per-project. Enforced at session-create time + warned at 80%. |
 
@@ -67,8 +67,8 @@ Parallel-safe: A + B touch backend/lib/canopy/{miosa, heartbeat, sessions}/* (no
 
 | Track | Scope |
 |-------|-------|
-| **I. Dual-plane adapter bridge** | OpenAgents lift #1. MCP-capable adapters (Claude/Codex/OpenCode) get tools via MCP stdio server. Non-MCP adapters (Aider/Cursor/Windsurf) get tools via system-prompt curl instructions. Same workspace API. |
-| **J. MCP server wrapper** | Expose `/api/v1/*` as an MCP server: `@canopyai/mcp-server`. External agents can call Canopy tools. Paperclip + OpenAgents both ship this. |
+| **I. Dual-plane adapter bridge** | MCP-capable adapters (Claude/Codex/OpenCode) get tools via MCP stdio server. Non-MCP adapters (Aider/Cursor/Windsurf) get tools via system-prompt curl instructions. Same workspace API. |
+| **J. MCP server wrapper** | Expose `/api/v1/*` as an MCP server: `@canopyai/mcp-server`. External agents can call Canopy tools. |
 | **K. Svelte warnings cleanup** | 29 `state-referenced-locally` TanStack warnings. Fix pattern: replace `const opts = $derived(...); createQuery(opts)` with `createQuery(() => factory())`. Ensure types still infer. |
 | **L. Rate limiting plug** | Hammer plug on `/api/v1/*`, 100 req/min per IP. Defense-in-depth for eventual public exposure. |
 | **M. `miosa-foundation/` rename** | Audit item #1. Renames `src/lib/design/foundation/` → `design/miosa-foundation/` to resolve "foundation" name overload. |
@@ -124,7 +124,6 @@ Not a new module — a polish pass. Fixes the real rough edges:
 ### Week 5 — Tasks (Kanban)
 
 Initiatives → Projects → Issues → Sub-issues. Agents as assignees. Board / list / calendar views.
-Multica pattern heavily lifted.
 
 ### Week 6 — Chat
 
@@ -136,7 +135,7 @@ Tiptap collaborative editor. **No CRDT in Week 7** — single-user only. CRDT de
 
 ### Week 8 — Channels
 
-Team messaging. Foundation chat components. Agents as channel members (using `ActorAvatar`, Multica-style).
+Team messaging. Foundation chat components. Agents as channel members (using `ActorAvatar`).
 
 ### Week 9 — Files
 
@@ -172,7 +171,7 @@ Gmail + Outlook OAuth. Triage agents auto-categorize. Agent response drafts.
 Yjs or automerge integration for Docs. Multi-cursor presence.
 
 ### Week 19 — Voice layer
-Pipecat pipeline (Deepgram STT → LLM → Cartesia TTS). OpenAgents + Gradient-bang lifts. Wake word optional.
+Pipecat pipeline (Deepgram STT → LLM → Cartesia TTS). Wake word optional.
 
 ### Week 20 — Installer
 - macOS DMG + notarize

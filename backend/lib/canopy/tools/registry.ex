@@ -25,6 +25,7 @@ defmodule Canopy.Tools.Registry do
 
   use GenServer
 
+  alias Canopy.Analytics.Emitter
   alias Canopy.Tools.Tool
 
   require Logger
@@ -104,6 +105,20 @@ defmodule Canopy.Tools.Registry do
   """
   @spec dispatch(String.t(), map()) :: {:ok, term()} | {:error, term()}
   def dispatch(name, args) when is_binary(name) and is_map(args) do
+    dispatch(name, args, [])
+  end
+
+  @doc """
+  Dispatches with optional emission context.
+
+  Opts:
+  - `:run_id` — when provided, a `tool_call` breadcrumb is added to the run's
+    in-memory ring buffer.
+  """
+  @spec dispatch(String.t(), map(), keyword()) :: {:ok, term()} | {:error, term()}
+  def dispatch(name, args, opts) when is_binary(name) and is_map(args) and is_list(opts) do
+    Emitter.tool_call_breadcrumb(Keyword.get(opts, :run_id), name, args)
+
     case lookup(name) do
       {:error, :not_found} ->
         {:error, :not_found}

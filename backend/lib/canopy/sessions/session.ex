@@ -5,8 +5,8 @@ defmodule Canopy.Sessions.Session do
   Sessions form chains via `parent_session_id`: each compaction or resume
   links back to its predecessor. The root session has a nil parent.
 
-  Triple-key resume (Paperclip pattern): `id + cwd + prompt_bundle_key` are
-  compared before resuming. If any key mismatches, the adapter starts fresh.
+  Triple-key resume: `id + cwd + prompt_bundle_key` are compared before resuming.
+  If any key mismatches, the adapter starts fresh.
   The `prompt_bundle_key` is the SHA256 of AGENTS.md + injected skills — it
   only changes when the skill bundle changes, saving tokens on resumes.
 
@@ -21,7 +21,8 @@ defmodule Canopy.Sessions.Session do
   @foreign_key_type :binary_id
   @timestamps_opts [type: :utc_datetime_usec]
 
-  @valid_statuses ~w(pending running completed cancelled failed pending_approval)
+  @valid_statuses ~w(pending running paused completed cancelled failed pending_approval)
+  @valid_kinds ~w(terminal agent_conversation)
 
   @doc "Returns the list of all valid session statuses."
   @spec allowed_statuses() :: [String.t()]
@@ -30,6 +31,7 @@ defmodule Canopy.Sessions.Session do
   @derive {Jason.Encoder,
            only: [
              :id,
+             :kind,
              :runtime_type,
              :model_id,
              :agent_slug,
@@ -54,11 +56,15 @@ defmodule Canopy.Sessions.Session do
              :miosa_sandbox_id,
              :miosa_sandbox_url,
              :miosa_sandbox_status,
+             :worktree_path,
+             :branch,
+             :base_branch,
              :inserted_at,
              :updated_at
            ]}
 
   schema "sessions" do
+    field :kind, :string, default: "terminal"
     field :runtime_type, :string
     field :model_id, :string
     field :agent_slug, :string
@@ -85,6 +91,14 @@ defmodule Canopy.Sessions.Session do
     # pending | provisioning | ready | destroyed | skipped | failed
     field :miosa_sandbox_status, :string
 
+    # Git worktree isolation — nil when workspace is not a git repo
+    field :worktree_path, :string
+    field :branch, :string
+    field :base_branch, :string
+
+    # Latest run spawned for this session (updated when a new run starts)
+    field :latest_run_id, :binary_id
+
     timestamps()
   end
 
@@ -92,11 +106,12 @@ defmodule Canopy.Sessions.Session do
 
   @required ~w(runtime_type cwd)a
   @optional ~w(
-    model_id agent_slug workspace_slug status prompt prompt_bundle_key
+    kind model_id agent_slug workspace_slug status prompt prompt_bundle_key
     wake_reason parent_session_id sequence_number external_session_id
     started_at completed_at error_reason cost_usd
     input_tokens output_tokens cache_read_tokens cache_write_tokens metadata
     miosa_sandbox_id miosa_sandbox_url miosa_sandbox_status
+    worktree_path branch base_branch latest_run_id
   )a
 
   @doc "Changeset for creating a new session."
@@ -106,6 +121,7 @@ defmodule Canopy.Sessions.Session do
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
     |> validate_length(:runtime_type, min: 1, max: 64)
+    |> validate_inclusion(:kind, @valid_kinds)
     |> validate_inclusion(:status, @valid_statuses)
     |> validate_length(:prompt_bundle_key, is: 64, allow_nil: true)
   end
@@ -131,6 +147,12 @@ defmodule Canopy.Sessions.Session do
   @spec resume_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def resume_changeset(session, attrs) do
     cast(session, attrs, [:external_session_id])
+  end
+
+  @doc "Changeset for updating worktree fields after spawn."
+  @spec worktree_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  def worktree_changeset(session, attrs) do
+    cast(session, attrs, [:worktree_path, :branch, :base_branch])
   end
 
   @doc "Changeset for recording final cost + token usage."

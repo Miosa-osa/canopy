@@ -13,6 +13,7 @@
  */
 
 import { apiGet, apiPost, apiPut } from "$lib/api/client.js";
+import { LOCAL_SKILLS } from "$lib/data/local-skills.js";
 import type {
   CreateSkillBody,
   ImportSkillBody,
@@ -23,18 +24,47 @@ import type {
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
-export function listSkills(filters?: SkillFilters): Promise<Skill[]> {
+function applyLocalFilters(skills: Skill[], filters?: SkillFilters): Skill[] {
+  return skills.filter((skill) => {
+    if (filters?.source && skill.source !== filters.source) return false;
+    if (typeof filters?.enabled === "boolean" && skill.enabled !== filters.enabled)
+      return false;
+    if (filters?.tag && !skill.tags.includes(filters.tag)) return false;
+    if (filters?.kind && skill.kind !== filters.kind) return false;
+    return true;
+  });
+}
+
+function mergeSkills(remoteSkills: Skill[], localSkills: Skill[]): Skill[] {
+  return [
+    ...remoteSkills,
+    ...localSkills.filter(
+      (local) =>
+        !remoteSkills.some(
+          (remote) => remote.slug === local.slug || remote.id === local.id,
+        ),
+    ),
+  ].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listSkills(filters?: SkillFilters): Promise<Skill[]> {
   const params = new URLSearchParams();
   if (filters?.source) params.set("source", filters.source);
   if (typeof filters?.enabled === "boolean")
     params.set("enabled", String(filters.enabled));
   if (filters?.tag) params.set("tag", filters.tag);
+  if (filters?.kind) params.set("kind", filters.kind);
   const qs = params.toString();
-  return apiGet<Skill[]>(`/skills${qs ? `?${qs}` : ""}`);
+  const remoteSkills = await apiGet<Skill[]>(`/skills${qs ? `?${qs}` : ""}`, {
+    rawKeys: true,
+  });
+  return mergeSkills(remoteSkills, applyLocalFilters(LOCAL_SKILLS, filters));
 }
 
-export function getSkill(slug: string): Promise<Skill> {
-  return apiGet<Skill>(`/skills/${slug}`);
+export async function getSkill(slug: string): Promise<Skill> {
+  const localSkill = LOCAL_SKILLS.find((skill) => skill.slug === slug);
+  if (localSkill) return localSkill;
+  return apiGet<Skill>(`/skills/${slug}`, { rawKeys: true });
 }
 
 /**
@@ -55,7 +85,7 @@ export function updateSkill(
   slug: string,
   body: Partial<CreateSkillBody>,
 ): Promise<Skill> {
-  return apiPut<Skill>(`/skills/${slug}`, body);
+  return apiPut<Skill>(`/skills/${slug}`, body, { rawKeys: true });
 }
 
 // ── TanStack Query option factories ─────────────────────────────────────────

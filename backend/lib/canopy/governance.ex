@@ -48,6 +48,7 @@ defmodule Canopy.Governance do
 
   import Ecto.Query, only: [from: 2]
 
+  alias Canopy.Analytics.Emitter
   alias Canopy.Governance.{Approval, AuditLog, Evaluator, Rule, RuleCache}
   alias Canopy.Repo
 
@@ -179,6 +180,11 @@ defmodule Canopy.Governance do
           payload: %{rule_name: rule.name, context: sanitize_context(context)}
         })
 
+        Emitter.governance_rejected(
+          %{session_id: session_id, payload: %{"context" => sanitize_context(context)}},
+          rule
+        )
+
       {:require_approval, rule} ->
         audit(%{
           event_type: "approval_requested",
@@ -186,6 +192,8 @@ defmodule Canopy.Governance do
           session_id: session_id,
           payload: %{rule_name: rule.name}
         })
+
+        Emitter.governance_escalated(%{session_id: session_id}, rule)
 
       {:warn, rule} ->
         audit(%{
@@ -335,6 +343,8 @@ defmodule Canopy.Governance do
               }
             })
 
+            emit_decision_telemetry(status, updated, decided_by, reason)
+
             {:ok, updated}
 
           error ->
@@ -344,6 +354,28 @@ defmodule Canopy.Governance do
       %Approval{status: current} ->
         {:error, {:already_decided, current}}
     end
+  end
+
+  @spec emit_decision_telemetry(String.t(), Approval.t(), String.t(), String.t()) :: :ok
+  defp emit_decision_telemetry(status, approval, decided_by, reason) do
+    rule_summary = %{id: approval.rule_id}
+
+    attrs = %{
+      session_id: approval.session_id,
+      payload: %{
+        "approval_id" => approval.id,
+        "decided_by" => decided_by,
+        "reason" => reason
+      }
+    }
+
+    case status do
+      "approved" -> Emitter.governance_approved(attrs, rule_summary)
+      "rejected" -> Emitter.governance_rejected(attrs, rule_summary)
+      _ -> :ok
+    end
+
+    :ok
   end
 
   @spec audit(map()) :: :ok

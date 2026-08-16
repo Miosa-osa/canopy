@@ -269,7 +269,7 @@ function preview(content: string, max = 200): string {
     {/if}
 
     <!-- Tabs -->
-    <nav class="kd-tabs" role="tablist" aria-label="Knowledge base sections">
+    <div class="kd-tabs" role="tablist" aria-label="Knowledge base sections">
       {#each (["files", "chunks", "agents", "search"] as const) as tab}
         <button
           role="tab"
@@ -281,7 +281,7 @@ function preview(content: string, max = 200): string {
           {tab === "files" ? "Files" : tab === "chunks" ? "Chunks" : tab === "agents" ? "Assigned Agents" : "Search"}
         </button>
       {/each}
-    </nav>
+    </div>
   </header>
 
   <!-- Tab content -->

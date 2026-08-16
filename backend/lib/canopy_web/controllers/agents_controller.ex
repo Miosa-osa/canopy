@@ -63,6 +63,25 @@ defmodule CanopyWeb.AgentsController do
     end
   end
 
+  operation :sync_workspace,
+    summary: "Sync workspace-local agents",
+    description: "Imports `.canopy/agents/**/*.md` from a workspace into runtime agent rows.",
+    parameters: [
+      workspace_slug: [in: :path, description: "Workspace slug", type: :string, required: true]
+    ],
+    responses: [
+      ok: {"Sync result", "application/json", %OpenApiSpex.Schema{type: :object}},
+      not_found:
+        {"Workspace not found", "application/json", CanopyWeb.Schemas.RuntimeSchema.ErrorResponse}
+    ]
+
+  @spec sync_workspace(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def sync_workspace(conn, %{"workspace_slug" => workspace_slug}) do
+    with {:ok, result} <- Agents.sync_workspace(workspace_slug) do
+      json(conn, %{data: result})
+    end
+  end
+
   operation :index,
     summary: "List agents",
     description: "Returns all agents. Pass ?hired=true to filter to hired agents only.",
@@ -81,7 +100,14 @@ defmodule CanopyWeb.AgentsController do
   @spec index(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def index(conn, params) do
     hired_filter = parse_hired_filter(Map.get(params, "hired"))
-    {:ok, agents} = Agents.list(hired: hired_filter)
+
+    opts =
+      []
+      |> maybe_put(:hired, hired_filter)
+      |> maybe_put(:category, Map.get(params, "category"))
+      |> maybe_put(:query, Map.get(params, "q"))
+
+    {:ok, agents} = Agents.list(opts)
     json(conn, %{data: agents})
   end
 
@@ -251,4 +277,9 @@ defmodule CanopyWeb.AgentsController do
   defp parse_hired_filter("true"), do: true
   defp parse_hired_filter("false"), do: false
   defp parse_hired_filter(_other), do: nil
+
+  @spec maybe_put(keyword(), atom(), term()) :: keyword()
+  defp maybe_put(opts, _key, nil), do: opts
+  defp maybe_put(opts, _key, ""), do: opts
+  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
 end

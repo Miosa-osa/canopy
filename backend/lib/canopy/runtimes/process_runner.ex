@@ -21,6 +21,7 @@ defmodule Canopy.Runtimes.ProcessRunner do
   **State**: common fields in `ProcessRunner.State`; adapter-specific data in `:extra`.
   """
 
+  alias Canopy.Analytics.Emitter
   alias Canopy.Runtimes.TranscriptEntry
 
   require Logger
@@ -125,6 +126,8 @@ defmodule Canopy.Runtimes.ProcessRunner do
           __MODULE__.completed_extra(new_state)
         )
 
+        ProcessRunner.emit_finished(new_state)
+
         {:stop, :normal, new_state}
       end
 
@@ -134,6 +137,7 @@ defmodule Canopy.Runtimes.ProcessRunner do
         event = __MODULE__.on_exit_error(code, state)
         new_state = ProcessRunner.flush_buffer(__MODULE__, state)
         ProcessRunner.emit_system_entry(new_state, event, %{exit_code: code})
+        ProcessRunner.emit_failed(new_state, {:exit_status, code, event})
         # Persist terminal status so the session is never stuck in :running forever.
         # Using _ = intentionally: we've already emitted a PubSub entry and logged;
         # a DB failure here is non-fatal for the port lifecycle.
@@ -166,13 +170,80 @@ defmodule Canopy.Runtimes.ProcessRunner do
       Port.command(port, prompt <> "\n")
     end
 
+    context = Keyword.get(opts, :context, %{})
+
+    Emitter.agent_run_started(%{
+      session_id: session_id,
+      run_id: session_id,
+      workspace_slug: Map.get(context, "workspace_slug") || Map.get(context, :workspace_slug),
+      runtime: runtime_type_for(mod),
+      model: Map.get(context, "model") || Map.get(context, :model),
+      payload: %{"adapter" => inspect(mod)}
+    })
+
     {:ok,
      %State{
        session_id: session_id,
        port: port,
        module: mod,
-       context: Keyword.get(opts, :context, %{})
+       context: context
      }}
+  end
+
+  @doc false
+  @spec runtime_type_for(module()) :: String.t() | nil
+  def runtime_type_for(mod) do
+    if function_exported?(mod, :type, 0) do
+      try do
+        mod.type()
+      rescue
+        _ -> nil
+      end
+    else
+      nil
+    end
+  end
+
+  @doc false
+  @spec emit_finished(State.t()) :: :ok
+  def emit_finished(state) do
+    Emitter.agent_run_finished(
+      %{
+        session_id: state.session_id,
+        run_id: state.session_id,
+        workspace_slug:
+          Map.get(state.context, "workspace_slug") || Map.get(state.context, :workspace_slug),
+        runtime: runtime_type_for(state.module),
+        model: Map.get(state.context, "model") || Map.get(state.context, :model)
+      },
+      %{status: "ok"}
+    )
+
+    _ = Canopy.Analytics.Breadcrumbs.flush_run(state.session_id)
+    :ok
+  rescue
+    _ -> :ok
+  end
+
+  @doc false
+  @spec emit_failed(State.t(), term()) :: :ok
+  def emit_failed(state, reason) do
+    Emitter.agent_run_failed(
+      %{
+        session_id: state.session_id,
+        run_id: state.session_id,
+        workspace_slug:
+          Map.get(state.context, "workspace_slug") || Map.get(state.context, :workspace_slug),
+        runtime: runtime_type_for(state.module),
+        model: Map.get(state.context, "model") || Map.get(state.context, :model)
+      },
+      %{reason: inspect(reason)}
+    )
+
+    _ = Canopy.Analytics.Breadcrumbs.flush_run(state.session_id)
+    :ok
+  rescue
+    _ -> :ok
   end
 
   @doc false

@@ -181,17 +181,36 @@ defmodule Mix.Tasks.Canopy.Seed.Agents do
         [path] = group_paths
         [{base_slug, %{path: path, slug: base_slug, conflict: false}}]
       else
-        # Conflict — qualify every copy with its top-level category.
-        Enum.map(group_paths, fn path ->
-          relative = Path.relative_to(path, root)
-          top_cat = relative |> Path.split() |> List.first() |> normalise_category()
-          qualified = "#{base_slug}-#{top_cat}"
-          Mix.shell().info("  [conflict] #{base_slug} → #{qualified}  (#{relative})")
-          {qualified, %{path: path, slug: qualified, conflict: true}}
-        end)
+        build_conflict_entries(base_slug, group_paths, root)
       end
     end)
     |> Map.new()
+  end
+
+  defp build_conflict_entries(base_slug, group_paths, root) do
+    category_slugs =
+      Enum.map(group_paths, fn path ->
+        relative = Path.relative_to(path, root)
+        top_cat = relative |> Path.split() |> List.first() |> normalise_category()
+        {path, relative, "#{base_slug}-#{top_cat}"}
+      end)
+
+    category_slug_counts =
+      category_slugs
+      |> Enum.map(fn {_path, _relative, slug} -> slug end)
+      |> Enum.frequencies()
+
+    Enum.map(category_slugs, fn {path, relative, category_slug} ->
+      qualified =
+        if Map.fetch!(category_slug_counts, category_slug) == 1 do
+          category_slug
+        else
+          base_slug <> "-" <> source_slug(relative)
+        end
+
+      Mix.shell().info("  [conflict] #{base_slug} → #{qualified}  (#{relative})")
+      {qualified, %{path: path, slug: qualified, conflict: true}}
+    end)
   end
 
   # ---------------------------------------------------------------------------
@@ -209,6 +228,7 @@ defmodule Mix.Tasks.Canopy.Seed.Agents do
         |> Enum.flat_map(fn cat ->
           Path.join(root, cat) |> Path.join("**/*.md") |> Path.wildcard()
         end)
+        |> Enum.reject(&(Path.basename(&1) in ["README.md", "_INDEX.md"]))
 
       {:error, :enoent} ->
         Mix.raise("priv/agents/ not found — run from the Phoenix app root.")
@@ -334,8 +354,33 @@ defmodule Mix.Tasks.Canopy.Seed.Agents do
        default_model: frontmatter["model"],
        # Only use frontmatter heartbeat_cron — never inject a default.
        heartbeat_cron: frontmatter["heartbeat"],
-       budget_monthly_usd: to_decimal(frontmatter["budget"])
+       budget_monthly_usd: to_decimal(frontmatter["budget"]),
+       config: build_config(frontmatter, relative)
      }}
+  end
+
+  @spec build_config(map(), String.t()) :: map()
+  defp build_config(frontmatter, relative_path) do
+    [
+      {"source", "bundled"},
+      {"persona_path", relative_path},
+      {"id", frontmatter["id"]},
+      {"role", frontmatter["role"]},
+      {"title", frontmatter["title"]},
+      {"reportsTo", frontmatter["reportsTo"]},
+      {"team", frontmatter["team"]},
+      {"department", frontmatter["department"]},
+      {"division", frontmatter["division"]},
+      {"emoji", frontmatter["emoji"]},
+      {"color", frontmatter["color"]},
+      {"signal", frontmatter["signal"]},
+      {"context_tier", frontmatter["context_tier"]},
+      {"adapter", frontmatter["adapter"]},
+      {"tools", frontmatter["tools"]},
+      {"skills", frontmatter["skills"]}
+    ]
+    |> Enum.reject(fn {_key, value} -> blank?(value) end)
+    |> Map.new()
   end
 
   # ---------------------------------------------------------------------------
@@ -366,11 +411,24 @@ defmodule Mix.Tasks.Canopy.Seed.Agents do
     |> Enum.join(" ")
   end
 
+  defp source_slug(relative_path) do
+    relative_path
+    |> Path.rootname()
+    |> String.replace(~r/[^A-Za-z0-9]+/, "-")
+    |> String.downcase()
+    |> String.trim("-")
+  end
+
   defp to_decimal(nil), do: nil
   defp to_decimal(n) when is_integer(n), do: Decimal.new(n)
   defp to_decimal(n) when is_float(n), do: Decimal.from_float(n)
   defp to_decimal(s) when is_binary(s), do: Decimal.new(s)
   defp to_decimal(_other), do: nil
+
+  defp blank?(nil), do: true
+  defp blank?(""), do: true
+  defp blank?([]), do: true
+  defp blank?(_), do: false
 
   # ---------------------------------------------------------------------------
   # Upsert

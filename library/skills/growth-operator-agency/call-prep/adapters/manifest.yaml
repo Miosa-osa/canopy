@@ -1,0 +1,76 @@
+skill_id: call-prep
+skill_path: skills/call-prep/SKILL.md
+skill_name: "Pre-Call Brief Builder"
+
+tier: structured_ai
+category: sales
+temperature_gate: warm
+
+role_affinity:
+  - sales-head
+  - sales-ops
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # icp + offer + objection library
+  - applications                       # application form submissions (prospect input)
+  - prospects                          # prospect record + DM/CRM history
+  - case_studies                       # isomorphic match + post-call case capture
+  - objections                         # top-3 objection pre-empt lookup
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+
+execution_mode: interactive
+temperature: 0.4
+
+evidence_gate:
+  - prospect_archetype_matched_to_icp
+  - pain_anchors_identified_min_3
+  - decision_style_flagged
+  - objection_preempts_min_3
+  - identity_match_stated
+  - tension_setting_cues_provided
+  - one_page_scannable
+  - signal_score_gte_0_7
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging.objection_handling_library
+    - conversion_sales_systems
+  write:
+    - conversion_sales_systems.call_briefs_log
+
+output:
+  location: "output/call-prep/{date}-call-brief-{prospect-slug}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: call-brief
+    type: inform
+    format: markdown
+    structure: 1-page-w-8-section
+  receiver: closer + setter + founder
+
+next_skill_routing:
+  on_complete:
+    - condition: "call_ran_close"
+      recommend: post-booking-nurture
+    - condition: "prospect_wants_written_summary"
+      recommend: proposal
+    - condition: "prospect_deferred"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  prep_time_logged: true
+  archetype_confidence_tracked: true
+  post_call_observations_captured: true

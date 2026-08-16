@@ -15,8 +15,7 @@ replaced by the flatter Workspace Protocol.
 
 - The 5-layer org model added friction for the 80% use case (one person with a
   few agents) without paying for itself in the 20% enterprise case.
-- `docs/03-steal-synthesis.md` explicitly rejects the org-chart framing as a
-  Paperclip/canopy-legacy anti-pattern for v2.
+- The org-chart framing was explicitly rejected as a canopy-legacy anti-pattern for v2.
 - The v2 data model uses `Workspace` as the single container for agents,
   sessions, skills, and files. Workspaces compose via cross-references, not
   strict containment.

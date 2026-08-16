@@ -94,4 +94,45 @@ defmodule CanopyWeb.Schemas.TasksSchema do
       }
     })
   end
+
+  defmodule DispatchRequest do
+    @moduledoc false
+    OpenApiSpex.schema(%{
+      title: "DispatchRequest",
+      type: :object,
+      properties: %{
+        agent_slug: %Schema{
+          type: :string,
+          description: "Override the task's assigned agent slug",
+          nullable: true
+        },
+        runtime_type: %Schema{
+          type: :string,
+          description: "Override the agent's default runtime (e.g. claude-local, codex-local)",
+          nullable: true
+        }
+      }
+    })
+  end
+
+  defmodule DispatchResponse do
+    @moduledoc false
+    OpenApiSpex.schema(%{
+      title: "DispatchResponse",
+      type: :object,
+      properties: %{
+        data: %Schema{
+          type: :object,
+          properties: %{
+            session_id: %Schema{
+              type: :string,
+              format: :uuid,
+              description: "UUID of the session the task was dispatched to"
+            },
+            task: TaskDetail
+          }
+        }
+      }
+    })
+  end
 end

@@ -17,6 +17,11 @@ defmodule CanopyWeb.Schemas.SessionSchema do
       type: :object,
       properties: %{
         id: %Schema{type: :string, format: :uuid},
+        kind: %Schema{
+          type: :string,
+          enum: ["terminal", "agent_conversation"],
+          description: "Session discriminator"
+        },
         runtime_type: %Schema{type: :string, description: "Runtime adapter type"},
         model_id: %Schema{type: :string, nullable: true},
         agent_slug: %Schema{type: :string, nullable: true},
@@ -46,7 +51,7 @@ defmodule CanopyWeb.Schemas.SessionSchema do
         inserted_at: %Schema{type: :string, format: :"date-time"},
         updated_at: %Schema{type: :string, format: :"date-time"}
       },
-      required: [:id, :runtime_type, :status, :cwd]
+      required: [:id, :kind, :runtime_type, :status, :cwd]
     })
   end
 
@@ -95,6 +100,11 @@ defmodule CanopyWeb.Schemas.SessionSchema do
       type: :object,
       properties: %{
         runtime_type: %Schema{type: :string},
+        kind: %Schema{
+          type: :string,
+          enum: ["terminal", "agent_conversation"],
+          nullable: true
+        },
         cwd: %Schema{type: :string},
         model_id: %Schema{type: :string, nullable: true},
         agent_slug: %Schema{type: :string, nullable: true},
@@ -182,6 +192,70 @@ defmodule CanopyWeb.Schemas.SessionSchema do
         children: %Schema{type: :array, items: Session}
       },
       required: [:session, :ancestors, :children]
+    })
+  end
+
+  defmodule SendMessageRequest do
+    @moduledoc "Request body for POST /api/v1/sessions/:id/messages."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "SendMessageRequest",
+      type: :object,
+      properties: %{
+        content: %Schema{type: :string, description: "Text to write to PTY stdin"},
+        message: %Schema{type: :string, description: "Alias for content"}
+      }
+    })
+  end
+
+  defmodule SendMessageResponse do
+    @moduledoc "Response for POST /api/v1/sessions/:id/messages."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "SendMessageResponse",
+      type: :object,
+      properties: %{
+        status: %Schema{type: :string, enum: ["sent"]},
+        session_id: %Schema{type: :string, format: :uuid}
+      },
+      required: [:status, :session_id]
+    })
+  end
+
+  defmodule InjectMessageRequest do
+    @moduledoc "Request body for POST /api/v1/sessions/:id/inject."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "InjectMessageRequest",
+      type: :object,
+      properties: %{
+        content: %Schema{type: :string, description: "Text to write to PTY stdin"},
+        from_agent: %Schema{type: :string, description: "Slug of the agent sending the injection"}
+      },
+      required: [:content, :from_agent]
+    })
+  end
+
+  defmodule InjectMessageResponse do
+    @moduledoc "Response for POST /api/v1/sessions/:id/inject."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "InjectMessageResponse",
+      type: :object,
+      properties: %{
+        status: %Schema{type: :string, enum: ["injected"]},
+        session_id: %Schema{type: :string, format: :uuid},
+        from_agent: %Schema{type: :string}
+      },
+      required: [:status, :session_id, :from_agent]
     })
   end
 end

@@ -3,8 +3,8 @@
  * Zero hardcoded hex. All values from FRONTEND-DESIGN.md §1.
  */
 
-:root,
-[data-theme="dark"] {
+[data-theme="dark"],
+.dark {
   /* Neutral scale */
   --bg: oklch(0.16 0.005 240);
   --bg-elevated: oklch(0.2 0.005 240);

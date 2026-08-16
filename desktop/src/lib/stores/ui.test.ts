@@ -12,6 +12,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 // ── Constants reproduced from ui.svelte.ts ────────────────────────────────────
 
 const LS_WORKSPACE_KEY = "canopy.currentWorkspaceSlug";
+const LS_SIDEBAR_COLLAPSED_KEY = "canopy.sidebar.collapsed";
+const NARROW_VIEWPORT_PX = 800;
 
 // ── localStorage persistence contract ────────────────────────────────────────
 
@@ -90,5 +92,81 @@ describe("currentWorkspaceSlug type contract", () => {
   it("accepts null", () => {
     const slug: string | null = null;
     expect(slug).toBeNull();
+  });
+});
+
+// ── sidebar collapsed persistence ─────────────────────────────────────────────
+
+describe("sidebar collapsed localStorage key", () => {
+  it("uses the canonical key", () => {
+    expect(LS_SIDEBAR_COLLAPSED_KEY).toBe("canopy.sidebar.collapsed");
+  });
+
+  it("is distinct from workspace key", () => {
+    expect(LS_SIDEBAR_COLLAPSED_KEY).not.toBe(LS_WORKSPACE_KEY);
+  });
+});
+
+describe("setSidebarCollapsed persistence logic", () => {
+  // Mirror the persistence side-effect.
+  function simulateSet(store: Map<string, string>, collapsed: boolean): void {
+    store.set(LS_SIDEBAR_COLLAPSED_KEY, String(collapsed));
+  }
+
+  let store: Map<string, string>;
+
+  beforeEach(() => {
+    store = new Map();
+  });
+
+  it("persists 'true' when collapsed", () => {
+    simulateSet(store, true);
+    expect(store.get(LS_SIDEBAR_COLLAPSED_KEY)).toBe("true");
+  });
+
+  it("persists 'false' when expanded", () => {
+    simulateSet(store, false);
+    expect(store.get(LS_SIDEBAR_COLLAPSED_KEY)).toBe("false");
+  });
+
+  it("toggle persists the inverted value", () => {
+    simulateSet(store, false);
+    expect(store.get(LS_SIDEBAR_COLLAPSED_KEY)).toBe("false");
+    // Toggle.
+    simulateSet(store, !(store.get(LS_SIDEBAR_COLLAPSED_KEY) === "true"));
+    expect(store.get(LS_SIDEBAR_COLLAPSED_KEY)).toBe("true");
+  });
+});
+
+describe("sidebar collapsed restore logic", () => {
+  // Mirror the constructor-restore precedence:
+  // persisted preference wins over auto-collapse heuristic.
+  function resolveInitial(
+    persisted: string | null,
+    viewportWidth: number,
+  ): boolean {
+    if (persisted !== null) return persisted === "true";
+    return viewportWidth < NARROW_VIEWPORT_PX;
+  }
+
+  it("restores 'true' when persisted as 'true'", () => {
+    expect(resolveInitial("true", 1200)).toBe(true);
+  });
+
+  it("restores 'false' when persisted as 'false' even on narrow viewport", () => {
+    expect(resolveInitial("false", 600)).toBe(false);
+  });
+
+  it("auto-collapses on narrow viewport when no persisted value", () => {
+    expect(resolveInitial(null, 600)).toBe(true);
+  });
+
+  it("stays expanded on wide viewport when no persisted value", () => {
+    expect(resolveInitial(null, 1200)).toBe(false);
+  });
+
+  it("uses NARROW_VIEWPORT_PX as the auto-collapse boundary", () => {
+    expect(resolveInitial(null, NARROW_VIEWPORT_PX - 1)).toBe(true);
+    expect(resolveInitial(null, NARROW_VIEWPORT_PX)).toBe(false);
   });
 });

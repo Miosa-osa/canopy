@@ -1,0 +1,88 @@
+skill_id: write-youtube
+skill_path: skills/write-youtube/SKILL.md
+skill_name: "YouTube Long-Form Script Producer"
+
+tier: reasoning_ai
+category: marketing
+temperature_gate: warm
+
+role_affinity:
+  - marketing-head
+  - youtube
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - posts                              # video belongs to calendar slot
+  - assets                             # video file + thumbnail + metadata
+
+tools:
+  - file_read
+  - file_write
+  - web_search
+
+required_mcps:
+  - filesystem
+
+required_integrations:
+  video_hosting: youtube-data-api
+  analytics: youtube-analytics-api
+  scheduling: buffer-api
+
+credentials_required:
+  - YOUTUBE_DATA_API_KEY
+  - YOUTUBE_CHANNEL_ID
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - video_type_selected_with_reasoning
+  - content_brief_complete
+  - hook_60s_structure_complete
+  - body_three_part_formula_applied
+  - binge_loop_closed
+  - title_thumbnail_complementary
+  - voice_matched
+  - length_calibrated
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - content_strategy
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - content_strategy.published_assets
+
+output:
+  location: "output/write-youtube/{date}-youtube-{brief-id}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: youtube-script
+    type: inform
+    format: markdown
+    structure: variant-dependent-w-youtube
+  receiver: creator
+
+next_skill_routing:
+  on_complete:
+    - condition: "repurpose_chain_pending"
+      recommend: repurpose
+    - condition: "reels_pending"
+      recommend: write-reel
+    - condition: "vssl_type_selected"
+      recommend: build-funnel
+  on_fail:
+    escalate_to: marketing-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

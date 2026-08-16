@@ -1,0 +1,68 @@
+skill_id: jv-webinar-proposal
+skill_path: skills/jv-webinar-proposal/SKILL.md
+skill_name: "JV Webinar Partner Outreach + Proposal Producer"
+
+tier: structured_ai
+category: partnerships
+temperature_gate: warm
+
+role_affinity:
+  - partnerships-head
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - partners
+  - campaigns
+
+tools:
+  - file_read
+  - file_write
+  - web_search
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - partner_identified_with_fit
+  - proposal_personalized
+  - rev_split_specified
+  - logistics_detailed
+  - expected_economics_modeled
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+  write:
+    - partnerships.jv_proposals_sent
+    - partnerships.partner_pipeline
+
+output:
+  location: "output/jv-webinar-proposal/{date}-{partner-slug}-proposal.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: jv-proposal
+    type: direct
+    format: markdown
+    structure: w-jv-proposal
+  receiver: potential JV partner
+
+next_skill_routing:
+  on_complete:
+    - condition: "partner_accepted"
+      recommend: webinar-script
+    - condition: "post_webinar_followup_needed"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: partnerships-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

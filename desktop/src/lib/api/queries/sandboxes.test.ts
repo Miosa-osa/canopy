@@ -46,15 +46,14 @@ describe("sandboxQuery()", () => {
 });
 
 describe("deleteSandboxMutation()", () => {
-  it('returns mutationKey ["sandboxes", id, "delete"]', () => {
-    expect(deleteSandboxMutation("sbx-999").mutationKey).toEqual([
+  it('returns mutationKey ["sandboxes", "delete"]', () => {
+    expect(deleteSandboxMutation().mutationKey).toEqual([
       "sandboxes",
-      "sbx-999",
       "delete",
     ]);
   });
 
   it("has a mutationFn function", () => {
-    expect(typeof deleteSandboxMutation("sbx-999").mutationFn).toBe("function");
+    expect(typeof deleteSandboxMutation().mutationFn).toBe("function");
   });
 });

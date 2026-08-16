@@ -2,19 +2,18 @@ defmodule Canopy.Runtimes.TranscriptEntry do
   @moduledoc """
   Wire format for a single event in a session transcript.
 
-  Derived from the Paperclip `TranscriptEntry` discriminated union
-  (packages/adapter-utils/src/types.ts). Every event emitted by a runtime
+  Discriminated union representing every event emitted by a runtime
   adapter — assistant text, thinking blocks, tool calls, tool results,
   diffs, stdout/stderr, and system signals — maps to one of the kinds below.
 
-  Canopy additions over Paperclip:
+  Notable design points:
   - `sequence` — monotonically increasing counter within a session, assigned by
     the Runner before publishing. Enables gapless ordering in the UI even when
     PubSub events arrive out of order under load.
   - `tool_call_id` — present on `:tool_call` and `:tool_result` pairs so the UI
     can correlate them visually without a separate lookup.
-  - `emitted_at` — UTC timestamp in microsecond precision; Paperclip uses a wall-
-    clock string; we use `DateTime` so downstream code can sort without parsing.
+  - `emitted_at` — UTC timestamp in microsecond precision (`DateTime`) so
+    downstream code can sort without parsing.
 
   Persistence: the Runner converts `TranscriptEntry` to a `SessionMessage` before
   writing to the database. The entry itself is never persisted — it is the

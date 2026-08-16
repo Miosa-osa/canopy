@@ -3,8 +3,7 @@ defmodule Canopy.Runtimes.GeminiLocal.Config do
   Declarative config schema for the Gemini Local adapter.
 
   The schema is rendered by the Canopy frontend as a credential / settings form.
-  Each field map mirrors the `ConfigFieldSchema` shape from Paperclip's
-  `AdapterConfigSchema` type, adapted for Elixir atom keys.
+  Each field map follows the `ConfigFieldSchema` shape with Elixir atom keys.
 
   Fields:
 

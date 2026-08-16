@@ -3,10 +3,7 @@ defmodule Canopy.Runtimes.GeminiLocal.Parser do
   Pure functions that translate Gemini CLI's `--output-format stream-json`
   JSONL lines into `Canopy.Runtimes.TranscriptEntry` structs.
 
-  Provenance: derived from Paperclip's `parse.ts`
-  (packages/adapters/gemini-local/src/server/parse.ts).
-  The TypeScript original accumulated state in a mutable loop; this
-  implementation is fully stateless — callers pass one raw JSON binary and
+  Implementation is fully stateless — callers pass one raw JSON binary and
   receive zero or more entries.
 
   ## Key differences from the Claude parser

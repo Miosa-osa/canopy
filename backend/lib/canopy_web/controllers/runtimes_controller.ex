@@ -17,6 +17,7 @@ defmodule CanopyWeb.RuntimesController do
   use OpenApiSpex.ControllerSpecs
 
   alias Canopy.Runtimes
+  alias Canopy.Runtimes.Detector
   alias Canopy.Vault
   alias CanopyWeb.Schemas.RuntimeSchema
 
@@ -50,7 +51,7 @@ defmodule CanopyWeb.RuntimesController do
 
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(conn, %{"type" => type}) do
-    with {:ok, _found_runtime} <- Runtimes.get_by_type(type),
+    with {:ok, found_runtime} <- Runtimes.get_by_type(type),
          {:ok, adapter} <- Runtimes.lookup_adapter(type) do
       {:ok, config_schema} = adapter.get_config_schema()
       {:ok, models} = adapter.list_models()
@@ -64,7 +65,18 @@ defmodule CanopyWeb.RuntimesController do
         end
 
       detail = %{
+        id: found_runtime.id,
         type: type,
+        kind: found_runtime.kind,
+        name: found_runtime.name,
+        enabled: found_runtime.enabled,
+        installed: found_runtime.installed,
+        version: found_runtime.version,
+        binary_path: found_runtime.binary_path,
+        status: status_for(found_runtime),
+        config: found_runtime.config,
+        auth_profile: Map.get(found_runtime, :auth_profile),
+        last_detected_at: found_runtime.last_detected_at,
         capabilities: adapter.capabilities() |> MapSet.to_list() |> Enum.map(&to_string/1),
         config_schema: config_schema,
         models: models,
@@ -76,6 +88,12 @@ defmodule CanopyWeb.RuntimesController do
       {:error, :not_found} -> {:error, :not_found}
     end
   end
+
+  defp status_for(%{installed: true, binary_path: path}) when is_binary(path) and path != "",
+    do: "installed"
+
+  defp status_for(%{installed: false}), do: "not_installed"
+  defp status_for(_), do: "not_installed"
 
   operation :test_environment,
     summary: "Test runtime environment",
@@ -94,8 +112,15 @@ defmodule CanopyWeb.RuntimesController do
          {:ok, checks} <- adapter.test_environment(%{"type" => type}) do
       json(conn, %{checks: checks})
     else
-      {:error, :not_found} -> {:error, :not_found}
-      {:error, reason} -> {:error, reason}
+      {:error, :not_found} ->
+        {:error, :not_found}
+
+      {:error, reason} ->
+        Canopy.Analytics.Emitter.runtime_test_failed(type, %{
+          payload: %{"reason" => inspect(reason)}
+        })
+
+        {:error, reason}
     end
   end
 
@@ -122,13 +147,13 @@ defmodule CanopyWeb.RuntimesController do
   end
 
   operation :detect,
-    summary: "Sync runtime detection results from the desktop client",
+    summary: "Sync runtime detection results from the desktop client or server-side probe",
     description: """
-    The Tauri frontend calls `runtime_detect` (scans $PATH for the 9 canonical
-    binaries), then POSTs the result here. Each item is upserted into the
-    `runtimes` table via `Canopy.Runtimes.upsert_from_detection/1`, preserving
-    user-configured `enabled` and `config` while updating `installed`,
-    `version`, `binary_path`, and `last_detected_at`.
+    Two modes:
+    1. Tauri payload — POST `{"detected": [...]}` array; each item is upserted preserving
+       user-configured `enabled` and `config`.
+    2. Server-side probe — POST `{"server_detect": true}` to run `Detector.detect_all/0`
+       on the backend host (useful when the desktop sidecar is unavailable).
     """,
     request_body: {"Detection payload", "application/json", RuntimeSchema.DetectRequest},
     responses: [
@@ -136,6 +161,17 @@ defmodule CanopyWeb.RuntimesController do
     ]
 
   @spec detect(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def detect(conn, %{"server_detect" => true}) do
+    results = Detector.detect_all()
+
+    if Enum.all?(results, &match?({:ok, _}, &1)) do
+      updated = Enum.map(results, fn {:ok, runtime} -> runtime end)
+      json(conn, %{data: updated})
+    else
+      {:error, :detection_upsert_failed}
+    end
+  end
+
   def detect(conn, %{"detected" => detected}) when is_list(detected) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 

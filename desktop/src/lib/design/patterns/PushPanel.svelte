@@ -1,6 +1,6 @@
 <script lang="ts">
 /**
- * PushPanel — 340px right-side sibling panel (Core-OSS "inset" pattern).
+ * PushPanel — 340px right-side sibling panel ("inset" pattern).
  * Not an overlay — pushes main content. Animated slide-in.
  * LOC target: ≤ 100.
  */

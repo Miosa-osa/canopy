@@ -36,6 +36,7 @@ import type { Workspace } from '$lib/domain/workspaces/types.js';
 import type { Task } from '$lib/domain/tasks/types.js';
 import type { Channel } from '$lib/domain/channels/types.js';
 import StatusDot from './StatusDot.svelte';
+import { useGhostSuggestion, trackRecentCommand } from '$lib/design/patterns/mosaic/panes/agent-conversation/useGhostSuggestion.svelte.js';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -127,6 +128,10 @@ function scoreAndFilter<T>(
 let textareaEl = $state<HTMLTextAreaElement | null>(null);
 let dropdownEl = $state<HTMLDivElement | null>(null);
 let focused = $state(false);
+
+// ── Ghost-text suggestion ─────────────────────────────────────────────────────
+
+const ghost = useGhostSuggestion(() => value);
 
 /** Text after the triggering @ up to cursor. Empty string = @ with nothing yet. null = no active mention. */
 let mentionQuery = $state<string | null>(null);
@@ -271,10 +276,42 @@ function selectItem(item: MentionItem): void {
 
 // ── Keyboard handling ─────────────────────────────────────────────────────────
 
+/** Dismiss ghost text without accepting (used by Escape). */
+let ghostDismissed = $state(false);
+/** Reset dismiss flag whenever draft changes. */
+$effect(() => { void value; ghostDismissed = false; });
+
+const activeGhost = $derived(
+  !ghostDismissed && !dropdownOpen ? ghost.suggestion : null,
+);
+
 function handleKeydown(e: KeyboardEvent): void {
   if (e.key === 'Enter' && e.metaKey) {
     e.preventDefault();
     handleSubmit();
+    return;
+  }
+
+  // Ghost text — Tab accepts, Escape dismisses (checked before mention dropdown)
+  if (e.key === 'Tab' && activeGhost) {
+    e.preventDefault();
+    value = activeGhost.text;
+    ghostDismissed = false;
+    // Move caret to end
+    setTimeout(() => {
+      if (textareaEl) {
+        textareaEl.setSelectionRange(value.length, value.length);
+        // Trigger autogrow
+        textareaEl.style.height = 'auto';
+        textareaEl.style.height = `${textareaEl.scrollHeight}px`;
+      }
+    }, 0);
+    return;
+  }
+
+  if (e.key === 'Escape' && activeGhost) {
+    e.preventDefault();
+    ghostDismissed = true;
     return;
   }
 
@@ -294,7 +331,7 @@ function handleKeydown(e: KeyboardEvent): void {
     mentionQuery = null;
     results = [];
   } else if (e.key === 'Tab') {
-    // Tab also selects top result
+    // Tab selects top mention result when no ghost is active
     if (results.length > 0) {
       e.preventDefault();
       selectItem(results[activeIdx]);
@@ -307,6 +344,7 @@ function handleKeydown(e: KeyboardEvent): void {
 function handleSubmit(): void {
   const trimmed = value.trim();
   if (!trimmed) return;
+  trackRecentCommand(trimmed);
   const mentions = extractMentions(trimmed);
   onSubmit?.(trimmed, mentions);
   value = '';
@@ -365,10 +403,28 @@ const grouped = $derived.by(() => {
 </script>
 
 <div class="mnp-wrap {className}" class:mnp-wrap--focused={focused}>
+  <!--
+    Ghost-text mirror: same font/padding/size as the textarea, positioned
+    absolute behind it. Shows the typed text (invisible, for layout) + the
+    ghost suffix (visible, faded). pointer-events:none so it never intercepts
+    clicks. aria-hidden so screen readers ignore it.
+  -->
+  {#if activeGhost}
+    <div class="mnp-ghost-mirror" aria-hidden="true">
+      <span class="mnp-ghost-typed">{value}</span><span class="mnp-ghost-suffix">{activeGhost.suffix}</span>
+    </div>
+    <div class="mnp-smart-fill" aria-live="polite">
+      <span>{activeGhost.source === 'shell' ? 'Fill' : activeGhost.source === 'recent' ? 'Recent' : 'Slash'}</span>
+      <code class="mnp-smart-fill__value">{activeGhost.text}</code>
+      <kbd>Tab</kbd>
+    </div>
+  {/if}
+
   <textarea
     bind:this={textareaEl}
     bind:value
     class="mnp-input"
+    class:mnp-input--ghosted={!!activeGhost}
     {placeholder}
     rows="3"
     oninput={handleInput}
@@ -430,6 +486,86 @@ const grouped = $derived.by(() => {
     transition: border-color var(--dur-instant) var(--ease-out);
     overflow: hidden;
     position: relative;
+  }
+
+  /* Ghost-text mirror — sits behind the textarea, matches its exact metrics */
+  .mnp-ghost-mirror {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /* Match textarea font/spacing exactly */
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    padding: var(--space-4);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: hidden;
+    /* Sit below the textarea in stacking order */
+    z-index: 0;
+  }
+
+  /* The typed portion is invisible — it exists only to push the ghost to the right column */
+  .mnp-ghost-typed {
+    color: transparent;
+    white-space: pre-wrap;
+  }
+
+  /* The ghost suffix — same line, faded */
+  .mnp-ghost-suffix {
+    color: color-mix(in oklch, var(--cnp-accent, var(--fg)) 72%, var(--fg) 28%);
+    opacity: 0.82;
+    white-space: pre;
+  }
+
+  .mnp-smart-fill {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: color-mix(in oklch, var(--bg-elevated, var(--bg)) 82%, black 12%);
+    color: var(--fg-muted);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    pointer-events: none;
+    box-shadow: 0 8px 22px color-mix(in oklch, black 18%, transparent);
+    max-width: min(76%, 620px);
+  }
+
+  .mnp-smart-fill__value {
+    max-width: 480px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+  }
+
+  .mnp-smart-fill kbd {
+    min-width: 24px;
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--fg-muted);
+    background: color-mix(in oklch, var(--fg) 6%, transparent);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-align: center;
+  }
+
+  /* When ghost is active, textarea must sit above the mirror and be transparent
+     only in background — text stays fully visible, we just ensure z-index layering */
+  .mnp-input--ghosted {
+    position: relative;
+    z-index: 1;
+    background: transparent;
   }
 
   .mnp-wrap--focused {

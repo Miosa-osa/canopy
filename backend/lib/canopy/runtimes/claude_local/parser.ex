@@ -3,10 +3,7 @@ defmodule Canopy.Runtimes.ClaudeLocal.Parser do
   Pure functions that translate Claude's `--output-format stream-json` lines
   into `Canopy.Runtimes.TranscriptEntry` structs.
 
-  Provenance: derived from Paperclip's `parse.ts`
-  (packages/adapters/claude-local/src/server/parse.ts).
-  The TypeScript original accumulated state in a mutable loop; this
-  implementation is fully stateless — callers pass one raw JSON binary and
+  Implementation is fully stateless — callers pass one raw JSON binary and
   receive zero or more entries.
 
   | Claude type            | TranscriptEntry kind          |

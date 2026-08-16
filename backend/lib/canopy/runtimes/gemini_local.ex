@@ -2,8 +2,7 @@ defmodule Canopy.Runtimes.GeminiLocal do
   @moduledoc """
   Runtime adapter for Gemini CLI — the `gemini` binary from Google.
 
-  Implements `Canopy.Runtimes.Adapter`. Derived from Paperclip's `gemini-local`
-  adapter (packages/adapters/gemini-local/src/server/execute.ts).
+  Implements `Canopy.Runtimes.Adapter`.
 
   Behaviour is split across focused sub-modules:
 
@@ -32,7 +31,7 @@ defmodule Canopy.Runtimes.GeminiLocal do
     be enabled once the session store wires up `external_session_id`.
   - **Quota windows** — not supported via CLI; returns `{:error, :not_supported}`.
 
-  ## Canopy additions over Paperclip
+  ## Canopy-specific behaviour
 
   - PubSub broadcast on `"session:<id>"`.
   - `Canopy.Sessions.append_message/2` for DB persistence with graceful

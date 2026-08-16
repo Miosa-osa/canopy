@@ -58,9 +58,19 @@ function navigateToDetail(e: MouseEvent | KeyboardEvent) {
   void goto(`/runtimes/${runtime.type}`);
 }
 
-function handleCta(e: MouseEvent) {
+function handleOpenTerminal(e: MouseEvent) {
   e.stopPropagation();
   void goto(`/runtimes/${runtime.type}`);
+}
+
+function handleSignIn(e: MouseEvent) {
+  e.stopPropagation();
+  void goto(`/settings/runtimes/${runtime.type}`);
+}
+
+function handleSettings(e: MouseEvent) {
+  e.stopPropagation();
+  void goto(`/settings/runtimes/${runtime.type}`);
 }
 </script>
 
@@ -104,18 +114,34 @@ function handleCta(e: MouseEvent) {
   <!-- Divider -->
   <div class="rc-divider" aria-hidden="true"></div>
 
-  <!-- CTA -->
-  <button
-    class="btn-pill btn-pill-primary btn-pill-sm rc-cta"
-    onclick={handleCta}
-    aria-label={isInstalled ? `Launch ${runtime.name}` : `Install ${runtime.name}`}
-  >
+  <!-- CTAs -->
+  <div class="rc-ctas">
     {#if isInstalled}
-      Launch ▸
+      <button
+        class="btn-pill btn-pill-primary btn-pill-sm rc-cta"
+        onclick={handleOpenTerminal}
+        aria-label="Open terminal for {runtime.name}"
+      >
+        Open terminal
+      </button>
     {:else}
-      Install ↗
+      <button
+        class="btn-pill btn-pill-primary btn-pill-sm rc-cta"
+        onclick={handleSignIn}
+        aria-label="Sign in to {runtime.name}"
+      >
+        Sign in
+      </button>
     {/if}
-  </button>
+
+    <button
+      class="btn-pill btn-pill-secondary btn-pill-sm rc-settings-btn"
+      onclick={handleSettings}
+      aria-label="Settings for {runtime.name}"
+    >
+      Settings
+    </button>
+  </div>
 </div>
 
 <style>
@@ -212,7 +238,18 @@ function handleCta(e: MouseEvent) {
     color: var(--fg-subtle);
   }
 
+  .rc-ctas {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
   .rc-cta {
-    align-self: flex-start;
+    flex-shrink: 0;
+  }
+
+  .rc-settings-btn {
+    flex-shrink: 0;
   }
 </style>

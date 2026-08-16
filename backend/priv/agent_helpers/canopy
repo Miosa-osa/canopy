@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Canopy agent orchestration helper.
+#
+# Agents running in pty sessions use this script to invoke Canopy tools.
+# The script POSTs to the local Canopy backend using $CANOPY_SESSION_ID.
+#
+# Usage:
+#   canopy create_task --title "..." [--description "..."] [--assignee slug]
+#   canopy create_issue --title "..." [--description "..."]
+#   canopy update_task <short_id> --status in_progress [--title "..."]
+#   canopy move_card <short_id> --status done
+#   canopy list_tasks [--status todo] [--workspace default] [--limit 20]
+#   canopy spawn_session [--agent slug] [--prompt "..."] [--runtime claude-local]
+#   canopy comment --channel <id> --body "..." [--task T-00000001]
+#   canopy request_review --tool exec_shell [--args '{"cmd":"..."}']
+#
+# Environment variables (injected by Canopy on session spawn):
+#   CANOPY_SESSION_ID  — the current session UUID
+#   CANOPY_API_BASE    — base URL, default http://localhost:9190
+
+set -euo pipefail
+
+CANOPY_API_BASE="${CANOPY_API_BASE:-http://localhost:9190}"
+SESSION_ID="${CANOPY_SESSION_ID:-}"
+
+if [[ -z "$SESSION_ID" ]]; then
+  echo "ERROR: CANOPY_SESSION_ID is not set. Are you inside a Canopy session?" >&2
+  exit 1
+fi
+
+TOOL_NAME="$1"
+shift
+
+# Map sub-command to canopy.* tool name
+case "$TOOL_NAME" in
+  create_task)     TOOL="canopy.create_task" ;;
+  create_issue)    TOOL="canopy.create_issue" ;;
+  create_goal)     TOOL="canopy.create_goal" ;;
+  update_task)     TOOL="canopy.update_task" ;;
+  move_card)       TOOL="canopy.move_card" ;;
+  comment)         TOOL="canopy.comment" ;;
+  spawn_session)   TOOL="canopy.spawn_session" ;;
+  request_review)  TOOL="canopy.request_review" ;;
+  read_task)       TOOL="canopy.read_task" ;;
+  list_tasks)      TOOL="canopy.list_tasks" ;;
+  read_file)       TOOL="canopy.read_file" ;;
+  search_issues)   TOOL="canopy.search_issues" ;;
+  *)
+    echo "ERROR: Unknown tool '${TOOL_NAME}'. See 'canopy --help'." >&2
+    exit 1
+    ;;
+esac
+
+# Parse remaining flags into a JSON params object using a naive key=value approach.
+# Supports: --key value  (string), --key  (boolean true when no following value)
+PARAMS="{}"
+
+while [[ $# -gt 0 ]]; do
+  KEY="${1#--}"
+  shift
+  if [[ $# -gt 0 && "${1:0:2}" != "--" ]]; then
+    VAL="$1"
+    shift
+    PARAMS=$(echo "$PARAMS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+d['${KEY}'] = '''${VAL}'''
+print(json.dumps(d))
+")
+  else
+    # Positional value (e.g. move_card T-00000001 --status done)
+    # Store as short_id if key is first positional arg
+    PARAMS=$(echo "$PARAMS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+d['${KEY}'] = True
+print(json.dumps(d))
+")
+  fi
+done
+
+# Build the request body
+BODY=$(python3 -c "
+import json, sys
+print(json.dumps({'session_id': '${SESSION_ID}', 'params': ${PARAMS}}))
+")
+
+# POST to the API
+RESPONSE=$(curl -sf \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d "$BODY" \
+  "${CANOPY_API_BASE}/api/v1/agents/tools/${TOOL}" \
+  2>&1) || {
+    echo "ERROR: curl failed — is Canopy backend running at ${CANOPY_API_BASE}?" >&2
+    exit 1
+  }
+
+echo "$RESPONSE" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+if d.get('ok'):
+    print('OK')
+    print(json.dumps(d.get('result', {}), indent=2))
+elif d.get('pending_review'):
+    print('PENDING_REVIEW review_id=' + d.get('review_id', ''))
+    print('Poll: GET ${CANOPY_API_BASE}/api/v1/reviews/' + d.get('review_id', ''))
+else:
+    print('ERROR: ' + d.get('error', 'unknown error'), file=sys.stderr)
+    sys.exit(1)
+"

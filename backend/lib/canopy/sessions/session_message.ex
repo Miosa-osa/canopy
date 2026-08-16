@@ -6,7 +6,7 @@ defmodule Canopy.Sessions.SessionMessage do
   has a monotonically increasing `sequence` number that is unique within its
   session. The `kind` discriminates the payload shape stored in `content`.
 
-  Supported kinds (Paperclip TranscriptEntry union):
+  Supported kinds (TranscriptEntry union):
     - `assistant`    — text response from the LLM
     - `thinking`     — extended thinking block
     - `tool_call`    — tool invocation request (links via tool_call_id)
@@ -24,7 +24,7 @@ defmodule Canopy.Sessions.SessionMessage do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
-  @valid_kinds ~w(assistant thinking tool_call tool_result diff stderr stdout system user init result)
+  @valid_kinds ~w(assistant thinking tool_call tool_result diff stderr stdout system user init result user_input agent_injection)
 
   @derive {Jason.Encoder,
            only: [

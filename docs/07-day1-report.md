@@ -20,7 +20,7 @@ defaults in place. No known blockers for Week 1 (backend runtime adapter work).
 ```
 canopy/
 ├── README.md              quickstart + stack summary
-├── NOTICE.md              Paperclip MIT attribution (primary lift)
+├── NOTICE.md              First-party component provenance
 ├── LICENSE                Apache 2.0
 ├── Makefile               8 targets (doctor / setup / dev / test / lint / format / build / clean)
 ├── .gitignore             Elixir + Node + Rust + Tauri + OS + env
@@ -49,7 +49,7 @@ backend/
 │   │   ├── application.ex         supervisor tree (9 children, correct order)
 │   │   ├── runtimes.ex            public API
 │   │   ├── runtimes/
-│   │   │   ├── adapter.ex         behaviour (Paperclip-derived)
+│   │   │   ├── adapter.ex         behaviour
 │   │   │   └── registry.ex        GenServer wrapper
 │   │   ├── sessions.ex            public API stub
 │   │   ├── sessions/
@@ -101,7 +101,7 @@ desktop/
 ├── src/
 │   ├── app.html, app.css
 │   ├── routes/
-│   │   ├── +layout.svelte        139 LOC, inset shell pattern (Core-OSS)
+│   │   ├── +layout.svelte        139 LOC, inset shell pattern
 │   │   ├── +layout.ts            prerender = true
 │   │   └── +page.svelte          "Canopy is ready." placeholder
 │   └── lib/
@@ -232,8 +232,7 @@ docs/
 | Node version (24.14.1) | ✅ |
 | PostgreSQL version | ✅ unified to "14+" across 01-foundation, 04-breakdown, 06-audit; pg15 running locally |
 | Tauri version (2.6) | ✅ |
-| Module count (19 total = 14 product + 5 system) | ✅ clarified in 03-steal-synthesis |
-| Paperclip attribution (MIT) | ✅ NOTICE.md + adapter.ex @moduledoc |
+| Module count (19 total = 14 product + 5 system) | ✅ |
 | No-human-adapter rule | ✅ no `(actor_type, actor_id)` polymorphism present |
 
 ---
@@ -314,7 +313,7 @@ Root no longer contains:
 
 **Week 1 work starts on:** `backend/lib/canopy/runtimes/adapter.ex` —
 fleshing out the three lead adapters:
-1. `Canopy.Runtimes.ClaudeLocal` (stream-json subprocess pattern, Paperclip port)
+1. `Canopy.Runtimes.ClaudeLocal` (stream-json subprocess pattern)
 2. `Canopy.Runtimes.CodexLocal`
 3. `Canopy.Runtimes.GeminiLocal`
 

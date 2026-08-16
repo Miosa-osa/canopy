@@ -22,7 +22,7 @@ defmodule CanopyWeb.GovernanceController do
   import Ecto.Query, only: [from: 2]
 
   alias Canopy.Governance
-  alias Canopy.Governance.Approval
+  alias Canopy.Governance.{Approval, Permissions}
   alias Canopy.Repo
   alias CanopyWeb.Schemas.GovernanceSchema
 
@@ -217,6 +217,94 @@ defmodule CanopyWeb.GovernanceController do
 
     entries = Governance.list_audit(opts)
     json(conn, %{data: entries})
+  end
+
+  # ---------------------------------------------------------------------------
+  # Tool permission grants
+  # ---------------------------------------------------------------------------
+
+  operation :permissions_index,
+    summary: "List tool permission grants",
+    description: "Returns grants, optionally filtered by agent_slug, tool_name, workspace_slug, or scope.",
+    parameters: [
+      agent_slug: [in: :query, type: :string, required: false],
+      tool_name: [in: :query, type: :string, required: false],
+      workspace_slug: [in: :query, type: :string, required: false],
+      scope: [in: :query, type: :string, required: false]
+    ],
+    responses: [
+      ok: {"Permission grant list", "application/json", %OpenApiSpex.Schema{type: :object}}
+    ]
+
+  @spec permissions_index(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def permissions_index(conn, params) do
+    filters =
+      []
+      |> put_if(params["agent_slug"], :agent_slug, params["agent_slug"])
+      |> put_if(params["tool_name"], :tool_name, params["tool_name"])
+      |> put_if(params["workspace_slug"], :workspace_slug, params["workspace_slug"])
+      |> put_if(params["scope"], :scope, params["scope"])
+
+    grants = Permissions.list_grants(filters)
+    json(conn, %{data: grants})
+  end
+
+  operation :permissions_create,
+    summary: "Create a tool permission grant",
+    description: "Grants a scoped permission. Scope must be one of: once, session, today, forever, never.",
+    request_body: {"Grant params", "application/json", %OpenApiSpex.Schema{type: :object}},
+    responses: [
+      created: {"Created grant", "application/json", %OpenApiSpex.Schema{type: :object}},
+      unprocessable_entity:
+        {"Validation error", "application/json", CanopyWeb.Schemas.RuntimeSchema.ErrorResponse}
+    ]
+
+  @spec permissions_create(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def permissions_create(conn, params) do
+    with {:ok, grant} <- Permissions.grant_permission(params) do
+      conn
+      |> put_status(:created)
+      |> json(grant)
+    end
+  end
+
+  operation :permissions_delete,
+    summary: "Revoke a tool permission grant",
+    parameters: [id: [in: :path, type: :string, required: true]],
+    responses: [
+      no_content: "Grant revoked",
+      not_found: {"Not found", "application/json", CanopyWeb.Schemas.RuntimeSchema.ErrorResponse}
+    ]
+
+  @spec permissions_delete(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def permissions_delete(conn, %{"id" => id}) do
+    case Permissions.revoke_permission(id) do
+      {:ok, _grant} -> send_resp(conn, :no_content, "")
+      {:error, :not_found} -> {:error, :not_found}
+    end
+  end
+
+  operation :permissions_check,
+    summary: "Check if an agent is permitted to use a tool",
+    description: "Returns the effective permission status: allowed, denied, or ask.",
+    request_body: {"Check params", "application/json", %OpenApiSpex.Schema{type: :object}},
+    responses: [
+      ok: {"Permission check result", "application/json", %OpenApiSpex.Schema{type: :object}}
+    ]
+
+  @spec permissions_check(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def permissions_check(conn, params) do
+    agent_slug = params["agent_slug"] || ""
+    tool_name = params["tool_name"] || ""
+
+    opts =
+      []
+      |> put_if(params["session_id"], :session_id, params["session_id"])
+      |> put_if(params["workspace_slug"], :workspace_slug, params["workspace_slug"])
+
+    result = Permissions.check_permission(agent_slug, tool_name, opts)
+
+    json(conn, %{status: result, agent_slug: agent_slug, tool_name: tool_name})
   end
 
   # ---------------------------------------------------------------------------

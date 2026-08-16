@@ -14,6 +14,9 @@ defmodule Canopy.Workspaces do
   """
 
   alias Canopy.Repo
+  alias Canopy.Workspaces.RulesScanner
+  alias Canopy.Workspaces.StackDetector
+  alias Canopy.Workspaces.States
   alias Canopy.Workspaces.Workspace
 
   @templates_dir Application.app_dir(:canopy, "priv/workspace_templates")
@@ -72,12 +75,62 @@ defmodule Canopy.Workspaces do
 
       with :ok <- ensure_root_path(root_path),
            :ok <- ensure_system_md(root_path, name) do
+        config = build_initial_config(root_path)
+        changeset = Ecto.Changeset.put_change(changeset, :config, config)
         Repo.insert(changeset)
       else
         {:error, reason} -> {:error, reason}
       end
     else
       Repo.insert(changeset)
+    end
+  end
+
+  @doc """
+  Re-runs stack detection and rules scanning on an existing workspace,
+  updating its `config` map with fresh `detected_stack` and `project_rules`.
+
+  Returns `{:ok, workspace}` or `{:error, :not_found | Ecto.Changeset.t()}`.
+  """
+  @spec detect_and_update(String.t()) :: {:ok, Workspace.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def detect_and_update(slug) do
+    with {:ok, workspace} <- get_by_slug(slug) do
+      config = build_initial_config(workspace.root_path)
+      merged = Map.merge(workspace.config || %{}, config)
+
+      workspace
+      |> Workspace.config_changeset(%{config: merged})
+      |> Repo.update()
+    end
+  end
+
+  @doc """
+  Updates a workspace's mutable fields (`name`, `root_path`).
+
+  Validates that `root_path`, if provided, is an absolute path that exists on
+  disk as a directory. Returns `{:ok, workspace}` or
+  `{:error, :not_found | :root_path_not_found | Ecto.Changeset.t()}`.
+  """
+  @spec update_workspace(String.t(), map()) ::
+          {:ok, Workspace.t()}
+          | {:error, :not_found}
+          | {:error, :root_path_not_found}
+          | {:error, Ecto.Changeset.t()}
+  def update_workspace(slug, attrs) do
+    with {:ok, workspace} <- get_by_slug(slug) do
+      if root_path = attrs[:root_path] || attrs["root_path"] do
+        unless File.dir?(root_path) do
+          {:error, :root_path_not_found}
+        else
+          workspace
+          |> Workspace.update_changeset(attrs)
+          |> Repo.update()
+        end
+      else
+        workspace
+        |> Workspace.update_changeset(attrs)
+        |> Repo.update()
+      end
     end
   end
 
@@ -93,6 +146,33 @@ defmodule Canopy.Workspaces do
       workspace
       |> Workspace.delete_changeset()
       |> Repo.update()
+    end
+  end
+
+  @doc """
+  Hard-deletes a workspace by slug AND drops every per-workspace state row
+  (Mosaic layouts, side-rail section, recent files, density, etc.).
+
+  Distinct from `delete/1`, which only sets `deleted_at`. Filesystem is not
+  touched. Returns `{:ok, %{workspace: workspace, states_removed: count}}` or
+  `{:error, :not_found}`.
+  """
+  @spec delete_workspace(String.t()) ::
+          {:ok, %{workspace: Workspace.t(), states_removed: non_neg_integer()}}
+          | {:error, :not_found}
+  def delete_workspace(slug) when is_binary(slug) do
+    import Ecto.Query
+
+    case Repo.one(from w in Workspace, where: w.slug == ^slug) do
+      nil ->
+        {:error, :not_found}
+
+      workspace ->
+        Repo.transaction(fn ->
+          {:ok, removed} = States.delete_all(slug)
+          {:ok, deleted} = Repo.delete(workspace)
+          %{workspace: deleted, states_removed: removed}
+        end)
     end
   end
 
@@ -174,6 +254,24 @@ defmodule Canopy.Workspaces do
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  defp build_initial_config(nil), do: %{}
+
+  defp build_initial_config(root_path) do
+    stacks =
+      case StackDetector.detect(root_path) do
+        {:ok, detected} -> detected
+        {:error, _} -> []
+      end
+
+    rules =
+      case RulesScanner.scan(root_path) do
+        {:ok, found} -> found
+        {:error, _} -> []
+      end
+
+    %{"detected_stack" => stacks, "project_rules" => rules}
+  end
 
   defp ensure_root_path(nil), do: :ok
 

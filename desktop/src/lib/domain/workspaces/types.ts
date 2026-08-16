@@ -37,6 +37,35 @@ export interface CreateWorkspaceBody {
   templateSlug?: WorkspaceTemplate["slug"] | null;
 }
 
+// ── Init jobs ───────────────────────────────────────────────────────────────
+
+export type InitJobStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+export type InitJobStep =
+  | "detect_base_branch"
+  | "ensure_clone"
+  | "create_initial_worktree"
+  | "run_setup_script"
+  | "done";
+
+export interface InitJob {
+  id: string;
+  workspaceSlug: string;
+  status: InitJobStatus;
+  currentStep: InitJobStep | null;
+  progressPct: number;
+  output: string;
+  error: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  insertedAt: string;
+  updatedAt: string;
+}
+
 // ── Filesystem tree + file ops ──────────────────────────────────────────────
 
 /** One node in the nested file tree returned by GET /workspaces/:slug/tree. */

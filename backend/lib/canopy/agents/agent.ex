@@ -43,6 +43,7 @@ defmodule Canopy.Agents.Agent do
              :heartbeat_cron,
              :budget_monthly_usd,
              :hired,
+             :config,
              :inserted_at,
              :updated_at
            ]}
@@ -61,12 +62,14 @@ defmodule Canopy.Agents.Agent do
     field :heartbeat_cron, :string
     field :budget_monthly_usd, :decimal
     field :hired, :boolean, default: false
+    # config holds orchestration settings, e.g. %{"capabilities" => ["write_tasks", ...]}
+    field :config, :map, default: %{}
 
     timestamps()
   end
 
   @required ~w(slug category name persona_path)a
-  @optional ~w(description persona_markdown default_runtime default_model heartbeat_cron budget_monthly_usd hired)a
+  @optional ~w(description persona_markdown default_runtime default_model heartbeat_cron budget_monthly_usd hired config)a
 
   @doc "Changeset for creating or updating an agent."
   @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()

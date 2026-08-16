@@ -207,7 +207,7 @@ Per Roberto's feedback memory (`feedback_no_human_adapter.md`):
 - `agents` table and `users` table (Week 2) are **separate entities**, not a polymorphic `actors` table.
 - UI unifies presentation via `ActorAvatar` component — same rendering surface, different data sources.
 - Any backend join that today would do `(actor_type, actor_id)` polymorphism instead joins explicitly to `agents` or `users`.
-- Contrasts with Multica which uses `author_type IN ('member', 'agent')` — we **rejected** that pattern.
+- We explicitly **rejected** the `author_type IN ('member', 'agent')` polymorphic pattern.
 
 ### 3.4 Session → Message: Why Two Names
 
@@ -233,7 +233,7 @@ Per `docs/04-platform-breakdown.md`. Current implementation status in parenthese
 | 5 | Workspaces | `/workspaces` | 🟡 coming-soon placeholder | ⚠️ schema only |
 | 6 | Sandboxes | `/sandboxes` | 🟡 coming-soon placeholder | ⚠️ Week 2 (depends on MIOSA API) |
 
-### Group B — Productivity (8 modules — "Core-OSS lift")
+### Group B — Productivity (8 modules)
 
 | # | Module | Route | Status |
 |---|--------|-------|--------|
@@ -288,7 +288,7 @@ The invariants every new file must respect.
 └──────────────────────────────────────────────────────────┘
                          ▲
 ┌─ L2 — Protocol contracts ───────────────────────────────┐
-│  RuntimeAdapter behaviour (Paperclip-derived)            │
+│  RuntimeAdapter behaviour                                │
 │  TranscriptEntry discriminated union                     │
 │  Workspace Protocol (markdown-as-org)                    │
 │  Canopy epilogue block (```canopy``` in agent output)     │
@@ -366,12 +366,12 @@ For reference, the notable per-entity decisions:
 
 | Name | Considered alternatives | Chosen because |
 |------|-------------------------|----------------|
-| `Canopy.Runtimes.Adapter` (behaviour) | `AdapterBehaviour`, `RuntimeModule`, `ServerAdapterModule` (Paperclip's) | Shortest valid Elixir-idiomatic name that signals its role |
+| `Canopy.Runtimes.Adapter` (behaviour) | `AdapterBehaviour`, `RuntimeModule`, `ServerAdapterModule` | Shortest valid Elixir-idiomatic name that signals its role |
 | `RegistryServer` (GenServer name) | `Registry`, `AdapterRegistry`, `AdapterStore` | Avoids conflict with Elixir's `Registry` module; `Server` suffix signals it's a process |
 | `ProcessRunner` (shared GenServer base) | `AdapterRunner`, `SubprocessSupervisor`, `Spawner`, `Runner` | `Runner` was too generic (three already exist); `ProcessRunner` is specific enough to grep |
 | `TranscriptEntry` | `StreamEvent`, `AgentOutput`, `Message` | Message is ambiguous (DB vs wire); "transcript" matches the UI component name |
 | `claude-local` / `codex-local` (runtime types) | `claude`, `claude-cli`, `claude-code-local` | `-local` reserves `-api`, `-mcp`, `-hosted` suffixes for future variants |
-| `.canopy` code block (agent epilogue) | `.canopy-epilogue`, `.end-of-response` | Matches Cabinet's precedent (` ```cabinet ` block); keeps tribal knowledge low |
+| `.canopy` code block (agent epilogue) | `.canopy-epilogue`, `.end-of-response` | Matches the brand; keeps tribal knowledge low |
 | `/health/ready` (readiness probe) | `/ready`, `/healthz`, `/livez` | Kubernetes convention + distinct from `/health` liveness |
 | `POST /runtimes/detect` (Tauri sync) | `PUT /runtimes`, `POST /runtimes/sync` | `detect` is a verb matching what the frontend is actually doing (running detection) |
 | `sessions` PubSub topic `"session:<id>"` | `"runs:<id>"`, `"transcript:<id>"` | Matches the Ecto schema name; easy to recall |

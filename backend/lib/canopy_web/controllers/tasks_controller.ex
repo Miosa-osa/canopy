@@ -11,13 +11,25 @@ defmodule CanopyWeb.TasksController do
     POST   /api/v1/tasks/:id/assign    — assign to actor
     POST   /api/v1/tasks/:id/complete  — mark done
     POST   /api/v1/tasks/:id/reopen    — reopen
+    POST   /api/v1/tasks/:id/dispatch  — dispatch to agent terminal
+    POST   /api/v1/tasks/:id/transition — Kanban drag-to-state (verb + status)
     DELETE /api/v1/tasks/:id           — hard delete
+
+  ## PubSub contract (dispatch)
+
+  On successful dispatch, Phoenix.PubSub broadcasts on `tasks:workspace:<workspace_slug>`:
+
+      {:task_dispatched, %{task_id: short_id, session_id: session_id, status: "in_progress"}}
+
+  The frontend should subscribe via the existing workspace channel (if one exists)
+  or refetch the task list on receiving the event.
   """
 
   use CanopyWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
   alias Canopy.Tasks
+  alias Canopy.Tasks.Dispatcher
   alias CanopyWeb.Schemas.TasksSchema
 
   action_fallback CanopyWeb.FallbackController
@@ -63,7 +75,9 @@ defmodule CanopyWeb.TasksController do
 
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def create(conn, params) do
-    case Tasks.create(params) do
+    attrs = maybe_stamp_run_id(params, conn)
+
+    case Tasks.create(attrs) do
       {:ok, task} ->
         conn |> put_status(:created) |> json(%{data: task})
 
@@ -179,6 +193,99 @@ defmodule CanopyWeb.TasksController do
     end
   end
 
+  operation :transition,
+    summary: "Kanban drag-to-state — apply a verb to a task",
+    description:
+      "Applies a column verb (start/pause/resume/stop/done/noop) and optionally updates task status.",
+    parameters: [id: [in: :path, type: :string, required: true, description: "Task short_id"]],
+    request_body:
+      {"Transition params", "application/json",
+       %OpenApiSpex.Schema{
+         type: :object,
+         properties: %{
+           verb: %OpenApiSpex.Schema{
+             type: :string,
+             enum: ["start", "build", "pause", "resume", "stop", "cancel", "done", "noop"]
+           },
+           status: %OpenApiSpex.Schema{type: :string, nullable: true}
+         },
+         required: ["verb"]
+       }},
+    responses: [
+      ok: {"Transition result", "application/json", TasksSchema.DispatchResponse},
+      not_found: {"Task not found", "application/json", TasksSchema.ErrorResponse},
+      unprocessable_entity: {"Error", "application/json", TasksSchema.ErrorResponse}
+    ]
+
+  @spec transition(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def transition(conn, %{"id" => id} = params) do
+    verb = params["verb"] || "noop"
+    target_status = params["status"]
+
+    case Tasks.apply_verb(id, verb, target_status) do
+      {:ok, task, session_id} ->
+        json(conn, %{data: %{task: task, session_id: session_id}})
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+
+      {:error, :no_target} ->
+        {:error, :no_target}
+
+      {:error, :runtime_unauthenticated} ->
+        {:error, :runtime_unauthenticated}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
+  operation :dispatch,
+    summary: "Dispatch a task to an agent terminal session",
+    parameters: [id: [in: :path, type: :string, required: true, description: "Task short_id"]],
+    request_body:
+      {"Dispatch options (all optional)", "application/json", TasksSchema.DispatchRequest,
+       required: false},
+    responses: [
+      ok: {"Dispatch result", "application/json", TasksSchema.DispatchResponse},
+      not_found: {"Task not found", "application/json", TasksSchema.ErrorResponse},
+      unprocessable_entity:
+        {"No target or unauthenticated", "application/json", TasksSchema.ErrorResponse}
+    ]
+
+  @doc """
+  Dispatches the task to a live agent terminal session.
+
+  Accepts an optional JSON body:
+    - `agent_slug`    — override the task's assigned agent
+    - `runtime_type`  — override the agent's default runtime
+
+  Returns 200 with `{ data: { session_id, task } }` on success.
+  Returns 422 with `{ error: "no_target" | "runtime_unauthenticated", message }` when
+  no session can be resolved.
+  """
+  @spec dispatch(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def dispatch(conn, %{"id" => id} = params) do
+    opts =
+      []
+      |> maybe_opt(:agent_slug, params["agent_slug"])
+      |> maybe_opt(:runtime_type, params["runtime_type"])
+
+    case Dispatcher.dispatch(id, opts) do
+      {:ok, %{session_id: session_id, task: task}} ->
+        json(conn, %{data: %{session_id: session_id, task: task}})
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+
+      {:error, :no_target} ->
+        {:error, :no_target}
+
+      {:error, :runtime_unauthenticated} ->
+        {:error, :runtime_unauthenticated}
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
@@ -186,12 +293,23 @@ defmodule CanopyWeb.TasksController do
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, val), do: Map.put(map, key, val)
 
+  defp maybe_opt(opts, _key, nil), do: opts
+  defp maybe_opt(opts, key, val), do: Keyword.put(opts, key, val)
+
   defp parse_int(nil), do: nil
 
   defp parse_int(s) do
     case Integer.parse(s) do
       {n, ""} when n > 0 -> n
       _ -> nil
+    end
+  end
+
+  # Stamps created_by_run_id when an X-Run-Id was present on the request.
+  defp maybe_stamp_run_id(params, conn) do
+    case Map.get(conn.assigns, :run_id) do
+      nil -> params
+      run_id -> Map.put(params, "created_by_run_id", run_id)
     end
   end
 end

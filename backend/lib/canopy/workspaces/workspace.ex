@@ -27,6 +27,8 @@ defmodule Canopy.Workspaces.Workspace do
              :description,
              :root_path,
              :template,
+             :setup_script,
+             :config,
              :deleted_at,
              :inserted_at,
              :updated_at
@@ -38,13 +40,15 @@ defmodule Canopy.Workspaces.Workspace do
     field :description, :string
     field :root_path, :string
     field :template, :string
+    field :setup_script, :string
+    field :config, :map, default: %{}
     field :deleted_at, :utc_datetime
 
     timestamps()
   end
 
   @required ~w(slug name root_path)a
-  @optional ~w(description template)a
+  @optional ~w(description template setup_script config)a
 
   @doc "Changeset for creating or updating a workspace."
   @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
@@ -57,6 +61,22 @@ defmodule Canopy.Workspaces.Workspace do
     |> validate_length(:name, min: 1, max: 256)
     |> validate_length(:root_path, min: 1, max: 1024)
     |> unique_constraint(:slug)
+  end
+
+  @doc "Changeset for updating mutable fields (name, root_path) on an existing workspace."
+  @spec update_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  def update_changeset(workspace, attrs) do
+    workspace
+    |> cast(attrs, [:name, :root_path])
+    |> validate_length(:name, min: 1, max: 256)
+    |> validate_length(:root_path, min: 1, max: 1024)
+  end
+
+  @doc "Changeset for updating the config map (detected stack, project rules)."
+  @spec config_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  def config_changeset(workspace, attrs) do
+    workspace
+    |> cast(attrs, [:config])
   end
 
   @doc "Changeset for soft-deleting a workspace."

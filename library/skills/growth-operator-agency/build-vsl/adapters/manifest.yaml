@@ -1,0 +1,76 @@
+skill_id: build-vsl
+skill_path: skills/build-vsl/SKILL.md
+skill_name: "Video Sales Letter Script Builder"
+
+tier: reasoning_ai
+category: sales
+temperature_gate: warm
+
+role_affinity:
+  - sales-head
+  - vsl-builder
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # offer/positioning/icp/voice docs + final VSL
+  - campaigns                          # VSL tied to campaign
+  - case_studies                       # isomorphic fit ranking
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_search
+  - web_fetch
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - variant_selected_with_reasoning
+  - all_framework_beats_complete
+  - 8_required_beliefs_installed
+  - mechanism_threaded_through
+  - voice_match_verified
+  - crossroads_or_equivalent_close_present
+  - signal_score_gte_0_8
+  - blind_output_test_3_of_3
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - copy_messaging
+
+output:
+  location: "output/build-vsl/{date}-vsl-script-variant-{A|B|C|D|E}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: vsl-script
+    type: direct
+    format: markdown
+    structure: variant-dependent-w-vsl
+  receiver: prospect
+
+next_skill_routing:
+  on_complete:
+    - condition: "vsl_blind_test_passed"
+      recommend: build-funnel
+    - condition: "funnel_complete"
+      recommend: ad-creative
+    - condition: "landing_page_missing"
+      recommend: landing-page
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

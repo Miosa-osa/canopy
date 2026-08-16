@@ -2,17 +2,15 @@ defmodule Canopy.Runtimes.Adapter do
   @moduledoc """
   Behaviour contract for all Canopy runtime adapters.
 
-  Derived from the Paperclip `ServerAdapterModule` interface (packages/adapter-utils/src/types.ts).
   Every AI runtime that Canopy manages — Claude Code, Codex, Gemini, Cursor, OpenCode,
   Aider, Windsurf, Pi, Hermes — must implement this behaviour.
 
   Design principles:
   - Use `capabilities/0` returning a `MapSet` of atoms rather than boolean flag proliferation.
-    This prevents the 7-flag problem documented in the Paperclip dossier.
   - All callbacks return tagged tuples — no exceptions propagate through the adapter boundary.
   - `test_environment/1` is the preflight gate run before saving a runtime config.
   - `get_config_schema/0` returns a declarative form spec; the UI renders it without
-    per-adapter frontend code (Paperclip pattern).
+    per-adapter frontend code.
   - `get_quota_windows/0` queries the provider's live usage API for the runtime card display.
   - `detect_model/0` reads local config (e.g., ~/.claude/settings.json) to discover the
     active model without requiring manual user input.
@@ -88,7 +86,6 @@ defmodule Canopy.Runtimes.Adapter do
   Returns a declarative config schema for this adapter.
 
   The UI renders these fields dynamically without per-adapter Svelte components.
-  This is the Paperclip `AdapterConfigSchema` pattern.
   """
   @callback get_config_schema() :: {:ok, [config_field()]}
 

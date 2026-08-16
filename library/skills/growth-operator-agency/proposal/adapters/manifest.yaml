@@ -1,0 +1,78 @@
+skill_id: proposal
+skill_path: skills/proposal/SKILL.md
+skill_name: "Post-Call Proposal Builder"
+
+tier: structured_ai
+category: sales
+temperature_gate: warm
+
+role_affinity:
+  - sales-head
+  - sales-ops
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # offer doc + call brief + final proposal
+  - prospects                          # prospect record
+  - proposals                          # structured proposal entries per prospect
+  - payments                           # payment method + invoice link
+  - case_studies                       # post-close case capture
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+
+execution_mode: interactive
+temperature: 0.4
+
+evidence_gate:
+  - scope_explicit
+  - timeline_explicit
+  - deliverables_listed
+  - payment_terms_explicit
+  - risk_reversal_specified
+  - next_step_specified
+  - one_page_scannable
+  - voice_match_verified
+  - no_income_guarantees
+  - signal_score_gte_0_7
+
+context_slices:
+  read:
+    - offer_architecture
+    - conversion_sales_systems
+    - copy_messaging
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - conversion_sales_systems.proposals_log
+
+output:
+  location: "output/proposal/{date}-proposal-{prospect-slug}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: proposal
+    type: inform
+    format: markdown
+    structure: 1-page-w-7-section
+  receiver: prospect
+
+next_skill_routing:
+  on_complete:
+    - condition: "close_confirmed"
+      recommend: post-booking-nurture
+    - condition: "formal_contract_needed"
+      recommend: legal-templates
+    - condition: "prospect_stalled"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  delivery_time_logged: true
+  same_day_discipline_tracked: true
+  blind_output_test_required: true

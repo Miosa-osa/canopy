@@ -34,6 +34,7 @@ defmodule Canopy.Heartbeat.Worker do
   use Oban.Worker, queue: :heartbeats, max_attempts: 3, unique: [period: 60]
 
   alias Canopy.Agents
+  alias Canopy.Analytics.Emitter
   alias Canopy.Heartbeat.Registrar
   alias Canopy.Sessions
 
@@ -44,25 +45,43 @@ defmodule Canopy.Heartbeat.Worker do
     with {:ok, agent} <- Agents.get_by_slug(slug),
          true <- agent.hired,
          {:ok, session} <- create_session(agent, reason) do
+      Emitter.heartbeat_fired(%{
+        session_id: session.id,
+        workspace_slug: session.workspace_slug,
+        runtime: session.runtime_type,
+        payload: %{"agent_slug" => slug, "wake_reason" => reason}
+      })
+
       schedule_next(agent)
       {:ok, session.id}
     else
       false ->
         Logger.info("[Heartbeat] Agent #{slug} is not hired — cancelling job chain")
+        Emitter.heartbeat_missed(%{payload: %{"agent_slug" => slug, "reason" => "not_hired"}})
         {:cancel, :agent_not_hired}
 
       {:error, :not_found} ->
         Logger.warning("[Heartbeat] Agent #{slug} not found — cancelling job chain")
+        Emitter.heartbeat_missed(%{payload: %{"agent_slug" => slug, "reason" => "not_found"}})
         {:cancel, :agent_not_found}
 
       {:error, :no_cron_expression} ->
         Logger.warning("[Heartbeat] Agent #{slug} has no heartbeat_cron — cancelling")
+
+        Emitter.heartbeat_missed(%{
+          payload: %{"agent_slug" => slug, "reason" => "no_cron_expression"}
+        })
+
         {:cancel, :no_cron_expression}
 
       {:error, {:governance_blocked, rule}} ->
         Logger.warning(
           "[Heartbeat] Gate blocked agent=#{slug} rule=#{rule.id} name=#{rule.name} — cancelling (no retry)"
         )
+
+        Emitter.heartbeat_missed(%{
+          payload: %{"agent_slug" => slug, "reason" => "governance_blocked", "rule_id" => rule.id}
+        })
 
         {:cancel, :gate_blocked}
 
@@ -71,10 +90,23 @@ defmodule Canopy.Heartbeat.Worker do
           "[Heartbeat] Gate blocked agent=#{slug} budget=#{budget.id} spent=#{spent} — cancelling (no retry)"
         )
 
+        Emitter.heartbeat_missed(%{
+          payload: %{
+            "agent_slug" => slug,
+            "reason" => "budget_blocked",
+            "budget_id" => budget.id
+          }
+        })
+
         {:cancel, :gate_blocked}
 
       {:error, err_reason} ->
         Logger.error("[Heartbeat] Session creation failed for #{slug}: #{inspect(err_reason)}")
+
+        Emitter.heartbeat_missed(%{
+          payload: %{"agent_slug" => slug, "reason" => inspect(err_reason)}
+        })
+
         {:error, err_reason}
     end
   end

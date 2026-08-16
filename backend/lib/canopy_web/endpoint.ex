@@ -15,6 +15,10 @@ defmodule CanopyWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
+  # Terminal channel socket — separate from the LiveView socket so we don't
+  # pollute the live socket namespace. Frontend points to /socket/websocket.
+  socket "/socket", CanopyWeb.UserSocket, websocket: true, longpoll: false
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),
@@ -49,5 +53,16 @@ defmodule CanopyWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+
+  # CORS — installed at the endpoint so OPTIONS preflight requests are handled
+  # before they hit the router (which only matches concrete method+path pairs).
+  # Origins are configured in config/dev.exs via :canopy, :cors_origins.
+  plug Corsica,
+    origins: Application.compile_env(:canopy, :cors_origins, []),
+    allow_credentials: true,
+    allow_methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers: ["content-type", "authorization", "x-requested-with"],
+    max_age: 86_400
+
   plug CanopyWeb.Router
 end

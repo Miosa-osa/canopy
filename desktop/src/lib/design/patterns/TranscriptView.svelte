@@ -6,10 +6,8 @@
  * stdout, stderr, system, init, result). Auto-scrolls to bottom unless user
  * has scrolled up more than 40px.
  *
- * Enhanced tool rendering ported from OpenAgents' IntermediateSteps pattern
- * (openagents/workspace/frontend/components/chat/intermediate-steps.tsx).
- * Ideas ported: icon mapping, MCP prefix stripping, args preview, grouped
- * sender blocks, live thinking indicator. React → Svelte 5 runes translation.
+ * Tool rendering features: icon mapping, MCP prefix stripping, args preview,
+ * grouped sender blocks, live thinking indicator.
  *
  * CSS prefix: tv- (TranscriptView)
  */
@@ -20,7 +18,7 @@ import type { TranscriptEntry } from '$lib/domain/sessions/types.js';
 import { groupTranscript } from '$lib/utils/transcript-grouping.js';
 import type { GroupedEntry } from '$lib/utils/transcript-grouping.js';
 
-// ── Icon mapping (OpenAgents pattern, adapted) ───────────────────────────────
+// ── Icon mapping ─────────────────────────────────────────────────────────────
 // Maps cleaned tool names to Lucide icons.
 type IconComponent = typeof Wrench;
 

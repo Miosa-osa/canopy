@@ -2,10 +2,11 @@ defmodule CanopyWeb.SkillsController do
   @moduledoc """
   HTTP API for Canopy skills.
 
-  Routes (add to router.ex — see note at end of file):
-    GET    /api/v1/skills          — list skills (filter: ?source=, ?tag=, ?enabled=)
-    GET    /api/v1/skills/:slug    — get skill detail
-    POST   /api/v1/skills/import  — bulk import from external registry
+  Routes:
+    GET    /api/v1/skills              — list skills (filter: ?source=, ?tag=, ?enabled=, ?kind=)
+    GET    /api/v1/skills/:slug        — get skill detail
+    PUT    /api/v1/skills/:slug        — update body_md / frontmatter / kind / metadata
+    POST   /api/v1/skills/import      — bulk import from external registry
   """
 
   use CanopyWeb, :controller
@@ -24,7 +25,7 @@ defmodule CanopyWeb.SkillsController do
   operation :index,
     summary: "List skills",
     description: """
-    Returns all skills. Supports filtering by source, enabled status, and tag.
+    Returns all skills. Supports filtering by source, enabled status, tag, and kind.
     """,
     parameters: [
       source: [
@@ -44,6 +45,12 @@ defmodule CanopyWeb.SkillsController do
         description: "Filter to skills that include this tag",
         type: :string,
         required: false
+      ],
+      kind: [
+        in: :query,
+        description: "Filter by kind: prompt | workflow | reference",
+        type: :string,
+        required: false
       ]
     ],
     responses: [
@@ -57,6 +64,7 @@ defmodule CanopyWeb.SkillsController do
       |> maybe_put(:source, Map.get(params, "source"))
       |> maybe_put(:enabled, parse_boolean(Map.get(params, "enabled")))
       |> maybe_put(:tag, Map.get(params, "tag"))
+      |> maybe_put(:kind, Map.get(params, "kind"))
 
     {:ok, skills} = Skills.list(opts)
     json(conn, %{data: skills})
@@ -77,6 +85,35 @@ defmodule CanopyWeb.SkillsController do
   def show(conn, %{"slug" => slug}) do
     with {:ok, skill} <- Skills.get_by_slug(slug) do
       json(conn, skill)
+    end
+  end
+
+  operation :update,
+    summary: "Update a skill",
+    description: """
+    Updates a skill's content (body_md), kind, frontmatter, name, description,
+    provider_format, tags, or enabled state. Content hash is recomputed automatically
+    when content changes.
+    """,
+    parameters: [
+      slug: [in: :path, description: "Skill slug", type: :string, required: true]
+    ],
+    request_body:
+      {"Update request", "application/json", SkillSchema.UpdateSkillRequest, required: true},
+    responses: [
+      ok: {"Updated skill", "application/json", SkillSchema.Skill},
+      not_found: {"Not found", "application/json", RuntimeSchema.ErrorResponse},
+      unprocessable_entity:
+        {"Validation failure", "application/json", RuntimeSchema.ErrorResponse}
+    ]
+
+  @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def update(conn, %{"slug" => slug} = params) do
+    attrs = Map.drop(params, ["slug"])
+
+    with {:ok, skill} <- Skills.get_by_slug(slug),
+         {:ok, updated} <- Skills.update(skill, attrs) do
+      json(conn, updated)
     end
   end
 
@@ -159,16 +196,3 @@ defmodule CanopyWeb.SkillsController do
   defp parse_boolean("false"), do: false
   defp parse_boolean(_), do: nil
 end
-
-# ---------------------------------------------------------------------------
-# ROUTER NOTE (for @devops-engineer or router owner to merge):
-#
-# Add under the `scope "/api/v1"` block in router.ex:
-#
-#   get  "/skills",        SkillsController, :index
-#   get  "/skills/:slug",  SkillsController, :show
-#   post "/skills/import", SkillsController, :import
-#
-# Order matters: `/skills/import` must come before `/skills/:slug` so the
-# literal "import" path is matched before the slug wildcard.
-# ---------------------------------------------------------------------------

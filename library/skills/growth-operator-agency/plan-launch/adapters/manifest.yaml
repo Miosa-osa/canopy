@@ -1,0 +1,74 @@
+skill_id: plan-launch
+skill_path: skills/plan-launch/SKILL.md
+skill_name: "Launch Plan Producer (5 Variants × 5-Phase SOP)"
+
+tier: reasoning_ai
+category: launch
+temperature_gate: warm
+
+role_affinity:
+  - launch-head
+  - launch-manager
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - offers
+  - funnels
+  - campaigns
+  - launches
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - variant_selected
+  - all_5_phases_mapped
+  - asset_dependencies_listed
+  - team_assignments_complete
+  - tech_checklist_passed
+  - kpi_targets_set
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - funnel_systems
+    - content_strategy
+  write:
+    - launch_strategy.launch_plan_active
+    - launch_strategy.kpi_targets
+    - launch_strategy.team_assignments
+
+output:
+  location: "output/plan-launch/{date}-variant{N}-{offer-slug}-launch-plan.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: launch-plan
+    type: plan
+    format: markdown
+    structure: w-launch-plan-5-phase
+  receiver: creator + team + automation layer
+
+next_skill_routing:
+  on_complete:
+    - condition: "default"
+      recommend: launch-report
+    - condition: "launch_day_T_plus_7"
+      recommend: launch-report
+  on_fail:
+    escalate_to: launch-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

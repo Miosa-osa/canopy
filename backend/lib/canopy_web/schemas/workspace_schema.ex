@@ -124,6 +124,25 @@ defmodule CanopyWeb.Schemas.WorkspaceSchema do
     })
   end
 
+  defmodule UpdateWorkspaceRequest do
+    @moduledoc "Request body for PATCH /api/v1/workspaces/:slug."
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "UpdateWorkspaceRequest",
+      type: :object,
+      properties: %{
+        name: %Schema{type: :string, nullable: true, description: "New display name"},
+        root_path: %Schema{
+          type: :string,
+          nullable: true,
+          description: "New absolute filesystem path (must exist on disk)"
+        }
+      }
+    })
+  end
+
   defmodule ErrorResponse do
     @moduledoc "Generic error response."
 

@@ -11,6 +11,7 @@ defmodule Canopy.Docs do
   require Logger
 
   alias Canopy.Docs.{Document, Folder}
+  alias Canopy.Governance.Reviewer
   alias Canopy.Repo
 
   # ---------------------------------------------------------------------------
@@ -127,12 +128,56 @@ defmodule Canopy.Docs do
   Creates a document.
 
   `body_text` is derived from `body_json` — do not supply it in attrs.
+
+  If a `:requires_review` governance rule matches (based on workspace, author_type,
+  and artifact_type "doc"), the document is inserted with `review_id` set and the
+  caller receives `{:ok, doc}` — the doc is live but carries the review reference
+  so list views can show the "Under review" pill.
   """
   @spec create(map()) :: {:ok, Document.t()} | {:error, Ecto.Changeset.t()}
   def create(attrs) do
-    %Document{}
-    |> Document.changeset(attrs)
-    |> Repo.insert()
+    result =
+      %Document{}
+      |> Document.changeset(attrs)
+      |> Repo.insert()
+
+    case result do
+      {:ok, doc} ->
+        # Check governance: only agent-authored docs trigger review gate.
+        author_type = Map.get(attrs, :author_type) || Map.get(attrs, "author_type")
+        agent_id = Map.get(attrs, :author_id) || Map.get(attrs, "author_id")
+
+        review_result =
+          if author_type == "agent" do
+            Reviewer.maybe_request_review(:artifact, %{
+              workspace_slug: doc.workspace_slug,
+              artifact_type: "doc",
+              artifact_id: doc.id,
+              artifact_preview: doc.title,
+              agent_id: agent_id,
+              session_id: nil
+            })
+          else
+            :no_review_required
+          end
+
+        case review_result do
+          {:review_pending, review_id} ->
+            case doc
+                 |> Document.changeset(%{review_id: review_id})
+                 |> Repo.update() do
+              {:ok, updated} -> {:ok, updated}
+              # Fail open: review was created but we couldn't stamp the doc.
+              {:error, _} -> {:ok, doc}
+            end
+
+          :no_review_required ->
+            {:ok, doc}
+        end
+
+      error ->
+        error
+    end
   end
 
   @doc """

@@ -170,8 +170,7 @@ Check list:
 | 9 CLI runtimes list | foundation §5 + breakdown §5.2 + adapter behaviour docstring |
 | OKLCh token values | frontend-design §1 + desktop/src/lib/design/tokens/oklch.css (must match exactly) |
 | Module count (19) | breakdown §9 summary + frontend-design §6 screen count + sidebar structure in +layout.svelte |
-| Runtime adapter interface | foundation §4 code block + paperclip.md §3 + backend/lib/canopy/runtimes/adapter.ex |
-| Paperclip attribution | NOTICE.md + docs/03-steal-synthesis.md + adapter.ex @moduledoc |
+| Runtime adapter interface | foundation §4 code block + backend/lib/canopy/runtimes/adapter.ex |
 | No-human-adapter rule | breakdown §3.2 + no `(actor_type, actor_id)` polymorphism in schemas |
 
 Any mismatch → fix doc OR fix code, whichever represents truth.

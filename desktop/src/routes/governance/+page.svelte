@@ -380,7 +380,6 @@
       role="list"
       aria-label="Governance rules"
       onkeydown={rulesKb.handleKeydown}
-      tabindex="0"
     >
       {#if $rulesResult.isError}
         <EmptyState

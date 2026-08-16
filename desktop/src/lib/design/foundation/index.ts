@@ -15,6 +15,8 @@ export { default as Popover } from "./popover/Popover.svelte";
 
 // Menu Components
 export { Menu, MenuItem, MenuSeparator, MenuLabel, MenuGroup } from "./menu";
+export { ContextMenu } from "./menus";
+export type { ContextMenuItem, ContextMenuAnchor } from "./menus";
 
 // Tab Components
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";

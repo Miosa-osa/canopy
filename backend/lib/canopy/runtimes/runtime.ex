@@ -29,12 +29,13 @@ defmodule Canopy.Runtimes.Runtime do
              :binary_path,
              :config,
              :capabilities,
+             :auth_profile,
              :last_detected_at,
              :inserted_at,
              :updated_at
            ]}
 
-  @valid_kinds ~w(cli api mcp)
+  @valid_kinds ~w(cli api local_model mcp)
 
   schema "runtimes" do
     field :type, :string
@@ -46,13 +47,14 @@ defmodule Canopy.Runtimes.Runtime do
     field :binary_path, :string
     field :config, :map, default: %{}
     field :capabilities, {:array, :string}, default: []
+    field :auth_profile, :map, default: nil
     field :last_detected_at, :utc_datetime
 
     timestamps()
   end
 
   @required ~w(type kind name)a
-  @optional ~w(enabled installed version binary_path config capabilities last_detected_at)a
+  @optional ~w(enabled installed version binary_path config capabilities auth_profile last_detected_at)a
 
   @doc "Changeset for creating or updating a runtime record."
   @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()

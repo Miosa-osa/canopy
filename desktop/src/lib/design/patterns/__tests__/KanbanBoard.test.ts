@@ -63,6 +63,7 @@ function makeTask(
     completedAt: null,
     labels: [],
     parentId: null,
+    reviewId: null,
     insertedAt: "2026-04-18T00:00:00Z",
     updatedAt: "2026-04-18T00:00:00Z",
     ...overrides,

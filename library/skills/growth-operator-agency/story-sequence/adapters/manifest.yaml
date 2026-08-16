@@ -1,0 +1,71 @@
+skill_id: story-sequence
+skill_path: skills/story-sequence/SKILL.md
+skill_name: "7-Day IG Story Sequence Producer (the stories director 7-Framework)"
+
+tier: structured_ai
+category: marketing
+temperature_gate: warm
+
+role_affinity:
+  - marketing-head
+  - stories
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - campaigns
+  - content_calendar
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - 7_day_calendar_complete
+  - per_story_4_layer_anatomy_applied
+  - orange_grey_mix_balanced
+  - daily_framework_not_repeated
+  - voice_matched
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - content_strategy
+  write:
+    - content_strategy.ig_story_sequences_published
+
+output:
+  location: "output/story-sequence/{date}-week-{N}-stories.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: story-sequence
+    type: inform
+    format: markdown
+    structure: w-story-sequence-7-day
+  receiver: IG followers + story viewers
+
+next_skill_routing:
+  on_complete:
+    - condition: "highlights_reel_requested"
+      recommend: write-reel
+    - condition: "broadcast_requested"
+      recommend: email-sequence
+    - condition: "default"
+      recommend: content-calendar
+  on_fail:
+    escalate_to: marketing-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

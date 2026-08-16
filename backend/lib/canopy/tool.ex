@@ -2,8 +2,8 @@ defmodule Canopy.Tool do
   @moduledoc """
   Compile-time macro for declaring tools on a module.
 
-  Ported from Core-OSS's `@tool` decorator pattern (Python) to idiomatic
-  Elixir using `Module.register_attribute/3` and `@before_compile`.
+  Implements the `@tool` decorator pattern in idiomatic Elixir using
+  `Module.register_attribute/3` and `@before_compile`.
 
   ## Usage
 

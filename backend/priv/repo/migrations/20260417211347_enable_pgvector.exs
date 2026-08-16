@@ -3,8 +3,7 @@ defmodule Canopy.Repo.Migrations.EnablePgvector do
   Enables the pgvector PostgreSQL extension.
 
   pgvector is used for semantic search across agent memories, skills, and
-  workspace content (Multica pattern — they have it installed but unused;
-  we use it from day one).
+  workspace content.
 
   Requires PostgreSQL 14+ with the pgvector extension package installed:
     - macOS (Homebrew): `brew install pgvector`

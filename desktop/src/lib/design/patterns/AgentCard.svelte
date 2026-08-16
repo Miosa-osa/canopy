@@ -32,7 +32,7 @@ function handleRun(e: MouseEvent): void {
 }
 
 function handleCardClick(): void {
-  goto(`/agents/${agent.slug}`);
+  void goto(`/agents/${agent.slug}`);
 }
 </script>
 
@@ -175,5 +175,50 @@ function handleCardClick(): void {
   .cnp-agent-card__actions {
     display: flex;
     gap: var(--space-1);
+  }
+
+  .cnp-agent-card--list {
+    display: grid;
+    grid-template-columns: auto minmax(160px, 1fr) minmax(220px, 2fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 72px;
+  }
+
+  .cnp-agent-card--list .cnp-agent-card__emoji {
+    margin-bottom: 0;
+    font-size: 24px;
+  }
+
+  .cnp-agent-card--list .cnp-agent-card__bio {
+    -webkit-line-clamp: 1;
+  }
+
+  .cnp-agent-card--list .cnp-agent-card__footer {
+    margin-top: 0;
+    gap: var(--space-3);
+  }
+
+  .cnp-agent-card--compact {
+    gap: var(--space-1);
+  }
+
+  .cnp-agent-card--compact .cnp-agent-card__emoji {
+    font-size: 24px;
+  }
+
+  .cnp-agent-card--compact .cnp-agent-card__bio {
+    display: none;
+  }
+
+  .cnp-agent-card--roomy {
+    gap: var(--space-3);
+  }
+
+  @media (max-width: 760px) {
+    .cnp-agent-card--list {
+      display: flex;
+      align-items: stretch;
+    }
   }
 </style>

@@ -17,7 +17,7 @@ import {
 
 // ── localStorage mock ─────────────────────────────────────────────────────────
 
-const LS_KEY = "canopy.sidebar.config";
+const LS_KEY = "canopy.sidebar.config.v2";
 
 function makeLocalStorageMock(): Storage {
   const store = new Map<string, string>();
@@ -52,25 +52,30 @@ describe("defaultConfig", () => {
     ]);
   });
 
-  it("COCKPIT has 6 items", () => {
+  it("COCKPIT has 11 items", () => {
     const cockpit = defaultConfig.groups.find((g) => g.label === "COCKPIT");
-    expect(cockpit?.items).toHaveLength(6);
+    expect(cockpit?.items).toHaveLength(11);
   });
 
-  it("WORKSPACE has 7 items", () => {
+  it("WORKSPACE has 9 items", () => {
     const ws = defaultConfig.groups.find((g) => g.label === "WORKSPACE");
-    expect(ws?.items).toHaveLength(7);
+    expect(ws?.items).toHaveLength(9);
   });
 
-  it("SYSTEM has 5 items", () => {
+  it("SYSTEM has 9 items", () => {
     const sys = defaultConfig.groups.find((g) => g.label === "SYSTEM");
-    expect(sys?.items).toHaveLength(5);
+    expect(sys?.items).toHaveLength(9);
   });
 
-  it("all items have hidden: false by default", () => {
+  it("visible items have hidden: false, stripped items have hidden: true", () => {
+    const visibleLabels = ["Build", "Runtimes", "Sessions", "Agents", "Workspaces", "Command Center"];
     for (const group of defaultConfig.groups) {
       for (const item of group.items) {
-        expect(item.hidden).toBe(false);
+        if (visibleLabels.includes(item.label)) {
+          expect(item.hidden).toBe(false);
+        } else {
+          expect(item.hidden).toBe(true);
+        }
       }
     }
   });
@@ -116,12 +121,12 @@ describe("loadConfig merge — new default items appended", () => {
   });
 
   it("appends new default items not present in saved config", () => {
-    // Save a COCKPIT group that is missing 'Command Center'.
+    // Save a COCKPIT group that is missing the newest default items.
     const partial: SidebarConfig = {
       groups: [
         {
           label: "COCKPIT",
-          items: defaultConfig.groups[0].items.slice(0, 5), // drop last item
+          items: defaultConfig.groups[0].items.slice(0, 9), // drop last 2 items
         },
         defaultConfig.groups[1],
         defaultConfig.groups[2],
@@ -131,9 +136,10 @@ describe("loadConfig merge — new default items appended", () => {
 
     const merged = loadConfig();
     const cockpit = merged.groups.find((g) => g.label === "COCKPIT")!;
-    expect(cockpit.items).toHaveLength(6);
-    // The missing item ('Command Center') should appear last.
-    expect(cockpit.items[5].label).toBe("Command Center");
+    expect(cockpit.items).toHaveLength(11);
+    // The missing items should be appended in defaultConfig order.
+    expect(cockpit.items[9].label).toBe("Review");
+    expect(cockpit.items[10].label).toBe("Workbench");
   });
 });
 
@@ -168,7 +174,7 @@ describe("loadConfig merge — stale saved items dropped", () => {
 
     const merged = loadConfig();
     const cockpit = merged.groups.find((g) => g.label === "COCKPIT")!;
-    expect(cockpit.items).toHaveLength(6);
+    expect(cockpit.items).toHaveLength(11);
     expect(cockpit.items.some((i) => i.label === "Deleted")).toBe(false);
   });
 });
@@ -183,12 +189,13 @@ describe("loadConfig merge — hidden flag preserved", () => {
 
   it("preserves hidden: true for saved items", () => {
     const withHidden: SidebarConfig = structuredClone(defaultConfig);
-    withHidden.groups[0].items[0].hidden = true; // hide Runtimes
+    const savedBuild = withHidden.groups[0].items.find((i) => i.label === "Build");
+    if (savedBuild) savedBuild.hidden = true;
     localStorage.setItem(LS_KEY, JSON.stringify(withHidden));
 
     const merged = loadConfig();
-    const runtimes = merged.groups[0].items.find((i) => i.label === "Runtimes");
-    expect(runtimes?.hidden).toBe(true);
+    const build = merged.groups[0].items.find((i) => i.label === "Build");
+    expect(build?.hidden).toBe(true);
   });
 });
 
@@ -307,12 +314,12 @@ describe("saveConfig / loadConfig round-trip", () => {
 
   it("saving then clearing returns defaultConfig on next load", () => {
     const cfg: SidebarConfig = structuredClone(defaultConfig);
-    cfg.groups[0].items[0].hidden = true;
+    cfg.groups[0].items[0].hidden = !cfg.groups[0].items[0].hidden;
     saveConfig(cfg);
     localStorage.removeItem(LS_KEY);
 
     const reloaded = loadConfig();
-    expect(reloaded.groups[0].items[0].hidden).toBe(false);
+    expect(reloaded.groups[0].items[0].hidden).toBe(defaultConfig.groups[0].items[0].hidden);
   });
 });
 
@@ -320,6 +327,6 @@ describe("saveConfig / loadConfig round-trip", () => {
 
 describe("localStorage key contract", () => {
   it("uses the canonical key", () => {
-    expect(LS_KEY).toBe("canopy.sidebar.config");
+    expect(LS_KEY).toBe("canopy.sidebar.config.v2");
   });
 });

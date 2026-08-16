@@ -1,0 +1,75 @@
+skill_id: objection-library
+skill_path: skills/objection-library/SKILL.md
+skill_name: "Encoded Objection Library Builder"
+
+tier: reasoning_ai
+category: sales
+temperature_gate: warm
+
+role_affinity:
+  - sales-head
+  - sales-scripter
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # icp/offer/positioning/voice docs + final library
+  - objections                         # structured objection entries + reframes + proof
+  - case_studies                       # isomorphic-fit proof per objection
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - 20_objections_minimum
+  - 6_category_coverage
+  - 3_layer_reframe_per_objection
+  - proof_stack_per_objection
+  - escalation_script_per_objection
+  - icp_section_10_sourced
+  - no_fabricated_case_studies
+  - voice_match_verified
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - copy_messaging.objection_handling_library
+
+output:
+  location: "output/objection-library/{date}-objection-library.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: objection-library
+    type: inform
+    format: markdown
+    structure: w-objection-library-6-category
+  receiver: closer + setter + founder
+
+next_skill_routing:
+  on_complete:
+    - condition: "library_shipped"
+      recommend: sales-script
+    - condition: "per_prospect_briefing_needed"
+      recommend: call-prep
+    - condition: "faq_update_needed"
+      recommend: landing-page
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  quarterly_refresh_required: true

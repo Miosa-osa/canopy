@@ -2,8 +2,7 @@ defmodule Canopy.Runtimes.GeminiLocal.Models do
   @moduledoc """
   Canonical Gemini model metadata — context windows, costs, capabilities.
 
-  Model IDs and labels sourced from Google Gemini API docs (April 2026) and
-  verified against Paperclip's `gemini-local` adapter `src/index.ts`.
+  Model IDs and labels sourced from Google Gemini API docs (April 2026).
 
   The default model is `"auto"` — the Gemini CLI selects the best model for
   the task when no explicit model is configured.

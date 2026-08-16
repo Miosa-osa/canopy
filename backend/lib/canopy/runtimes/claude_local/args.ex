@@ -3,9 +3,9 @@ defmodule Canopy.Runtimes.ClaudeLocal.Args do
   CLI argument construction for the Claude Local adapter.
 
   Translates an execution context map into the list of flags passed to the
-  `claude` binary.  Implements two Paperclip-derived optimisations:
+  `claude` binary.  Implements two key optimisations:
 
-  ## Triple-key resume (Paperclip pattern)
+  ## Triple-key resume
 
   A session is eligible for `--resume` only when three stored keys all match
   the current context:
@@ -55,7 +55,7 @@ defmodule Canopy.Runtimes.ClaudeLocal.Args do
       |> maybe_append(effort != "", ["--effort", effort])
       |> maybe_append(max_turns > 0, ["--max-turns", Integer.to_string(max_turns)])
       # Skip --append-system-prompt-file on resume — saves 5–10K tokens per heartbeat.
-      # Paperclip: "On resumed sessions the instructions are already in the session cache."
+      # On resumed sessions the instructions are already in the session cache.
       |> maybe_append(instructions_file != "" and resume_id == nil, [
         "--append-system-prompt-file",
         instructions_file

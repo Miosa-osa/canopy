@@ -99,6 +99,24 @@ defmodule CanopyWeb.FallbackController do
     })
   end
 
+  def call(conn, {:error, :no_target}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{
+      error: "no_target",
+      message: "No agent or session assigned to this task. Set an assignee first."
+    })
+  end
+
+  def call(conn, {:error, :runtime_unauthenticated}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{
+      error: "runtime_unauthenticated",
+      message: "The agent's runtime has no stored credentials. Authenticate the runtime first."
+    })
+  end
+
   def call(conn, {:error, reason}) when is_atom(reason) do
     conn
     |> put_status(:internal_server_error)

@@ -20,8 +20,8 @@ defmodule Canopy.Runtimes.CodexLocal.Args do
 
   ## Fast mode (GPT-5.4 only)
 
-  When `fast_mode` is enabled and the configured model is `gpt-5.4`, Paperclip
-  injects `service_tier="fast"` and `features.fast_mode=true` via `-c` flags.
+  When `fast_mode` is enabled and the configured model is `gpt-5.4`, the
+  adapter injects `service_tier="fast"` and `features.fast_mode=true` via `-c` flags.
   When the model is not `gpt-5.4`, fast_mode is silently ignored — the adapter
   logs a warning rather than failing the session.
 
@@ -111,7 +111,7 @@ defmodule Canopy.Runtimes.CodexLocal.Args do
   def maybe_append(args, false, _extra), do: args
 
   # Prepends `extra` before all other args when condition is true.
-  # Used for --search which must appear before `exec` per Paperclip reference.
+  # Used for --search which must appear before `exec`.
   @spec maybe_prepend([String.t()], boolean(), [String.t()]) :: [String.t()]
   defp maybe_prepend(args, true, extra), do: extra ++ args
   defp maybe_prepend(args, false, _extra), do: args

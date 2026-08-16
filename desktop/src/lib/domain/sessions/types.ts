@@ -1,5 +1,5 @@
 /**
- * Session domain types — TranscriptEntry discriminated union from Paperclip lift.
+ * Session domain types — TranscriptEntry discriminated union.
  * Matches the Elixir backend structs served at /api/v1/sessions.
  */
 
@@ -11,7 +11,7 @@ export type SessionStatus =
   | "cancelled"
   | "error";
 
-/** Discriminated union of all transcript entry kinds (Paperclip §7 lift) */
+/** Discriminated union of all transcript entry kinds */
 export type TranscriptEntry =
   | { id: string; kind: "assistant"; text: string; createdAt: string }
   | { id: string; kind: "thinking"; text: string; createdAt: string }
@@ -58,9 +58,21 @@ export type TranscriptEntry =
  *
  * NOTE: backend uses `completed_at` (not `ended_at`) and `parent_session_id` (not `parentId`).
  */
+/**
+ * Discriminator for sessions.
+ *  - "terminal"            — interactive shell (default for legacy rows)
+ *  - "agent_conversation"  — Build-pane agent transcript
+ *
+ * Rows created before the backend `kind` column shipped will surface as
+ * `null`; consumers should treat that as "terminal" for legacy compatibility.
+ */
+export type SessionKind = "terminal" | "agent_conversation";
+
 export interface Session {
   id: string;
   status: SessionStatus;
+  /** Discriminates terminal vs agent conversation. May be null on legacy rows. */
+  kind: SessionKind | null;
   agentSlug: string | null;
   runtimeType: string;
   modelId: string | null;
@@ -79,6 +91,10 @@ export interface Session {
   parentSessionId: string | null;
   sequenceNumber: number;
   externalSessionId: string | null;
+  /** Git worktree isolation — null when workspace is not a git repo */
+  worktreePath: string | null;
+  branch: string | null;
+  baseBranch: string | null;
   insertedAt: string;
   updatedAt: string;
 }
@@ -98,6 +114,10 @@ export interface CreateSessionBody {
   workspaceSlug?: string;
   prompt?: string;
   parentSessionId?: string;
+  /** Optional discriminator. Backend defaults to "terminal" when omitted. */
+  kind?: SessionKind;
+  /** Starts a live PTY-backed session; the terminal channel attaches on join. */
+  interactive?: boolean;
 }
 
 /** SSE event types from /sessions/:id/events */

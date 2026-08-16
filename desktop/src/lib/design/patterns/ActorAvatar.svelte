@@ -1,7 +1,7 @@
 <script lang="ts">
 /**
  * ActorAvatar — unified avatar for humans (initials) and agents (Bot icon).
- * Multica "teammates" pattern: UI-only unification, no data model polymorphism.
+ * UI-only unification, no data model polymorphism.
  * Per Roberto's "no human adapter" rule — humans and agents stay separate in data.
  * LOC target: ≤ 80.
  */

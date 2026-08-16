@@ -38,7 +38,15 @@ config :canopy, Oban,
     {Oban.Plugins.Cron,
      crontab: [
        # Hourly spend snapshots for all enabled budgets
-       {"0 * * * *", Canopy.Budgets.Snapshotter}
+       {"0 * * * *", Canopy.Budgets.Snapshotter},
+       # Sweep stale issue checkout locks every minute
+       {"* * * * *", Canopy.Issues.LockExpiryWorker},
+       # Sweep due routines and fire them every minute
+       {"* * * * *", Canopy.Routines.CronRunner},
+       # Auto-pickup loop — hired agents claim unclaimed kanban tasks
+       {"* * * * *", Canopy.Tasks.AutoPickup},
+       # Orchestrator sweep — stall detection + dep resolution + dispatch
+       {"* * * * *", Canopy.Orchestrator.AutoDispatchWorker}
      ]}
   ],
   queues: [default: 10, heartbeats: 5, sessions: 20]

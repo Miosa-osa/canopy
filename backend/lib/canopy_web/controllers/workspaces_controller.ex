@@ -3,11 +3,12 @@ defmodule CanopyWeb.WorkspacesController do
   HTTP API for Canopy workspace management.
 
   Routes:
-    GET  /api/v1/workspaces            — list all workspaces (not soft-deleted)
-    GET  /api/v1/workspaces/templates  — list available starter templates
-    GET  /api/v1/workspaces/:slug      — get a single workspace by slug
-    POST /api/v1/workspaces            — create workspace (optionally from template)
-    DELETE /api/v1/workspaces/:slug    — soft-delete a workspace
+    GET    /api/v1/workspaces            — list all workspaces (not soft-deleted)
+    GET    /api/v1/workspaces/templates  — list available starter templates
+    GET    /api/v1/workspaces/:slug      — get a single workspace by slug
+    POST   /api/v1/workspaces            — create workspace (optionally from template)
+    PATCH  /api/v1/workspaces/:slug      — update workspace name / root_path
+    DELETE /api/v1/workspaces/:slug      — soft-delete a workspace
   """
 
   use CanopyWeb, :controller
@@ -122,6 +123,47 @@ defmodule CanopyWeb.WorkspacesController do
     end
   end
 
+  operation :update,
+    summary: "Update a workspace",
+    description:
+      "Updates mutable fields on an existing workspace: `name` and/or `root_path`. " <>
+        "`root_path`, when supplied, must be an absolute path that exists on disk.",
+    parameters: [
+      slug: [in: :path, type: :string, required: true]
+    ],
+    request_body:
+      {"Workspace update params", "application/json", WorkspaceSchema.UpdateWorkspaceRequest},
+    responses: [
+      ok: {"Workspace updated", "application/json", WorkspaceSchema.WorkspaceDetail},
+      not_found: {"Not found", "application/json", WorkspaceSchema.ErrorResponse},
+      unprocessable_entity:
+        {"Validation error", "application/json", WorkspaceSchema.ErrorResponse}
+    ]
+
+  @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def update(conn, %{"slug" => slug} = params) do
+    attrs = Map.take(params, ["name", "root_path"])
+
+    case Workspaces.update_workspace(slug, attrs) do
+      {:ok, workspace} ->
+        json(conn, %{data: workspace})
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+
+      {:error, :root_path_not_found} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{
+          error: "root_path_not_found",
+          message: "The path '#{params["root_path"]}' does not exist or is not a directory."
+        })
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, changeset}
+    end
+  end
+
   operation :delete,
     summary: "Soft-delete a workspace",
     description: "Marks the workspace as deleted. Does not mutate the filesystem.",
@@ -137,6 +179,26 @@ defmodule CanopyWeb.WorkspacesController do
   def delete(conn, %{"slug" => slug}) do
     with {:ok, _workspace} <- Workspaces.delete(slug) do
       send_resp(conn, :no_content, "")
+    end
+  end
+
+  operation :detect,
+    summary: "Re-run stack detection and rules scan",
+    description:
+      "Re-runs stack auto-detection and project rules scanning on the workspace root, " <>
+        "updating `config.detected_stack` and `config.project_rules`.",
+    parameters: [
+      slug: [in: :path, type: :string, required: true]
+    ],
+    responses: [
+      ok: {"Updated workspace", "application/json", WorkspaceSchema.WorkspaceDetail},
+      not_found: {"Not found", "application/json", WorkspaceSchema.ErrorResponse}
+    ]
+
+  @spec detect(Plug.Conn.t(), map()) :: Plug.Conn.t()
+  def detect(conn, %{"slug" => slug}) do
+    with {:ok, workspace} <- Workspaces.detect_and_update(slug) do
+      json(conn, %{data: workspace})
     end
   end
 end

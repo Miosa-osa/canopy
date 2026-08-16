@@ -1,0 +1,72 @@
+skill_id: build-positioning
+skill_path: skills/build-positioning/SKILL.md
+skill_name: "Positioning Document Builder"
+
+tier: reasoning_ai
+category: foundations
+temperature_gate: warm
+
+role_affinity:
+  - foundations-head
+  - niche-architect
+  - offer-architect
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_search
+  - web_fetch
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - all_7_sections_complete
+  - mechanism_named_and_differentiated
+  - core_belief_statement_passes_3am_test
+  - narrative_passes_isomorphic_check
+  - market_sophistication_stage_matched
+  - signal_score_gte_0_8
+  - blind_output_test_passed
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - creator_identity_matrix
+    - offer_architecture
+  write:
+    - offer_architecture
+    - copy_messaging
+
+output:
+  location: "output/build-positioning/{date}-positioning-doc.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: positioning-doc
+    type: inform
+    format: markdown
+    structure: w-positioning-doc-7-section
+  receiver: creator
+
+next_skill_routing:
+  on_complete:
+    - condition: "positioning_complete"
+      recommend: design-offer
+    - condition: "brand_voice_not_extracted"
+      recommend: extract-voice
+  on_fail:
+    escalate_to: foundations-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

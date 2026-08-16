@@ -1,6 +1,6 @@
 <script lang="ts">
 /**
- * Root layout — inset card shell (Core-OSS pattern, docs/02-frontend-design.md §5).
+ * Root layout — inset card shell (docs/02-frontend-design.md §5).
  *
  * Responsibilities:
  *   1. Mount theme (load persisted, apply to <html>).
@@ -10,19 +10,28 @@
  */
 import '../app.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
+import { PanelLeft } from 'lucide-svelte';
 import { onMount } from 'svelte';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { syncRuntimesIfStale } from '$lib/bootstrap/runtime-sync.js';
 import CommandPalette from '$lib/design/patterns/CommandPalette.svelte';
+import KeywordSearchDialog from '$lib/design/patterns/keyword-search/KeywordSearchDialog.svelte';
+import NewSessionModal from '$lib/design/patterns/NewSessionModal.svelte';
 import NotificationBell from '$lib/design/patterns/NotificationBell.svelte';
 import Sidebar from '$lib/design/patterns/Sidebar.svelte';
 import ToastContainer from '$lib/design/patterns/ToastContainer.svelte';
+import WorkspaceRail from '$lib/design/patterns/WorkspaceRail.svelte';
 import WorkspaceSwitcher from '$lib/design/patterns/WorkspaceSwitcher.svelte';
 import ThemeToggle from '$lib/design/primitives/ThemeToggle.svelte';
 import { loadPersistedTheme, persistTheme } from '$lib/stores/theme-persistence.js';
+import { themeRegistry } from '$lib/stores/theme-registry.svelte.js';
 import { ui } from '$lib/stores/ui.svelte.js';
 import { handleGlobalShortcut } from '$lib/utils/keyboard.js';
+
+// Force the theme-registry to initialize on app boot — it applies
+// CSS vars + data-theme + .dark class, overriding the legacy theme store.
+void themeRegistry.activeThemeId;
 
 let { children } = $props();
 
@@ -77,10 +86,28 @@ $effect(() => {
 
 /** Extend global shortcuts — ⌘K for command palette. */
 function handleKeydown(e: KeyboardEvent): void {
+  // ⌘N — new session modal
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'n') {
+    e.preventDefault();
+    ui.openNewSessionModal();
+    return;
+  }
   // ⌘K — command palette
   if (e.metaKey && !e.shiftKey && e.key === 'k') {
     e.preventDefault();
     ui.openCommandPalette();
+    return;
+  }
+  // ⌘/ — keyword search across sessions, agents, workspaces
+  if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+    e.preventDefault();
+    ui.openKeywordSearch();
+    return;
+  }
+  // ⌘\ — toggle sidebar collapse
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === '\\') {
+    e.preventDefault();
+    ui.toggleSidebar();
     return;
   }
   // ⌘, — settings
@@ -92,7 +119,7 @@ function handleKeydown(e: KeyboardEvent): void {
   // ⌘1–5 — section jumps
   if (e.metaKey && !e.shiftKey) {
     const sectionMap: Record<string, string> = {
-      '1': '/',
+      '1': '/home',
       '2': '/runtimes',
       '3': '/sessions',
       '4': '/agents',
@@ -126,7 +153,19 @@ function handleKeydown(e: KeyboardEvent): void {
       aria-label="Primary navigation"
     >
       <div class="sidebar-wordmark">
-        <span class="wordmark-text">Canopy</span>
+        {#if !ui.sidebarCollapsed}
+          <span class="wordmark-text">Canopy</span>
+        {/if}
+        <button
+          class="btn-compact btn-compact-ghost btn-compact-icon sidebar-collapse-toggle"
+          class:sidebar-collapse-toggle--collapsed={ui.sidebarCollapsed}
+          onclick={() => ui.toggleSidebar()}
+          aria-label={ui.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!ui.sidebarCollapsed}
+          title={ui.sidebarCollapsed ? 'Expand sidebar (⌘\\)' : 'Collapse sidebar (⌘\\)'}
+        >
+          <PanelLeft size={14} aria-hidden="true" />
+        </button>
       </div>
 
       <Sidebar />
@@ -167,6 +206,10 @@ function handleKeydown(e: KeyboardEvent): void {
       </div>
     </aside>
 
+    {#if ui.showWorkspaceRail}
+      <WorkspaceRail />
+    {/if}
+
     <div class="main-container">
       <main class="glass-panel">
         {@render children()}
@@ -177,6 +220,8 @@ function handleKeydown(e: KeyboardEvent): void {
 
   <!-- Global overlays (present on every route, including /onboarding) -->
   <CommandPalette />
+  <KeywordSearchDialog open={ui.keywordSearchOpen} onclose={() => ui.closeKeywordSearch()} />
+  <NewSessionModal open={ui.newSessionModalOpen} onClose={() => ui.closeNewSessionModal()} />
   <ThemeToggle />
   <ToastContainer />
 </QueryClientProvider>
@@ -205,16 +250,23 @@ function handleKeydown(e: KeyboardEvent): void {
   }
 
   .sidebar.collapsed {
-    width: 48px;
+    width: 56px;
   }
 
   .sidebar-wordmark {
     padding: var(--space-4) var(--space-3);
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: var(--space-2);
     min-height: 48px;
     flex-shrink: 0;
+  }
+
+  .sidebar.collapsed .sidebar-wordmark {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .wordmark-text {
@@ -227,9 +279,13 @@ function handleKeydown(e: KeyboardEvent): void {
     transition: opacity var(--dur-fast) var(--ease-out);
   }
 
-  .sidebar.collapsed .wordmark-text {
-    opacity: 0;
-    pointer-events: none;
+  .sidebar-collapse-toggle {
+    flex-shrink: 0;
+    transition: transform var(--dur-normal) var(--ease-io);
+  }
+
+  .sidebar-collapse-toggle--collapsed {
+    transform: rotate(180deg);
   }
 
   .sidebar-footer {

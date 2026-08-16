@@ -419,4 +419,94 @@ defmodule CanopyWeb.SessionsControllerTest do
       assert seqs == [3, 4]
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # POST /api/v1/sessions/:id/messages
+  # ---------------------------------------------------------------------------
+
+  describe "POST /api/v1/sessions/:id/messages" do
+    test "returns 200 with status sent for existing session", %{conn: conn} do
+      session = insert(:session)
+
+      conn =
+        post(conn, "/api/v1/sessions/#{session.id}/messages", %{content: "ls -la"})
+
+      assert body = json_response(conn, 200)
+      assert body["status"] == "sent"
+      assert body["session_id"] == session.id
+    end
+
+    test "accepts 'message' param as alias for content", %{conn: conn} do
+      session = insert(:session)
+
+      conn =
+        post(conn, "/api/v1/sessions/#{session.id}/messages", %{message: "pwd"})
+
+      assert body = json_response(conn, 200)
+      assert body["status"] == "sent"
+    end
+
+    test "persists message to session transcript", %{conn: conn} do
+      session = insert(:session)
+
+      post(conn, "/api/v1/sessions/#{session.id}/messages", %{content: "echo hello"})
+
+      {:ok, msgs} = Sessions.list_messages(session.id)
+      assert Enum.any?(msgs, fn m -> m.kind == "user_input" end)
+    end
+
+    test "returns 404 for non-existent session", %{conn: conn} do
+      conn =
+        post(conn, "/api/v1/sessions/#{Ecto.UUID.generate()}/messages", %{content: "hello"})
+
+      assert json_response(conn, 404)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # POST /api/v1/sessions/:id/inject
+  # ---------------------------------------------------------------------------
+
+  describe "POST /api/v1/sessions/:id/inject" do
+    test "returns 200 with status injected for existing session", %{conn: conn} do
+      session = insert(:session)
+
+      conn =
+        post(conn, "/api/v1/sessions/#{session.id}/inject", %{
+          from_agent: "orchestrator",
+          content: "run tests"
+        })
+
+      assert body = json_response(conn, 200)
+      assert body["status"] == "injected"
+      assert body["session_id"] == session.id
+      assert body["from_agent"] == "orchestrator"
+    end
+
+    test "persists injection with from_agent metadata", %{conn: conn} do
+      session = insert(:session)
+
+      post(conn, "/api/v1/sessions/#{session.id}/inject", %{
+        from_agent: "planner",
+        content: "mix test"
+      })
+
+      {:ok, msgs} = Sessions.list_messages(session.id)
+
+      assert Enum.any?(msgs, fn m ->
+               m.kind == "agent_injection" and
+                 get_in(m.content, ["from_agent"]) == "planner"
+             end)
+    end
+
+    test "returns 404 for non-existent session", %{conn: conn} do
+      conn =
+        post(conn, "/api/v1/sessions/#{Ecto.UUID.generate()}/inject", %{
+          from_agent: "agent",
+          content: "hello"
+        })
+
+      assert json_response(conn, 404)
+    end
+  end
 end

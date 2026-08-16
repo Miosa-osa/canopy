@@ -1,0 +1,81 @@
+skill_id: application-form
+skill_path: skills/application-form/SKILL.md
+skill_name: "Application Form Builder"
+
+tier: structured_ai
+category: sales
+temperature_gate: warm
+
+role_affinity:
+  - sales-head
+  - sales-ops
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # offer/icp/funnel/voice docs + final form
+  - applications                       # application submissions
+  - prospects                          # prospect record
+  - campaigns                          # form tied to funnel + campaign
+  - form_schema                        # structured question + DQ + branching metadata
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+
+execution_mode: interactive
+temperature: 0.4
+
+evidence_gate:
+  - archetype_selected_with_reasoning
+  - 8_to_12_questions_total
+  - qualification_signals_captured
+  - disqualification_logic_specified
+  - show_rate_optimized_questions
+  - close_rate_optimized_questions
+  - refund_prevention_questions
+  - call_prep_signal_captured
+  - voice_match_verified
+  - signal_score_gte_0_7
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - conversion_sales_systems
+    - funnel_systems
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - conversion_sales_systems.application_qualification
+    - funnel_systems.active_funnels
+
+output:
+  location: "output/application-form/{date}-application-form-archetype-{A1|A2|A3}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: application-form
+    type: inform
+    format: markdown
+    structure: w-application-form-schema-w-dq-logic
+  receiver: prospect + closer + setter
+
+next_skill_routing:
+  on_complete:
+    - condition: "calendar_confirmed"
+      recommend: post-booking-nurture
+    - condition: "per_prospect_briefing"
+      recommend: call-prep
+    - condition: "dq_nurture_flow_needed"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  completion_rate_tracked: true
+  show_rate_tracked: true
+  close_rate_tracked: true
+  blind_output_test_required: true

@@ -194,6 +194,8 @@ defmodule Mix.Tasks.Canopy.Seed.Skills do
        "name" => frontmatter["name"] || slug,
        "description" => frontmatter["description"],
        "provider_format" => frontmatter["provider_format"] || "generic",
+       "kind" => frontmatter["kind"] || "prompt",
+       "frontmatter" => frontmatter,
        "content" => content,
        "source" => "local",
        "tags" => frontmatter["tags"] || [],

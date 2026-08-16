@@ -23,4 +23,6 @@ export interface Sandbox {
   url: string | null;
   /** Sandbox lifecycle status */
   status: SandboxStatus;
+  /** ISO 8601 timestamp when the sandbox record was created */
+  inserted_at: string | null;
 }

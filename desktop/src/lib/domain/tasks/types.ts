@@ -29,6 +29,8 @@ export interface Task {
   completedAt: string | null;
   labels: string[];
   parentId: string | null;
+  /** Non-null when a governance rule queued this task for human review. */
+  reviewId: string | null;
   insertedAt: string;
   updatedAt: string;
 }

@@ -3,9 +3,9 @@ defmodule Canopy.Skills do
   Public API for Canopy skill management.
 
   A skill is a markdown bundle stored in Postgres and injected into agent execution
-  environments at runtime. The `content_hash` (SHA256) enables the Paperclip
-  bundle-key optimization: if the hash matches the stored `prompt_bundle_key` on a
-  session, skill injection is skipped entirely — saving 5–10K tokens per heartbeat.
+  environments at runtime. The `content_hash` (SHA256) enables a bundle-key
+  optimization: if the hash matches the stored `prompt_bundle_key` on a session,
+  skill injection is skipped entirely — saving 5–10K tokens per heartbeat.
 
   Skills are importable from external registries (clawhub, skills_sh) via the
   `Registry.*` modules, or seeded locally from `priv/skills/` via `mix canopy.seed.skills`.
@@ -19,6 +19,7 @@ defmodule Canopy.Skills do
   import Ecto.Query, only: [from: 2]
 
   alias Canopy.Repo
+  alias Canopy.Skills.AgentSkillAssignment
   alias Canopy.Skills.Skill
 
   @doc """
@@ -36,6 +37,7 @@ defmodule Canopy.Skills do
       |> apply_source_filter(Keyword.get(opts, :source))
       |> apply_enabled_filter(Keyword.get(opts, :enabled))
       |> apply_tag_filter(Keyword.get(opts, :tag))
+      |> apply_kind_filter(Keyword.get(opts, :kind))
 
     {:ok, Repo.all(query)}
   end
@@ -94,7 +96,7 @@ defmodule Canopy.Skills do
 
   Accepts a list of `Skill` structs (or fetches all enabled skills when given slugs).
   The key is derived from sorted, concatenated content — identical content = identical
-  key = session skip re-injection. Matches the Paperclip `prompt_bundle_key` pattern.
+  key = session skip re-injection.
   """
   @spec bundle_key([Skill.t()] | [String.t()]) :: {:ok, String.t()}
   def bundle_key([]), do: {:ok, hash("")}
@@ -138,6 +140,73 @@ defmodule Canopy.Skills do
     end)
   end
 
+  # ---------------------------------------------------------------------------
+  # Agent ↔ Skill assignment
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Returns all skill assignments for an agent, with joined skill data.
+
+  Ordered by priority ascending, then skill slug for stable ordering.
+  """
+  @spec list_assignments(String.t()) :: {:ok, [map()]}
+  def list_assignments(agent_slug) do
+    rows =
+      Repo.all(
+        from(a in AgentSkillAssignment,
+          join: s in Skill,
+          on: s.slug == a.skill_slug,
+          where: a.agent_slug == ^agent_slug,
+          order_by: [asc: a.priority, asc: s.slug],
+          select: %{
+            id: a.id,
+            agent_slug: a.agent_slug,
+            skill_slug: a.skill_slug,
+            priority: a.priority,
+            enabled: a.enabled,
+            inserted_at: a.inserted_at,
+            skill: s
+          }
+        )
+      )
+
+    {:ok, rows}
+  end
+
+  @doc """
+  Assigns a skill to an agent.
+
+  Returns `{:ok, assignment}` or `{:error, changeset}` if already assigned
+  or invalid.
+  """
+  @spec assign(String.t(), String.t(), keyword()) ::
+          {:ok, AgentSkillAssignment.t()} | {:error, Ecto.Changeset.t()}
+  def assign(agent_slug, skill_slug, opts \\ []) do
+    priority = Keyword.get(opts, :priority, 0)
+
+    %AgentSkillAssignment{}
+    |> AgentSkillAssignment.changeset(%{
+      agent_slug: agent_slug,
+      skill_slug: skill_slug,
+      priority: priority
+    })
+    |> Repo.insert()
+  end
+
+  @doc """
+  Removes a skill assignment for an agent.
+
+  Returns `{:ok, assignment}` or `{:error, :not_found}`.
+  """
+  @spec unassign(String.t(), String.t()) ::
+          {:ok, AgentSkillAssignment.t()} | {:error, :not_found}
+  def unassign(agent_slug, skill_slug) do
+    case Repo.get_by(AgentSkillAssignment, agent_slug: agent_slug, skill_slug: skill_slug) do
+      nil -> {:error, :not_found}
+      assignment -> Repo.delete(assignment)
+    end
+  end
+
   @doc """
   Upserts a skill by slug (insert or update on conflict).
 
@@ -171,6 +240,10 @@ defmodule Canopy.Skills do
 
   defp apply_tag_filter(query, tag),
     do: from(s in query, where: ^tag in s.tags)
+
+  @spec apply_kind_filter(Ecto.Query.t(), String.t() | nil) :: Ecto.Query.t()
+  defp apply_kind_filter(query, nil), do: query
+  defp apply_kind_filter(query, kind), do: from(s in query, where: s.kind == ^kind)
 
   @spec maybe_hash(map()) :: map()
   defp maybe_hash(%{"content" => content} = attrs) when is_binary(content),

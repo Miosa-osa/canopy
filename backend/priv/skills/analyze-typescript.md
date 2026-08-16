@@ -16,7 +16,7 @@ When encountering TypeScript errors or unexpected runtime behavior, follow this 
 
 - **Type errors** (`TS2xxx`): Check type assignments, generics, and inference chains. Run `tsc --noEmit` for the full list.
 - **Runtime errors**: Check for `undefined` access on optional fields, missing null guards, and async/await misuse.
-- **Build errors**: Check `tsconfig.json` `strict` flags — especially `strictNullChecks` and `noImplicitAny`.
+- **Build errors**: Check `tsconfig.json` `strict` flags - especially `strictNullChecks` and `noImplicitAny`.
 
 ### 2. Trace the type chain
 
@@ -40,7 +40,7 @@ Canopy backend-generated types (from OpenAPI) are strict. Never cast with `as an
 
 ### 4. Verify generated types are current
 
-Run `pnpm -C desktop typecheck` — if it fails on import paths from `@canopyai/types`, the OpenAPI spec may be stale. Regenerate with `mix canopy.gen.openapi`.
+Run `pnpm -C desktop typecheck` - if it fails on import paths from `@canopyai/types`, the OpenAPI spec may be stale. Regenerate with `mix canopy.gen.openapi`.
 
 ### Resolution checklist
 

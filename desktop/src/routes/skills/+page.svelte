@@ -22,7 +22,7 @@ import {
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-import type { ImportSkillBody, ImportSkillResponse, Skill, SkillFilters, SkillSource } from '$lib/domain/skills/types.js';
+import type { ImportSkillBody, ImportSkillResponse, Skill, SkillFilters, SkillKind, SkillSource } from '$lib/domain/skills/types.js';
 import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
 
 const queryClient = useQueryClient();
@@ -31,10 +31,12 @@ const queryClient = useQueryClient();
 
 let searchQuery = $state('');
 let sourceFilter = $state<SkillSource | 'all'>('all');
+let kindFilter = $state<SkillKind | 'all'>('all');
 let enabledFilter = $state<boolean | undefined>(undefined);
 
 const filters = $derived<SkillFilters>({
   source: sourceFilter === 'all' ? undefined : sourceFilter,
+  kind: kindFilter === 'all' ? undefined : kindFilter,
   enabled: enabledFilter,
 });
 
@@ -76,6 +78,13 @@ const SOURCE_CHIPS: Array<{ value: SkillSource | 'all'; label: string }> = [
   { value: 'local', label: 'Local' },
   { value: 'clawhub', label: 'Clawhub' },
   { value: 'skills_sh', label: 'Skills.sh' },
+];
+
+const KIND_CHIPS: Array<{ value: SkillKind | 'all'; label: string }> = [
+  { value: 'all', label: 'All kinds' },
+  { value: 'prompt', label: 'Prompt' },
+  { value: 'workflow', label: 'Workflow' },
+  { value: 'reference', label: 'Reference' },
 ];
 
 // ── Inline import panel ───────────────────────────────────────────────────────
@@ -131,7 +140,6 @@ function sourceLabel(source: SkillSource): string {
   role="region"
   aria-label="Skills list"
   onkeydown={kb.handleKeydown}
-  tabindex="0"
 >
   <!-- Header -->
   <header class="skl-header">
@@ -169,6 +177,19 @@ function sourceLabel(source: SkillSource): string {
             class:skl-source-chip--active={sourceFilter === chip.value}
             onclick={() => { sourceFilter = chip.value; }}
             aria-pressed={sourceFilter === chip.value}
+          >
+            {chip.label}
+          </button>
+        {/each}
+      </div>
+
+      <div class="skl-source-chips" role="group" aria-label="Filter by kind">
+        {#each KIND_CHIPS as chip (chip.value)}
+          <button
+            class="btn-pill btn-pill-xs skl-source-chip"
+            class:skl-source-chip--active={kindFilter === chip.value}
+            onclick={() => { kindFilter = chip.value; }}
+            aria-pressed={kindFilter === chip.value}
           >
             {chip.label}
           </button>
@@ -261,6 +282,7 @@ function sourceLabel(source: SkillSource): string {
               <StatusDot color={skill.enabled ? 'green' : 'grey'} />
               <span class="skl-slug">{skill.slug}</span>
               <span class="skl-name">{skill.name}</span>
+              <span class="skl-kind-pill skl-kind-pill--{skill.kind}">{skill.kind}</span>
               <span class="skl-source-badge">{sourceLabel(skill.source)}</span>
               <time class="skl-date" datetime={skill.updated_at}>
                 {formatRelative(skill.updated_at)}
@@ -539,5 +561,39 @@ function sourceLabel(source: SkillSource): string {
     color: var(--fg-subtle);
     flex-shrink: 0;
     white-space: nowrap;
+  }
+
+  /* ── Kind pill ── */
+
+  .skl-kind-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    border-radius: 9999px;
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+  }
+
+  .skl-kind-pill--prompt {
+    background: color-mix(in oklch, oklch(0.55 0.18 250) 12%, transparent);
+    border-color: color-mix(in oklch, oklch(0.55 0.18 250) 25%, transparent);
+    color: oklch(0.55 0.18 250);
+  }
+
+  .skl-kind-pill--workflow {
+    background: color-mix(in oklch, oklch(0.65 0.15 150) 12%, transparent);
+    border-color: color-mix(in oklch, oklch(0.65 0.15 150) 25%, transparent);
+    color: oklch(0.55 0.15 150);
+  }
+
+  .skl-kind-pill--reference {
+    background: color-mix(in oklch, var(--fg) 7%, transparent);
+    border-color: var(--border);
+    color: var(--fg-muted);
   }
 </style>

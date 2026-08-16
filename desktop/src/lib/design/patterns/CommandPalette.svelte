@@ -1,6 +1,6 @@
 <script lang="ts">
 /**
- * CommandPalette — global ⌘K overlay (Core-OSS lift).
+ * CommandPalette — global ⌘K overlay.
  * Grouped commands catalog from docs/02-frontend-design.md §7.
  * Week 4: fuzzy scoring, recency LRU (last 8 invocations), match highlighting.
  *

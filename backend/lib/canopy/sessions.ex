@@ -6,8 +6,8 @@ defmodule Canopy.Sessions do
   submitted, the subprocess runs, and a structured transcript is captured via
   `SessionMessage` records. Sessions form chains via `parent_session_id`.
 
-  The Paperclip triple-key resume pattern uses `id + cwd + prompt_bundle_key`
-  to decide whether a session can be resumed without re-injecting skills.
+  The triple-key resume pattern uses `id + cwd + prompt_bundle_key` to decide
+  whether a session can be resumed without re-injecting skills.
 
   ## Governance and Budget Gates
 
@@ -28,10 +28,20 @@ defmodule Canopy.Sessions do
 
   import Ecto.Query, only: [from: 2]
 
+  alias Canopy.Analytics.Emitter
   alias Canopy.Budgets
   alias Canopy.Governance
   alias Canopy.Repo
-  alias Canopy.Sessions.{Redaction, Resume, Session, SessionMessage}
+
+  alias Canopy.Sessions.{
+    PtyBridge,
+    Redaction,
+    Resume,
+    ScrollbackSupervisor,
+    Session,
+    SessionMessage,
+    WorktreeManager
+  }
 
   require Logger
 
@@ -145,15 +155,129 @@ defmodule Canopy.Sessions do
     end
   end
 
-  # Inserts the session row and triggers MIOSA sandbox provisioning.
+  # Inserts the session row, provisions a git worktree when the workspace is a
+  # git repo, and triggers MIOSA sandbox provisioning.
+  #
+  # When `interactive: true` is set in original_attrs, the full SpawnPipeline is
+  # invoked after insert — this wires skills, run records, CANOPY_* env vars, and
+  # the pty in one atomic sequence.
+  #
+  # For non-interactive sessions (API-driven, background jobs), the legacy path
+  # is preserved: worktree + scrollback only, no pty.
   @spec do_insert(map(), map()) :: {:ok, Session.t()} | {:error, Ecto.Changeset.t()}
   defp do_insert(attrs_with_resume, original_attrs) do
+    interactive =
+      Map.get(original_attrs, :interactive) || Map.get(original_attrs, "interactive") || false
+
     with {:ok, session} <-
            %Session{}
            |> Session.changeset(attrs_with_resume)
            |> Repo.insert() do
-      maybe_provision_miosa_sandbox(session, original_attrs)
-      {:ok, session}
+      Emitter.session_created(%{
+        session_id: session.id,
+        agent_id: nil,
+        workspace_slug: session.workspace_slug,
+        runtime: session.runtime_type,
+        payload: %{"agent_slug" => session.agent_slug}
+      })
+
+      if interactive do
+        # Full pipeline: run + worktree + env + pty + scrollback + status
+        wake_reason =
+          Map.get(original_attrs, :wake_reason) ||
+            Map.get(original_attrs, "wake_reason") ||
+            "user_prompt"
+
+        approval_id =
+          Map.get(original_attrs, :approval_id) || Map.get(original_attrs, "approval_id")
+
+        parent_session_id =
+          Map.get(original_attrs, :parent_session_id) ||
+            Map.get(original_attrs, "parent_session_id")
+
+        case Canopy.Agents.SpawnPipeline.spawn(session,
+               wake_reason: wake_reason,
+               approval_id: approval_id,
+               parent_session_id: parent_session_id
+             ) do
+          {:ok, %{session: spawned_session}} ->
+            maybe_provision_miosa_sandbox(spawned_session, original_attrs)
+            {:ok, spawned_session}
+
+          {:error, _stage, _reason} ->
+            # Pipeline failure is already logged and rolled back. Return the
+            # bare session so callers can surface the error_reason via status.
+            maybe_provision_miosa_sandbox(session, original_attrs)
+            {:ok, session}
+        end
+      else
+        # Legacy path: worktree + scrollback only; pty is not started.
+        session = maybe_create_worktree(session, original_attrs)
+        maybe_provision_miosa_sandbox(session, original_attrs)
+        ScrollbackSupervisor.start_child(session.id)
+        {:ok, session}
+      end
+    end
+  end
+
+  # Attempts to create a git worktree for this session when the workspace has a
+  # root_path that is a git repository. On failure: logs a warning and proceeds
+  # with nil worktree fields (plain root_path used as pty cwd).
+  @spec maybe_create_worktree(Session.t(), map()) :: Session.t()
+  defp maybe_create_worktree(session, original_attrs) do
+    workspace_slug =
+      Map.get(original_attrs, :workspace_slug) ||
+        Map.get(original_attrs, "workspace_slug")
+
+    root_path = resolve_workspace_root(workspace_slug)
+
+    cond do
+      is_nil(root_path) ->
+        session
+
+      not WorktreeManager.is_git_repo?(root_path) ->
+        Logger.debug(
+          "[Sessions] workspace not a git repo, skipping worktree session=#{session.id} root=#{root_path}"
+        )
+
+        session
+
+      true ->
+        branch = WorktreeManager.branch_name(session.id)
+
+        case WorktreeManager.create_worktree(session.id, root_path, branch) do
+          {:ok, %{path: path, branch: branch, base_branch: base_branch}} ->
+            {:ok, updated} =
+              session
+              |> Session.worktree_changeset(%{
+                worktree_path: path,
+                branch: branch,
+                base_branch: base_branch
+              })
+              |> Repo.update()
+
+            updated
+
+          {:error, reason} ->
+            Logger.warning(
+              "[Sessions] worktree creation failed session=#{session.id}: #{inspect(reason)} — proceeding with plain cwd"
+            )
+
+            session
+        end
+    end
+  end
+
+  # Resolves a workspace slug to its root_path. Returns nil when slug is blank
+  # or the workspace is not found.
+  @spec resolve_workspace_root(String.t() | nil) :: String.t() | nil
+  defp resolve_workspace_root(nil), do: nil
+  defp resolve_workspace_root(""), do: nil
+
+  defp resolve_workspace_root(slug) do
+    case Canopy.Workspaces.get_by_slug(slug) do
+      {:ok, workspace} -> workspace.root_path
+      _ -> nil
     end
   end
 
@@ -244,6 +368,198 @@ defmodule Canopy.Sessions do
     :ok
   end
 
+  @doc """
+  Removes the git worktree for `session_id` and nulls the worktree fields.
+
+  Options:
+  - `:keep_branch` — passed to WorktreeManager.cleanup/2 (default false)
+
+  Returns `{:ok, session}` on success, `{:error, :not_found}` if the session
+  doesn't exist, or `{:error, reason}` on git failure (worktree fields are
+  still cleared so they don't point to a stale path).
+  """
+  @spec cleanup_worktree(binary(), keyword()) ::
+          {:ok, Session.t()} | {:error, :not_found | term()}
+  def cleanup_worktree(id, opts \\ []) do
+    case Repo.get(Session, id) do
+      nil ->
+        {:error, :not_found}
+
+      session ->
+        git_result =
+          if session.worktree_path do
+            WorktreeManager.cleanup(id, opts)
+          else
+            :ok
+          end
+
+        case git_result do
+          :ok ->
+            session
+            |> Session.worktree_changeset(%{worktree_path: nil, branch: nil, base_branch: nil})
+            |> Repo.update()
+
+          {:error, reason} ->
+            Logger.warning(
+              "[Sessions] cleanup_worktree git error session=#{id}: #{inspect(reason)} — clearing fields anyway"
+            )
+
+            session
+            |> Session.worktree_changeset(%{worktree_path: nil, branch: nil, base_branch: nil})
+            |> Repo.update()
+        end
+    end
+  end
+
+  @doc """
+  Deletes a session record. Cancels the pty if running, cleans up the worktree,
+  and stops the scrollback store.
+
+  Returns `{:ok, session}` or `{:error, :not_found | changeset}`.
+  """
+  @spec delete(binary()) :: {:ok, Session.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def delete(id) do
+    case Repo.get(Session, id) do
+      nil ->
+        {:error, :not_found}
+
+      session ->
+        if session.status == "running" do
+          PtyBridge.stop(id)
+        end
+
+        if session.worktree_path do
+          case WorktreeManager.cleanup(id, keep_branch: false) do
+            :ok ->
+              :ok
+
+            {:error, reason} ->
+              Logger.warning(
+                "[Sessions] delete worktree cleanup failed session=#{id}: #{inspect(reason)}"
+              )
+          end
+        end
+
+        delete_scrollback(id)
+
+        Repo.delete(session)
+    end
+  end
+
+  @doc """
+  Stops the ScrollbackStore for `session_id` and removes the log file.
+
+  Call this for explicit cleanup. `Sessions.create/1` starts the store;
+  deletion is intentionally separate because the log is useful post-exit.
+  Returns `:ok` regardless of whether the store was running.
+  """
+  @spec delete_scrollback(binary()) :: :ok
+  def delete_scrollback(session_id) do
+    ScrollbackSupervisor.stop_child(session_id)
+    path = Path.join([System.user_home!(), ".canopy", "scrollback", "#{session_id}.log"])
+    File.rm(path)
+    :ok
+  end
+
+  @doc """
+  Marks the session `paused` and tells the PtyBridge to buffer output.
+  The pty subprocess keeps running. Returns `{:ok, session}` or `{:error, :not_found}`.
+  """
+  @spec pause(binary()) :: {:ok, Session.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def pause(id) do
+    with {:ok, session} <- update_status(id, "paused") do
+      PtyBridge.pause(id)
+      {:ok, session}
+    end
+  end
+
+  @doc """
+  Marks the session `running` and flushes the PtyBridge output buffer to subscribers.
+  Returns `{:ok, session}` or `{:error, :not_found}`.
+  """
+  @spec resume(binary()) :: {:ok, Session.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def resume(id) do
+    with {:ok, session} <- update_status(id, "running") do
+      PtyBridge.resume(id)
+      {:ok, session}
+    end
+  end
+
+  @doc """
+  Kills the pty subprocess and marks the session `cancelled`.
+  No-op if the session is already in a terminal state.
+  Returns `{:ok, session}` or `{:error, :not_found}`.
+  """
+  @spec stop(binary()) :: {:ok, Session.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def stop(id) do
+    with {:ok, session} <- get(id) do
+      PtyBridge.stop(id)
+
+      if session.status not in ~w(completed cancelled failed) do
+        result = update_status(id, "cancelled")
+
+        Emitter.session_cancelled(%{
+          session_id: id,
+          workspace_slug: session.workspace_slug,
+          runtime: session.runtime_type,
+          payload: %{"agent_slug" => session.agent_slug, "previous_status" => session.status}
+        })
+
+        _ = maybe_flush_breadcrumbs(id)
+
+        result
+      else
+        {:ok, session}
+      end
+    end
+  end
+
+  @doc """
+  Bulk-deletes sessions matching the given filters.
+
+  Accepts any combination of:
+  - `:status` — e.g. `"ended"`, `"failed"`, `"cancelled"`, `"completed"`
+  - `:before` — ISO8601 datetime string; only sessions inserted before this
+    timestamp are deleted.
+
+  Running sessions are never deleted by this function; callers must stop them
+  first if needed.
+
+  Returns `{:ok, count}` where `count` is the number of rows deleted.
+  """
+  @spec bulk_delete(keyword()) :: {:ok, non_neg_integer()}
+  def bulk_delete(filters \\ []) do
+    terminal_statuses = ~w(ended failed cancelled completed)
+
+    query =
+      from(s in Session,
+        where: s.status in ^terminal_statuses
+      )
+      |> apply_bulk_filter(:status, Keyword.get(filters, :status))
+      |> apply_bulk_before_filter(Keyword.get(filters, :before))
+
+    {count, _} = Repo.delete_all(query)
+    {:ok, count}
+  end
+
+  defp apply_bulk_filter(query, _field, nil), do: query
+
+  defp apply_bulk_filter(query, :status, val) when val in ~w(ended failed cancelled completed) do
+    from(s in query, where: s.status == ^val)
+  end
+
+  # Silently ignore unrecognized statuses (safety guard).
+  defp apply_bulk_filter(query, :status, _val), do: query
+
+  defp apply_bulk_before_filter(query, nil), do: query
+
+  defp apply_bulk_before_filter(query, before_str) do
+    case DateTime.from_iso8601(before_str) do
+      {:ok, dt, _offset} -> from(s in query, where: s.inserted_at < ^dt)
+      _error -> query
+    end
+  end
+
   @doc "Returns the session by id, or `{:error, :not_found}`."
   @spec get(binary()) :: {:ok, Session.t()} | {:error, :not_found}
   def get(id) do
@@ -287,6 +603,7 @@ defmodule Canopy.Sessions do
 
   Options:
   - `:status` — filter by session status
+  - `:kind` — filter by session kind (`terminal`, `agent_conversation`)
   - `:runtime` — filter by runtime_type
   - `:workspace` — filter by workspace_slug
   - `:limit` — max results (default 50)
@@ -299,6 +616,7 @@ defmodule Canopy.Sessions do
     query =
       from(s in Session, order_by: [desc: s.inserted_at], limit: ^limit)
       |> apply_session_filter(:status, Keyword.get(opts, :status))
+      |> apply_session_filter(:kind, Keyword.get(opts, :kind))
       |> apply_session_filter(:runtime, Keyword.get(opts, :runtime))
       |> apply_session_filter(:workspace, Keyword.get(opts, :workspace))
       |> apply_cursor_filter(Keyword.get(opts, :cursor))
@@ -356,9 +674,32 @@ defmodule Canopy.Sessions do
         finalize_attrs =
           Map.merge(attrs, %{status: "completed", completed_at: DateTime.utc_now()})
 
-        session
-        |> Session.finalize_changeset(finalize_attrs)
-        |> Repo.update()
+        result =
+          session
+          |> Session.finalize_changeset(finalize_attrs)
+          |> Repo.update()
+
+        case result do
+          {:ok, finalized} ->
+            duration_ms = compute_session_duration_ms(finalized)
+
+            Emitter.session_completed(%{
+              session_id: finalized.id,
+              workspace_slug: finalized.workspace_slug,
+              runtime: finalized.runtime_type,
+              duration_ms: duration_ms,
+              cost_cents: cost_to_cents(finalized.cost_usd),
+              payload: %{"agent_slug" => finalized.agent_slug}
+            })
+
+            # Best-effort: flush this run's breadcrumbs to disk on completion.
+            _ = maybe_flush_breadcrumbs(finalized.id)
+
+            {:ok, finalized}
+
+          other ->
+            other
+        end
     end
   end
 
@@ -430,6 +771,7 @@ defmodule Canopy.Sessions do
 
   defp apply_session_filter(query, _field, nil), do: query
   defp apply_session_filter(query, :status, val), do: from(s in query, where: s.status == ^val)
+  defp apply_session_filter(query, :kind, val), do: from(s in query, where: s.kind == ^val)
 
   defp apply_session_filter(query, :runtime, val),
     do: from(s in query, where: s.runtime_type == ^val)
@@ -503,4 +845,49 @@ defmodule Canopy.Sessions do
 
     :ok
   end
+
+  # ---------------------------------------------------------------------------
+  # Telemetry helpers (best-effort, never affect caller flow)
+  # ---------------------------------------------------------------------------
+
+  @spec compute_session_duration_ms(Session.t()) :: integer() | nil
+  defp compute_session_duration_ms(%Session{inserted_at: %_{} = ins, completed_at: %_{} = done}) do
+    DateTime.diff(done, ins, :millisecond)
+  rescue
+    _ -> nil
+  end
+
+  defp compute_session_duration_ms(_), do: nil
+
+  @spec cost_to_cents(term()) :: integer() | nil
+  defp cost_to_cents(nil), do: nil
+
+  defp cost_to_cents(%Decimal{} = d) do
+    d
+    |> Decimal.mult(Decimal.new(100))
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
+  rescue
+    _ -> nil
+  end
+
+  defp cost_to_cents(n) when is_number(n), do: round(n * 100)
+  defp cost_to_cents(_), do: nil
+
+  # Fire-and-forget breadcrumb flush. The Breadcrumbs GenServer may not be
+  # initialised in test envs that skip the supervision tree, so any error is
+  # swallowed.
+  @spec maybe_flush_breadcrumbs(binary()) :: :ok
+  defp maybe_flush_breadcrumbs(run_id) when is_binary(run_id) do
+    try do
+      _ = Canopy.Analytics.Breadcrumbs.flush_run(run_id)
+      :ok
+    rescue
+      _ -> :ok
+    catch
+      _, _ -> :ok
+    end
+  end
+
+  defp maybe_flush_breadcrumbs(_), do: :ok
 end

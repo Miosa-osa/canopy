@@ -18,8 +18,12 @@ defmodule Canopy.Tasks do
 
   import Ecto.Query, only: [from: 2, where: 3]
 
+  require Logger
+
+  alias Canopy.Governance.Reviewer
   alias Canopy.Repo
-  alias Canopy.Tasks.Task
+  alias Canopy.Sessions
+  alias Canopy.Tasks.{Dispatcher, Task}
 
   @spec list(map()) :: [Task.t()]
   def list(filters \\ %{}) do
@@ -44,11 +48,57 @@ defmodule Canopy.Tasks do
 
   @spec create(map()) :: {:ok, Task.t()} | {:error, Ecto.Changeset.t()}
   def create(attrs) do
-    attrs_with_id = Map.put_new(attrs, :short_id, generate_short_id())
+    # Normalise to atom keys before injecting short_id so the changeset receives
+    # a consistently-keyed map. String keys from HTTP params would otherwise mix
+    # with the atom-keyed :short_id and fail Ecto's cast/3.
+    normalized = normalize_keys(attrs)
+    attrs_with_id = Map.put_new(normalized, :short_id, generate_short_id())
 
-    %Task{}
-    |> Task.changeset(attrs_with_id)
-    |> Repo.insert()
+    result =
+      %Task{}
+      |> Task.changeset(attrs_with_id)
+      |> Repo.insert()
+
+    case result do
+      {:ok, task} ->
+        # Trigger review gate when assignee_type is "agent".
+        review_result =
+          if task.assignee_type == "agent" do
+            Reviewer.maybe_request_review(:artifact, %{
+              workspace_slug: task.workspace_slug,
+              artifact_type: "task",
+              artifact_id: task.id,
+              artifact_preview: task.title,
+              agent_id: task.assignee_id,
+              session_id: task.session_id
+            })
+          else
+            :no_review_required
+          end
+
+        case review_result do
+          {:review_pending, review_id} ->
+            case task
+                 |> Task.changeset(%{review_id: review_id})
+                 |> Repo.update() do
+              {:ok, updated} ->
+                {:ok, updated}
+
+              {:error, reason} ->
+                Logger.warning(
+                  "[Tasks] could not stamp review_id on task #{task.short_id}: #{inspect(reason)}"
+                )
+
+                {:ok, task}
+            end
+
+          :no_review_required ->
+            {:ok, task}
+        end
+
+      error ->
+        error
+    end
   end
 
   @spec update(String.t(), map()) :: {:ok, Task.t()} | {:error, :not_found | Ecto.Changeset.t()}
@@ -85,6 +135,108 @@ defmodule Canopy.Tasks do
     update(short_id, %{status: "todo", completed_at: nil})
   end
 
+  @doc """
+  Applies a Kanban column verb to a task. Drives the drag-to-state orchestration.
+
+  Verbs:
+  - `"start"` / `"build"` — dispatch to agent terminal (find or spawn session)
+  - `"pause"` — pause the bound session's pty output (pty stays alive)
+  - `"resume"` — resume paused session output
+  - `"stop"` / `"cancel"` — kill pty, clear session_id, set status :todo
+  - `"done"` — mark task done, stop session
+  - `"noop"` — update task status field only (no terminal action)
+  """
+  @spec apply_verb(Task.t() | String.t(), String.t(), String.t() | nil) ::
+          {:ok, Task.t(), String.t() | nil}
+          | {:error, :not_found}
+          | {:error, :no_target}
+          | {:error, :runtime_unauthenticated}
+          | {:error, Ecto.Changeset.t()}
+  def apply_verb(task_or_id, verb, target_status \\ nil)
+
+  def apply_verb(%Task{} = task, verb, target_status) do
+    do_apply_verb(task, verb, target_status)
+  end
+
+  def apply_verb(short_id, verb, target_status) when is_binary(short_id) do
+    with {:ok, task} <- get(short_id) do
+      do_apply_verb(task, verb, target_status)
+    end
+  end
+
+  defp do_apply_verb(task, verb, _target_status) when verb in ["start", "build"] do
+    case Dispatcher.dispatch(task) do
+      {:ok, %{session_id: session_id, task: updated}} ->
+        {:ok, updated, session_id}
+
+      other ->
+        other
+    end
+  end
+
+  defp do_apply_verb(task, "pause", target_status) do
+    attrs = if target_status, do: %{status: target_status}, else: %{}
+
+    with {:ok, updated} <- maybe_update(task, attrs),
+         :ok <- maybe_pause_session(updated.session_id) do
+      {:ok, updated, updated.session_id}
+    end
+  end
+
+  defp do_apply_verb(task, "resume", target_status) do
+    attrs = if target_status, do: %{status: target_status}, else: %{}
+
+    with {:ok, updated} <- maybe_update(task, attrs),
+         :ok <- maybe_resume_session(updated.session_id) do
+      {:ok, updated, updated.session_id}
+    end
+  end
+
+  defp do_apply_verb(task, verb, _target_status) when verb in ["stop", "cancel"] do
+    _ = if task.session_id, do: Sessions.stop(task.session_id)
+
+    case update(task.short_id, %{status: "todo", session_id: nil}) do
+      {:ok, updated} -> {:ok, updated, nil}
+      other -> other
+    end
+  end
+
+  defp do_apply_verb(task, "done", _target_status) do
+    _ = if task.session_id, do: Sessions.stop(task.session_id)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    case update(task.short_id, %{status: "done", completed_at: now}) do
+      {:ok, updated} -> {:ok, updated, nil}
+      other -> other
+    end
+  end
+
+  defp do_apply_verb(task, "noop", target_status) do
+    attrs = if target_status, do: %{status: target_status}, else: %{}
+
+    case maybe_update(task, attrs) do
+      {:ok, updated} -> {:ok, updated, updated.session_id}
+      other -> other
+    end
+  end
+
+  defp do_apply_verb(task, _unknown_verb, target_status) do
+    # Unknown verbs fall through as noop
+    do_apply_verb(task, "noop", target_status)
+  end
+
+  defp maybe_update(task, attrs) when map_size(attrs) == 0, do: {:ok, task}
+  defp maybe_update(task, attrs), do: update(task.short_id, attrs)
+
+  defp maybe_pause_session(nil), do: :ok
+  defp maybe_pause_session(session_id), do: Sessions.pause(session_id) |> elem_ok()
+
+  defp maybe_resume_session(nil), do: :ok
+  defp maybe_resume_session(session_id), do: Sessions.resume(session_id) |> elem_ok()
+
+  defp elem_ok({:ok, _}), do: :ok
+  defp elem_ok(other), do: other
+
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
@@ -92,6 +244,27 @@ defmodule Canopy.Tasks do
   defp generate_short_id do
     n = :rand.uniform(100_000_000) - 1
     "T-" <> String.pad_leading(Integer.to_string(n), 8, "0")
+  end
+
+  # Converts a string-keyed map to an atom-keyed map using only known Task fields.
+  # Atom-keyed entries are kept as-is. Unknown string keys are dropped safely.
+  @known_string_keys ~w(short_id parent_id project_slug title description status priority
+                        assignee_type assignee_id workspace_slug session_id dispatched_at
+                        due_at completed_at labels created_by_run_id review_id
+                        claimed_by_agent_id claimed_at auto_assignable required_skills)
+
+  @spec normalize_keys(map()) :: map()
+  defp normalize_keys(attrs) when is_map(attrs) do
+    Enum.reduce(attrs, %{}, fn
+      {k, v}, acc when is_atom(k) ->
+        Map.put(acc, k, v)
+
+      {k, v}, acc when is_binary(k) and k in @known_string_keys ->
+        Map.put(acc, String.to_existing_atom(k), v)
+
+      _, acc ->
+        acc
+    end)
   end
 
   defp maybe_filter_status(query, %{status: s}) when is_binary(s),

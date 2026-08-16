@@ -42,10 +42,10 @@ export function sandboxQuery(id: string) {
   };
 }
 
-/** Mutation options to destroy a sandbox. */
-export function deleteSandboxMutation(id: string) {
+/** Mutation options to destroy a sandbox. The sandbox ID is passed at call-time. */
+export function deleteSandboxMutation() {
   return {
-    mutationKey: ["sandboxes", id, "delete"] as const,
-    mutationFn: () => destroySandbox(id),
+    mutationKey: ["sandboxes", "delete"] as const,
+    mutationFn: (id: string) => destroySandbox(id),
   };
 }

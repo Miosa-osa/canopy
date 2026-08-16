@@ -6,9 +6,9 @@ defmodule Canopy.Skills.Skill do
   environments at runtime. The `provider_format` field controls which persona file
   the skill is injected into (CLAUDE.md, AGENTS.md, or a generic .agent_context path).
 
-  The `content_hash` (SHA256) enables the Paperclip bundle-key optimization: if the
-  hash matches the stored `prompt_bundle_key` on a session, skill injection is skipped,
-  saving 5–10K tokens per heartbeat.
+  The `content_hash` (SHA256) enables a bundle-key optimization: if the hash matches
+  the stored `prompt_bundle_key` on a session, skill injection is skipped, saving
+  5–10K tokens per heartbeat.
 
   Skills are importable from external registries (clawhub, skills_sh) or seeded locally
   from `priv/skills/`.
@@ -24,12 +24,16 @@ defmodule Canopy.Skills.Skill do
   @provider_formats ~w(claude agents_md generic)
   @sources ~w(local clawhub skills_sh user)
 
+  @kinds ~w(prompt workflow reference)
+
   @derive {Jason.Encoder,
            only: [
              :id,
              :slug,
              :name,
              :description,
+             :kind,
+             :frontmatter,
              :provider_format,
              :content,
              :content_hash,
@@ -46,6 +50,10 @@ defmodule Canopy.Skills.Skill do
     field :slug, :string
     field :name, :string
     field :description, :string
+    # "prompt" (default) | "workflow" | "reference"
+    field :kind, :string, default: "prompt"
+    # Optional parsed YAML frontmatter, e.g. %{"when" => "code-review"}
+    field :frontmatter, :map
     field :provider_format, :string, default: "generic"
     field :content, :string
     field :content_hash, :string
@@ -59,7 +67,7 @@ defmodule Canopy.Skills.Skill do
   end
 
   @required ~w(slug name content content_hash source provider_format)a
-  @optional ~w(description source_url imported_at tags enabled)a
+  @optional ~w(description kind frontmatter source_url imported_at tags enabled)a
 
   @doc "Changeset for creating or updating a skill."
   @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
@@ -72,6 +80,7 @@ defmodule Canopy.Skills.Skill do
     |> validate_length(:name, min: 1, max: 256)
     |> validate_inclusion(:provider_format, @provider_formats)
     |> validate_inclusion(:source, @sources)
+    |> validate_inclusion(:kind, @kinds)
     |> unique_constraint(:slug)
   end
 
@@ -82,4 +91,8 @@ defmodule Canopy.Skills.Skill do
   @doc "Returns the list of valid sources."
   @spec sources() :: [String.t()]
   def sources, do: @sources
+
+  @doc "Returns the list of valid kinds."
+  @spec kinds() :: [String.t()]
+  def kinds, do: @kinds
 end

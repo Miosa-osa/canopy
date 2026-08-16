@@ -153,13 +153,13 @@ Already installed (Corsica in :api pipeline). No new work.
 
 ### CodexLocal
 
-Binary: `codex` (OpenAI's open-source Codex CLI — /tmp/competitor-research/paperclip/packages/adapters/codex-local/ is the reference).
+Binary: `codex` (OpenAI's open-source Codex CLI).
 Stream format: OpenAI-style with tool-calling extensions. Parser module handles the differences from Claude's stream-json.
 
 ### GeminiLocal
 
 Binary: `gemini`.
-Stream format: Gemini CLI stream format (verify via Paperclip's gemini-local if present, else Google docs).
+Stream format: Gemini CLI stream format (per Google docs).
 
 ### Pattern Reuse
 
@@ -236,7 +236,7 @@ Write `docs/09-week1-report.md` with same structure as `07-day1-report.md`.
 
 - **How do we represent "no binary found" on Runtime schema?** Currently: `installed = false`, `version = nil`, `binary_path = nil`. Alternative: separate `runtime_detections` table for historical detection runs. Day 4 decision.
 - **SSE replay behaviour:** when user subscribes to a finished session's events, do we stream the full history then close, or require `GET /messages` for history + `GET /events?live_only=true` for live? Recommend: unified replay-then-live with `?from=<sequence>` param.
-- **Skills injection on resume:** Paperclip skips `--append-system-prompt-file` on resume. Do we also skip? Default YES (matches Paperclip), configurable per-runtime.
+- **Skills injection on resume:** skip `--append-system-prompt-file` on resume by default? Yes — instructions are already in the session cache. Configurable per-runtime.
 - **Agent library categories stay as 19?** Legacy shipped 19 categories. We can merge/split later when UI taxonomy is built (Week 4 agent library screen).
 
 ---

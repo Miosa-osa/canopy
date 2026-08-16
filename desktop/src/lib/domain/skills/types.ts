@@ -10,12 +10,17 @@ export type SkillSource = "local" | "clawhub" | "skills_sh" | "user";
 /** Provider formats — which agent context file the skill is injected into. */
 export type SkillProviderFormat = "claude" | "agents_md" | "generic";
 
+/** Skill kinds — determines how it is organized in the library. */
+export type SkillKind = "prompt" | "workflow" | "reference";
+
 /** Skill summary shape returned by GET /api/v1/skills. */
 export interface Skill {
   id: string;
   slug: string;
   name: string;
   description: string | null;
+  kind: SkillKind;
+  frontmatter: Record<string, unknown> | null;
   provider_format: SkillProviderFormat;
   content: string;
   content_hash: string;
@@ -28,11 +33,23 @@ export interface Skill {
   updated_at: string;
 }
 
+/** An agent ↔ skill assignment with joined skill data. */
+export interface AgentSkillAssignment {
+  id: string;
+  agent_slug: string;
+  skill_slug: string;
+  priority: number;
+  enabled: boolean;
+  inserted_at: string;
+  skill: Skill;
+}
+
 /** Filters for GET /api/v1/skills. */
 export interface SkillFilters {
   source?: SkillSource;
   enabled?: boolean;
   tag?: string;
+  kind?: SkillKind;
 }
 
 /**

@@ -1,0 +1,67 @@
+skill_id: retention-check
+skill_path: skills/retention-check/SKILL.md
+skill_name: "Client Health + Churn Prevention Analyzer"
+
+tier: structured_ai
+category: scale
+temperature_gate: warm
+
+role_affinity:
+  - scale-head
+  - retention
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - contacts
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - health_score_rubric_defined
+  - per_client_scored
+  - churn_risk_classified
+  - intervention_playbook_present
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - lifecycle_optimization
+    - operational_intelligence
+  write:
+    - lifecycle_optimization
+
+output:
+  location: "output/retention-check/{date}-retention-report.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: retention-report
+    type: inform
+    format: markdown
+    structure: w-retention-report
+  receiver: creator + CS team
+
+next_skill_routing:
+  on_complete:
+    - condition: "thriving_clients_present"
+      recommend: case-study
+    - condition: "cs_sop_gap"
+      recommend: build-sop
+    - condition: "at_risk_clients_present"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: scale-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: false

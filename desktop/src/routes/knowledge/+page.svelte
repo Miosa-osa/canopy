@@ -82,6 +82,35 @@ function handleArchive(slug: string): void {
   });
 }
 
+// ── Seed data ─────────────────────────────────────────────────────────────────
+
+const SEED_BASES: KnowledgeBase[] = [
+  {
+    id: "seed-1", slug: "codebase-docs", name: "Codebase Docs",
+    description: "Auto-indexed source files and inline documentation.",
+    workspace_slug: null, embedding_model: "text-embedding-3-small",
+    dimensions: 1536, chunk_size: 512, chunk_overlap: 64,
+    chunk_count: 2840, agent_count: 3,
+    archived_at: null, inserted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  },
+  {
+    id: "seed-2", slug: "team-wiki", name: "Team Wiki",
+    description: "Runbooks, SOPs, and onboarding guides.",
+    workspace_slug: null, embedding_model: "text-embedding-3-small",
+    dimensions: 1536, chunk_size: 512, chunk_overlap: 64,
+    chunk_count: 418, agent_count: 1,
+    archived_at: null, inserted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  },
+  {
+    id: "seed-3", slug: "api-reference", name: "API Reference",
+    description: "OpenAPI specs and endpoint documentation.",
+    workspace_slug: null, embedding_model: "text-embedding-3-small",
+    dimensions: 1536, chunk_size: 512, chunk_overlap: 64,
+    chunk_count: 1102, agent_count: 2,
+    archived_at: null, inserted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  },
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
@@ -184,15 +213,12 @@ function formatDate(iso: string): string {
         title="Failed to load knowledge bases"
         body={$listQ.error?.message ?? "Unknown error"}
       />
-    {:else if bases.length === 0}
-      <EmptyState
-        icon={BookOpen}
-        title="No knowledge bases yet"
-        body="Create a knowledge base to enable RAG for your agents"
-      />
     {:else}
+      {#if bases.length === 0}
+        <p class="kb-seed-label">Example knowledge bases — create one to get started</p>
+      {/if}
       <ul class="kb-list" role="list">
-        {#each bases as kb (kb.id)}
+        {#each (bases.length === 0 ? SEED_BASES : bases) as kb (kb.id)}
           <li class="kb-card">
             <button
               class="kb-card-body"
@@ -335,6 +361,17 @@ function formatDate(iso: string): string {
 
   .kb-skeleton-wrap {
     padding-top: var(--space-2);
+  }
+
+  .kb-seed-label {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--fg-subtle);
+    margin: 0 0 var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-inset);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
   }
 
   /* ── Card list ── */

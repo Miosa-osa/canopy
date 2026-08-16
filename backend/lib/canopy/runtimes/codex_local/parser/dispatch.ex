@@ -20,8 +20,7 @@ defmodule Canopy.Runtimes.CodexLocal.Parser.Dispatch do
   | error             | —                    | `:system` (error) |
   | *(other)*         | —                    | `[]`              |
 
-  Provenance: derived from Paperclip's `parse.ts` and `parse.test.ts`
-  (packages/adapters/codex-local/src/server/). Not part of the public Canopy API.
+  Not part of the public Canopy API.
   """
 
   alias Canopy.Runtimes.CodexLocal.Parser.Helpers

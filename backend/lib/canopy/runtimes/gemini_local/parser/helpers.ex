@@ -7,8 +7,7 @@ defmodule Canopy.Runtimes.GeminiLocal.Parser.Helpers do
   a sensible default rather than raising when the key is absent or the value has
   an unexpected type.
 
-  Also provides `collect_message_text/1` (mirrors Paperclip `collectMessageText`)
-  and `read_session_id/1` (mirrors Paperclip `readSessionId`), which handle
+  Also provides `collect_message_text/1` and `read_session_id/1`, which handle
   Gemini's polymorphic field shapes.
 
   Gemini-specific notes:

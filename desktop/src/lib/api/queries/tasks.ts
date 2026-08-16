@@ -10,8 +10,10 @@ import type {
   CreateTaskBody,
   Task,
   TaskFilters,
+  TaskStatus,
   UpdateTaskBody,
 } from "$lib/domain/tasks/types.js";
+import type { TransitionVerb } from "$lib/stores/kanban-boards.svelte.js";
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
@@ -56,6 +58,19 @@ export function reopenTask(shortId: string): Promise<Task> {
 
 export function assignTask(shortId: string, body: AssignBody): Promise<Task> {
   return apiPost<Task>(`/tasks/${shortId}/assign`, body);
+}
+
+/**
+ * POST /tasks/:short_id/transition — emit a verb to the backend transition endpoint.
+ * Returns the updated Task (may include session_id when verb is start/build).
+ * Throws ApiError on non-2xx. Callers check status === 404 for graceful fallback.
+ */
+export function transitionTask(
+  shortId: string,
+  status: TaskStatus,
+  verb: TransitionVerb,
+): Promise<Task> {
+  return apiPost<Task>(`/tasks/${shortId}/transition`, { status, verb });
 }
 
 // ── TanStack Query option factories ─────────────────────────────────────────

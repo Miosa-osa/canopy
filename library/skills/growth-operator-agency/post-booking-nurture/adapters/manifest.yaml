@@ -1,0 +1,76 @@
+skill_id: post-booking-nurture
+skill_path: skills/post-booking-nurture/SKILL.md
+skill_name: "the paid media director Show-Rate Stack Producer (Post-Booking Nurture)"
+
+tier: structured_ai
+category: nurture
+temperature_gate: warm
+
+role_affinity:
+  - nurture-head
+  - email-sequence
+  - sms
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - contacts
+  - bookings
+  - funnels
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - confirmation_page_spec_complete
+  - email_cadence_24h_6h_1h
+  - sms_cadence_within_5m_30m_pre_post
+  - phone_triage_spec_if_applicable
+  - voice_matched
+  - compliance_compliant
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - conversion_sales
+    - funnel_systems
+  write:
+    - funnel_systems.show_rate_stack_active
+    - conversion_sales.booking_to_show_pipeline
+
+output:
+  location: "output/post-booking-nurture/{date}-{offer-slug}-show-rate-stack.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: post-booking-stack
+    type: inform
+    format: markdown
+    structure: w-post-booking-stack
+  receiver: booked prospect
+
+next_skill_routing:
+  on_complete:
+    - condition: "closer_script_needed"
+      recommend: sales-script
+    - condition: "closer_briefing_needed"
+      recommend: call-prep
+    - condition: "post_close_sequence_needed"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: nurture-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../desktop/build",
     "devUrl": "http://localhost:5280",
-    "beforeDevCommand": "pnpm -C ../desktop dev",
-    "beforeBuildCommand": "pnpm -C ../desktop build"
+    "beforeDevCommand": "pnpm -C desktop dev",
+    "beforeBuildCommand": "pnpm -C desktop build"
   },
   "app": {
     "withGlobalTauri": false,
@@ -39,7 +39,6 @@
     ]
   },
   "plugins": {
-    "store": {},
     "shell": {
       "open": true
     }

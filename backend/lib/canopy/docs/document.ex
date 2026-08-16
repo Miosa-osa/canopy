@@ -33,6 +33,7 @@ defmodule Canopy.Docs.Document do
              :tags,
              :version,
              :archived_at,
+             :review_id,
              :inserted_at,
              :updated_at
            ]}
@@ -53,6 +54,7 @@ defmodule Canopy.Docs.Document do
     field :tags, {:array, :string}, default: []
     field :version, :integer, default: 1
     field :archived_at, :utc_datetime
+    field :review_id, :binary_id
 
     belongs_to :folder, Canopy.Docs.Folder
 
@@ -60,7 +62,7 @@ defmodule Canopy.Docs.Document do
   end
 
   @required ~w(slug workspace_slug title author_type author_id last_editor_type last_editor_id)a
-  @optional ~w(folder_id body_json summary published published_at tags version archived_at)a
+  @optional ~w(folder_id body_json summary published published_at tags version archived_at review_id)a
 
   @doc "Changeset for creating a document. Derives body_text from body_json."
   @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()

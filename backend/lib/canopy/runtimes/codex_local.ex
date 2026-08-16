@@ -2,8 +2,7 @@ defmodule Canopy.Runtimes.CodexLocal do
   @moduledoc """
   Runtime adapter for Codex CLI — the `codex` binary from OpenAI.
 
-  Implements `Canopy.Runtimes.Adapter`. Derived from Paperclip's `codex-local`
-  adapter (packages/adapters/codex-local/src/server/execute.ts).
+  Implements `Canopy.Runtimes.Adapter`.
 
   Behaviour is split across focused sub-modules:
 
@@ -30,10 +29,9 @@ defmodule Canopy.Runtimes.CodexLocal do
   ## Capabilities
 
   Codex supports session resume via `codex exec resume <thread_id> -`.
-  It does not have a skill injection system (skills are injected into
-  `CODEX_HOME/skills/` by the Paperclip server; Canopy does not yet implement
-  this). Model detection reads `~/.codex/config.json`. Quota windows are not
-  currently surfaced via the CLI.
+  Skill injection (writing skills into `CODEX_HOME/skills/`) is not yet
+  implemented. Model detection reads `~/.codex/config.json`. Quota windows
+  are not currently surfaced via the CLI.
 
   ## Registration
 

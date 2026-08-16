@@ -47,7 +47,23 @@ defmodule Canopy.Runtimes.RegistryServer do
   @spec register(module()) :: :ok
   def register(adapter_module) when is_atom(adapter_module) do
     type = adapter_module.type()
-    GenServer.call(__MODULE__, {:register, type, adapter_module})
+    previous = case :ets.lookup(@table, type) do
+      [{^type, mod}] -> mod
+      _ -> nil
+    end
+
+    result = GenServer.call(__MODULE__, {:register, type, adapter_module})
+
+    if previous != nil and previous != adapter_module do
+      Canopy.Analytics.Emitter.runtime_swapped(type, %{
+        payload: %{
+          "previous" => inspect(previous),
+          "current" => inspect(adapter_module)
+        }
+      })
+    end
+
+    result
   end
 
   @doc "Removes an adapter by its type string. Idempotent."
