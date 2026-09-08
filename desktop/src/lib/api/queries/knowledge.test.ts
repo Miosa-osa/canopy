@@ -3,7 +3,11 @@
  * Verifies query key shapes, factory output, and mutation key correctness.
  * Phase 5 Wave 2 Track #105.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { API_BASE } from '$lib/api/client.js';
+
+afterEach(() => vi.unstubAllGlobals());
+
 import {
   addFileMutation,
   archiveBaseMutation,
@@ -202,17 +206,38 @@ describe('rebuildIndexMutation()', () => {
 
 // ── Payload shape validation (SearchBody) ────────────────────────────────────
 
-describe('searchMutation() — payload shape', () => {
-  it('mutationFn accepts slug + body with query and limit', () => {
-    const m = searchMutation();
-    // Just confirm the function signature accepts the expected shape (no network call)
-    expect(typeof m.mutationFn({ slug: 'kb-1', body: { query: 'test', limit: 5 } })).toBe('object');
-  });
-});
+describe('knowledge mutations HTTP payloads', () => {
+  it('posts search parameters and awaits the returned results', async () => {
+    const response = { results: [], total: 0 };
+    const fetchMock = vi.fn(async () => Response.json({ data: response }));
+    vi.stubGlobal('fetch', fetchMock);
 
-describe('addFileMutation() — payload shape', () => {
-  it('mutationFn accepts slug + body with file_id', () => {
-    const m = addFileMutation();
-    expect(typeof m.mutationFn({ slug: 'kb-1', body: { file_id: 'abc-123' } })).toBe('object');
+    await expect(
+      searchMutation().mutationFn({
+        slug: 'kb-1',
+        body: { query: 'test', limit: 5 },
+      })
+    ).resolves.toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API_BASE}/knowledge-bases/kb-1/search`,
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ query: 'test', limit: 5 }) })
+    );
+  });
+
+  it('posts the file identifier and awaits the index result', async () => {
+    const response = { indexed: true };
+    const fetchMock = vi.fn(async () => Response.json({ data: response }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      addFileMutation().mutationFn({
+        slug: 'kb-1',
+        body: { file_id: 'abc-123' },
+      })
+    ).resolves.toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API_BASE}/knowledge-bases/kb-1/files`,
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ file_id: 'abc-123' }) })
+    );
   });
 });
