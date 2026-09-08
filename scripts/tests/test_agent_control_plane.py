@@ -86,4 +86,23 @@ class IntegrityTests(unittest.TestCase):
         self.manifest['documents'].append(dict(self.manifest['documents'][1], id='alias', path='alias.md', owns=['other']))
         self.run_check(1)
 
+    def test_current_contract_references_are_checked(self):
+        (self.root / 'contract.md').write_text('Read `missing.md`.'); self.run_check(1)
+    def test_contract_checks_cannot_be_disabled(self):
+        self.manifest['documents'][1]['check_references'] = False; self.run_check(1)
+    def test_plain_boot_reference(self):
+        (self.root / 'AGENTS.md').write_text('Before work, read missing.md.'); self.run_check(1)
+    def test_plain_contract_reference(self):
+        (self.root / 'contract.md').write_text('Before work, read missing.md.'); self.run_check(1)
+    def test_external_and_fenced_example_are_not_local_references(self):
+        (self.root / 'contract.md').write_text('See https://example.invalid/remote.md.\n```text\nexample.md\n```\n')
+        self.run_check(0)
+    def test_contract_relative_reference(self):
+        (self.root / 'docs').mkdir()
+        (self.root / 'contract.md').rename(self.root / 'docs' / 'contract.md')
+        self.manifest['documents'][1]['path'] = 'docs/contract.md'
+        (self.root / 'AGENTS.md').write_text('Read docs/contract.md.')
+        (self.root / 'docs' / 'contract.md').write_text('Read ../AGENTS.md.')
+        self.run_check(0)
+
 if __name__ == '__main__': unittest.main()

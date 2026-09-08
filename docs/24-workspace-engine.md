@@ -124,3 +124,11 @@ Static Git and contract checks do not attest loaded BEAM modules, ignored build 
 They also do not provide an atomic lock against a local owner changing files after preflight.
 Runtime identity checks and isolation must be implemented and tested separately if those stronger guarantees are required.
 A passed preflight therefore means compatible declared local source, not universal runtime attestation.
+
+## Executable checkout checks
+
+Preflight rejects tracked files marked assume-unchanged or skip-worktree, even when Git status would hide their modifications.
+It also rejects ignored untracked files under `lib/`, `config/`, and `src/`, and ignored `mix.exs` or `mix.lock` inputs.
+Ignored dependency and build directories remain permitted so normal Mix builds can run.
+These checks do not attest cached dependencies, build artifacts, executable tools on PATH, or concurrent filesystem changes by a trusted local operator.
+Workspace compatibility pins remain trusted operator configuration.

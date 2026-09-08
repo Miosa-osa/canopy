@@ -48,4 +48,4 @@ The old [Engine integration proposal](../wiring/optimal-engine-integration.md) i
 
 The previously cited attribution and feature-inventory documents, numbered 03 and 04, are absent.
 They are not mandatory boot dependencies and must not be treated as current authority.
-Use [NOTICE.md](../NOTICE.md) for attribution and the current product contract for scope.
+Use [../NOTICE.md](../NOTICE.md) for attribution and the current product contract for scope.

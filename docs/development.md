@@ -2,7 +2,7 @@
 
 Effective: 2026-09-08.
 This is current operational guidance; the earlier numbered operations runbook is historical.
-Read [the current product contract](current-product-contract.md) and [CLAUDE.md](../CLAUDE.md) before changing behavior.
+Read [the current product contract](current-product-contract.md) and [../CLAUDE.md](../CLAUDE.md) before changing behavior.
 
 ## Prerequisites and setup
 

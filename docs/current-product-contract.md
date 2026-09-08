@@ -25,7 +25,7 @@ Native packaging, authentication, terminal-screen fidelity, and provider-specifi
 
 ## Authority
 
-[CLAUDE.md](../CLAUDE.md) governs agent operating rules.
+[../CLAUDE.md](../CLAUDE.md) governs agent operating rules.
 This document governs current product scope.
 [The workspace Engine contract](24-workspace-engine.md) governs local Engine execution.
 [The review queue contract](25-review-queue.md) governs Canopy operational review, distinct from OptimalEngine Claim-to-Fact review.
@@ -34,7 +34,7 @@ This document governs current product scope.
 Historical architecture, foundation, phase, and wiring documents remain evidence of their original dates.
 Completion counts and screenshots do not supersede current scope or establish that the current checkout works.
 Competitor reports provide provenance, not permission to expand capabilities.
-[NOTICE.md](../NOTICE.md) owns attribution records.
+[../NOTICE.md](../NOTICE.md) owns attribution records.
 
 Implementation claims require a named code path and a reproducible test against the checkout being shipped.
 The [control-plane evidence](agent-control-plane.md) records the September 8 checks, coverage floor, and unresolved independent-red-team acceptance criteria.

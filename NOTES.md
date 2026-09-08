@@ -34,3 +34,9 @@ Tauri info now resolves the native application configuration; that inspection is
 
 The initial documentation validation passed the authority check, all 26 then-current structural fixtures, and 104 local Markdown links/anchors; later fixture additions must be rerun on their final checkout.
 Historical and generated documents were preserved.
+
+- 2026-09-08: Active current contracts now receive mandatory reference scanning, including bare Markdown paths in prose.
+The scanner keeps paths relative to the containing document and does not treat bare filenames in fenced examples or external URLs as local dependencies.
+Canopy compatibility now rejects hidden Git index flags and ignored executable source/configuration inputs while retaining normal ignored dependency/build directories.
+The checks remain preflight validation within a trusted local operating-system boundary, not process or dependency attestation.
+All nested Markdown guides now match CODEOWNERS, including the registered desktop guide, so documentation authority changes retain mandatory owner review.

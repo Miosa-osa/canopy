@@ -1,6 +1,6 @@
 # Control-plane changes require explicit owner review under branch protection.
 /backend/mix.exs @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
-/*.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+*.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
 /skills/ @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
 /AGENTS.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
 /CLAUDE.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2

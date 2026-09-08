@@ -61,7 +61,7 @@ def validate(root):
         require(isinstance(doc.get('requires', []), list), f'invalid requires: {doc["id"]}')
         require(all(isinstance(v, str) and v for v in doc.get('requires', [])), f'invalid required id: {doc["id"]}')
         require('check_references' not in doc or type(doc['check_references']) is bool, f'invalid check_references: {doc["id"]}')
-        require(doc['kind'] != 'normative' or doc.get('check_references', True), f'normative reference checks disabled: {doc["id"]}')
+        require(not current or doc.get('check_references', True), f'current authority reference checks disabled: {doc["id"]}')
         require(not doc.get('superseded_by') or doc['status'] == 'superseded', f'active/deprecated document declares supersession: {doc["id"]}')
         require(isinstance(doc['owns'], list), f'invalid owns: {doc["id"]}')
         require(current or not doc['owns'], f'historical/reference document owns current concepts: {doc["id"]}')
@@ -106,7 +106,7 @@ def validate(root):
             target_id = target.get('superseded_by')
             if not target_id:
                 require(target['status'] == 'active' and target['kind'] in ('normative', 'contract'), f'supersession ends outside current authority: {doc["id"]}')
-        if doc['kind'] == 'normative' or doc.get('check_references', False):
+        if (doc['status'] == 'active' and doc['kind'] in ('normative', 'contract')) or doc.get('check_references', False):
             path = safe_path(doc['path'])
             if path.is_file():
                 content = path.read_text()
@@ -114,6 +114,11 @@ def validate(root):
                 refs.update(re.findall(r'(?<![\w/])(?:docs|skills)/[\w./-]+\.md', content))
                 refs.update(re.findall(r'\]\(<?([^)>\s#]+\.md)(?:#[^)>\s]*)?>?(?:\s+[\"\'][^)]*)?\)', content))
                 refs.update(re.findall(r'^\s*\[[^]\n]+\]:\s*<?([^>\s#]+\.md)(?:#[^>\s]*)?>?', content, re.MULTILINE))
+                # Bare paths in prose count too. Fenced examples and external URLs
+                # are not repository dependencies; Markdown links above stay explicit.
+                prose = re.sub(r"(?ms)^\s*(`{3,}|~{3,})[^\n]*\n.*?^\s*\1\s*$", "", content)
+                prose = re.sub(r"(?:[a-zA-Z][a-zA-Z0-9+.-]*://|~/)[^\s<>`]+", "", prose)
+                refs.update(re.findall(r"(?<![\w/*])((?:\.\.?/)*[\w.-]+(?:/[\w.-]+)*\.md)(?=[\s#.,;:)\]<>`\"']|$)", prose))
                 for ref in refs:
                     if '://' in ref or ref.startswith('~'):
                         continue
