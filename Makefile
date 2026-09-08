@@ -35,7 +35,7 @@ dev:
 
 test:
 	cd backend && mix test
-	cd desktop && pnpm test --run
+	cd desktop && pnpm test
 	cargo test --manifest-path src-tauri/Cargo.toml
 
 test-watch:

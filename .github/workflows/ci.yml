@@ -124,7 +124,7 @@ jobs:
 
       - name: Run unit tests
         working-directory: desktop
-        run: pnpm test --run
+        run: pnpm test
 
       - name: Build desktop SPA
         working-directory: desktop
