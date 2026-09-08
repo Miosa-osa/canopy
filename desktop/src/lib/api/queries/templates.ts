@@ -3,7 +3,7 @@
  * Endpoints under /api/v1/templates/*.
  */
 
-import { apiGet, apiPatch, apiPost } from "$lib/api/client.js";
+import { apiGet, apiPatch, apiPost } from '$lib/api/client.js';
 import type {
   ForkRequest,
   InstantiateRequest,
@@ -16,7 +16,7 @@ import type {
   TemplateCreate,
   TemplateKind,
   TemplateVersion,
-} from "$lib/domain/templates/types.js";
+} from '$lib/domain/templates/types.js';
 
 // ── Templates list / show ────────────────────────────────────────────────────
 
@@ -32,26 +32,26 @@ export interface TemplateListQuery {
 export function templatesQuery(opts: TemplateListQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["templates", "list", opts],
+    queryKey: ['templates', 'list', opts],
     queryFn: () => apiGet<Template[]>(`/templates${qs}`),
   };
 }
 
 export function templateQuery(slug: string) {
   return {
-    queryKey: ["templates", "show", slug],
+    queryKey: ['templates', 'show', slug],
     queryFn: () => apiGet<Template>(`/templates/${slug}`),
     enabled: Boolean(slug),
   } as const;
 }
 
 export async function createTemplate(body: TemplateCreate): Promise<Template> {
-  return apiPost<Template>("/templates", body);
+  return apiPost<Template>('/templates', body);
 }
 
 export async function updateTemplate(
   slug: string,
-  body: Partial<TemplateCreate>,
+  body: Partial<TemplateCreate>
 ): Promise<Template> {
   return apiPatch<Template>(`/templates/${slug}`, body);
 }
@@ -60,14 +60,14 @@ export async function updateTemplate(
 
 export async function previewTemplate(
   slug: string,
-  body: PreviewRequest,
+  body: PreviewRequest
 ): Promise<PreviewResponse> {
   return apiPost<PreviewResponse>(`/templates/${slug}/preview`, body);
 }
 
 export async function instantiateTemplate(
   slug: string,
-  body: InstantiateRequest,
+  body: InstantiateRequest
 ): Promise<Instantiation> {
   return apiPost<Instantiation>(`/templates/${slug}/instantiate`, body);
 }
@@ -76,15 +76,12 @@ export async function instantiateTemplate(
 
 export async function publishTemplate(
   slug: string,
-  body: PublishRequest,
+  body: PublishRequest
 ): Promise<PublishResponse> {
   return apiPost<PublishResponse>(`/templates/${slug}/publish`, body);
 }
 
-export async function forkTemplate(
-  slug: string,
-  body: ForkRequest,
-): Promise<Template> {
+export async function forkTemplate(slug: string, body: ForkRequest): Promise<Template> {
   return apiPost<Template>(`/templates/${slug}/fork`, body);
 }
 
@@ -93,10 +90,10 @@ export async function forkTemplate(
 export function templateVersionsQuery(slug: string, limit?: number) {
   const qs = buildQuery({ limit });
   return {
-    queryKey: ["templates", "versions", slug, limit ?? null],
+    queryKey: ['templates', 'versions', slug, limit ?? null],
     queryFn: () =>
       apiGet<{ slug: string; count: number; data: TemplateVersion[] }>(
-        `/templates/${slug}/versions${qs}`,
+        `/templates/${slug}/versions${qs}`
       ).then((r) => r.data),
     enabled: Boolean(slug),
   } as const;
@@ -112,11 +109,9 @@ export interface InstantiationListQuery {
 export function instantiationsQuery(opts: InstantiationListQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["templates", "instantiations", opts],
+    queryKey: ['templates', 'instantiations', opts],
     queryFn: () =>
-      apiGet<{ data: Instantiation[] }>(`/templates/instantiations${qs}`).then(
-        (r) => r.data,
-      ),
+      apiGet<{ data: Instantiation[] }>(`/templates/instantiations${qs}`).then((r) => r.data),
   };
 }
 
@@ -124,9 +119,9 @@ export function instantiationsQuery(opts: InstantiationListQuery = {}) {
 
 function buildQuery(opts: object): string {
   const entries = Object.entries(opts as Record<string, unknown>).filter(
-    ([, v]) => v !== undefined && v !== null && v !== "",
+    ([, v]) => v !== undefined && v !== null && v !== ''
   );
-  if (entries.length === 0) return "";
+  if (entries.length === 0) return '';
 
   const params = new URLSearchParams();
   for (const [key, value] of entries) {
@@ -148,4 +143,4 @@ export type {
   TemplateCreate,
   TemplateKind,
   TemplateVersion,
-} from "$lib/domain/templates/types.js";
+} from '$lib/domain/templates/types.js';

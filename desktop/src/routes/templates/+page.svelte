@@ -1,171 +1,159 @@
 <script lang="ts">
-  /**
-   * /templates — Template Composer gallery.
-   * Powered by Forge (the Template Composer agent) via /api/v1/templates/*.
-   *
-   * Sections:
-   *   1. Header — title + search + new template link
-   *   2. Kind tabs — workspace / persona / workflow / all
-   *   3. Filters — verified-only toggle + tag chips
-   *   4. Grid — curated tile gallery (DB-backed, popularity-ordered)
-   *   5. Instantiate dialog — params form + POST to instantiate endpoint
-   *
-   * CSS prefix: tg- (template gallery)
-   */
-  import {
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import {
-    BadgeCheck,
-    LayoutTemplate,
-    Plus,
-    Search,
-    Sparkles,
-    Wand2,
-  } from "lucide-svelte";
-  import {
-    instantiateTemplate,
-    templatesQuery,
-  } from "$lib/api/queries/templates.js";
-  import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
-  import type {
-    InstantiateRequest,
-    Template,
-    TemplateKind,
-    TemplateParameter,
-  } from "$lib/domain/templates/types.js";
+/**
+ * /templates — Template Composer gallery.
+ * Powered by Forge (the Template Composer agent) via /api/v1/templates/*.
+ *
+ * Sections:
+ *   1. Header — title + search + new template link
+ *   2. Kind tabs — workspace / persona / workflow / all
+ *   3. Filters — verified-only toggle + tag chips
+ *   4. Grid — curated tile gallery (DB-backed, popularity-ordered)
+ *   5. Instantiate dialog — params form + POST to instantiate endpoint
+ *
+ * CSS prefix: tg- (template gallery)
+ */
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { BadgeCheck, LayoutTemplate, Plus, Search, Sparkles, Wand2 } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { instantiateTemplate, templatesQuery } from '$lib/api/queries/templates.js';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type {
+  InstantiateRequest,
+  Template,
+  TemplateKind,
+  TemplateParameter,
+} from '$lib/domain/templates/types.js';
 
-  const qc = useQueryClient();
+const qc = useQueryClient();
 
-  // ── State ──────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────
 
-  let search = $state("");
-  let selectedKind = $state<TemplateKind | "all">("all");
-  let verifiedOnly = $state(false);
-  let activeTemplate = $state<Template | null>(null);
-  let paramValues = $state<Record<string, string>>({});
-  let targetWorkspace = $state("");
-  let instantiateError = $state<string | null>(null);
-  let lastResultMessage = $state<string | null>(null);
+let search = $state('');
+let selectedKind = $state<TemplateKind | 'all'>('all');
+let verifiedOnly = $state(false);
+let activeTemplate = $state<Template | null>(null);
+let paramValues = $state<Record<string, string>>({});
+let targetWorkspace = $state('');
+let instantiateError = $state<string | null>(null);
+let lastResultMessage = $state<string | null>(null);
 
-  // ── Query ──────────────────────────────────────────────────────────────────
+// ── Query ──────────────────────────────────────────────────────────────────
 
-  const queryStore = writable(
-    untrack(() => templatesQuery({ limit: 200 }) as CreateQueryOptions<Template[]>),
-  );
-  const templatesQ = createQuery<Template[]>(queryStore);
+const queryStore = writable(
+  untrack(() => templatesQuery({ limit: 200 }) as CreateQueryOptions<Template[]>)
+);
+const templatesQ = createQuery<Template[]>(queryStore);
 
-  const allTemplates = $derived($templatesQ.data ?? []);
+const allTemplates = $derived($templatesQ.data ?? []);
 
-  const KIND_TABS: Array<{ value: TemplateKind | "all"; label: string }> = [
-    { value: "all", label: "All" },
-    { value: "workspace", label: "Workspace" },
-    { value: "persona", label: "Persona" },
-    { value: "workflow", label: "Workflow" },
-  ];
+const KIND_TABS: Array<{ value: TemplateKind | 'all'; label: string }> = [
+  { value: 'all', label: 'All' },
+  { value: 'workspace', label: 'Workspace' },
+  { value: 'persona', label: 'Persona' },
+  { value: 'workflow', label: 'Workflow' },
+];
 
-  const filtered = $derived(
-    allTemplates.filter((t) => {
-      const kindOk = selectedKind === "all" || t.kind === selectedKind;
-      const verifiedOk = !verifiedOnly || t.verified;
-      const q = search.trim().toLowerCase();
-      const searchOk =
-        q === "" ||
-        t.name.toLowerCase().includes(q) ||
-        (t.description?.toLowerCase() ?? "").includes(q) ||
-        t.slug.toLowerCase().includes(q) ||
-        t.tags.some((tag) => tag.toLowerCase().includes(q));
-      return kindOk && verifiedOk && searchOk;
-    }),
-  );
+const filtered = $derived(
+  allTemplates.filter((t) => {
+    const kindOk = selectedKind === 'all' || t.kind === selectedKind;
+    const verifiedOk = !verifiedOnly || t.verified;
+    const q = search.trim().toLowerCase();
+    const searchOk =
+      q === '' ||
+      t.name.toLowerCase().includes(q) ||
+      (t.description?.toLowerCase() ?? '').includes(q) ||
+      t.slug.toLowerCase().includes(q) ||
+      t.tags.some((tag) => tag.toLowerCase().includes(q));
+    return kindOk && verifiedOk && searchOk;
+  })
+);
 
-  // ── Instantiate dialog ─────────────────────────────────────────────────────
+// ── Instantiate dialog ─────────────────────────────────────────────────────
 
-  function openInstantiateDialog(template: Template) {
-    activeTemplate = template;
-    paramValues = {};
-    targetWorkspace = "";
-    instantiateError = null;
-    lastResultMessage = null;
+function openInstantiateDialog(template: Template) {
+  activeTemplate = template;
+  paramValues = {};
+  targetWorkspace = '';
+  instantiateError = null;
+  lastResultMessage = null;
 
-    // Pre-fill defaults from parameter schema
-    for (const [name, decl] of Object.entries(template.parameters ?? {})) {
-      if (decl?.default !== undefined) {
-        paramValues[name] = String(decl.default ?? "");
-      }
+  // Pre-fill defaults from parameter schema
+  for (const [name, decl] of Object.entries(template.parameters ?? {})) {
+    if (decl?.default !== undefined) {
+      paramValues[name] = String(decl.default ?? '');
     }
   }
+}
 
-  function closeInstantiateDialog() {
-    activeTemplate = null;
-    paramValues = {};
-    targetWorkspace = "";
-    instantiateError = null;
+function closeInstantiateDialog() {
+  activeTemplate = null;
+  paramValues = {};
+  targetWorkspace = '';
+  instantiateError = null;
+}
+
+const instantiateMut = createMutation({
+  mutationFn: ({ slug, body }: { slug: string; body: InstantiateRequest }) =>
+    instantiateTemplate(slug, body),
+  onSuccess: (inst) => {
+    lastResultMessage = `Instantiated ${inst.templateSlug}@${inst.templateVersion} — ${inst.filesWritten} files, ${inst.agentsCreated} agents, ${inst.skillsInstalled} skills`;
+    qc.invalidateQueries({ queryKey: ['templates'] });
+    closeInstantiateDialog();
+  },
+  onError: (err: Error) => {
+    instantiateError = err.message;
+  },
+});
+
+function submitInstantiate(e: Event) {
+  e.preventDefault();
+  if (!activeTemplate) return;
+  instantiateError = null;
+
+  // Verify required params are present
+  const required = Object.entries(activeTemplate.parameters ?? {})
+    .filter(([, decl]) => decl?.required)
+    .map(([name]) => name);
+
+  const missing = required.filter((name) => !paramValues[name] || paramValues[name].trim() === '');
+
+  if (missing.length > 0) {
+    instantiateError = `Missing required: ${missing.join(', ')}`;
+    return;
   }
 
-  const instantiateMut = createMutation({
-    mutationFn: ({ slug, body }: { slug: string; body: InstantiateRequest }) =>
-      instantiateTemplate(slug, body),
-    onSuccess: (inst) => {
-      lastResultMessage = `Instantiated ${inst.templateSlug}@${inst.templateVersion} — ${inst.filesWritten} files, ${inst.agentsCreated} agents, ${inst.skillsInstalled} skills`;
-      qc.invalidateQueries({ queryKey: ["templates"] });
-      closeInstantiateDialog();
-    },
-    onError: (err: Error) => {
-      instantiateError = err.message;
+  $instantiateMut.mutate({
+    slug: activeTemplate.slug,
+    body: {
+      targetWorkspaceSlug: targetWorkspace.trim() || undefined,
+      params: paramValues,
+      instantiatedBy: 'user',
     },
   });
+}
 
-  function submitInstantiate(e: Event) {
-    e.preventDefault();
-    if (!activeTemplate) return;
-    instantiateError = null;
+function paramKeys(template: Template): Array<[string, TemplateParameter]> {
+  return Object.entries(template.parameters ?? {});
+}
 
-    // Verify required params are present
-    const required = Object.entries(activeTemplate.parameters ?? {})
-      .filter(([, decl]) => decl?.required)
-      .map(([name]) => name);
+// ── Kind icon mapping ──────────────────────────────────────────────────────
 
-    const missing = required.filter(
-      (name) => !paramValues[name] || paramValues[name].trim() === "",
-    );
+function kindIcon(kind: TemplateKind): string {
+  if (kind === 'workspace') return 'W';
+  if (kind === 'persona') return 'P';
+  if (kind === 'workflow') return 'F';
+  return '?';
+}
 
-    if (missing.length > 0) {
-      instantiateError = `Missing required: ${missing.join(", ")}`;
-      return;
-    }
-
-    $instantiateMut.mutate({
-      slug: activeTemplate.slug,
-      body: {
-        targetWorkspaceSlug: targetWorkspace.trim() || undefined,
-        params: paramValues,
-        instantiatedBy: "user",
-      },
-    });
-  }
-
-  function paramKeys(template: Template): Array<[string, TemplateParameter]> {
-    return Object.entries(template.parameters ?? {});
-  }
-
-  // ── Kind icon mapping ──────────────────────────────────────────────────────
-
-  function kindIcon(kind: TemplateKind): string {
-    if (kind === "workspace") return "W";
-    if (kind === "persona") return "P";
-    if (kind === "workflow") return "F";
-    return "?";
-  }
-
-  function kindBadgeClass(kind: TemplateKind): string {
-    return `tg-badge tg-badge-${kind}`;
-  }
+function kindBadgeClass(kind: TemplateKind): string {
+  return `tg-badge tg-badge-${kind}`;
+}
 </script>
 
 <div class="tg-page">

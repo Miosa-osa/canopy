@@ -5,30 +5,35 @@
  * CSS prefix: agc-
  * LOC target: ≤ 340.
  */
-import { type CreateQueryOptions, createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
-import { RefreshCw, X, ChevronDown, ChevronRight } from 'lucide-svelte';
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { ChevronDown, ChevronRight, RefreshCw, X } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
-import {
-  pauseSession,
-  resumeSession,
-  stopSession,
-  listSessions,
-} from '$lib/api/queries/sessions.js';
+import { agentKanbanBoardQuery } from '$lib/api/queries/agent-kanban.js';
 import { listAgents } from '$lib/api/queries/agents.js';
 import { listRoutines } from '$lib/api/queries/routines.js';
 import { listRuntimes } from '$lib/api/queries/runtimes.js';
-import { agentKanbanBoardQuery } from '$lib/api/queries/agent-kanban.js';
+import {
+  listSessions,
+  pauseSession,
+  resumeSession,
+  stopSession,
+} from '$lib/api/queries/sessions.js';
+import ControlLane from '$lib/design/patterns/agent-control/ControlLane.svelte';
+import type { AgentLane } from '$lib/design/patterns/agent-control/types.js';
+import { LANE_CONFIGS } from '$lib/design/patterns/agent-control/types.js';
+import AgentKanbanPane from '$lib/design/patterns/mosaic/panes/AgentKanbanPane.svelte';
+import type { AgentKanbanBoard } from '$lib/domain/agent-kanban/types.js';
 import type { Agent } from '$lib/domain/agents/types.js';
-import type { Session } from '$lib/domain/sessions/types.js';
 import type { Routine } from '$lib/domain/routines/types.js';
 import type { Runtime } from '$lib/domain/runtimes/types.js';
-import type { AgentKanbanBoard } from '$lib/domain/agent-kanban/types.js';
+import type { Session } from '$lib/domain/sessions/types.js';
 import { ui } from '$lib/stores/ui.svelte.js';
-import { LANE_CONFIGS } from '$lib/design/patterns/agent-control/types.js';
-import type { AgentLane } from '$lib/design/patterns/agent-control/types.js';
-import ControlLane from '$lib/design/patterns/agent-control/ControlLane.svelte';
-import AgentKanbanPane from '$lib/design/patterns/mosaic/panes/AgentKanbanPane.svelte';
 
 const LS_VIEW_KEY = 'canopy.agent_control.view';
 const LS_TAB_KEY = 'canopy.agent_control.tab';
@@ -39,14 +44,24 @@ const LS_SETTINGS_KEY = 'canopy.agent_control.settings';
 type TabId = 'agents' | 'tasks';
 
 function loadTab(): TabId {
-  try { return (localStorage.getItem(LS_TAB_KEY) as TabId | null) ?? 'agents'; } catch { return 'agents'; }
+  try {
+    return (localStorage.getItem(LS_TAB_KEY) as TabId | null) ?? 'agents';
+  } catch {
+    return 'agents';
+  }
 }
 function saveTab(t: TabId): void {
-  try { localStorage.setItem(LS_TAB_KEY, t); } catch { /* quota */ }
+  try {
+    localStorage.setItem(LS_TAB_KEY, t);
+  } catch {
+    /* quota */
+  }
 }
 
 let activeTab = $state<TabId>(loadTab());
-$effect(() => { saveTab(activeTab); });
+$effect(() => {
+  saveTab(activeTab);
+});
 
 // ── Settings state ─────────────────────────────────────────────────────────────
 
@@ -67,14 +82,22 @@ function loadSettings(): AgentControlSettings {
     const raw = localStorage.getItem(LS_SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<AgentControlSettings>) };
-  } catch { return { ...DEFAULT_SETTINGS }; }
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
 }
 function saveSettings(s: AgentControlSettings): void {
-  try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(s)); } catch { /* quota */ }
+  try {
+    localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(s));
+  } catch {
+    /* quota */
+  }
 }
 
 let settings = $state<AgentControlSettings>(loadSettings());
-$effect(() => { saveSettings(settings); });
+$effect(() => {
+  saveSettings(settings);
+});
 
 let settingsOpen = $state(false);
 
@@ -83,40 +106,52 @@ const queryClient = useQueryClient();
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 const agentsOptsStore = writable(
-  untrack(() => ({
-    queryKey: ['agents', {}] as const,
-    queryFn: () => listAgents(),
-    staleTime: 10_000,
-    refetchInterval: 10_000,
-  }) as CreateQueryOptions<Agent[]>)
+  untrack(
+    () =>
+      ({
+        queryKey: ['agents', {}] as const,
+        queryFn: () => listAgents(),
+        staleTime: 10_000,
+        refetchInterval: 10_000,
+      }) as CreateQueryOptions<Agent[]>
+  )
 );
 const agentsQuery = createQuery<Agent[]>(agentsOptsStore);
 
 const sessionsOptsStore = writable(
-  untrack(() => ({
-    queryKey: ['sessions', {}] as const,
-    queryFn: () => listSessions(),
-    staleTime: 5_000,
-    refetchInterval: 10_000,
-  }) as CreateQueryOptions<Session[]>)
+  untrack(
+    () =>
+      ({
+        queryKey: ['sessions', {}] as const,
+        queryFn: () => listSessions(),
+        staleTime: 5_000,
+        refetchInterval: 10_000,
+      }) as CreateQueryOptions<Session[]>
+  )
 );
 const sessionsQuery = createQuery<Session[]>(sessionsOptsStore);
 
 const routinesOptsStore = writable(
-  untrack(() => ({
-    queryKey: ['routines', {}] as const,
-    queryFn: () => listRoutines(),
-    staleTime: 15_000,
-  }) as CreateQueryOptions<Routine[]>)
+  untrack(
+    () =>
+      ({
+        queryKey: ['routines', {}] as const,
+        queryFn: () => listRoutines(),
+        staleTime: 15_000,
+      }) as CreateQueryOptions<Routine[]>
+  )
 );
 const routinesQuery = createQuery<Routine[]>(routinesOptsStore);
 
 const runtimesOptsStore = writable(
-  untrack(() => ({
-    queryKey: ['runtimes'] as const,
-    queryFn: listRuntimes,
-    staleTime: 30_000,
-  }) as CreateQueryOptions<Runtime[]>)
+  untrack(
+    () =>
+      ({
+        queryKey: ['runtimes'] as const,
+        queryFn: listRuntimes,
+        staleTime: 30_000,
+      }) as CreateQueryOptions<Runtime[]>
+  )
 );
 const runtimesQuery = createQuery<Runtime[]>(runtimesOptsStore);
 
@@ -134,11 +169,7 @@ const allRuntimes = $derived(($runtimesQuery.data ?? []) as Runtime[]);
 
 /** Agents with an authenticated (installed) runtime available. */
 const authenticatedRuntimeTypes = $derived(
-  new Set(
-    allRuntimes
-      .filter((r: Runtime) => r.status === 'installed')
-      .map((r: Runtime) => r.type)
-  )
+  new Set(allRuntimes.filter((r: Runtime) => r.status === 'installed').map((r: Runtime) => r.type))
 );
 
 /** Map: agentSlug → most recent active session (running or paused). */
@@ -209,24 +240,37 @@ let searchQuery = $state('');
 let selectedSlugs = $state<Set<string>>(new Set());
 
 function loadView(): string {
-  try { return localStorage.getItem(LS_VIEW_KEY) ?? 'all'; } catch { return 'all'; }
+  try {
+    return localStorage.getItem(LS_VIEW_KEY) ?? 'all';
+  } catch {
+    return 'all';
+  }
 }
 function saveView(v: string): void {
-  try { localStorage.setItem(LS_VIEW_KEY, v); } catch { /* quota */ }
+  try {
+    localStorage.setItem(LS_VIEW_KEY, v);
+  } catch {
+    /* quota */
+  }
 }
 
 let currentView = $state(loadView());
 
-$effect(() => { saveView(currentView); });
+$effect(() => {
+  saveView(currentView);
+});
 
 function filterLaneMap(map: Map<AgentLane, Agent[]>, q: string): Map<AgentLane, Agent[]> {
   if (!q.trim()) return map;
   const lower = q.toLowerCase();
   const result = new Map<AgentLane, Agent[]>();
   for (const [lane, agents] of map) {
-    result.set(lane, agents.filter(
-      (a) => a.name.toLowerCase().includes(lower) || a.slug.toLowerCase().includes(lower)
-    ));
+    result.set(
+      lane,
+      agents.filter(
+        (a) => a.name.toLowerCase().includes(lower) || a.slug.toLowerCase().includes(lower)
+      )
+    );
   }
   return result;
 }
@@ -237,17 +281,23 @@ const filteredLaneMap = $derived(filterLaneMap(laneMap, searchQuery));
 
 const pauseMut = createMutation({
   mutationFn: (sessionId: string) => pauseSession(sessionId),
-  onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['sessions'] }); },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['sessions'] });
+  },
 });
 
 const resumeMut = createMutation({
   mutationFn: (sessionId: string) => resumeSession(sessionId),
-  onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['sessions'] }); },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['sessions'] });
+  },
 });
 
 const stopMut = createMutation({
   mutationFn: (sessionId: string) => stopSession(sessionId),
-  onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['sessions'] }); },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['sessions'] });
+  },
 });
 
 // ── Drag-to-lane handler ─────────────────────────────────────────────────────
@@ -298,7 +348,9 @@ function handleSelect(slug: string, checked: boolean): void {
   selectedSlugs = next;
 }
 
-function clearSelection(): void { selectedSlugs = new Set(); }
+function clearSelection(): void {
+  selectedSlugs = new Set();
+}
 
 async function bulkPause(): Promise<void> {
   const ids = [...selectedSlugs]

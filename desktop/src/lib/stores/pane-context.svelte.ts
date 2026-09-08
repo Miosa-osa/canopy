@@ -30,7 +30,9 @@ class PaneContextStore {
     this.#entries = new Map(this.#entries).set(key, entry);
 
     // Notify watchers synchronously
-    this.#watchers.get(key)?.forEach((h) => h(entry));
+    this.#watchers.get(key)?.forEach((h) => {
+      h(entry);
+    });
   }
 
   /**
@@ -70,11 +72,9 @@ class PaneContextStore {
         next.delete(key);
         changed = true;
         // Notify watchers that the key is gone (undefined-ish — re-consume will return undefined)
-        this.#watchers
-          .get(key)
-          ?.forEach((h) =>
-            h({ key, value: undefined, source: paneId, updatedAt: Date.now() }),
-          );
+        this.#watchers.get(key)?.forEach((h) => {
+          h({ key, value: undefined, source: paneId, updatedAt: Date.now() });
+        });
       }
     }
 

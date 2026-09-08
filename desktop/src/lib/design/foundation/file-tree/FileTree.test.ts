@@ -159,7 +159,7 @@ describe("FileTree — onFileSelect callback", () => {
   it("does NOT fire when a folder is clicked (folders toggle, not select)", () => {
     let fileFired = 0;
     let toggleFired = 0;
-    const onFileSelect = (): void => {
+    const onFileSelect = (_entry: DirEntry): void => {
       fileFired++;
     };
     const onFolderToggle = (): void => {

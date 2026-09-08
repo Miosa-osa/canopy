@@ -1,261 +1,258 @@
 <script lang="ts">
-  /**
-   * New Agent — /agents/new
-   * Single-form agent creation. Linear.app aesthetic: dense, monochrome, sharp radii.
-   * CSS prefix: na- (NewAgent)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { goto } from '$app/navigation';
-  import { createAgentMutation, type CreateAgentBody } from '$lib/api/queries/agents.js';
-  import { runtimeModelsQuery, runtimesQuery } from '$lib/api/queries/runtimes.js';
-  import { toolsQuery } from '$lib/api/queries/tools.js';
-  import type { Tool } from '$lib/domain/tools/types.js';
-  import { TOOL_BUNDLE_GROUPS, categorizeTools } from '$lib/domain/tools/bundles.js';
-  import type { AgentCategory } from '$lib/domain/agents/types.js';
-  import { AGENT_PRESETS } from '$lib/domain/agents/presets.js';
-  import {
-    CAPABILITY_PRESETS,
-    CAPABILITY_PRESET_META,
-    type CapabilityPreset,
-    type Capability,
-  } from '$lib/domain/agents/config.js';
-  import type { AgentDetail } from '$lib/domain/agents/types.js';
-  import type { Runtime, RuntimeModel } from '$lib/domain/runtimes/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * New Agent — /agents/new
+ * Single-form agent creation. Linear.app aesthetic: dense, monochrome, sharp radii.
+ * CSS prefix: na- (NewAgent)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { type CreateAgentBody, createAgentMutation } from '$lib/api/queries/agents.js';
+import { runtimeModelsQuery, runtimesQuery } from '$lib/api/queries/runtimes.js';
+import { toolsQuery } from '$lib/api/queries/tools.js';
+import {
+  CAPABILITY_PRESET_META,
+  CAPABILITY_PRESETS,
+  type Capability,
+  type CapabilityPreset,
+} from '$lib/domain/agents/config.js';
+import { AGENT_PRESETS } from '$lib/domain/agents/presets.js';
+import type { AgentCategory, AgentDetail } from '$lib/domain/agents/types.js';
+import type { Runtime, RuntimeModel } from '$lib/domain/runtimes/types.js';
+import { categorizeTools, TOOL_BUNDLE_GROUPS } from '$lib/domain/tools/bundles.js';
+import type { Tool } from '$lib/domain/tools/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── Form state ───────────────────────────────────────────────────────────────
+// ── Form state ───────────────────────────────────────────────────────────────
 
-  let name = $state('');
-  let slug = $state('');
-  let slugEdited = $state(false);
-  let emoji = $state('🤖');
-  let title = $state('');
-  let category = $state<AgentCategory>('engineering');
-  let systemPrompt = $state('');
-  let selectedRuntime = $state('');
-  let selectedModel = $state('');
-  let selectedTools = $state<Set<string>>(new Set());
-  let heartbeatCron = $state('');
-  let advancedOpen = $state(false);
-  let selectedCapabilities = $state<Set<Capability>>(new Set());
-  let collapsedBundleGroups = $state<Set<string>>(new Set());
+let name = $state('');
+let slug = $state('');
+let slugEdited = $state(false);
+let emoji = $state('🤖');
+let title = $state('');
+let category = $state<AgentCategory>('engineering');
+let systemPrompt = $state('');
+let selectedRuntime = $state('');
+let selectedModel = $state('');
+let selectedTools = $state<Set<string>>(new Set());
+let heartbeatCron = $state('');
+let advancedOpen = $state(false);
+let selectedCapabilities = $state<Set<Capability>>(new Set());
+let collapsedBundleGroups = $state<Set<string>>(new Set());
 
-  // Validation errors shown on submit attempt
-  let submitAttempted = $state(false);
+// Validation errors shown on submit attempt
+let submitAttempted = $state(false);
 
-  const nameError = $derived(
-    submitAttempted && name.trim().length < 2 ? 'Name must be at least 2 characters.' : ''
-  );
-  const slugError = $derived(
-    submitAttempted && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/.test(slug.trim())
-      ? 'Slug must be lowercase kebab-case (letters, numbers, hyphens).'
-      : ''
-  );
-  const titleError = $derived(
-    submitAttempted && title.trim().length === 0 ? 'Title is required.' : ''
-  );
+const nameError = $derived(
+  submitAttempted && name.trim().length < 2 ? 'Name must be at least 2 characters.' : ''
+);
+const slugError = $derived(
+  submitAttempted && !/^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/.test(slug.trim())
+    ? 'Slug must be lowercase kebab-case (letters, numbers, hyphens).'
+    : ''
+);
+const titleError = $derived(
+  submitAttempted && title.trim().length === 0 ? 'Title is required.' : ''
+);
 
-  // Auto-derive slug from name unless the user has manually edited it
-  $effect(() => {
-    if (!slugEdited && name) {
-      slug = name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 128);
-    }
-  });
-
-  // ── 19 categories ────────────────────────────────────────────────────────────
-
-  const CATEGORIES: Array<{ value: AgentCategory; label: string }> = [
-    { value: 'academic', label: 'Academic' },
-    { value: 'creative-content', label: 'Creative Content' },
-    { value: 'design', label: 'Design' },
-    { value: 'engineering', label: 'Engineering' },
-    { value: 'executive', label: 'Executive' },
-    { value: 'game-development', label: 'Game Development' },
-    { value: 'growth', label: 'Growth' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'operations', label: 'Operations' },
-    { value: 'paid-media', label: 'Paid Media' },
-    { value: 'product', label: 'Product' },
-    { value: 'project-management', label: 'Project Management' },
-    { value: 'revenue', label: 'Revenue' },
-    { value: 'sales', label: 'Sales' },
-    { value: 'spatial-computing', label: 'Spatial Computing' },
-    { value: 'specialized', label: 'Specialized' },
-    { value: 'support', label: 'Support' },
-    { value: 'technology', label: 'Technology' },
-    { value: 'testing', label: 'Testing' },
-  ];
-
-  // ── Runtime data ─────────────────────────────────────────────────────────────
-
-  const runtimesQ = createQuery<Runtime[]>(
-    writable(runtimesQuery() as CreateQueryOptions<Runtime[]>)
-  );
-
-  const runtimes = $derived(($runtimesQ.data ?? []) as Runtime[]);
-
-  // When runtimes load, default to first available runtime
-  $effect(() => {
-    if (runtimes.length > 0 && !selectedRuntime) {
-      selectedRuntime = runtimes[0].type;
-    }
-  });
-
-  const modelsOptsStore = writable(
-    untrack(() => runtimeModelsQuery(selectedRuntime) as CreateQueryOptions<RuntimeModel[]>)
-  );
-
-  $effect(() => {
-    modelsOptsStore.set(runtimeModelsQuery(selectedRuntime) as CreateQueryOptions<RuntimeModel[]>);
-  });
-
-  const modelsQ = createQuery<RuntimeModel[]>(modelsOptsStore);
-  const models = $derived(($modelsQ.data ?? []) as RuntimeModel[]);
-
-  // When models load, pre-select the default model
-  $effect(() => {
-    const defaultModel = models.find((m) => m.isDefault);
-    if (defaultModel && !selectedModel) {
-      selectedModel = defaultModel.id;
-    } else if (models.length > 0 && !selectedModel) {
-      selectedModel = models[0].id;
-    }
-  });
-
-  // Reset model selection when runtime changes
-  $effect(() => {
-    // Track selectedRuntime; reset model
-    selectedRuntime;
-    selectedModel = '';
-  });
-
-  // ── Tools data ───────────────────────────────────────────────────────────────
-
-  const toolsQ = createQuery<Tool[]>(
-    writable(toolsQuery() as CreateQueryOptions<Tool[]>)
-  );
-  const toolsList = $derived(($toolsQ.data ?? []) as Tool[]);
-
-  function toggleTool(name: string): void {
-    const next = new Set(selectedTools);
-    if (next.has(name)) {
-      next.delete(name);
-    } else {
-      next.add(name);
-    }
-    selectedTools = next;
+// Auto-derive slug from name unless the user has manually edited it
+$effect(() => {
+  if (!slugEdited && name) {
+    slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 128);
   }
+});
 
-  // ── Tool bundle helpers ───────────────────────────────────────────────────────
+// ── 19 categories ────────────────────────────────────────────────────────────
 
-  const categorized = $derived(categorizeTools(toolsList, TOOL_BUNDLE_GROUPS));
+const CATEGORIES: Array<{ value: AgentCategory; label: string }> = [
+  { value: 'academic', label: 'Academic' },
+  { value: 'creative-content', label: 'Creative Content' },
+  { value: 'design', label: 'Design' },
+  { value: 'engineering', label: 'Engineering' },
+  { value: 'executive', label: 'Executive' },
+  { value: 'game-development', label: 'Game Development' },
+  { value: 'growth', label: 'Growth' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'operations', label: 'Operations' },
+  { value: 'paid-media', label: 'Paid Media' },
+  { value: 'product', label: 'Product' },
+  { value: 'project-management', label: 'Project Management' },
+  { value: 'revenue', label: 'Revenue' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'spatial-computing', label: 'Spatial Computing' },
+  { value: 'specialized', label: 'Specialized' },
+  { value: 'support', label: 'Support' },
+  { value: 'technology', label: 'Technology' },
+  { value: 'testing', label: 'Testing' },
+];
 
-  function selectAll(): void {
-    selectedTools = new Set(toolsList.map((t) => t.name));
+// ── Runtime data ─────────────────────────────────────────────────────────────
+
+const runtimesQ = createQuery<Runtime[]>(
+  writable(runtimesQuery() as CreateQueryOptions<Runtime[]>)
+);
+
+const runtimes = $derived(($runtimesQ.data ?? []) as Runtime[]);
+
+// When runtimes load, default to first available runtime
+$effect(() => {
+  if (runtimes.length > 0 && !selectedRuntime) {
+    selectedRuntime = runtimes[0].type;
   }
+});
 
-  function clearAll(): void {
-    selectedTools = new Set();
+const modelsOptsStore = writable(
+  untrack(() => runtimeModelsQuery(selectedRuntime) as CreateQueryOptions<RuntimeModel[]>)
+);
+
+$effect(() => {
+  modelsOptsStore.set(runtimeModelsQuery(selectedRuntime) as CreateQueryOptions<RuntimeModel[]>);
+});
+
+const modelsQ = createQuery<RuntimeModel[]>(modelsOptsStore);
+const models = $derived(($modelsQ.data ?? []) as RuntimeModel[]);
+
+// When models load, pre-select the default model
+$effect(() => {
+  const defaultModel = models.find((m) => m.isDefault);
+  if (defaultModel && !selectedModel) {
+    selectedModel = defaultModel.id;
+  } else if (models.length > 0 && !selectedModel) {
+    selectedModel = models[0].id;
   }
+});
 
-  function selectBundle(bundleId: string): void {
-    const group = TOOL_BUNDLE_GROUPS.flatMap((g) => g.bundles).find((b) => b.id === bundleId);
-    if (!group) return;
-    const next = new Set(selectedTools);
-    const available = new Set(toolsList.map((t) => t.name));
-    for (const toolName of group.tools) {
-      if (available.has(toolName)) next.add(toolName);
-    }
-    selectedTools = next;
+// Reset model selection when runtime changes
+$effect(() => {
+  // Track selectedRuntime; reset model
+  selectedRuntime;
+  selectedModel = '';
+});
+
+// ── Tools data ───────────────────────────────────────────────────────────────
+
+const toolsQ = createQuery<Tool[]>(writable(toolsQuery() as CreateQueryOptions<Tool[]>));
+const toolsList = $derived(($toolsQ.data ?? []) as Tool[]);
+
+function toggleTool(name: string): void {
+  const next = new Set(selectedTools);
+  if (next.has(name)) {
+    next.delete(name);
+  } else {
+    next.add(name);
   }
+  selectedTools = next;
+}
 
-  function toggleBundleGroup(groupId: string): void {
-    const next = new Set(collapsedBundleGroups);
-    if (next.has(groupId)) {
-      next.delete(groupId);
-    } else {
-      next.add(groupId);
-    }
-    collapsedBundleGroups = next;
+// ── Tool bundle helpers ───────────────────────────────────────────────────────
+
+const categorized = $derived(categorizeTools(toolsList, TOOL_BUNDLE_GROUPS));
+
+function selectAll(): void {
+  selectedTools = new Set(toolsList.map((t) => t.name));
+}
+
+function clearAll(): void {
+  selectedTools = new Set();
+}
+
+function selectBundle(bundleId: string): void {
+  const group = TOOL_BUNDLE_GROUPS.flatMap((g) => g.bundles).find((b) => b.id === bundleId);
+  if (!group) return;
+  const next = new Set(selectedTools);
+  const available = new Set(toolsList.map((t) => t.name));
+  for (const toolName of group.tools) {
+    if (available.has(toolName)) next.add(toolName);
   }
+  selectedTools = next;
+}
 
-  // ── Capability preset helpers ─────────────────────────────────────────────────
+function toggleBundleGroup(groupId: string): void {
+  const next = new Set(collapsedBundleGroups);
+  if (next.has(groupId)) {
+    next.delete(groupId);
+  } else {
+    next.add(groupId);
+  }
+  collapsedBundleGroups = next;
+}
 
-  const PRESET_ORDER: CapabilityPreset[] = ['observer', 'reviewer', 'developer', 'admin'];
+// ── Capability preset helpers ─────────────────────────────────────────────────
 
-  function applyCapabilityPreset(preset: CapabilityPreset): void {
-    selectedCapabilities = new Set(CAPABILITY_PRESETS[preset]);
-    // Auto-select tool bundles that match this preset
-    const next = new Set(selectedTools);
-    const available = new Set(toolsList.map((t) => t.name));
-    for (const group of TOOL_BUNDLE_GROUPS) {
-      for (const bundle of group.bundles) {
-        if (bundle.suggestedCapabilities === preset) {
-          for (const toolName of bundle.tools) {
-            if (available.has(toolName)) next.add(toolName);
-          }
+const PRESET_ORDER: CapabilityPreset[] = ['observer', 'reviewer', 'developer', 'admin'];
+
+function applyCapabilityPreset(preset: CapabilityPreset): void {
+  selectedCapabilities = new Set(CAPABILITY_PRESETS[preset]);
+  // Auto-select tool bundles that match this preset
+  const next = new Set(selectedTools);
+  const available = new Set(toolsList.map((t) => t.name));
+  for (const group of TOOL_BUNDLE_GROUPS) {
+    for (const bundle of group.bundles) {
+      if (bundle.suggestedCapabilities === preset) {
+        for (const toolName of bundle.tools) {
+          if (available.has(toolName)) next.add(toolName);
         }
       }
     }
-    selectedTools = next;
   }
+  selectedTools = next;
+}
 
-  // ── Preset chips ─────────────────────────────────────────────────────────────
+// ── Preset chips ─────────────────────────────────────────────────────────────
 
-  function applyPreset(index: number): void {
-    const preset = AGENT_PRESETS[index];
-    if (!preset) return;
-    systemPrompt = preset.systemPrompt;
-    category = preset.category;
-  }
+function applyPreset(index: number): void {
+  const preset = AGENT_PRESETS[index];
+  if (!preset) return;
+  systemPrompt = preset.systemPrompt;
+  category = preset.category;
+}
 
-  // ── Mutation ─────────────────────────────────────────────────────────────────
+// ── Mutation ─────────────────────────────────────────────────────────────────
 
-  const createMut = createMutation<AgentDetail, Error, CreateAgentBody>(
-    createAgentMutation() as CreateMutationOptions<AgentDetail, Error, CreateAgentBody>
-  );
+const createMut = createMutation<AgentDetail, Error, CreateAgentBody>(
+  createAgentMutation() as CreateMutationOptions<AgentDetail, Error, CreateAgentBody>
+);
 
-  function handleSubmit(): void {
-    submitAttempted = true;
-    if (nameError || slugError || titleError) return;
+function handleSubmit(): void {
+  submitAttempted = true;
+  if (nameError || slugError || titleError) return;
 
-    const body: CreateAgentBody = {
-      slug: slug.trim(),
-      name: name.trim(),
-      category,
-      description: title.trim() || undefined,
-      persona_markdown: systemPrompt || undefined,
-      default_runtime: selectedRuntime || undefined,
-      default_model: selectedModel || undefined,
-      tools: selectedTools.size > 0 ? Array.from(selectedTools) : undefined,
-      heartbeat_cron: heartbeatCron.trim() || undefined,
-    };
+  const body: CreateAgentBody = {
+    slug: slug.trim(),
+    name: name.trim(),
+    category,
+    description: title.trim() || undefined,
+    persona_markdown: systemPrompt || undefined,
+    default_runtime: selectedRuntime || undefined,
+    default_model: selectedModel || undefined,
+    tools: selectedTools.size > 0 ? Array.from(selectedTools) : undefined,
+    heartbeat_cron: heartbeatCron.trim() || undefined,
+  };
 
-    $createMut.mutate(body, {
-      onSuccess: (agent) => {
-        queryClient.invalidateQueries({ queryKey: ['agents'] });
-        toasts.show(`Agent "${agent.name}" created.`, 'success');
-        goto(`/agents/${agent.slug}`);
-      },
-      onError: (err) => {
-        toasts.show(err.message ?? 'Failed to create agent.', 'error');
-      },
-    });
-  }
+  $createMut.mutate(body, {
+    onSuccess: (agent) => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      toasts.show(`Agent "${agent.name}" created.`, 'success');
+      goto(`/agents/${agent.slug}`);
+    },
+    onError: (err) => {
+      toasts.show(err.message ?? 'Failed to create agent.', 'error');
+    },
+  });
+}
 </script>
 
 <div class="na-page">

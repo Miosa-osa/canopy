@@ -1,209 +1,212 @@
 <script lang="ts">
-  /**
-   * /routines — recurring automations. Fires scheduled prompts into agents.
-   * CSS prefix: rt- (routines).
-   */
-  import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
-  import { writable } from "svelte/store";
-  import { untrack } from "svelte";
-  import { Repeat, Plus, Play, Pause, Flame, X } from "lucide-svelte";
-  import {
-    routinesQuery,
-    createRoutineMutation,
-    enableRoutineMutation,
-    disableRoutineMutation,
-    fireRoutineMutation,
-  } from "$lib/api/queries/routines.js";
-  import { hiredAgentsQuery } from "$lib/api/queries/agents.js";
-  import type { Routine, CreateRoutineBody, RoutineCreates } from "$lib/domain/routines/types.js";
-  import type { Agent } from "$lib/domain/agents/types.js";
+/**
+ * /routines — recurring automations. Fires scheduled prompts into agents.
+ * CSS prefix: rt- (routines).
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Flame, Pause, Play, Plus, Repeat, X } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
+import {
+  createRoutineMutation,
+  disableRoutineMutation,
+  enableRoutineMutation,
+  fireRoutineMutation,
+  routinesQuery,
+} from '$lib/api/queries/routines.js';
+import type { Agent } from '$lib/domain/agents/types.js';
+import type { CreateRoutineBody, Routine, RoutineCreates } from '$lib/domain/routines/types.js';
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── Routines query ─────────────────────────────────────────────────────────
+// ── Routines query ─────────────────────────────────────────────────────────
 
-  const optsStore = writable(untrack(() => routinesQuery()));
-  const routinesQ = createQuery<Routine[]>(optsStore);
-  const routines = $derived(($routinesQ.data ?? []) as Routine[]);
+const optsStore = writable(untrack(() => routinesQuery()));
+const routinesQ = createQuery<Routine[]>(optsStore);
+const routines = $derived(($routinesQ.data ?? []) as Routine[]);
 
-  const backendUnavailable = $derived(
-    $routinesQ.isError &&
-      String(($routinesQ.error as Error)?.message ?? "").includes("404"),
-  );
+const backendUnavailable = $derived(
+  $routinesQ.isError && String(($routinesQ.error as Error)?.message ?? '').includes('404')
+);
 
-  // ── Hired agents for target agent select ──────────────────────────────────
+// ── Hired agents for target agent select ──────────────────────────────────
 
-  const agentsOptsStore = writable(untrack(() => hiredAgentsQuery()));
-  const agentsQ = createQuery<Agent[]>(agentsOptsStore);
-  const hiredAgents = $derived(($agentsQ.data ?? []) as Agent[]);
+const agentsOptsStore = writable(untrack(() => hiredAgentsQuery()));
+const agentsQ = createQuery<Agent[]>(agentsOptsStore);
+const hiredAgents = $derived(($agentsQ.data ?? []) as Agent[]);
 
-  // ── Row action mutations ───────────────────────────────────────────────────
+// ── Row action mutations ───────────────────────────────────────────────────
 
-  const enableMut = createMutation(enableRoutineMutation());
-  const disableMut = createMutation(disableRoutineMutation());
-  const fireMut = createMutation(fireRoutineMutation());
+const enableMut = createMutation(enableRoutineMutation());
+const disableMut = createMutation(disableRoutineMutation());
+const fireMut = createMutation(fireRoutineMutation());
 
-  function invalidate(): void {
-    queryClient.invalidateQueries({ queryKey: ["routines"] });
-  }
+function invalidate(): void {
+  queryClient.invalidateQueries({ queryKey: ['routines'] });
+}
 
-  function toggle(r: Routine): void {
-    if (r.enabled) $disableMut.mutate(r.shortId, { onSuccess: invalidate });
-    else $enableMut.mutate(r.shortId, { onSuccess: invalidate });
-  }
+function toggle(r: Routine): void {
+  if (r.enabled) $disableMut.mutate(r.shortId, { onSuccess: invalidate });
+  else $enableMut.mutate(r.shortId, { onSuccess: invalidate });
+}
 
-  function fire(r: Routine): void {
-    $fireMut.mutate(r.shortId, { onSuccess: invalidate });
-  }
+function fire(r: Routine): void {
+  $fireMut.mutate(r.shortId, { onSuccess: invalidate });
+}
 
-  // ── Create modal ───────────────────────────────────────────────────────────
+// ── Create modal ───────────────────────────────────────────────────────────
 
-  const EMPTY_DRAFT: CreateRoutineBody = {
-    name: "",
-    description: "",
-    cron: "",
-    promptTemplate: "",
-    creates: "task",
-    targetAgentSlug: "",
-  };
+const EMPTY_DRAFT: CreateRoutineBody = {
+  name: '',
+  description: '',
+  cron: '',
+  promptTemplate: '',
+  creates: 'task',
+  targetAgentSlug: '',
+};
 
-  let modalOpen = $state(false);
-  let draft = $state<CreateRoutineBody>({ ...EMPTY_DRAFT });
-  let createError = $state<string | null>(null);
+let modalOpen = $state(false);
+let draft = $state<CreateRoutineBody>({ ...EMPTY_DRAFT });
+let createError = $state<string | null>(null);
 
-  const createMut = createMutation(createRoutineMutation());
+const createMut = createMutation(createRoutineMutation());
 
-  async function submitRoutine() {
-    if (!draft.name.trim()) return;
-    createError = null;
-    try {
-      const body: CreateRoutineBody = { name: draft.name.trim() };
-      if (draft.description?.trim()) body.description = draft.description.trim();
-      if (draft.cron?.trim()) body.cron = draft.cron.trim();
-      if (draft.promptTemplate?.trim()) body.promptTemplate = draft.promptTemplate.trim();
-      if (draft.creates) body.creates = draft.creates;
-      if (draft.targetAgentSlug?.trim()) body.targetAgentSlug = draft.targetAgentSlug.trim();
-      await $createMut.mutateAsync(body);
-      await queryClient.invalidateQueries({ queryKey: ["routines"] });
-      modalOpen = false;
-      draft = { ...EMPTY_DRAFT };
-    } catch (err) {
-      createError = err instanceof Error ? err.message : "Failed to create routine";
-    }
-  }
-
-  function openModal() {
-    createError = null;
+async function submitRoutine() {
+  if (!draft.name.trim()) return;
+  createError = null;
+  try {
+    const body: CreateRoutineBody = { name: draft.name.trim() };
+    if (draft.description?.trim()) body.description = draft.description.trim();
+    if (draft.cron?.trim()) body.cron = draft.cron.trim();
+    if (draft.promptTemplate?.trim()) body.promptTemplate = draft.promptTemplate.trim();
+    if (draft.creates) body.creates = draft.creates;
+    if (draft.targetAgentSlug?.trim()) body.targetAgentSlug = draft.targetAgentSlug.trim();
+    await $createMut.mutateAsync(body);
+    await queryClient.invalidateQueries({ queryKey: ['routines'] });
+    modalOpen = false;
     draft = { ...EMPTY_DRAFT };
-    modalOpen = true;
+  } catch (err) {
+    createError = err instanceof Error ? err.message : 'Failed to create routine';
   }
+}
 
-  // ── Display helpers ────────────────────────────────────────────────────────
+function openModal() {
+  createError = null;
+  draft = { ...EMPTY_DRAFT };
+  modalOpen = true;
+}
 
-  function relTime(iso: string | null): string {
-    if (!iso) return "never";
-    const diff = Date.now() - new Date(iso).getTime();
-    const m = Math.floor(diff / 60_000);
-    if (m < 1) return "just now";
-    if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`;
-    return `${Math.floor(h / 24)}d ago`;
-  }
+// ── Display helpers ────────────────────────────────────────────────────────
 
-  function decodeCron(cron: string | null): string {
-    if (!cron) return "—";
-    const map: Record<string, string> = {
-      "0 9 * * 1": "Every Monday at 9:00",
-      "0 9 * * *": "Every day at 9:00",
-      "0 0 * * *": "Every day at midnight",
-      "*/15 * * * *": "Every 15 minutes",
-      "0 * * * *": "Every hour",
-    };
-    return map[cron] ?? cron;
-  }
+function relTime(iso: string | null): string {
+  if (!iso) return 'never';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
 
-  // ── Example seed data (shown when no real routines) ────────────────────────
+function decodeCron(cron: string | null): string {
+  if (!cron) return '—';
+  const map: Record<string, string> = {
+    '0 9 * * 1': 'Every Monday at 9:00',
+    '0 9 * * *': 'Every day at 9:00',
+    '0 0 * * *': 'Every day at midnight',
+    '*/15 * * * *': 'Every 15 minutes',
+    '0 * * * *': 'Every hour',
+  };
+  return map[cron] ?? cron;
+}
 
-  type ExRoutine = Routine & { _triggerType?: string; _lastRunStatus?: string };
+// ── Example seed data (shown when no real routines) ────────────────────────
 
-  const EXAMPLE_ROUTINES: ExRoutine[] = [
-    {
-      id: "ex-r1",
-      shortId: "ci-monitor",
-      name: "CI Monitor",
-      description: "Watches for failing CI and auto-fixes flaky tests",
-      cron: "*/15 * * * *",
-      promptTemplate: "Check all CI runs in the last 15 minutes. If any are failing, identify the root cause and attempt an auto-fix.",
-      creates: "task" as RoutineCreates,
-      targetAgentSlug: "forge",
-      enabled: true,
-      runCount: 247,
-      lastRunAt: new Date(Date.now() - 900000).toISOString(),
-      _triggerType: "cron",
-      _lastRunStatus: "completed",
-    },
-    {
-      id: "ex-r2",
-      shortId: "inbox-triage",
-      name: "Inbox Triage",
-      description: "Monitors inbox and categorizes by priority and project",
-      cron: "0 * * * *",
-      promptTemplate: "Check the inbox for new items. Categorize each by priority (high/medium/low) and assign to the relevant project tag.",
-      creates: "task" as RoutineCreates,
-      targetAgentSlug: "conductor",
-      enabled: true,
-      runCount: 89,
-      lastRunAt: new Date(Date.now() - 3600000).toISOString(),
-      _triggerType: "cron",
-      _lastRunStatus: "completed",
-    },
-    {
-      id: "ex-r3",
-      shortId: "code-formatter",
-      name: "Code Formatter",
-      description: "Runs on file save to format code and fix lint warnings",
-      cron: null,
-      promptTemplate: "Format the changed files using the project's style config. Fix any auto-fixable lint warnings.",
-      creates: "task" as RoutineCreates,
-      targetAgentSlug: "iris",
-      enabled: true,
-      runCount: 1024,
-      lastRunAt: new Date(Date.now() - 120000).toISOString(),
-      _triggerType: "event",
-      _lastRunStatus: "completed",
-    },
-    {
-      id: "ex-r4",
-      shortId: "security-scanner",
-      name: "Security Scanner",
-      description: "Continuous vulnerability scanning across all dependencies",
-      cron: "0 3 * * *",
-      promptTemplate: "Run a full security scan: CVE lookups, SAST analysis, secret detection. Report any new findings.",
-      creates: "issue" as RoutineCreates,
-      targetAgentSlug: "conductor",
-      enabled: false,
-      runCount: 14,
-      lastRunAt: new Date(Date.now() - 86400000).toISOString(),
-      _triggerType: "cron",
-      _lastRunStatus: "completed",
-    },
-  ] as unknown as ExRoutine[];
+type ExRoutine = Routine & { _triggerType?: string; _lastRunStatus?: string };
 
-  const isExample = $derived(routines.length === 0 && !$routinesQ.isLoading);
-  const displayRoutines = $derived(isExample ? EXAMPLE_ROUTINES : (routines as ExRoutine[]));
+const EXAMPLE_ROUTINES: ExRoutine[] = [
+  {
+    id: 'ex-r1',
+    shortId: 'ci-monitor',
+    name: 'CI Monitor',
+    description: 'Watches for failing CI and auto-fixes flaky tests',
+    cron: '*/15 * * * *',
+    promptTemplate:
+      'Check all CI runs in the last 15 minutes. If any are failing, identify the root cause and attempt an auto-fix.',
+    creates: 'task' as RoutineCreates,
+    targetAgentSlug: 'forge',
+    enabled: true,
+    runCount: 247,
+    lastRunAt: new Date(Date.now() - 900000).toISOString(),
+    _triggerType: 'cron',
+    _lastRunStatus: 'completed',
+  },
+  {
+    id: 'ex-r2',
+    shortId: 'inbox-triage',
+    name: 'Inbox Triage',
+    description: 'Monitors inbox and categorizes by priority and project',
+    cron: '0 * * * *',
+    promptTemplate:
+      'Check the inbox for new items. Categorize each by priority (high/medium/low) and assign to the relevant project tag.',
+    creates: 'task' as RoutineCreates,
+    targetAgentSlug: 'conductor',
+    enabled: true,
+    runCount: 89,
+    lastRunAt: new Date(Date.now() - 3600000).toISOString(),
+    _triggerType: 'cron',
+    _lastRunStatus: 'completed',
+  },
+  {
+    id: 'ex-r3',
+    shortId: 'code-formatter',
+    name: 'Code Formatter',
+    description: 'Runs on file save to format code and fix lint warnings',
+    cron: null,
+    promptTemplate:
+      "Format the changed files using the project's style config. Fix any auto-fixable lint warnings.",
+    creates: 'task' as RoutineCreates,
+    targetAgentSlug: 'iris',
+    enabled: true,
+    runCount: 1024,
+    lastRunAt: new Date(Date.now() - 120000).toISOString(),
+    _triggerType: 'event',
+    _lastRunStatus: 'completed',
+  },
+  {
+    id: 'ex-r4',
+    shortId: 'security-scanner',
+    name: 'Security Scanner',
+    description: 'Continuous vulnerability scanning across all dependencies',
+    cron: '0 3 * * *',
+    promptTemplate:
+      'Run a full security scan: CVE lookups, SAST analysis, secret detection. Report any new findings.',
+    creates: 'issue' as RoutineCreates,
+    targetAgentSlug: 'conductor',
+    enabled: false,
+    runCount: 14,
+    lastRunAt: new Date(Date.now() - 86400000).toISOString(),
+    _triggerType: 'cron',
+    _lastRunStatus: 'completed',
+  },
+] as unknown as ExRoutine[];
 
-  // ── Trigger type in create modal ───────────────────────────────────────────
-  let formTriggerType = $state<"cron" | "event">("cron");
-  let formEventTrigger = $state("on_push");
+const isExample = $derived(routines.length === 0 && !$routinesQ.isLoading);
+const displayRoutines = $derived(isExample ? EXAMPLE_ROUTINES : (routines as ExRoutine[]));
 
-  const EVENT_TRIGGERS = [
-    { value: "on_push", label: "On push" },
-    { value: "on_pr", label: "On pull request" },
-    { value: "on_file_save", label: "On file save" },
-    { value: "on_workspace_change", label: "On workspace change" },
-    { value: "on_issue_created", label: "On issue created" },
-  ];
+// ── Trigger type in create modal ───────────────────────────────────────────
+let formTriggerType = $state<'cron' | 'event'>('cron');
+let formEventTrigger = $state('on_push');
+
+const EVENT_TRIGGERS = [
+  { value: 'on_push', label: 'On push' },
+  { value: 'on_pr', label: 'On pull request' },
+  { value: 'on_file_save', label: 'On file save' },
+  { value: 'on_workspace_change', label: 'On workspace change' },
+  { value: 'on_issue_created', label: 'On issue created' },
+];
 </script>
 
 <div class="rt-page">

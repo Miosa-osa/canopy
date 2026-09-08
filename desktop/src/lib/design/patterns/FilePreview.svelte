@@ -1,277 +1,304 @@
 <script lang="ts">
-  /**
-   * FilePreview — unified file preview dispatcher.
-   * CSS prefix: fp- (FilePreview)
-   *
-   * Routes by MIME type (then extension fallback) to the appropriate inline viewer:
-   *   PDF    → pdfjs-dist canvas render (first page)
-   *   DOCX   → docx-preview renderAsync
-   *   XLSX   → SheetJS sheet_to_html with sheet tabs
-   *   PPTX   → unsupported message
-   *   video  → <video controls>
-   *   audio  → <audio controls>
-   *   image  → <img>
-   *   text/* + common code/config exts → fetch + plain <pre> or renderMarkdown
-   *   else   → "preview not available" fallback
-   *
-   * Size cap: files > 50MB are not fetched — fallback shown immediately.
-   * All dynamic imports are inside onMount to avoid SSR issues.
-   */
-  import { onMount } from 'svelte';
-  import { API_BASE } from '$lib/api/client.js';
-  import { renderMarkdown } from '$lib/utils/markdown.js';
-  import type { FileRecord } from '$lib/domain/files/types.js';
+/**
+ * FilePreview — unified file preview dispatcher.
+ * CSS prefix: fp- (FilePreview)
+ *
+ * Routes by MIME type (then extension fallback) to the appropriate inline viewer:
+ *   PDF    → pdfjs-dist canvas render (first page)
+ *   DOCX   → docx-preview renderAsync
+ *   XLSX   → SheetJS sheet_to_html with sheet tabs
+ *   PPTX   → unsupported message
+ *   video  → <video controls>
+ *   audio  → <audio controls>
+ *   image  → <img>
+ *   text/* + common code/config exts → fetch + plain <pre> or renderMarkdown
+ *   else   → "preview not available" fallback
+ *
+ * Size cap: files > 50MB are not fetched — fallback shown immediately.
+ * All dynamic imports are inside onMount to avoid SSR issues.
+ */
+import { onMount } from 'svelte';
+import { API_BASE } from '$lib/api/client.js';
+import type { FileRecord } from '$lib/domain/files/types.js';
+import { renderMarkdown } from '$lib/utils/markdown.js';
 
-  interface Props {
-    file: FileRecord;
-    workspaceSlug: string;
+interface Props {
+  file: FileRecord;
+  workspaceSlug: string;
+}
+
+let { file }: Props = $props();
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const SIZE_CAP_BYTES = 50 * 1024 * 1024; // 50 MB
+
+const TEXT_EXTS = new Set([
+  'md',
+  'txt',
+  'json',
+  'yaml',
+  'yml',
+  'csv',
+  'log',
+  'ts',
+  'js',
+  'tsx',
+  'jsx',
+  'py',
+  'ex',
+  'exs',
+  'rs',
+  'go',
+  'rb',
+  'sh',
+  'toml',
+  'env',
+  'svelte',
+  'css',
+  'html',
+  'xml',
+  'sql',
+]);
+
+// ── Viewer type ──────────────────────────────────────────────────────────────
+
+type ViewerKind =
+  | 'pdf'
+  | 'docx'
+  | 'xlsx'
+  | 'pptx'
+  | 'video'
+  | 'audio'
+  | 'image'
+  | 'text'
+  | 'unsupported'
+  | 'too-large';
+
+function extOf(name: string): string {
+  const dot = name.lastIndexOf('.');
+  return dot === -1 ? '' : name.slice(dot + 1).toLowerCase();
+}
+
+export function resolveViewer(mime: string | null, name: string, sizeBytes: number): ViewerKind {
+  if (sizeBytes > SIZE_CAP_BYTES) return 'too-large';
+  const ext = extOf(name);
+  const m = (mime ?? '').toLowerCase();
+
+  if (m === 'application/pdf' || ext === 'pdf') return 'pdf';
+  if (
+    m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    ext === 'docx' ||
+    ext === 'doc'
+  )
+    return 'docx';
+  if (
+    m === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    m === 'application/vnd.ms-excel' ||
+    ext === 'xlsx' ||
+    ext === 'xls'
+  )
+    return 'xlsx';
+  if (
+    m === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+    ext === 'pptx' ||
+    ext === 'ppt'
+  )
+    return 'pptx';
+  if (m.startsWith('video/')) return 'video';
+  if (m.startsWith('audio/')) return 'audio';
+  if (m.startsWith('image/')) return 'image';
+  if (m.startsWith('text/') || TEXT_EXTS.has(ext)) return 'text';
+
+  return 'unsupported';
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+const contentUrl = $derived(`${API_BASE}/files/${file.id}/content`);
+const viewer = $derived(resolveViewer(file.mimeType, file.name, file.sizeBytes));
+
+let loading = $state(false);
+let errorMsg = $state<string | null>(null);
+
+// PDF state
+let pdfCanvas = $state<HTMLCanvasElement | null>(null);
+let pdfTotalPages = $state(0);
+let pdfCurrentPage = $state(1);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let pdfDoc = $state<any>(null);
+
+// DOCX state
+let docxContainer = $state<HTMLDivElement | null>(null);
+
+// XLSX state
+let xlsxSheets = $state<string[]>([]);
+let xlsxActiveSheet = $state('');
+let xlsxHtmlMap = $state<Record<string, string>>({});
+
+// Text state
+let textContent = $state('');
+let isMarkdown = $state(false);
+
+// Blob URL for media (video / audio / image)
+let blobUrl = $state<string | null>(null);
+
+// Collapse/expand
+let expanded = $state(true);
+
+// ── Mount: load content based on viewer type ─────────────────────────────────
+
+onMount(() => {
+  if (viewer === 'too-large' || viewer === 'unsupported' || viewer === 'pptx') return;
+
+  loadContent();
+
+  return () => {
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+  };
+});
+
+async function loadContent(): Promise<void> {
+  loading = true;
+  errorMsg = null;
+
+  try {
+    if (viewer === 'pdf') {
+      await loadPdf();
+    } else if (viewer === 'docx') {
+      await loadDocx();
+    } else if (viewer === 'xlsx') {
+      await loadXlsx();
+    } else if (viewer === 'text') {
+      await loadText();
+    } else if (viewer === 'video' || viewer === 'audio' || viewer === 'image') {
+      await loadMedia();
+    }
+  } catch (err) {
+    errorMsg = err instanceof Error ? err.message : 'Unknown error';
+  } finally {
+    loading = false;
   }
+}
 
-  let { file }: Props = $props();
+// ── PDF loader ───────────────────────────────────────────────────────────────
 
-  // ── Constants ────────────────────────────────────────────────────────────────
+async function loadPdf(): Promise<void> {
+  const pdfjs = await import('pdfjs-dist');
+  const workerMod = await import('pdfjs-dist/build/pdf.worker.mjs?url');
+  pdfjs.GlobalWorkerOptions.workerSrc = workerMod.default as string;
 
-  const SIZE_CAP_BYTES = 50 * 1024 * 1024; // 50 MB
+  const res = await fetch(contentUrl, { credentials: 'include' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const buffer = await res.arrayBuffer();
 
-  const TEXT_EXTS = new Set([
-    'md', 'txt', 'json', 'yaml', 'yml', 'csv', 'log',
-    'ts', 'js', 'tsx', 'jsx', 'py', 'ex', 'exs',
-    'rs', 'go', 'rb', 'sh', 'toml', 'env',
-    'svelte', 'css', 'html', 'xml', 'sql',
-  ]);
+  const doc = await pdfjs.getDocument({ data: buffer }).promise;
+  pdfDoc = doc;
+  pdfTotalPages = doc.numPages;
+  pdfCurrentPage = 1;
 
-  // ── Viewer type ──────────────────────────────────────────────────────────────
+  await renderPdfPage(doc, 1);
+}
 
-  type ViewerKind =
-    | 'pdf'
-    | 'docx'
-    | 'xlsx'
-    | 'pptx'
-    | 'video'
-    | 'audio'
-    | 'image'
-    | 'text'
-    | 'unsupported'
-    | 'too-large';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function renderPdfPage(doc: any, pageNum: number): Promise<void> {
+  if (!pdfCanvas) return;
+  const page = await doc.getPage(pageNum);
+  const container = pdfCanvas.parentElement;
+  const maxWidth = Math.min(container?.clientWidth ?? 800, 800);
+  const viewport = page.getViewport({ scale: 1 });
+  const scale = maxWidth / viewport.width;
+  const scaled = page.getViewport({ scale });
 
-  function extOf(name: string): string {
-    const dot = name.lastIndexOf('.');
-    return dot === -1 ? '' : name.slice(dot + 1).toLowerCase();
-  }
+  pdfCanvas.width = scaled.width;
+  pdfCanvas.height = scaled.height;
 
-  export function resolveViewer(mime: string | null, name: string, sizeBytes: number): ViewerKind {
-    if (sizeBytes > SIZE_CAP_BYTES) return 'too-large';
-    const ext = extOf(name);
-    const m = (mime ?? '').toLowerCase();
+  const ctx = pdfCanvas.getContext('2d');
+  if (!ctx) return;
+  await page.render({ canvasContext: ctx, viewport: scaled }).promise;
+}
 
-    if (m === 'application/pdf' || ext === 'pdf') return 'pdf';
-    if (
-      m === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      ext === 'docx' || ext === 'doc'
-    ) return 'docx';
-    if (
-      m === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      m === 'application/vnd.ms-excel' ||
-      ext === 'xlsx' || ext === 'xls'
-    ) return 'xlsx';
-    if (
-      m === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-      ext === 'pptx' || ext === 'ppt'
-    ) return 'pptx';
-    if (m.startsWith('video/')) return 'video';
-    if (m.startsWith('audio/')) return 'audio';
-    if (m.startsWith('image/')) return 'image';
-    if (m.startsWith('text/') || TEXT_EXTS.has(ext)) return 'text';
+async function pdfPrevPage(): Promise<void> {
+  if (!pdfDoc || pdfCurrentPage <= 1) return;
+  pdfCurrentPage--;
+  await renderPdfPage(pdfDoc, pdfCurrentPage);
+}
 
-    return 'unsupported';
-  }
+async function pdfNextPage(): Promise<void> {
+  if (!pdfDoc || pdfCurrentPage >= pdfTotalPages) return;
+  pdfCurrentPage++;
+  await renderPdfPage(pdfDoc, pdfCurrentPage);
+}
 
-  // ── State ────────────────────────────────────────────────────────────────────
+// ── DOCX loader ──────────────────────────────────────────────────────────────
 
-  const contentUrl = $derived(`${API_BASE}/files/${file.id}/content`);
-  const viewer = $derived(resolveViewer(file.mimeType, file.name, file.sizeBytes));
+async function loadDocx(): Promise<void> {
+  const { renderAsync } = await import('docx-preview');
+  const res = await fetch(contentUrl, { credentials: 'include' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const buffer = await res.arrayBuffer();
 
-  let loading = $state(false);
-  let errorMsg = $state<string | null>(null);
-
-  // PDF state
-  let pdfCanvas = $state<HTMLCanvasElement | null>(null);
-  let pdfTotalPages = $state(0);
-  let pdfCurrentPage = $state(1);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let pdfDoc = $state<any>(null);
-
-  // DOCX state
-  let docxContainer = $state<HTMLDivElement | null>(null);
-
-  // XLSX state
-  let xlsxSheets = $state<string[]>([]);
-  let xlsxActiveSheet = $state('');
-  let xlsxHtmlMap = $state<Record<string, string>>({});
-
-  // Text state
-  let textContent = $state('');
-  let isMarkdown = $state(false);
-
-  // Blob URL for media (video / audio / image)
-  let blobUrl = $state<string | null>(null);
-
-  // Collapse/expand
-  let expanded = $state(true);
-
-  // ── Mount: load content based on viewer type ─────────────────────────────────
-
-  onMount(() => {
-    if (viewer === 'too-large' || viewer === 'unsupported' || viewer === 'pptx') return;
-
-    loadContent();
-
-    return () => {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
-    };
+  if (!docxContainer) throw new Error('DOCX container not ready');
+  await renderAsync(buffer, docxContainer, undefined, {
+    inWrapper: true,
+    ignoreWidth: false,
+    ignoreHeight: false,
+    breakPages: true,
+    renderHeaders: true,
+    renderFooters: true,
+    renderFootnotes: true,
+    renderEndnotes: true,
   });
+}
 
-  async function loadContent(): Promise<void> {
-    loading = true;
-    errorMsg = null;
+// ── XLSX loader ──────────────────────────────────────────────────────────────
 
-    try {
-      if (viewer === 'pdf') {
-        await loadPdf();
-      } else if (viewer === 'docx') {
-        await loadDocx();
-      } else if (viewer === 'xlsx') {
-        await loadXlsx();
-      } else if (viewer === 'text') {
-        await loadText();
-      } else if (viewer === 'video' || viewer === 'audio' || viewer === 'image') {
-        await loadMedia();
-      }
-    } catch (err) {
-      errorMsg = err instanceof Error ? err.message : 'Unknown error';
-    } finally {
-      loading = false;
+const XLSX_MAX_ROWS = 200;
+const XLSX_MAX_COLS = 50;
+
+async function loadXlsx(): Promise<void> {
+  const XLSX = await import('xlsx');
+  const res = await fetch(contentUrl, { credentials: 'include' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const buffer = await res.arrayBuffer();
+
+  const wb = XLSX.read(buffer, { type: 'array' });
+  xlsxSheets = wb.SheetNames;
+  xlsxActiveSheet = wb.SheetNames[0] ?? '';
+
+  const htmlMap: Record<string, string> = {};
+  for (const name of wb.SheetNames) {
+    const ws = wb.Sheets[name];
+    // Clip to first XLSX_MAX_ROWS × XLSX_MAX_COLS
+    const ref = ws['!ref'];
+    if (ref) {
+      const range = XLSX.utils.decode_range(ref);
+      range.e.r = Math.min(range.e.r, XLSX_MAX_ROWS - 1);
+      range.e.c = Math.min(range.e.c, XLSX_MAX_COLS - 1);
+      ws['!ref'] = XLSX.utils.encode_range(range);
     }
+    htmlMap[name] = XLSX.utils.sheet_to_html(ws);
   }
+  xlsxHtmlMap = htmlMap;
+}
 
-  // ── PDF loader ───────────────────────────────────────────────────────────────
+// ── Text loader ──────────────────────────────────────────────────────────────
 
-  async function loadPdf(): Promise<void> {
-    const pdfjs = await import('pdfjs-dist');
-    const workerMod = await import('pdfjs-dist/build/pdf.worker.mjs?url');
-    pdfjs.GlobalWorkerOptions.workerSrc = workerMod.default as string;
+async function loadText(): Promise<void> {
+  const res = await fetch(contentUrl, { credentials: 'include' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  textContent = await res.text();
+  isMarkdown = extOf(file.name) === 'md' || extOf(file.name) === 'markdown';
+}
 
-    const res = await fetch(contentUrl, { credentials: 'include' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buffer = await res.arrayBuffer();
+// ── Media loader (video / audio / image) ────────────────────────────────────
 
-    const doc = await pdfjs.getDocument({ data: buffer }).promise;
-    pdfDoc = doc;
-    pdfTotalPages = doc.numPages;
-    pdfCurrentPage = 1;
-
-    await renderPdfPage(doc, 1);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async function renderPdfPage(doc: any, pageNum: number): Promise<void> {
-    if (!pdfCanvas) return;
-    const page = await doc.getPage(pageNum);
-    const container = pdfCanvas.parentElement;
-    const maxWidth = Math.min(container?.clientWidth ?? 800, 800);
-    const viewport = page.getViewport({ scale: 1 });
-    const scale = maxWidth / viewport.width;
-    const scaled = page.getViewport({ scale });
-
-    pdfCanvas.width = scaled.width;
-    pdfCanvas.height = scaled.height;
-
-    const ctx = pdfCanvas.getContext('2d');
-    if (!ctx) return;
-    await page.render({ canvasContext: ctx, viewport: scaled }).promise;
-  }
-
-  async function pdfPrevPage(): Promise<void> {
-    if (!pdfDoc || pdfCurrentPage <= 1) return;
-    pdfCurrentPage--;
-    await renderPdfPage(pdfDoc, pdfCurrentPage);
-  }
-
-  async function pdfNextPage(): Promise<void> {
-    if (!pdfDoc || pdfCurrentPage >= pdfTotalPages) return;
-    pdfCurrentPage++;
-    await renderPdfPage(pdfDoc, pdfCurrentPage);
-  }
-
-  // ── DOCX loader ──────────────────────────────────────────────────────────────
-
-  async function loadDocx(): Promise<void> {
-    const { renderAsync } = await import('docx-preview');
-    const res = await fetch(contentUrl, { credentials: 'include' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buffer = await res.arrayBuffer();
-
-    if (!docxContainer) throw new Error('DOCX container not ready');
-    await renderAsync(buffer, docxContainer, undefined, {
-      inWrapper: true,
-      ignoreWidth: false,
-      ignoreHeight: false,
-      breakPages: true,
-      renderHeaders: true,
-      renderFooters: true,
-      renderFootnotes: true,
-      renderEndnotes: true,
-    });
-  }
-
-  // ── XLSX loader ──────────────────────────────────────────────────────────────
-
-  const XLSX_MAX_ROWS = 200;
-  const XLSX_MAX_COLS = 50;
-
-  async function loadXlsx(): Promise<void> {
-    const XLSX = await import('xlsx');
-    const res = await fetch(contentUrl, { credentials: 'include' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buffer = await res.arrayBuffer();
-
-    const wb = XLSX.read(buffer, { type: 'array' });
-    xlsxSheets = wb.SheetNames;
-    xlsxActiveSheet = wb.SheetNames[0] ?? '';
-
-    const htmlMap: Record<string, string> = {};
-    for (const name of wb.SheetNames) {
-      const ws = wb.Sheets[name];
-      // Clip to first XLSX_MAX_ROWS × XLSX_MAX_COLS
-      const ref = ws['!ref'];
-      if (ref) {
-        const range = XLSX.utils.decode_range(ref);
-        range.e.r = Math.min(range.e.r, XLSX_MAX_ROWS - 1);
-        range.e.c = Math.min(range.e.c, XLSX_MAX_COLS - 1);
-        ws['!ref'] = XLSX.utils.encode_range(range);
-      }
-      htmlMap[name] = XLSX.utils.sheet_to_html(ws);
-    }
-    xlsxHtmlMap = htmlMap;
-  }
-
-  // ── Text loader ──────────────────────────────────────────────────────────────
-
-  async function loadText(): Promise<void> {
-    const res = await fetch(contentUrl, { credentials: 'include' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    textContent = await res.text();
-    isMarkdown = extOf(file.name) === 'md' || extOf(file.name) === 'markdown';
-  }
-
-  // ── Media loader (video / audio / image) ────────────────────────────────────
-
-  async function loadMedia(): Promise<void> {
-    const res = await fetch(contentUrl, { credentials: 'include' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    blobUrl = URL.createObjectURL(blob);
-  }
+async function loadMedia(): Promise<void> {
+  const res = await fetch(contentUrl, { credentials: 'include' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  blobUrl = URL.createObjectURL(blob);
+}
 </script>
 
 <!-- ── Markup ──────────────────────────────────────────────────────────────── -->

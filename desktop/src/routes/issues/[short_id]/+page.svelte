@@ -1,131 +1,150 @@
 <script lang="ts">
-  /**
-   * /issues/[short_id] — Issue detail: two-pane (main + sidebar).
-   * CSS prefix: id- (IssueDetail)
-   * LOC target: ≤ 280.
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { page } from '$app/state';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { beforeNavigate, goto } from '$app/navigation';
-  import {
-    issueQuery,
-    updateIssueMutation,
-  } from '$lib/api/queries/issues.js';
-  import { ApiError } from '$lib/api/client.js';
-  import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
-  import IssueDetailActions from '$lib/design/patterns/issues/IssueDetailActions.svelte';
-  import IssueDetailMain from '$lib/design/patterns/issues/IssueDetailMain.svelte';
-  import IssueDetailSidebar from '$lib/design/patterns/issues/IssueDetailSidebar.svelte';
-  import ChangesPanel from '$lib/design/patterns/diff/ChangesPanel.svelte';
-  import ResizablePanel from '$lib/design/primitives/ResizablePanel.svelte';
-  import type { Issue, IssueStatus, IssuePriority, UpdateIssueBody } from '$lib/domain/issues/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * /issues/[short_id] — Issue detail: two-pane (main + sidebar).
+ * CSS prefix: id- (IssueDetail)
+ * LOC target: ≤ 280.
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { beforeNavigate, goto } from '$app/navigation';
+import { page } from '$app/state';
+import { ApiError } from '$lib/api/client.js';
+import { issueQuery, updateIssueMutation } from '$lib/api/queries/issues.js';
+import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
+import ChangesPanel from '$lib/design/patterns/diff/ChangesPanel.svelte';
+import IssueDetailActions from '$lib/design/patterns/issues/IssueDetailActions.svelte';
+import IssueDetailMain from '$lib/design/patterns/issues/IssueDetailMain.svelte';
+import IssueDetailSidebar from '$lib/design/patterns/issues/IssueDetailSidebar.svelte';
+import ResizablePanel from '$lib/design/primitives/ResizablePanel.svelte';
+import type {
+  Issue,
+  IssuePriority,
+  IssueStatus,
+  UpdateIssueBody,
+} from '$lib/domain/issues/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  const shortId = $derived(page.params.short_id ?? '');
-  const queryClient = useQueryClient();
+const shortId = $derived(page.params.short_id ?? '');
+const queryClient = useQueryClient();
 
-  // ── Query ─────────────────────────────────────────────────────────────────────
+// ── Query ─────────────────────────────────────────────────────────────────────
 
-  const queryOptsStore = writable(
-    untrack(() => issueQuery(shortId) as CreateQueryOptions<Issue>),
-  );
+const queryOptsStore = writable(untrack(() => issueQuery(shortId) as CreateQueryOptions<Issue>));
 
-  $effect(() => {
-    queryOptsStore.set(issueQuery(shortId) as CreateQueryOptions<Issue>);
-  });
+$effect(() => {
+  queryOptsStore.set(issueQuery(shortId) as CreateQueryOptions<Issue>);
+});
 
-  const query = createQuery<Issue>(queryOptsStore);
-  const issue = $derived($query.data as Issue | undefined);
+const query = createQuery<Issue>(queryOptsStore);
+const issue = $derived($query.data as Issue | undefined);
 
-  const backendUnavailable = $derived(
-    $query.isError &&
-      ($query.error instanceof ApiError
-        ? $query.error.status === 404
-        : String(($query.error as Error)?.message ?? '').includes('404')),
-  );
+const backendUnavailable = $derived(
+  $query.isError &&
+    ($query.error instanceof ApiError
+      ? $query.error.status === 404
+      : String(($query.error as Error)?.message ?? '').includes('404'))
+);
 
-  // ── Local edit state ──────────────────────────────────────────────────────────
+// ── Local edit state ──────────────────────────────────────────────────────────
 
-  let localTitle = $state('');
-  let localDesc = $state('');
-  let titleDirty = $state(false);
-  let descDirty = $state(false);
-  let panelOpen = $state(true);
-  let issueTab = $state<'properties' | 'changes'>('properties');
+let localTitle = $state('');
+let localDesc = $state('');
+let titleDirty = $state(false);
+let descDirty = $state(false);
+let panelOpen = $state(true);
+let issueTab = $state<'properties' | 'changes'>('properties');
 
-  $effect(() => {
-    if (issue && !titleDirty && !descDirty) {
-      localTitle = issue.title;
-      localDesc = issue.description ?? '';
-    }
-  });
-
-  const isDirty = $derived(titleDirty || descDirty);
-
-  // ── Dirty guard ───────────────────────────────────────────────────────────────
-
-  let guardOpen = $state(false);
-  let pendingUrl = $state('');
-  let allowNavigation = $state(false);
-
-  beforeNavigate(({ to, cancel }) => {
-    if (isDirty && !allowNavigation) {
-      cancel();
-      pendingUrl = to?.url.pathname ?? '/issues';
-      guardOpen = true;
-    }
-  });
-
-  function handleGuardCancel(): void { guardOpen = false; pendingUrl = ''; }
-  function handleGuardDiscard(): void { allowNavigation = true; guardOpen = false; goto(pendingUrl || '/issues'); }
-
-  // ── Update mutation (title / description / status / priority) ─────────────────
-
-  const updateMut = createMutation<Issue, Error, { shortId: string; body: UpdateIssueBody }>(
-    updateIssueMutation() as CreateMutationOptions<Issue, Error, { shortId: string; body: UpdateIssueBody }>,
-  );
-
-  function invalidate(): void {
-    queryClient.invalidateQueries({ queryKey: ['issues', shortId] });
-    queryClient.invalidateQueries({ queryKey: ['issues'] });
+$effect(() => {
+  if (issue && !titleDirty && !descDirty) {
+    localTitle = issue.title;
+    localDesc = issue.description ?? '';
   }
+});
 
-  function saveTitle(): void {
-    if (!issue || !titleDirty || !localTitle.trim()) return;
-    $updateMut.mutate(
-      { shortId, body: { title: localTitle.trim() } },
-      {
-        onSuccess: () => { titleDirty = false; invalidate(); toasts.success('Title saved'); },
-        onError: (err: Error) => toasts.error(`Save failed: ${err.message}`),
+const isDirty = $derived(titleDirty || descDirty);
+
+// ── Dirty guard ───────────────────────────────────────────────────────────────
+
+let guardOpen = $state(false);
+let pendingUrl = $state('');
+let allowNavigation = $state(false);
+
+beforeNavigate(({ to, cancel }) => {
+  if (isDirty && !allowNavigation) {
+    cancel();
+    pendingUrl = to?.url.pathname ?? '/issues';
+    guardOpen = true;
+  }
+});
+
+function handleGuardCancel(): void {
+  guardOpen = false;
+  pendingUrl = '';
+}
+function handleGuardDiscard(): void {
+  allowNavigation = true;
+  guardOpen = false;
+  goto(pendingUrl || '/issues');
+}
+
+// ── Update mutation (title / description / status / priority) ─────────────────
+
+const updateMut = createMutation<Issue, Error, { shortId: string; body: UpdateIssueBody }>(
+  updateIssueMutation() as CreateMutationOptions<
+    Issue,
+    Error,
+    { shortId: string; body: UpdateIssueBody }
+  >
+);
+
+function invalidate(): void {
+  queryClient.invalidateQueries({ queryKey: ['issues', shortId] });
+  queryClient.invalidateQueries({ queryKey: ['issues'] });
+}
+
+function saveTitle(): void {
+  if (!issue || !titleDirty || !localTitle.trim()) return;
+  $updateMut.mutate(
+    { shortId, body: { title: localTitle.trim() } },
+    {
+      onSuccess: () => {
+        titleDirty = false;
+        invalidate();
+        toasts.success('Title saved');
       },
-    );
-  }
+      onError: (err: Error) => toasts.error(`Save failed: ${err.message}`),
+    }
+  );
+}
 
-  function saveDescription(): void {
-    if (!issue || !descDirty) return;
-    $updateMut.mutate(
-      { shortId, body: { description: localDesc } },
-      {
-        onSuccess: () => { descDirty = false; invalidate(); toasts.success('Description saved'); },
-        onError: (err: Error) => toasts.error(`Save failed: ${err.message}`),
+function saveDescription(): void {
+  if (!issue || !descDirty) return;
+  $updateMut.mutate(
+    { shortId, body: { description: localDesc } },
+    {
+      onSuccess: () => {
+        descDirty = false;
+        invalidate();
+        toasts.success('Description saved');
       },
-    );
-  }
+      onError: (err: Error) => toasts.error(`Save failed: ${err.message}`),
+    }
+  );
+}
 
-  function updateStatus(status: IssueStatus): void {
-    $updateMut.mutate({ shortId, body: { status } }, { onSuccess: invalidate });
-  }
-  function updatePriority(priority: IssuePriority): void {
-    $updateMut.mutate({ shortId, body: { priority } }, { onSuccess: invalidate });
-  }
+function updateStatus(status: IssueStatus): void {
+  $updateMut.mutate({ shortId, body: { status } }, { onSuccess: invalidate });
+}
+function updatePriority(priority: IssuePriority): void {
+  $updateMut.mutate({ shortId, body: { priority } }, { onSuccess: invalidate });
+}
 </script>
 
 <svelte:window

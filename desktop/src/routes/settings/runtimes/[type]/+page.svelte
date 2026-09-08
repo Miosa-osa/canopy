@@ -13,25 +13,25 @@ import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { page } from '$app/state';
 import { runtimeDetailQuery } from '$lib/api/queries/runtimes.js';
+import ApiKeyPanel from '$lib/design/patterns/runtime-auth/ApiKeyPanel.svelte';
+import CliLoginPanel from '$lib/design/patterns/runtime-auth/CliLoginPanel.svelte';
+import SubscriptionDetectPanel from '$lib/design/patterns/runtime-auth/SubscriptionDetectPanel.svelte';
+import TestConnectionButton from '$lib/design/patterns/runtime-auth/TestConnectionButton.svelte';
+import type { AuthMethod, AuthStatus, RuntimeDetail } from '$lib/domain/runtimes/types.js';
+import type { TestRuntimeResponse } from '$lib/queries/runtime-auth.js';
 import {
   authStatusQuery,
-  saveApiKey,
   revokeCredentials,
+  saveApiKey,
   testRuntime,
 } from '$lib/queries/runtime-auth.js';
-import type { RuntimeDetail, AuthMethod, AuthStatus } from '$lib/domain/runtimes/types.js';
-import type { TestRuntimeResponse } from '$lib/queries/runtime-auth.js';
-import SubscriptionDetectPanel from '$lib/design/patterns/runtime-auth/SubscriptionDetectPanel.svelte';
-import CliLoginPanel from '$lib/design/patterns/runtime-auth/CliLoginPanel.svelte';
-import ApiKeyPanel from '$lib/design/patterns/runtime-auth/ApiKeyPanel.svelte';
-import TestConnectionButton from '$lib/design/patterns/runtime-auth/TestConnectionButton.svelte';
 
 const runtimeId = $derived(page.params.type ?? '');
 
 // ── Runtime detail ────────────────────────────────────────────────────────────
 
 const detailOptsStore = writable(
-  untrack(() => runtimeDetailQuery(runtimeId) as CreateQueryOptions<RuntimeDetail>),
+  untrack(() => runtimeDetailQuery(runtimeId) as CreateQueryOptions<RuntimeDetail>)
 );
 $effect(() => {
   detailOptsStore.set(runtimeDetailQuery(runtimeId) as CreateQueryOptions<RuntimeDetail>);
@@ -41,7 +41,7 @@ const detailResult = createQuery<RuntimeDetail>(detailOptsStore);
 // ── Auth status ───────────────────────────────────────────────────────────────
 
 const authOptsStore = writable(
-  untrack(() => authStatusQuery(runtimeId) as CreateQueryOptions<AuthStatus>),
+  untrack(() => authStatusQuery(runtimeId) as CreateQueryOptions<AuthStatus>)
 );
 $effect(() => {
   authOptsStore.set(authStatusQuery(runtimeId) as CreateQueryOptions<AuthStatus>);
@@ -121,7 +121,7 @@ const activeMethodLabel = $derived<string | null>(
       ? 'CLI login'
       : authStatus?.active_method === 'api_key'
         ? 'API key'
-        : null,
+        : null
 );
 
 function statusText(s: string) {

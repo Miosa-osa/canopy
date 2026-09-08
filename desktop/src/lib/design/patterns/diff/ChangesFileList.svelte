@@ -1,43 +1,41 @@
 <script lang="ts">
-  /**
-   * ChangesFileList — dense file list for the diff panel.
-   * CSS prefix: cfl-
-   * LOC target: ≤ 140.
-   */
-  import type { DiffFile } from '$lib/utils/parse-diff.js';
-  import { fileStatusIcon } from '$lib/utils/parse-diff.js';
+/**
+ * ChangesFileList — dense file list for the diff panel.
+ * CSS prefix: cfl-
+ * LOC target: ≤ 140.
+ */
+import type { DiffFile } from '$lib/utils/parse-diff.js';
+import { fileStatusIcon } from '$lib/utils/parse-diff.js';
 
-  interface Props {
-    files: DiffFile[];
-    activeFile: DiffFile | null;
-    onSelect: (file: DiffFile) => void;
-    onCommit: () => void;
+interface Props {
+  files: DiffFile[];
+  activeFile: DiffFile | null;
+  onSelect: (file: DiffFile) => void;
+  onCommit: () => void;
+}
+
+let { files, activeFile, onSelect, onCommit }: Props = $props();
+
+type Filter = 'all' | 'added' | 'modified' | 'deleted';
+let filter = $state<Filter>('all');
+
+const filtered = $derived(filter === 'all' ? files : files.filter((f) => f.status === filter));
+
+const totalAdditions = $derived(files.reduce((n, f) => n + f.additions, 0));
+const totalDeletions = $derived(files.reduce((n, f) => n + f.deletions, 0));
+
+function statusColor(status: DiffFile['status']): string {
+  switch (status) {
+    case 'added':
+      return 'var(--success, oklch(0.72 0.18 145))';
+    case 'deleted':
+      return 'var(--destructive, oklch(0.65 0.22 25))';
+    case 'renamed':
+      return 'var(--fg-muted)';
+    default:
+      return 'var(--cnp-accent, oklch(0.78 0.18 145))';
   }
-
-  let { files, activeFile, onSelect, onCommit }: Props = $props();
-
-  type Filter = 'all' | 'added' | 'modified' | 'deleted';
-  let filter = $state<Filter>('all');
-
-  const filtered = $derived(
-    filter === 'all' ? files : files.filter((f) => f.status === filter),
-  );
-
-  const totalAdditions = $derived(files.reduce((n, f) => n + f.additions, 0));
-  const totalDeletions = $derived(files.reduce((n, f) => n + f.deletions, 0));
-
-  function statusColor(status: DiffFile['status']): string {
-    switch (status) {
-      case 'added':
-        return 'var(--success, oklch(0.72 0.18 145))';
-      case 'deleted':
-        return 'var(--destructive, oklch(0.65 0.22 25))';
-      case 'renamed':
-        return 'var(--fg-muted)';
-      default:
-        return 'var(--cnp-accent, oklch(0.78 0.18 145))';
-    }
-  }
+}
 </script>
 
 <!-- Header -->

@@ -3,11 +3,11 @@
  * Keys arrive camelCased via the client conversion layer.
  */
 
-export type TemplateKind = "workspace" | "persona" | "workflow";
+export type TemplateKind = 'workspace' | 'persona' | 'workflow';
 
-export type TemplateSource = "local" | "git" | "imported" | "user";
+export type TemplateSource = 'local' | 'git' | 'imported' | 'user';
 
-export type InstantiationStatus = "pending" | "success" | "partial" | "failed";
+export type InstantiationStatus = 'pending' | 'success' | 'partial' | 'failed';
 
 export interface Template {
   id: string;
@@ -35,7 +35,7 @@ export interface Template {
 }
 
 export interface TemplateParameter {
-  type?: "string" | "integer" | "boolean" | "list";
+  type?: 'string' | 'integer' | 'boolean' | 'list';
   required?: boolean;
   default?: unknown;
   description?: string;
@@ -126,6 +126,6 @@ export interface ForkRequest {
 }
 
 export interface MissingParamsError {
-  error: "missing_parameters";
+  error: 'missing_parameters';
   missing: string[];
 }

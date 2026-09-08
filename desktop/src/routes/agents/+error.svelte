@@ -3,8 +3,9 @@
  * Agents route error boundary.
  * Shown when /agents or /agents/[slug] load functions throw.
  */
-import { page } from '$app/state';
+
 import { goto } from '$app/navigation';
+import { page } from '$app/state';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 
 const status = $derived(page.status);

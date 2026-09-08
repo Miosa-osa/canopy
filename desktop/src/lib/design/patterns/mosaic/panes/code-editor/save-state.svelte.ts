@@ -29,7 +29,7 @@ export function computeDirty(baseline: string, draft: string): boolean {
 
 /** Normalize CRLF and lone CR to LF — matches what the textarea will emit. */
 export function normalizeNewlines(s: string): string {
-  return s.replace(/\r\n?/g, "\n");
+  return s.replace(/\r\n?/g, '\n');
 }
 
 /**
@@ -37,7 +37,7 @@ export function normalizeNewlines(s: string): string {
  * otherwise. Pulled out as a tiny pure helper for the unit test.
  */
 export function dirtyTitleMarker(isDirty: boolean): string {
-  return isDirty ? "• " : "";
+  return isDirty ? '• ' : '';
 }
 
 export interface SaveStateSnapshot {
@@ -53,10 +53,10 @@ export interface SaveStateSnapshot {
 
 export class CodeEditorSaveState {
   /** Last-saved content (the rollback target on failed save). */
-  baseline = $state<string>("");
+  baseline = $state<string>('');
 
   /** Current editor buffer. Mutated as the user types. */
-  draft = $state<string>("");
+  draft = $state<string>('');
 
   /** ISO timestamp of last successful save — null if never saved. */
   lastSavedAt = $state<string | null>(null);
@@ -64,7 +64,7 @@ export class CodeEditorSaveState {
   /** Derived dirty flag — recomputes whenever baseline or draft changes. */
   isDirty = $derived(computeDirty(this.baseline, this.draft));
 
-  constructor(initial = "") {
+  constructor(initial = '') {
     this.baseline = initial;
     this.draft = initial;
   }
@@ -119,6 +119,6 @@ export class CodeEditorSaveState {
  * Factory for ergonomic single-line construction in Svelte components.
  *   const save = createSaveState(remoteContent);
  */
-export function createSaveState(initial = ""): CodeEditorSaveState {
+export function createSaveState(initial = ''): CodeEditorSaveState {
   return new CodeEditorSaveState(initial);
 }

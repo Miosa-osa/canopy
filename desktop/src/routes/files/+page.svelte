@@ -1,149 +1,142 @@
 <script lang="ts">
-  /**
-   * /files — Project explorer for the active workspace.
-   *
-   * Layout (2 columns):
-   *
-   *   ┌─────────────────┬─────────────────────────────────────┐
-   *   │ Workspaces list │ breadcrumb / search / new / refresh │
-   *   │ (FilesWorkspace ├─────────────────────────────────────┤
-   *   │  Picker)        │ <FileTree>                          │
-   *   │                 ├─────────────────────────────────────┤
-   *   │                 │ <FileViewerPane> (when file picked) │
-   *   └─────────────────┴─────────────────────────────────────┘
-   *
-   * Reuses:
-   *   • FileTree foundation primitive — `$lib/design/foundation/file-tree`
-   *   • FileViewerPane mosaic primitive — `$lib/design/patterns/mosaic/panes`
-   *   • activeWorkspace singleton — `$lib/stores/active-workspace.svelte`
-   *   • useWorkspaceState hook — persists per-workspace expanded paths
-   *
-   * NOT a bucket-style upload UI — that was the old /files. See
-   * `wiring/files-explorer-rebuild-wiring.md`.
-   *
-   * CSS prefix: fexp- (Files Explorer Page)
-   * LOC target: ≤ 350
-   */
-  import { ChevronRight, FolderOpen, Plus, RefreshCw, X } from "lucide-svelte";
-  import { goto } from "$app/navigation";
+/**
+ * /files — Project explorer for the active workspace.
+ *
+ * Layout (2 columns):
+ *
+ *   ┌─────────────────┬─────────────────────────────────────┐
+ *   │ Workspaces list │ breadcrumb / search / new / refresh │
+ *   │ (FilesWorkspace ├─────────────────────────────────────┤
+ *   │  Picker)        │ <FileTree>                          │
+ *   │                 ├─────────────────────────────────────┤
+ *   │                 │ <FileViewerPane> (when file picked) │
+ *   └─────────────────┴─────────────────────────────────────┘
+ *
+ * Reuses:
+ *   • FileTree foundation primitive — `$lib/design/foundation/file-tree`
+ *   • FileViewerPane mosaic primitive — `$lib/design/patterns/mosaic/panes`
+ *   • activeWorkspace singleton — `$lib/stores/active-workspace.svelte`
+ *   • useWorkspaceState hook — persists per-workspace expanded paths
+ *
+ * NOT a bucket-style upload UI — that was the old /files. See
+ * `wiring/files-explorer-rebuild-wiring.md`.
+ *
+ * CSS prefix: fexp- (Files Explorer Page)
+ * LOC target: ≤ 350
+ */
+import { ChevronRight, FolderOpen, Plus, RefreshCw, X } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import { uploadFile } from '$lib/api/queries/files.js';
+import { useWorkspaceState } from '$lib/api/queries/workspace-states.js';
+import FileTree from '$lib/design/foundation/file-tree/FileTree.svelte';
+import { toast } from '$lib/design/foundation/toast/toast.js';
+import FileSearchBar from '$lib/design/patterns/files/FileSearchBar.svelte';
+import FilesWorkspacePicker from '$lib/design/patterns/files/FilesWorkspacePicker.svelte';
+import FileViewerPane from '$lib/design/patterns/mosaic/panes/FileViewerPane.svelte';
+import type { FileViewerPaneConfig } from '$lib/domain/file-viewer/types.js';
+import type { DirEntry } from '$lib/domain/workspaces/types.js';
+import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
 
-  import FileTree from "$lib/design/foundation/file-tree/FileTree.svelte";
-  import FilesWorkspacePicker from "$lib/design/patterns/files/FilesWorkspacePicker.svelte";
-  import FileSearchBar from "$lib/design/patterns/files/FileSearchBar.svelte";
-  import FileViewerPane from "$lib/design/patterns/mosaic/panes/FileViewerPane.svelte";
-  import { useWorkspaceState } from "$lib/api/queries/workspace-states.js";
-  import type { DirEntry } from "$lib/domain/workspaces/types.js";
-  import type { FileViewerPaneConfig } from "$lib/domain/file-viewer/types.js";
-  import { activeWorkspace } from "$lib/stores/active-workspace.svelte.js";
-  import { toast } from "$lib/design/foundation/toast/toast.js";
-  import { uploadFile } from "$lib/api/queries/files.js";
+// ── Active workspace plumbing ─────────────────────────────────────────────
+const slug = $derived(activeWorkspace.slug);
+const name = $derived(activeWorkspace.name);
+const rootPath = $derived(activeWorkspace.rootPath);
 
-  // ── Active workspace plumbing ─────────────────────────────────────────────
-  const slug = $derived(activeWorkspace.slug);
-  const name = $derived(activeWorkspace.name);
-  const rootPath = $derived(activeWorkspace.rootPath);
+// ── Per-workspace persisted UI state (expanded folder paths) ──────────────
+// Keyed under "files.expandedPaths" so reopening /files restores the tree.
+const expanded = useWorkspaceState<string[]>('files.expandedPaths', []);
 
-  // ── Per-workspace persisted UI state (expanded folder paths) ──────────────
-  // Keyed under "files.expandedPaths" so reopening /files restores the tree.
-  const expanded = useWorkspaceState<string[]>("files.expandedPaths", []);
+function handleFolderToggle(path: string, willBeExpanded: boolean): void {
+  const current = expanded.value ?? [];
+  const next = willBeExpanded
+    ? Array.from(new Set([...current, path]))
+    : current.filter((p) => p !== path);
+  expanded.set(next);
+}
 
-  function handleFolderToggle(path: string, willBeExpanded: boolean): void {
-    const current = expanded.value ?? [];
-    const next = willBeExpanded
-      ? Array.from(new Set([...current, path]))
-      : current.filter((p) => p !== path);
-    expanded.set(next);
+// ── Selected file (drives the preview pane) ───────────────────────────────
+let selectedEntry = $state<DirEntry | null>(null);
+
+const previewConfig = $derived<FileViewerPaneConfig | null>(
+  selectedEntry && slug ? { workspaceSlug: slug, path: selectedEntry.path } : null
+);
+
+function handleFileSelect(entry: DirEntry): void {
+  selectedEntry = entry;
+}
+
+// ── Tree refresh ──────────────────────────────────────────────────────────
+// The FileTree primitive exposes `refresh()` and `clearSelection()` as
+// imperative methods accessible via `bind:this`. We type as `unknown`
+// and narrow at call-site so a Svelte version bump can't break this.
+type TreeHandle = { refresh: () => void; clearSelection: () => void };
+let treeRef = $state<TreeHandle | null>(null);
+
+function handleRefresh(): void {
+  if (treeRef) {
+    treeRef.refresh();
+    toast.info('Refreshed', 'File tree reloaded from disk.');
   }
+}
 
-  // ── Selected file (drives the preview pane) ───────────────────────────────
-  let selectedEntry = $state<DirEntry | null>(null);
+// ── New file modal ────────────────────────────────────────────────────────
+let newFileOpen = $state(false);
+let newFilename = $state('');
+let newFileError = $state<string | null>(null);
+let isCreating = $state(false);
 
-  const previewConfig = $derived<FileViewerPaneConfig | null>(
-    selectedEntry && slug
-      ? { workspaceSlug: slug, path: selectedEntry.path }
-      : null,
-  );
+function handleNewFile(): void {
+  newFilename = '';
+  newFileError = null;
+  newFileOpen = true;
+}
 
-  function handleFileSelect(entry: DirEntry): void {
-    selectedEntry = entry;
+function closeNewFileModal(): void {
+  newFileOpen = false;
+  newFilename = '';
+  newFileError = null;
+}
+
+async function submitNewFile(): Promise<void> {
+  const name = newFilename.trim();
+  if (!name || !slug) return;
+
+  isCreating = true;
+  newFileError = null;
+
+  try {
+    // Build the path: if a file is currently selected, create in its parent
+    // directory; otherwise create at the workspace root.
+    const dir = selectedEntry ? selectedEntry.path.split('/').slice(0, -1).join('/') : '';
+    const path = dir ? `${dir}/${name}` : name;
+
+    await uploadFile({
+      workspaceSlug: slug,
+      path,
+      file: new File([''], name),
+    });
+
+    toast.success('File created', path);
+    closeNewFileModal();
+    treeRef?.refresh();
+  } catch (err) {
+    newFileError = err instanceof Error ? err.message : 'Failed to create file';
+  } finally {
+    isCreating = false;
   }
+}
 
-  // ── Tree refresh ──────────────────────────────────────────────────────────
-  // The FileTree primitive exposes `refresh()` and `clearSelection()` as
-  // imperative methods accessible via `bind:this`. We type as `unknown`
-  // and narrow at call-site so a Svelte version bump can't break this.
-  type TreeHandle = { refresh: () => void; clearSelection: () => void };
-  let treeRef = $state<TreeHandle | null>(null);
+// ── Breadcrumb segments derived from the selected entry's path ────────────
+function pathSegments(p: string): { label: string; path: string }[] {
+  if (!p) return [];
+  const parts = p.split('/').filter(Boolean);
+  return parts.map((label, i) => ({
+    label,
+    path: parts.slice(0, i + 1).join('/'),
+  }));
+}
 
-  function handleRefresh(): void {
-    if (treeRef) {
-      treeRef.refresh();
-      toast.info("Refreshed", "File tree reloaded from disk.");
-    }
-  }
-
-  // ── New file modal ────────────────────────────────────────────────────────
-  let newFileOpen = $state(false);
-  let newFilename = $state("");
-  let newFileError = $state<string | null>(null);
-  let isCreating = $state(false);
-
-  function handleNewFile(): void {
-    newFilename = "";
-    newFileError = null;
-    newFileOpen = true;
-  }
-
-  function closeNewFileModal(): void {
-    newFileOpen = false;
-    newFilename = "";
-    newFileError = null;
-  }
-
-  async function submitNewFile(): Promise<void> {
-    const name = newFilename.trim();
-    if (!name || !slug) return;
-
-    isCreating = true;
-    newFileError = null;
-
-    try {
-      // Build the path: if a file is currently selected, create in its parent
-      // directory; otherwise create at the workspace root.
-      const dir = selectedEntry
-        ? selectedEntry.path.split("/").slice(0, -1).join("/")
-        : "";
-      const path = dir ? `${dir}/${name}` : name;
-
-      await uploadFile({
-        workspaceSlug: slug,
-        path,
-        file: new File([""], name),
-      });
-
-      toast.success("File created", path);
-      closeNewFileModal();
-      treeRef?.refresh();
-    } catch (err) {
-      newFileError = err instanceof Error ? err.message : "Failed to create file";
-    } finally {
-      isCreating = false;
-    }
-  }
-
-  // ── Breadcrumb segments derived from the selected entry's path ────────────
-  function pathSegments(p: string): { label: string; path: string }[] {
-    if (!p) return [];
-    const parts = p.split("/").filter(Boolean);
-    return parts.map((label, i) => ({
-      label,
-      path: parts.slice(0, i + 1).join("/"),
-    }));
-  }
-
-  const breadcrumb = $derived(
-    selectedEntry ? pathSegments(selectedEntry.path) : [],
-  );
+const breadcrumb = $derived(selectedEntry ? pathSegments(selectedEntry.path) : []);
 </script>
 
 <div class="fexp">

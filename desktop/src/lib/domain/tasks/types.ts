@@ -4,7 +4,7 @@
  */
 
 /** Valid task statuses. */
-export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
+export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'cancelled';
 
 /**
  * Priority level 0–3.

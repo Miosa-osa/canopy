@@ -7,21 +7,19 @@
  *   DELETE /api/v1/agents/:slug/skills/:skill_slug  — remove assignment
  */
 
-import { apiDelete, apiGet, apiPost } from "$lib/api/client.js";
-import type { AgentSkillAssignment } from "$lib/domain/skills/types.js";
+import { apiDelete, apiGet, apiPost } from '$lib/api/client.js';
+import type { AgentSkillAssignment } from '$lib/domain/skills/types.js';
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
-export function listAgentSkills(
-  agentSlug: string,
-): Promise<AgentSkillAssignment[]> {
+export function listAgentSkills(agentSlug: string): Promise<AgentSkillAssignment[]> {
   return apiGet<AgentSkillAssignment[]>(`/agents/${agentSlug}/skills`);
 }
 
 export function assignSkill(
   agentSlug: string,
   skillSlug: string,
-  priority = 0,
+  priority = 0
 ): Promise<AgentSkillAssignment> {
   return apiPost<AgentSkillAssignment>(`/agents/${agentSlug}/skills`, {
     skill_slug: skillSlug,
@@ -29,10 +27,7 @@ export function assignSkill(
   });
 }
 
-export function unassignSkill(
-  agentSlug: string,
-  skillSlug: string,
-): Promise<void> {
+export function unassignSkill(agentSlug: string, skillSlug: string): Promise<void> {
   return apiDelete<void>(`/agents/${agentSlug}/skills/${skillSlug}`);
 }
 
@@ -41,7 +36,7 @@ export function unassignSkill(
 /** Query options for listing an agent's assigned skills. */
 export function agentSkillsQuery(agentSlug: string) {
   return {
-    queryKey: ["agents", agentSlug, "skills"] as const,
+    queryKey: ['agents', agentSlug, 'skills'] as const,
     queryFn: () =>
       listAgentSkills(agentSlug).then((data) => {
         // Backend wraps in { data: [...] }
@@ -55,7 +50,7 @@ export function agentSkillsQuery(agentSlug: string) {
 /** Mutation options for assigning a skill to an agent. */
 export function assignSkillMutation() {
   return {
-    mutationKey: ["agents", "skills", "assign"] as const,
+    mutationKey: ['agents', 'skills', 'assign'] as const,
     mutationFn: ({
       agentSlug,
       skillSlug,
@@ -71,13 +66,8 @@ export function assignSkillMutation() {
 /** Mutation options for removing a skill assignment from an agent. */
 export function unassignSkillMutation() {
   return {
-    mutationKey: ["agents", "skills", "unassign"] as const,
-    mutationFn: ({
-      agentSlug,
-      skillSlug,
-    }: {
-      agentSlug: string;
-      skillSlug: string;
-    }) => unassignSkill(agentSlug, skillSlug),
+    mutationKey: ['agents', 'skills', 'unassign'] as const,
+    mutationFn: ({ agentSlug, skillSlug }: { agentSlug: string; skillSlug: string }) =>
+      unassignSkill(agentSlug, skillSlug),
   };
 }

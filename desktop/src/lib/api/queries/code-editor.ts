@@ -18,14 +18,14 @@
  *   tag-only today. All saves flow through the workspace-scoped PUT.
  */
 
-import { apiPut } from "$lib/api/client.js";
-import { fileQuery as filesFileQuery } from "$lib/api/queries/files.js";
-import { workspaceFileQuery as wsFileQuery } from "$lib/api/queries/workspaces.js";
+import { apiPut } from '$lib/api/client.js';
+import { fileQuery as filesFileQuery } from '$lib/api/queries/files.js';
+import { workspaceFileQuery as wsFileQuery } from '$lib/api/queries/workspaces.js';
 import type {
   CodeEditorPaneConfig,
   CodeEditorSaveBody,
   CodeEditorSaveResult,
-} from "$lib/domain/code-editor/types.js";
+} from '$lib/domain/code-editor/types.js';
 
 /**
  * Splat-path encoding — each segment URI-encoded, slashes preserved.
@@ -35,10 +35,10 @@ import type {
  */
 function encodePath(path: string): string {
   return path
-    .split("/")
+    .split('/')
     .filter((seg) => seg.length > 0)
     .map(encodeURIComponent)
-    .join("/");
+    .join('/');
 }
 
 // ── Raw save call ────────────────────────────────────────────────────────────
@@ -50,13 +50,13 @@ function encodePath(path: string): string {
 export async function saveCodeFile(
   slug: string,
   path: string,
-  body: CodeEditorSaveBody,
+  body: CodeEditorSaveBody
 ): Promise<CodeEditorSaveResult> {
   // Note: backend reads `params["content"]` (singular). apiPut runs camelCase
   // → snake_case, but `content` has no caps so it survives unchanged.
   await apiPut<{ path: string; written: boolean }>(
     `/workspaces/${slug}/files/${encodePath(path)}`,
-    { content: body.content },
+    { content: body.content }
   );
   return { path, written: true, savedContent: body.content };
 }
@@ -75,7 +75,7 @@ export const codeEditorContentQuery = wsFileQuery;
  */
 export function saveCodeFileMutation(slug: string) {
   return {
-    mutationKey: ["code-editor", slug, "save"] as const,
+    mutationKey: ['code-editor', slug, 'save'] as const,
     mutationFn: ({ path, content }: { path: string; content: string }) =>
       saveCodeFile(slug, path, { content }),
   };
@@ -86,7 +86,7 @@ export function isResolvable(cfg: CodeEditorPaneConfig): boolean {
   if (
     cfg.workspaceSlug &&
     cfg.workspaceSlug.length > 0 &&
-    typeof cfg.path === "string" &&
+    typeof cfg.path === 'string' &&
     cfg.path.length > 0
   ) {
     return true;
@@ -100,9 +100,6 @@ export function isResolvable(cfg: CodeEditorPaneConfig): boolean {
 /** Validate a pane config has enough info to SAVE specifically. */
 export function isSaveable(cfg: CodeEditorPaneConfig): boolean {
   return Boolean(
-    cfg.workspaceSlug &&
-    cfg.workspaceSlug.length > 0 &&
-    cfg.path &&
-    cfg.path.length > 0,
+    cfg.workspaceSlug && cfg.workspaceSlug.length > 0 && cfg.path && cfg.path.length > 0
   );
 }

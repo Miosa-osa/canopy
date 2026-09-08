@@ -7,22 +7,17 @@
  * `BuildCommand` below.
  */
 
-import { apiGet } from "$lib/api/client.js";
+import { apiGet } from '$lib/api/client.js';
 
 export type BuildCommandSource =
-  | "builtin"
-  | "runtime"
-  | "drive_workflow"
-  | "drive_prompt"
-  | "template"
-  | "skill";
+  | 'builtin'
+  | 'runtime'
+  | 'drive_workflow'
+  | 'drive_prompt'
+  | 'template'
+  | 'skill';
 
-export type BuildCommandNamespace =
-  | "build"
-  | "runtimes"
-  | "drive"
-  | "templates"
-  | "skills";
+export type BuildCommandNamespace = 'build' | 'runtimes' | 'drive' | 'templates' | 'skills';
 
 /**
  * Normalized slash command. Mirrors `Canopy.Build.Commands.command` on the
@@ -55,7 +50,7 @@ export interface CommandsQueryOpts {
 export function commandsQuery(opts: CommandsQueryOpts = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["build", "commands", opts] as const,
+    queryKey: ['build', 'commands', opts] as const,
     queryFn: async () => {
       const response = await apiGet<{ data?: BuildCommand[] }>(`/build/commands${qs}`);
       if (!Array.isArray(response.data)) return [...FALLBACK_BUILTINS];
@@ -70,9 +65,9 @@ export function commandsQuery(opts: CommandsQueryOpts = {}) {
 
 function buildQuery(opts: object): string {
   const entries = Object.entries(opts as Record<string, unknown>).filter(
-    ([, v]) => v !== undefined && v !== null && v !== "",
+    ([, v]) => v !== undefined && v !== null && v !== ''
   );
-  if (entries.length === 0) return "";
+  if (entries.length === 0) return '';
 
   const params = new URLSearchParams();
   for (const [key, value] of entries) {
@@ -87,25 +82,25 @@ function buildQuery(opts: object): string {
  * `<section>` per group without re-sorting in the template.
  */
 const SOURCE_ORDER: BuildCommandSource[] = [
-  "builtin",
-  "runtime",
-  "drive_workflow",
-  "drive_prompt",
-  "template",
-  "skill",
+  'builtin',
+  'runtime',
+  'drive_workflow',
+  'drive_prompt',
+  'template',
+  'skill',
 ];
 
 const SOURCE_LABELS: Record<BuildCommandSource, string> = {
-  builtin: "BUILT-IN",
-  runtime: "RUNTIMES",
-  drive_workflow: "DRIVE — WORKFLOWS",
-  drive_prompt: "DRIVE — PROMPTS",
-  template: "TEMPLATES",
-  skill: "SKILLS",
+  builtin: 'BUILT-IN',
+  runtime: 'RUNTIMES',
+  drive_workflow: 'DRIVE — WORKFLOWS',
+  drive_prompt: 'DRIVE — PROMPTS',
+  template: 'TEMPLATES',
+  skill: 'SKILLS',
 };
 
 export function groupBySource(
-  commands: readonly BuildCommand[],
+  commands: readonly BuildCommand[]
 ): Array<{ source: BuildCommandSource; label: string; items: BuildCommand[] }> {
   const buckets = new Map<BuildCommandSource, BuildCommand[]>();
   for (const cmd of commands) {
@@ -135,83 +130,83 @@ export function groupBySource(
  */
 export const FALLBACK_BUILTINS: readonly BuildCommand[] = [
   {
-    namespace: "build",
-    name: "/agent",
-    description: "Start a new conversation",
-    icon: "Bot",
-    source: "builtin",
+    namespace: 'build',
+    name: '/agent',
+    description: 'Start a new conversation',
+    icon: 'Bot',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/plan",
-    description: "Prompt the agent to do some research",
-    icon: "Sparkles",
-    source: "builtin",
+    namespace: 'build',
+    name: '/plan',
+    description: 'Prompt the agent to do some research',
+    icon: 'Sparkles',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/open-file",
+    namespace: 'build',
+    name: '/open-file',
     description: "Open a file in the workspace's code editor",
-    icon: "FileText",
-    source: "builtin",
+    icon: 'FileText',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/conversations",
-    description: "Open conversation history",
-    icon: "History",
-    source: "builtin",
+    namespace: 'build',
+    name: '/conversations',
+    description: 'Open conversation history',
+    icon: 'History',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/prompts",
-    description: "Search saved prompts",
-    icon: "Wand2",
-    source: "builtin",
+    namespace: 'build',
+    name: '/prompts',
+    description: 'Search saved prompts',
+    icon: 'Wand2',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/add-prompt",
-    description: "Add new agent prompt",
-    icon: "Plus",
-    source: "builtin",
+    namespace: 'build',
+    name: '/add-prompt',
+    description: 'Add new agent prompt',
+    icon: 'Plus',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/add-rule",
-    description: "Add a new global rule for the agent",
-    icon: "BookOpen",
-    source: "builtin",
+    namespace: 'build',
+    name: '/add-rule',
+    description: 'Add a new global rule for the agent',
+    icon: 'BookOpen',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/add-mcp",
-    description: "Add new MCP server",
-    icon: "Plug",
-    source: "builtin",
+    namespace: 'build',
+    name: '/add-mcp',
+    description: 'Add new MCP server',
+    icon: 'Plug',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/create-environment",
-    description: "Create a sandbox environment",
-    icon: "GitBranch",
-    source: "builtin",
+    namespace: 'build',
+    name: '/create-environment',
+    description: 'Create a sandbox environment',
+    icon: 'GitBranch',
+    source: 'builtin',
     source_id: null,
   },
   {
-    namespace: "build",
-    name: "/review",
-    description: "Open code review",
-    icon: "MessageCircle",
-    source: "builtin",
+    namespace: 'build',
+    name: '/review',
+    description: 'Open code review',
+    icon: 'MessageCircle',
+    source: 'builtin',
     source_id: null,
   },
 ];

@@ -1,150 +1,151 @@
 <script lang="ts">
-  /**
-   * /channels/[id] — Two-pane: channel list (left) + message thread (right).
-   * CSS prefix: cv- (ChannelView)
-   * LOC target: ≤200
-   */
-  import {
-    type CreateQueryOptions,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { page } from '$app/state';
-  import { goto } from '$app/navigation';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import {
-    channelMessagesQuery,
-    channelMembersQuery,
-    channelQuery,
-    channelsQuery,
-    deleteMessage,
-    sendMessage,
-  } from '$lib/api/queries/channels.js';
-  import ChannelList from '$lib/design/patterns/channels/ChannelList.svelte';
-  import ChannelHeader from '$lib/design/patterns/channels/ChannelHeader.svelte';
-  import ChannelSettingsPanel from '$lib/design/patterns/channels/ChannelSettingsPanel.svelte';
-  import MessageRow from '$lib/design/patterns/channels/MessageRow.svelte';
-  import MessageComposer from '$lib/design/patterns/channels/MessageComposer.svelte';
-  import type {
-    Channel,
-    ChannelMember,
-    ChannelMessage,
-    MessagePage,
-  } from '$lib/domain/channels/types.js';
+/**
+ * /channels/[id] — Two-pane: channel list (left) + message thread (right).
+ * CSS prefix: cv- (ChannelView)
+ * LOC target: ≤200
+ */
+import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import {
+  channelMembersQuery,
+  channelMessagesQuery,
+  channelQuery,
+  channelsQuery,
+  deleteMessage,
+  sendMessage,
+} from '$lib/api/queries/channels.js';
+import ChannelHeader from '$lib/design/patterns/channels/ChannelHeader.svelte';
+import ChannelList from '$lib/design/patterns/channels/ChannelList.svelte';
+import ChannelSettingsPanel from '$lib/design/patterns/channels/ChannelSettingsPanel.svelte';
+import MessageComposer from '$lib/design/patterns/channels/MessageComposer.svelte';
+import MessageRow from '$lib/design/patterns/channels/MessageRow.svelte';
+import type {
+  Channel,
+  ChannelMember,
+  ChannelMessage,
+  MessagePage,
+} from '$lib/domain/channels/types.js';
 
-  const queryClient = useQueryClient();
-  const channelId = $derived(page.params.id ?? '');
+const queryClient = useQueryClient();
+const channelId = $derived(page.params.id ?? '');
 
-  // ── Settings panel state ──────────────────────────────────────────────────────
-  let settingsOpen = $state(false);
+// ── Settings panel state ──────────────────────────────────────────────────────
+let settingsOpen = $state(false);
 
-  // ── All channels (for left pane) ─────────────────────────────────────────────
-  const allChStore = writable(
-    untrack(() => channelsQuery() as CreateQueryOptions<Channel[]>),
-  );
-  const allChQ = createQuery<Channel[]>(allChStore);
-  const allChannels = $derived(($allChQ.data ?? []) as Channel[]);
+// ── All channels (for left pane) ─────────────────────────────────────────────
+const allChStore = writable(untrack(() => channelsQuery() as CreateQueryOptions<Channel[]>));
+const allChQ = createQuery<Channel[]>(allChStore);
+const allChannels = $derived(($allChQ.data ?? []) as Channel[]);
 
-  // ── Active channel detail ─────────────────────────────────────────────────────
-  const chStore = writable(
-    untrack(() => channelQuery(channelId) as CreateQueryOptions<Channel>),
-  );
-  $effect(() => { chStore.set(channelQuery(channelId) as CreateQueryOptions<Channel>); });
-  const chQ = createQuery<Channel>(chStore);
-  const channel = $derived($chQ.data as Channel | undefined);
+// ── Active channel detail ─────────────────────────────────────────────────────
+const chStore = writable(untrack(() => channelQuery(channelId) as CreateQueryOptions<Channel>));
+$effect(() => {
+  chStore.set(channelQuery(channelId) as CreateQueryOptions<Channel>);
+});
+const chQ = createQuery<Channel>(chStore);
+const channel = $derived($chQ.data as Channel | undefined);
 
-  // ── Members (for header count) ────────────────────────────────────────────────
-  const membersStore = writable(
-    untrack(() => channelMembersQuery(channelId) as CreateQueryOptions<ChannelMember[]>),
-  );
-  $effect(() => { membersStore.set(channelMembersQuery(channelId) as CreateQueryOptions<ChannelMember[]>); });
-  const membersQ = createQuery<ChannelMember[]>(membersStore);
-  const memberCount = $derived(($membersQ.data ?? []).length);
+// ── Members (for header count) ────────────────────────────────────────────────
+const membersStore = writable(
+  untrack(() => channelMembersQuery(channelId) as CreateQueryOptions<ChannelMember[]>)
+);
+$effect(() => {
+  membersStore.set(channelMembersQuery(channelId) as CreateQueryOptions<ChannelMember[]>);
+});
+const membersQ = createQuery<ChannelMember[]>(membersStore);
+const memberCount = $derived(($membersQ.data ?? []).length);
 
-  // ── Messages ──────────────────────────────────────────────────────────────────
-  let pages = $state<ChannelMessage[][]>([]);
-  let hasMore = $state(false);
-  let oldestCursor = $state<string | undefined>(undefined);
-  let loadingMore = $state(false);
+// ── Messages ──────────────────────────────────────────────────────────────────
+let pages = $state<ChannelMessage[][]>([]);
+let hasMore = $state(false);
+let oldestCursor = $state<string | undefined>(undefined);
+let loadingMore = $state(false);
 
-  const msgStore = writable(
-    untrack(() => channelMessagesQuery(channelId, { limit: 50 }) as CreateQueryOptions<MessagePage>),
-  );
-  $effect(() => { msgStore.set(channelMessagesQuery(channelId, { limit: 50 }) as CreateQueryOptions<MessagePage>); });
-  const msgQ = createQuery<MessagePage>(msgStore);
+const msgStore = writable(
+  untrack(() => channelMessagesQuery(channelId, { limit: 50 }) as CreateQueryOptions<MessagePage>)
+);
+$effect(() => {
+  msgStore.set(channelMessagesQuery(channelId, { limit: 50 }) as CreateQueryOptions<MessagePage>);
+});
+const msgQ = createQuery<MessagePage>(msgStore);
 
-  $effect(() => {
-    if ($msgQ.data) {
-      const p = $msgQ.data as MessagePage;
-      pages = [p.data];
-      hasMore = p.hasMore;
-      oldestCursor = p.data[0]?.insertedAt;
-    }
-  });
-
-  const messages = $derived(pages.flat().filter((m) => !m.replyToId));
-
-  async function loadOlder(): Promise<void> {
-    if (!hasMore || loadingMore || !oldestCursor) return;
-    loadingMore = true;
-    try {
-      const result = await queryClient.fetchQuery(
-        channelMessagesQuery(channelId, { before: oldestCursor, limit: 50 }) as CreateQueryOptions<MessagePage>,
-      );
-      const p = result as MessagePage;
-      pages = [p.data, ...pages];
-      hasMore = p.hasMore;
-      if (p.data[0]) oldestCursor = p.data[0].insertedAt;
-    } finally {
-      loadingMore = false;
-    }
+$effect(() => {
+  if ($msgQ.data) {
+    const p = $msgQ.data as MessagePage;
+    pages = [p.data];
+    hasMore = p.hasMore;
+    oldestCursor = p.data[0]?.insertedAt;
   }
+});
 
-  let scrollEl = $state<HTMLDivElement | null>(null);
+const messages = $derived(pages.flat().filter((m) => !m.replyToId));
 
-  function handleScroll(): void {
-    if (scrollEl && scrollEl.scrollTop < 80) void loadOlder();
-  }
-
-  function invalidateMessages(): void {
-    queryClient.invalidateQueries({ queryKey: ['channels', channelId, 'messages'] });
-  }
-
-  function handleSettingsUpdated(): void {
-    queryClient.invalidateQueries({ queryKey: ['channels', channelId] });
-    queryClient.invalidateQueries({ queryKey: ['channels'] });
-    queryClient.invalidateQueries({ queryKey: ['channels', channelId, 'members'] });
-  }
-
-  function handleSettingsDeleted(): void {
-    void goto('/channels');
-  }
-
-  async function handleSend(body: string): Promise<void> {
-    await sendMessage(channelId, { bodyMarkdown: body });
-    invalidateMessages();
-  }
-
-  async function handleDelete(msgId: string): Promise<void> {
-    await deleteMessage(channelId, msgId);
-    invalidateMessages();
-  }
-
-  function handleSelectChannel(ch: Channel): void {
-    void goto(`/channels/${ch.id}`);
-  }
-
-  // Detect grouped messages (same author, consecutive)
-  function isGrouped(msg: ChannelMessage, idx: number): boolean {
-    if (idx === 0) return false;
-    const prev = messages[idx - 1];
-    return (
-      prev.authorId === msg.authorId &&
-      prev.authorType === msg.authorType &&
-      new Date(msg.insertedAt).getTime() - new Date(prev.insertedAt).getTime() < 5 * 60 * 1000
+async function loadOlder(): Promise<void> {
+  if (!hasMore || loadingMore || !oldestCursor) return;
+  loadingMore = true;
+  try {
+    const result = await queryClient.fetchQuery(
+      channelMessagesQuery(channelId, {
+        before: oldestCursor,
+        limit: 50,
+      }) as CreateQueryOptions<MessagePage>
     );
+    const p = result as MessagePage;
+    pages = [p.data, ...pages];
+    hasMore = p.hasMore;
+    if (p.data[0]) oldestCursor = p.data[0].insertedAt;
+  } finally {
+    loadingMore = false;
   }
+}
+
+let scrollEl = $state<HTMLDivElement | null>(null);
+
+function handleScroll(): void {
+  if (scrollEl && scrollEl.scrollTop < 80) void loadOlder();
+}
+
+function invalidateMessages(): void {
+  queryClient.invalidateQueries({ queryKey: ['channels', channelId, 'messages'] });
+}
+
+function handleSettingsUpdated(): void {
+  queryClient.invalidateQueries({ queryKey: ['channels', channelId] });
+  queryClient.invalidateQueries({ queryKey: ['channels'] });
+  queryClient.invalidateQueries({ queryKey: ['channels', channelId, 'members'] });
+}
+
+function handleSettingsDeleted(): void {
+  void goto('/channels');
+}
+
+async function handleSend(body: string): Promise<void> {
+  await sendMessage(channelId, { bodyMarkdown: body });
+  invalidateMessages();
+}
+
+async function handleDelete(msgId: string): Promise<void> {
+  await deleteMessage(channelId, msgId);
+  invalidateMessages();
+}
+
+function handleSelectChannel(ch: Channel): void {
+  void goto(`/channels/${ch.id}`);
+}
+
+// Detect grouped messages (same author, consecutive)
+function isGrouped(msg: ChannelMessage, idx: number): boolean {
+  if (idx === 0) return false;
+  const prev = messages[idx - 1];
+  return (
+    prev.authorId === msg.authorId &&
+    prev.authorType === msg.authorType &&
+    new Date(msg.insertedAt).getTime() - new Date(prev.insertedAt).getTime() < 5 * 60 * 1000
+  );
+}
 </script>
 
 <div class="cv-shell">

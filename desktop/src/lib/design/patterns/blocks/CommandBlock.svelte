@@ -1,37 +1,37 @@
 <script lang="ts">
-  /**
-   * CommandBlock — kind='command' renderer.
-   * Shows the input as a `$ ...` line and the (ANSI-stripped) output below.
-   *
-   * Thin component — no fetching, no state. Receives the Block prop and
-   * renders. ANSI stripping happens here because raw stdout often arrives
-   * with terminal escape codes that the foundation primitives cannot
-   * style on their own.
-   *
-   * CSS prefix: cmdblk-
-   */
+/**
+ * CommandBlock — kind='command' renderer.
+ * Shows the input as a `$ ...` line and the (ANSI-stripped) output below.
+ *
+ * Thin component — no fetching, no state. Receives the Block prop and
+ * renders. ANSI stripping happens here because raw stdout often arrives
+ * with terminal escape codes that the foundation primitives cannot
+ * style on their own.
+ *
+ * CSS prefix: cmdblk-
+ */
 
-  import type { Block } from '$lib/domain/blocks/types.js';
+import type { Block } from '$lib/domain/blocks/types.js';
 
-  interface Props {
-    block: Block;
-  }
+interface Props {
+  block: Block;
+}
 
-  let { block }: Props = $props();
+let { block }: Props = $props();
 
-  /** Strip ANSI CSI / OSC escape sequences for plain-text rendering. */
-  function stripAnsi(text: string): string {
-    // CSI: \x1b[ ... m and similar
-    // OSC: \x1b] ... \x07 or \x1b\\
-    // Plus a few other common control runs.
-    // eslint-disable-next-line no-control-regex
-    const csi = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
-    // eslint-disable-next-line no-control-regex
-    const osc = /\x1b\][^\x07]*(\x07|\x1b\\)/g;
-    return text.replace(csi, '').replace(osc, '');
-  }
+/** Strip ANSI CSI / OSC escape sequences for plain-text rendering. */
+function stripAnsi(text: string): string {
+  // CSI: \x1b[ ... m and similar
+  // OSC: \x1b] ... \x07 or \x1b\\
+  // Plus a few other common control runs.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI stripping requires terminal control characters.
+  const csi = /\x1b\[[0-9;?]*[ -/]*[@-~]/g;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI stripping requires terminal control characters.
+  const osc = /\x1b\][^\x07]*(\x07|\x1b\\)/g;
+  return text.replace(csi, '').replace(osc, '');
+}
 
-  const cleanOutput = $derived(block.outputText ? stripAnsi(block.outputText) : '');
+const cleanOutput = $derived(block.outputText ? stripAnsi(block.outputText) : '');
 </script>
 
 <div class="cmdblk-root">

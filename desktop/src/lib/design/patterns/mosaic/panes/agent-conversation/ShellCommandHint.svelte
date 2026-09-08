@@ -1,26 +1,26 @@
 <script lang="ts">
-  /**
-   * ShellCommandHint — small affordance row shown above the composer when
-   * the input looks like a shell command instead of an agent prompt.
-   *
-   * Mirrors the reference design's "autodetected shell command, ⌘| to
-   * override" inline hint. Stateless — visibility and toggling logic live
-   * in ConversationComposer.
-   *
-   * CSS prefix: ach-
-   */
-  import { TerminalSquare } from 'lucide-svelte';
+/**
+ * ShellCommandHint — small affordance row shown above the composer when
+ * the input looks like a shell command instead of an agent prompt.
+ *
+ * Mirrors the reference design's "autodetected shell command, ⌘| to
+ * override" inline hint. Stateless — visibility and toggling logic live
+ * in ConversationComposer.
+ *
+ * CSS prefix: ach-
+ */
+import { TerminalSquare } from 'lucide-svelte';
 
-  interface Props {
-    /** Show/hide controlled by parent. */
-    visible: boolean;
-    /** Set true after the user pressed ⌘| — flips the hint label. */
-    overridden?: boolean;
-    /** Click target — toggles between agent-prompt and shell-execute mode. */
-    onToggle?: () => void;
-  }
+interface Props {
+  /** Show/hide controlled by parent. */
+  visible: boolean;
+  /** Set true after the user pressed ⌘| — flips the hint label. */
+  overridden?: boolean;
+  /** Click target — toggles between agent-prompt and shell-execute mode. */
+  onToggle?: () => void;
+}
 
-  let { visible, overridden = false, onToggle }: Props = $props();
+let { visible, overridden = false, onToggle }: Props = $props();
 </script>
 
 {#if visible}

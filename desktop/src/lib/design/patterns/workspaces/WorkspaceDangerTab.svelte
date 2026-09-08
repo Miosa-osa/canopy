@@ -4,8 +4,8 @@
  * CSS prefix: wdt-
  */
 import { apiPatch } from '$lib/api/client.js';
-import { toasts } from '$lib/stores/toasts.svelte.js';
 import type { WorkspaceDetail } from '$lib/domain/workspaces/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
 interface Props {
   workspace: WorkspaceDetail;
@@ -24,8 +24,14 @@ let confirmDeleteOpen = $state(false);
 async function handleRename(): Promise<void> {
   renameError = '';
   const trimmed = renameValue.trim();
-  if (!trimmed) { renameError = 'Name cannot be empty'; return; }
-  if (trimmed === workspace.name) { renameError = 'No change'; return; }
+  if (!trimmed) {
+    renameError = 'Name cannot be empty';
+    return;
+  }
+  if (trimmed === workspace.name) {
+    renameError = 'No change';
+    return;
+  }
   try {
     await apiPatch(`/workspaces/${workspace.slug}`, { name: trimmed });
     toasts.success('Workspace renamed');

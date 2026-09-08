@@ -1,89 +1,79 @@
 <script lang="ts">
-  /**
-   * ApprovalBlock — kind='approval' renderer.
-   *
-   * Inline Approve / Edit / Deny buttons that wire to the **existing**
-   * /api/v1/governance/approvals endpoints via the existing Governance
-   * query factories (no new endpoints invented). Reads the approval id
-   * from `block.metadata.approval_id`.
-   *
-   * Thin component — uses TanStack mutations from the existing governance
-   * queries module. On success, invalidates the blocks query for this
-   * session so the parent stream refetches.
-   *
-   * CSS prefix: aprv-
-   */
+/**
+ * ApprovalBlock — kind='approval' renderer.
+ *
+ * Inline Approve / Edit / Deny buttons that wire to the **existing**
+ * /api/v1/governance/approvals endpoints via the existing Governance
+ * query factories (no new endpoints invented). Reads the approval id
+ * from `block.metadata.approval_id`.
+ *
+ * Thin component — uses TanStack mutations from the existing governance
+ * queries module. On success, invalidates the blocks query for this
+ * session so the parent stream refetches.
+ *
+ * CSS prefix: aprv-
+ */
 
-  import { Check, Pencil, X } from 'lucide-svelte';
-  import {
-    type CreateMutationOptions,
-    createMutation,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
+import { type CreateMutationOptions, createMutation, useQueryClient } from '@tanstack/svelte-query';
+import { Check, Pencil, X } from 'lucide-svelte';
+import { blocksKey } from '$lib/api/queries/blocks.js';
+import { approveApprovalMutation, rejectApprovalMutation } from '$lib/api/queries/governance.js';
+import { Button } from '$lib/design/foundation/index.js';
+import type { Block } from '$lib/domain/blocks/types.js';
+import type { Approval, DecisionBody } from '$lib/domain/governance/types.js';
 
-  import { Button } from '$lib/design/foundation/index.js';
-  import {
-    approveApprovalMutation,
-    rejectApprovalMutation,
-  } from '$lib/api/queries/governance.js';
-  import { blocksKey } from '$lib/api/queries/blocks.js';
-  import type { Approval, DecisionBody } from '$lib/domain/governance/types.js';
-  import type { Block } from '$lib/domain/blocks/types.js';
+interface Props {
+  block: Block;
+  /** Optional callback fired after a successful decision lands. */
+  onDecision?: (decision: 'approved' | 'rejected') => void;
+  /** Optional handler for the "Edit" action — usually opens an editor. */
+  onEdit?: (block: Block) => void;
+}
 
-  interface Props {
-    block: Block;
-    /** Optional callback fired after a successful decision lands. */
-    onDecision?: (decision: 'approved' | 'rejected') => void;
-    /** Optional handler for the "Edit" action — usually opens an editor. */
-    onEdit?: (block: Block) => void;
-  }
+let { block, onDecision, onEdit }: Props = $props();
 
-  let { block, onDecision, onEdit }: Props = $props();
+const queryClient = useQueryClient();
 
-  const queryClient = useQueryClient();
+const approvalId = $derived(
+  typeof block.metadata?.approval_id === 'string' ? (block.metadata.approval_id as string) : null
+);
 
-  const approvalId = $derived(
-    typeof block.metadata?.approval_id === 'string'
-      ? (block.metadata.approval_id as string)
-      : null,
-  );
+const summary = $derived(
+  typeof block.metadata?.summary === 'string'
+    ? (block.metadata.summary as string)
+    : (block.inputText ?? 'Approval requested')
+);
 
-  const summary = $derived(
-    typeof block.metadata?.summary === 'string'
-      ? (block.metadata.summary as string)
-      : (block.inputText ?? 'Approval requested'),
-  );
+type DecisionInput = { id: string; body?: DecisionBody };
 
-  type DecisionInput = { id: string; body?: DecisionBody };
+const approve = createMutation<Approval, Error, DecisionInput>({
+  ...approveApprovalMutation(),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: blocksKey(block.sessionId) });
+    onDecision?.('approved');
+  },
+} as CreateMutationOptions<Approval, Error, DecisionInput>);
 
-  const approve = createMutation<Approval, Error, DecisionInput>({
-    ...approveApprovalMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: blocksKey(block.sessionId) });
-      onDecision?.('approved');
-    },
-  } as CreateMutationOptions<Approval, Error, DecisionInput>);
+const reject = createMutation<Approval, Error, DecisionInput>({
+  ...rejectApprovalMutation(),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: blocksKey(block.sessionId) });
+    onDecision?.('rejected');
+  },
+} as CreateMutationOptions<Approval, Error, DecisionInput>);
 
-  const reject = createMutation<Approval, Error, DecisionInput>({
-    ...rejectApprovalMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: blocksKey(block.sessionId) });
-      onDecision?.('rejected');
-    },
-  } as CreateMutationOptions<Approval, Error, DecisionInput>);
+const isPending = $derived(block.status === 'pending_approval');
+const isBusy = $derived($approve.isPending || $reject.isPending);
 
-  const isPending = $derived(block.status === 'pending_approval');
-  const isBusy = $derived($approve.isPending || $reject.isPending);
+function handleApprove() {
+  if (!approvalId) return;
+  $approve.mutate({ id: approvalId });
+}
 
-  function handleApprove() {
-    if (!approvalId) return;
-    $approve.mutate({ id: approvalId });
-  }
-
-  function handleReject() {
-    if (!approvalId) return;
-    $reject.mutate({ id: approvalId });
-  }
+function handleReject() {
+  if (!approvalId) return;
+  $reject.mutate({ id: approvalId });
+}
 </script>
 
 <div class="aprv-root" data-status={block.status}>

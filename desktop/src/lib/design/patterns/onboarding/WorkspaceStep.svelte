@@ -6,7 +6,7 @@
  */
 import { createQuery } from '@tanstack/svelte-query';
 import { workspaceTemplatesQuery } from '$lib/api/queries/workspaces.js';
-import { isTauri, getTauriDialog } from '$lib/tauri/index.js';
+import { getTauriDialog, isTauri } from '$lib/tauri/index.js';
 
 interface Props {
   onNext: () => void;
@@ -28,7 +28,11 @@ async function openFolder(): Promise<void> {
   }
   try {
     const { open } = await getTauriDialog();
-    const result = await open({ directory: true, multiple: false, title: 'Select workspace folder' });
+    const result = await open({
+      directory: true,
+      multiple: false,
+      title: 'Select workspace folder',
+    });
     if (typeof result === 'string') {
       selectedPath = result;
       selectedTemplate = null;

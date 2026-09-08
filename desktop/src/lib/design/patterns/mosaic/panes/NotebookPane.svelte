@@ -1,65 +1,66 @@
 <script lang="ts">
-  /**
-   * NotebookPane — Jupyter-style annotated runbook viewer for the Mosaic.
-   * CSS prefix: nbp-
-   *
-   * Parses a Drive notebook entry's markdown content into alternating cell
-   * types: `markdown` (rendered HTML) and `command` (executable fenced code).
-   * Command cells can be run individually or via "Run all" sequentially.
-   *
-   * Parsing: splits on ``` fences — content outside = markdown, inside = command.
-   * Run mechanics: POST /sessions/{sessionId}/messages with the command text,
-   * or spawns a new terminal session when no sessionId is available.
-   *
-   * Props: notebookRef (Drive entry slug/id), workspaceSlug.
-   */
+/**
+ * NotebookPane — Jupyter-style annotated runbook viewer for the Mosaic.
+ * CSS prefix: nbp-
+ *
+ * Parses a Drive notebook entry's markdown content into alternating cell
+ * types: `markdown` (rendered HTML) and `command` (executable fenced code).
+ * Command cells can be run individually or via "Run all" sequentially.
+ *
+ * Parsing: splits on ``` fences — content outside = markdown, inside = command.
+ * Run mechanics: POST /sessions/{sessionId}/messages with the command text,
+ * or spawns a new terminal session when no sessionId is available.
+ *
+ * Props: notebookRef (Drive entry slug/id), workspaceSlug.
+ */
 
-  import { createQuery } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import { Play, RotateCcw, ChevronDown, ChevronRight, BookOpen } from 'lucide-svelte';
-  import { driveEntryQuery } from '$lib/api/queries/drive.js';
-  import { createSession } from '$lib/api/queries/sessions.js';
-  import { apiPost } from '$lib/api/client.js';
-  import type { DriveEntry } from '$lib/domain/drive/types.js';
+import { createQuery } from '@tanstack/svelte-query';
+import { BookOpen, ChevronDown, ChevronRight, Play, RotateCcw } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { apiPost } from '$lib/api/client.js';
+import { driveEntryQuery } from '$lib/api/queries/drive.js';
+import { createSession } from '$lib/api/queries/sessions.js';
+import type { DriveEntry } from '$lib/domain/drive/types.js';
 
-  // ── Props ──────────────────────────────────────────────────────────────────
+// ── Props ──────────────────────────────────────────────────────────────────
 
-  interface Props {
-    notebookRef: string;
-    workspaceSlug?: string;
-  }
+interface Props {
+  notebookRef: string;
+  workspaceSlug?: string;
+}
 
-  let { notebookRef, workspaceSlug = 'default' }: Props = $props();
+let { notebookRef, workspaceSlug = 'default' }: Props = $props();
 
-  // ── Drive entry query ──────────────────────────────────────────────────────
+// ── Drive entry query ──────────────────────────────────────────────────────
 
-  const entryOptsStore = writable(
-    untrack(() => driveEntryQuery(notebookRef)),
-  );
-  $effect(() => { entryOptsStore.set(driveEntryQuery(notebookRef)); });
-  const entryQ = createQuery<DriveEntry>(entryOptsStore);
+const entryOptsStore = writable(untrack(() => driveEntryQuery(notebookRef)));
+$effect(() => {
+  entryOptsStore.set(driveEntryQuery(notebookRef));
+});
+const entryQ = createQuery<DriveEntry>(entryOptsStore);
 
-  const entry = $derived($entryQ.data ?? null);
+const entry = $derived($entryQ.data ?? null);
 
-  // ── Cell types ─────────────────────────────────────────────────────────────
+// ── Cell types ─────────────────────────────────────────────────────────────
 
-  type CellStatus = 'idle' | 'running' | 'success' | 'error';
+type CellStatus = 'idle' | 'running' | 'success' | 'error';
 
-  interface Cell {
-    id: number;
-    type: 'markdown' | 'command';
-    content: string;
-    lang: string;
-    status: CellStatus;
-    output: string;
-    outputOpen: boolean;
-  }
+interface Cell {
+  id: number;
+  type: 'markdown' | 'command';
+  content: string;
+  lang: string;
+  status: CellStatus;
+  output: string;
+  outputOpen: boolean;
+}
 
-  // ── Minimal markdown renderer (headers, bold, italic, code, lists) ─────────
+// ── Minimal markdown renderer (headers, bold, italic, code, lists) ─────────
 
-  function renderMarkdown(md: string): string {
-    return md
+function renderMarkdown(md: string): string {
+  return (
+    md
       // Fenced code (inline)
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       // Headers
@@ -77,125 +78,160 @@
       .replace(/\n{2,}/g, '</p><p>')
       .replace(/^(?!<[hlico])(.+)$/gm, (m) => m)
       // Wrap in paragraph if not already a block element
-      .replace(/^([^<\n].+)$/gm, (m) => m.includes('<li>') ? m : m);
-  }
-
-  // ── Parse notebook content into cells ─────────────────────────────────────
-
-  function parseCells(content: string): Cell[] {
-    const cells: Cell[] = [];
-    let id = 0;
-    // Split on fenced code blocks: ```lang?\n...content...\n```
-    const fence = /^```([^\n]*)\n([\s\S]*?)^```/gm;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = fence.exec(content)) !== null) {
-      // Text before this fence → markdown cell
-      const before = content.slice(lastIndex, match.index).trim();
-      if (before) {
-        cells.push({ id: id++, type: 'markdown', content: before, lang: '', status: 'idle', output: '', outputOpen: false });
-      }
-      // The fence itself → command cell
-      const lang = match[1].trim() || 'bash';
-      const cmd = match[2].trim();
-      if (cmd) {
-        cells.push({ id: id++, type: 'command', content: cmd, lang, status: 'idle', output: '', outputOpen: false });
-      }
-      lastIndex = match.index + match[0].length;
-    }
-
-    // Trailing markdown after last fence
-    const tail = content.slice(lastIndex).trim();
-    if (tail) {
-      cells.push({ id: id++, type: 'markdown', content: tail, lang: '', status: 'idle', output: '', outputOpen: false });
-    }
-
-    return cells.length ? cells : [{ id: 0, type: 'markdown', content: content, lang: '', status: 'idle', output: '', outputOpen: false }];
-  }
-
-  // ── Derive content string from Drive body ──────────────────────────────────
-
-  const rawContent = $derived(
-    !entry
-      ? ''
-      : typeof (entry.body as Record<string, unknown>)['content'] === 'string'
-        ? (entry.body as Record<string, unknown>)['content'] as string
-        : typeof (entry.body as Record<string, unknown>)['body'] === 'string'
-          ? (entry.body as Record<string, unknown>)['body'] as string
-          : `# ${entry.name}\n\nThis notebook has no content yet.\n`
+      .replace(/^([^<\n].+)$/gm, (m) => (m.includes('<li>') ? m : m))
   );
+}
 
-  // ── Reactive cells ($state array, reparsed when entry changes) ────────────
+// ── Parse notebook content into cells ─────────────────────────────────────
 
-  let cells = $state<Cell[]>([]);
-
-  $effect(() => {
-    cells = parseCells(rawContent);
-  });
-
-  const commandCount = $derived(cells.filter((c) => c.type === 'command').length);
-
-  // ── Session for running commands ───────────────────────────────────────────
-
-  let sessionId = $state<string | null>(null);
-
-  async function ensureSession(): Promise<string> {
-    if (sessionId) return sessionId;
-    const s = (await createSession({
-      runtimeType: 'claude-local',
-      workspaceSlug,
-      cwd: '~',
-    })) as unknown as { id?: string; sessionId?: string };
-    const id = s.sessionId ?? s.id ?? '';
-    sessionId = id;
-    return id;
+function parseCells(content: string): Cell[] {
+  const cells: Cell[] = [];
+  let id = 0;
+  // Split on fenced code blocks: ```lang?\n...content...\n```
+  const fence = /^```([^\n]*)\n([\s\S]*?)^```/gm;
+  let lastIndex = 0;
+  for (const match of content.matchAll(fence)) {
+    // Text before this fence → markdown cell
+    const before = content.slice(lastIndex, match.index).trim();
+    if (before) {
+      cells.push({
+        id: id++,
+        type: 'markdown',
+        content: before,
+        lang: '',
+        status: 'idle',
+        output: '',
+        outputOpen: false,
+      });
+    }
+    // The fence itself → command cell
+    const lang = match[1].trim() || 'bash';
+    const cmd = match[2].trim();
+    if (cmd) {
+      cells.push({
+        id: id++,
+        type: 'command',
+        content: cmd,
+        lang,
+        status: 'idle',
+        output: '',
+        outputOpen: false,
+      });
+    }
+    lastIndex = match.index + match[0].length;
   }
 
-  async function runCell(cell: Cell): Promise<void> {
-    if (cell.type !== 'command' || cell.status === 'running') return;
-    cell.status = 'running';
-    cell.output = '';
-    cell.outputOpen = false;
-    try {
-      const sid = await ensureSession();
-      const result = (await apiPost<{ output?: string; stdout?: string }>(
-        `/sessions/${sid}/messages`,
-        { content: cell.content, role: 'user' },
-      )) as { output?: string; stdout?: string };
-      cell.output = result.output ?? result.stdout ?? '(no output)';
-      cell.status = 'success';
-      cell.outputOpen = true;
-    } catch (err) {
-      cell.output = err instanceof Error ? err.message : 'Unknown error';
-      cell.status = 'error';
-      cell.outputOpen = true;
+  // Trailing markdown after last fence
+  const tail = content.slice(lastIndex).trim();
+  if (tail) {
+    cells.push({
+      id: id++,
+      type: 'markdown',
+      content: tail,
+      lang: '',
+      status: 'idle',
+      output: '',
+      outputOpen: false,
+    });
+  }
+
+  return cells.length
+    ? cells
+    : [
+        {
+          id: 0,
+          type: 'markdown',
+          content: content,
+          lang: '',
+          status: 'idle',
+          output: '',
+          outputOpen: false,
+        },
+      ];
+}
+
+// ── Derive content string from Drive body ──────────────────────────────────
+
+const rawContent = $derived(
+  !entry
+    ? ''
+    : typeof (entry.body as Record<string, unknown>)['content'] === 'string'
+      ? ((entry.body as Record<string, unknown>)['content'] as string)
+      : typeof (entry.body as Record<string, unknown>)['body'] === 'string'
+        ? ((entry.body as Record<string, unknown>)['body'] as string)
+        : `# ${entry.name}\n\nThis notebook has no content yet.\n`
+);
+
+// ── Reactive cells ($state array, reparsed when entry changes) ────────────
+
+let cells = $state<Cell[]>([]);
+
+$effect(() => {
+  cells = parseCells(rawContent);
+});
+
+const commandCount = $derived(cells.filter((c) => c.type === 'command').length);
+
+// ── Session for running commands ───────────────────────────────────────────
+
+let sessionId = $state<string | null>(null);
+
+async function ensureSession(): Promise<string> {
+  if (sessionId) return sessionId;
+  const s = (await createSession({
+    runtimeType: 'claude-local',
+    workspaceSlug,
+    cwd: '~',
+  })) as unknown as { id?: string; sessionId?: string };
+  const id = s.sessionId ?? s.id ?? '';
+  sessionId = id;
+  return id;
+}
+
+async function runCell(cell: Cell): Promise<void> {
+  if (cell.type !== 'command' || cell.status === 'running') return;
+  cell.status = 'running';
+  cell.output = '';
+  cell.outputOpen = false;
+  try {
+    const sid = await ensureSession();
+    const result = (await apiPost<{ output?: string; stdout?: string }>(
+      `/sessions/${sid}/messages`,
+      { content: cell.content, role: 'user' }
+    )) as { output?: string; stdout?: string };
+    cell.output = result.output ?? result.stdout ?? '(no output)';
+    cell.status = 'success';
+    cell.outputOpen = true;
+  } catch (err) {
+    cell.output = err instanceof Error ? err.message : 'Unknown error';
+    cell.status = 'error';
+    cell.outputOpen = true;
+  }
+}
+
+let runningAll = $state(false);
+
+async function runAll(): Promise<void> {
+  if (runningAll) return;
+  runningAll = true;
+  for (const cell of cells) {
+    if (cell.type === 'command') {
+      await runCell(cell);
+      if (cell.status === 'error') break;
     }
   }
+  runningAll = false;
+}
 
-  let runningAll = $state(false);
+function resetCell(cell: Cell): void {
+  cell.status = 'idle';
+  cell.output = '';
+  cell.outputOpen = false;
+}
 
-  async function runAll(): Promise<void> {
-    if (runningAll) return;
-    runningAll = true;
-    for (const cell of cells) {
-      if (cell.type === 'command') {
-        await runCell(cell);
-        if (cell.status === 'error') break;
-      }
-    }
-    runningAll = false;
-  }
-
-  function resetCell(cell: Cell): void {
-    cell.status = 'idle';
-    cell.output = '';
-    cell.outputOpen = false;
-  }
-
-  function statusLabel(s: CellStatus): string {
-    return s === 'idle' ? 'idle' : s === 'running' ? 'running' : s === 'success' ? 'done' : 'error';
-  }
+function statusLabel(s: CellStatus): string {
+  return s === 'idle' ? 'idle' : s === 'running' ? 'running' : s === 'success' ? 'done' : 'error';
+}
 </script>
 
 <div class="nbp-root">

@@ -1,29 +1,29 @@
 <script lang="ts">
-  /**
-   * IssuesFilterBar — status tabs + assignee select for the issues page.
-   * CSS prefix: il- (shared with /issues page).
-   */
-  import type { IssueStatus } from '$lib/domain/issues/types.js';
+/**
+ * IssuesFilterBar — status tabs + assignee select for the issues page.
+ * CSS prefix: il- (shared with /issues page).
+ */
+import type { IssueStatus } from '$lib/domain/issues/types.js';
 
-  type StatusTab = 'all' | IssueStatus;
-  type AssigneeFilter = 'all' | 'human' | 'agent';
+type StatusTab = 'all' | IssueStatus;
+type AssigneeFilter = 'all' | 'human' | 'agent';
 
-  interface Props {
-    statusTab: StatusTab;
-    assigneeFilter: AssigneeFilter;
-    onStatusChange: (tab: StatusTab) => void;
-    onAssigneeChange: (filter: AssigneeFilter) => void;
-  }
+interface Props {
+  statusTab: StatusTab;
+  assigneeFilter: AssigneeFilter;
+  onStatusChange: (tab: StatusTab) => void;
+  onAssigneeChange: (filter: AssigneeFilter) => void;
+}
 
-  let { statusTab, assigneeFilter, onStatusChange, onAssigneeChange }: Props = $props();
+let { statusTab, assigneeFilter, onStatusChange, onAssigneeChange }: Props = $props();
 
-  const STATUS_TABS: { value: StatusTab; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'open', label: 'Open' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'in_review', label: 'In Review' },
-    { value: 'closed', label: 'Closed' },
-  ];
+const STATUS_TABS: { value: StatusTab; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'open', label: 'Open' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'in_review', label: 'In Review' },
+  { value: 'closed', label: 'Closed' },
+];
 </script>
 
 <div class="il-tabs" role="tablist" aria-label="Filter by status">

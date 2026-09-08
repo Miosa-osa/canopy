@@ -5,12 +5,13 @@
  * CSS prefix: acc-
  * LOC target: ≤ 180.
  */
-import { goto } from '$app/navigation';
+
 import { Bot, MoreHorizontal, Pause, Play, Terminal } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import StatusDot from '$lib/design/patterns/StatusDot.svelte';
 import type { Agent } from '$lib/domain/agents/types.js';
 import type { Session } from '$lib/domain/sessions/types.js';
 import type { AgentLane } from './types.js';
-import StatusDot from '$lib/design/patterns/StatusDot.svelte';
 
 interface Props {
   agent: Agent;
@@ -23,22 +24,17 @@ interface Props {
   onResume: (sessionId: string) => void;
 }
 
-let {
-  agent,
-  lane,
-  primarySession,
-  isScheduled,
-  selected,
-  onSelect,
-  onPause,
-  onResume,
-}: Props = $props();
+let { agent, lane, primarySession, isScheduled, selected, onSelect, onPause, onResume }: Props =
+  $props();
 
 const dotColor = $derived<'green' | 'amber' | 'red' | 'grey'>(
-  lane === 'running' ? 'green'
-  : lane === 'paused' || lane === 'scheduled' ? 'amber'
-  : lane === 'offline' ? 'red'
-  : 'grey'
+  lane === 'running'
+    ? 'green'
+    : lane === 'paused' || lane === 'scheduled'
+      ? 'amber'
+      : lane === 'offline'
+        ? 'red'
+        : 'grey'
 );
 
 function handleTerminal(e: MouseEvent): void {
@@ -78,13 +74,11 @@ function relativeTime(iso: string | null): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-const lastActive = $derived(
-  relativeTime(primarySession?.updatedAt ?? agent.updatedAt)
-);
+const lastActive = $derived(relativeTime(primarySession?.updatedAt ?? agent.updatedAt));
 
 const canTogglePause = $derived(
   primarySession !== null &&
-  (primarySession.status === 'running' || primarySession.status === 'paused')
+    (primarySession.status === 'running' || primarySession.status === 'paused')
 );
 </script>
 

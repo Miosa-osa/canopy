@@ -1,62 +1,63 @@
 <script lang="ts">
-  /**
-   * Settings › Drive — Drive defaults and Vault agent settings.
-   *
-   * Phase A: client-side preferences only (default scope, archive retention,
-   * sharing defaults). These persist via localStorage; Phase B will round-trip
-   * through a server-side workspace settings table.
-   *
-   * CSS prefix: dst-
-   */
-  import { onMount } from "svelte";
-  import { Save } from "lucide-svelte";
-  import { Button, Input } from "$lib/design/foundation";
-  import type { DriveScope } from "$lib/domain/drive/types.js";
+/**
+ * Settings › Drive — Drive defaults and Vault agent settings.
+ *
+ * Phase A: client-side preferences only (default scope, archive retention,
+ * sharing defaults). These persist via localStorage; Phase B will round-trip
+ * through a server-side workspace settings table.
+ *
+ * CSS prefix: dst-
+ */
 
-  const STORAGE_KEY = "canopy.drive.settings.v1";
+import { Save } from 'lucide-svelte';
+import { onMount } from 'svelte';
+import { Button, Input } from '$lib/design/foundation';
+import type { DriveScope } from '$lib/domain/drive/types.js';
 
-  interface DriveSettings {
-    defaultScope: DriveScope;
-    archiveRetentionDays: number;
-    teamSharingDefault: "private" | "team";
-    autoSeedSuggestions: boolean;
-  }
+const STORAGE_KEY = 'canopy.drive.settings.v1';
 
-  const DEFAULT_SETTINGS: DriveSettings = {
-    defaultScope: "personal",
-    archiveRetentionDays: 90,
-    teamSharingDefault: "private",
-    autoSeedSuggestions: true,
-  };
+interface DriveSettings {
+  defaultScope: DriveScope;
+  archiveRetentionDays: number;
+  teamSharingDefault: 'private' | 'team';
+  autoSeedSuggestions: boolean;
+}
 
-  let settings = $state<DriveSettings>({ ...DEFAULT_SETTINGS });
-  let savedAt = $state<string | null>(null);
+const DEFAULT_SETTINGS: DriveSettings = {
+  defaultScope: 'personal',
+  archiveRetentionDays: 90,
+  teamSharingDefault: 'private',
+  autoSeedSuggestions: true,
+};
 
-  onMount(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        settings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-      }
-    } catch {
-      // ignore
+let settings = $state<DriveSettings>({ ...DEFAULT_SETTINGS });
+let savedAt = $state<string | null>(null);
+
+onMount(() => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      settings = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
     }
-  });
-
-  function save(e: Event) {
-    e.preventDefault();
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      savedAt = new Date().toLocaleTimeString();
-    } catch (err) {
-      savedAt = `error: ${(err as Error).message}`;
-    }
+  } catch {
+    // ignore
   }
+});
 
-  function reset() {
-    settings = { ...DEFAULT_SETTINGS };
-    savedAt = null;
+function save(e: Event) {
+  e.preventDefault();
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    savedAt = new Date().toLocaleTimeString();
+  } catch (err) {
+    savedAt = `error: ${(err as Error).message}`;
   }
+}
+
+function reset() {
+  settings = { ...DEFAULT_SETTINGS };
+  savedAt = null;
+}
 </script>
 
 <div class="dst-page">

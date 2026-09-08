@@ -10,21 +10,16 @@
  */
 
 export type BlockKind =
-  | "command"
-  | "agent_message"
-  | "tool_call"
-  | "tool_result"
-  | "approval"
-  | "diff"
-  | "system_event"
-  | "error";
+  | 'command'
+  | 'agent_message'
+  | 'tool_call'
+  | 'tool_result'
+  | 'approval'
+  | 'diff'
+  | 'system_event'
+  | 'error';
 
-export type BlockStatus =
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled"
-  | "pending_approval";
+export type BlockStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'pending_approval';
 
 /** Single Block row — see backend `Canopy.Sessions.Block`. */
 export interface Block {
@@ -74,21 +69,21 @@ export interface BlockSearchQuery {
 
 /** All block kinds — useful for icon-map / pill-color tables. */
 export const BLOCK_KINDS: readonly BlockKind[] = [
-  "command",
-  "agent_message",
-  "tool_call",
-  "tool_result",
-  "approval",
-  "diff",
-  "system_event",
-  "error",
+  'command',
+  'agent_message',
+  'tool_call',
+  'tool_result',
+  'approval',
+  'diff',
+  'system_event',
+  'error',
 ] as const;
 
 /** All block statuses. */
 export const BLOCK_STATUSES: readonly BlockStatus[] = [
-  "running",
-  "completed",
-  "failed",
-  "cancelled",
-  "pending_approval",
+  'running',
+  'completed',
+  'failed',
+  'cancelled',
+  'pending_approval',
 ] as const;

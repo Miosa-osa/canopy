@@ -1,10 +1,10 @@
 <script lang="ts" module>
-  import type { Spec } from '$lib/domain/schedule/types.js';
+import type { Spec } from '$lib/domain/schedule/types.js';
 
-  /** Active specs only — pause/archive states are noise here. */
-  export function activeSpecs(specs: readonly Spec[]): Spec[] {
-    return specs.filter((s) => s.status === 'active');
-  }
+/** Active specs only — pause/archive states are noise here. */
+export function activeSpecs(specs: readonly Spec[]): Spec[] {
+  return specs.filter((s) => s.status === 'active');
+}
 </script>
 
 <script lang="ts">
@@ -26,7 +26,7 @@
   import { onMount, untrack } from 'svelte';
   import { writable } from 'svelte/store';
   import { specsQuery } from '$lib/api/queries/schedule.js';
-  import type { Spec } from '$lib/domain/schedule/types.js';
+
 
   interface Props {
     workspaceSlug?: string;

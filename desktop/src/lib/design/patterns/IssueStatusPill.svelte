@@ -1,28 +1,28 @@
 <script lang="ts">
-  /**
-   * IssueStatusPill — compact status badge for issue rows.
-   * CSS prefix: isp- (IssueStatusPill)
-   * 5 statuses: backlog | open | in_progress | in_review | closed
-   */
-  import type { IssueStatus } from '$lib/domain/issues/types.js';
+/**
+ * IssueStatusPill — compact status badge for issue rows.
+ * CSS prefix: isp- (IssueStatusPill)
+ * 5 statuses: backlog | open | in_progress | in_review | closed
+ */
+import type { IssueStatus } from '$lib/domain/issues/types.js';
 
-  interface Props {
-    status: IssueStatus;
-  }
+interface Props {
+  status: IssueStatus;
+}
 
-  let { status }: Props = $props();
+let { status }: Props = $props();
 
-  type PillMeta = { label: string; mod: string };
+type PillMeta = { label: string; mod: string };
 
-  const META: Record<IssueStatus, PillMeta> = {
-    backlog:     { label: 'Backlog',     mod: 'isp--backlog' },
-    open:        { label: 'Open',        mod: 'isp--open' },
-    in_progress: { label: 'In Progress', mod: 'isp--in-progress' },
-    in_review:   { label: 'In Review',   mod: 'isp--in-review' },
-    closed:      { label: 'Closed',      mod: 'isp--closed' },
-  };
+const META: Record<IssueStatus, PillMeta> = {
+  backlog: { label: 'Backlog', mod: 'isp--backlog' },
+  open: { label: 'Open', mod: 'isp--open' },
+  in_progress: { label: 'In Progress', mod: 'isp--in-progress' },
+  in_review: { label: 'In Review', mod: 'isp--in-review' },
+  closed: { label: 'Closed', mod: 'isp--closed' },
+};
 
-  const meta = $derived(META[status] ?? { label: status, mod: '' });
+const meta = $derived(META[status] ?? { label: status, mod: '' });
 </script>
 
 <span class="isp {meta.mod}" aria-label="Status: {meta.label}">

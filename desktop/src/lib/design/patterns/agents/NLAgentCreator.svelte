@@ -1,145 +1,160 @@
 <script lang="ts">
-  /**
-   * NLAgentCreator — natural language to agent config generator.
-   * Client-side parsing extracts name, slug, role, and skills from a description.
-   * CSS prefix: nlac-
-   */
-  import { goto } from '$app/navigation';
-  import { X, Sparkles, CheckCircle } from 'lucide-svelte';
-  import { createAgent } from '$lib/api/queries/agents.js';
-  import type { CreateAgentBody } from '$lib/api/queries/agents.js';
-  import type { AgentCategory } from '$lib/domain/agents/types.js';
+/**
+ * NLAgentCreator — natural language to agent config generator.
+ * Client-side parsing extracts name, slug, role, and skills from a description.
+ * CSS prefix: nlac-
+ */
 
-  interface Props {
-    open: boolean;
-    onClose: () => void;
-  }
+import { CheckCircle, Sparkles, X } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import type { CreateAgentBody } from '$lib/api/queries/agents.js';
+import { createAgent } from '$lib/api/queries/agents.js';
+import type { AgentCategory } from '$lib/domain/agents/types.js';
 
-  let { open, onClose }: Props = $props();
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
 
-  // ── Form state ─────────────────────────────────────────────────────────────
-  let description = $state('');
-  let preview = $state<CreateAgentBody | null>(null);
-  let isPending = $state(false);
-  let submitError = $state<string | null>(null);
+let { open, onClose }: Props = $props();
 
-  // ── NL parsing ─────────────────────────────────────────────────────────────
+// ── Form state ─────────────────────────────────────────────────────────────
+let description = $state('');
+let preview = $state<CreateAgentBody | null>(null);
+let isPending = $state(false);
+let submitError = $state<string | null>(null);
 
-  /** Keyword → category mapping for client-side inference. */
-  const CATEGORY_SIGNALS: Array<[string[], AgentCategory]> = [
-    [['security', 'audit', 'vulnerability', 'pen test', 'owasp'], 'technology'],
-    [['pr', 'pull request', 'review', 'code review', 'diff'], 'engineering'],
-    [['test', 'qa', 'quality', 'spec', 'e2e'], 'testing'],
-    [['deploy', 'ci', 'pipeline', 'devops', 'kubernetes', 'docker'], 'engineering'],
-    [['sales', 'crm', 'lead', 'prospect', 'outreach'], 'sales'],
-    [['market', 'content', 'social', 'blog', 'seo', 'copy'], 'marketing'],
-    [['design', 'ui', 'ux', 'figma', 'wireframe'], 'design'],
-    [['product', 'roadmap', 'feature', 'backlog', 'sprint'], 'product'],
-    [['support', 'ticket', 'customer', 'help', 'issue'], 'support'],
-    [['data', 'analytics', 'sql', 'report', 'dashboard'], 'technology'],
-    [['executive', 'strategy', 'board', 'ceo', 'cto'], 'executive'],
-    [['ops', 'operations', 'process', 'workflow', 'automation'], 'operations'],
-  ];
+// ── NL parsing ─────────────────────────────────────────────────────────────
 
-  /** Extract a human-readable name from a description. */
-  function parseName(desc: string): string {
-    const lower = desc.toLowerCase();
+/** Keyword → category mapping for client-side inference. */
+const CATEGORY_SIGNALS: Array<[string[], AgentCategory]> = [
+  [['security', 'audit', 'vulnerability', 'pen test', 'owasp'], 'technology'],
+  [['pr', 'pull request', 'review', 'code review', 'diff'], 'engineering'],
+  [['test', 'qa', 'quality', 'spec', 'e2e'], 'testing'],
+  [['deploy', 'ci', 'pipeline', 'devops', 'kubernetes', 'docker'], 'engineering'],
+  [['sales', 'crm', 'lead', 'prospect', 'outreach'], 'sales'],
+  [['market', 'content', 'social', 'blog', 'seo', 'copy'], 'marketing'],
+  [['design', 'ui', 'ux', 'figma', 'wireframe'], 'design'],
+  [['product', 'roadmap', 'feature', 'backlog', 'sprint'], 'product'],
+  [['support', 'ticket', 'customer', 'help', 'issue'], 'support'],
+  [['data', 'analytics', 'sql', 'report', 'dashboard'], 'technology'],
+  [['executive', 'strategy', 'board', 'ceo', 'cto'], 'executive'],
+  [['ops', 'operations', 'process', 'workflow', 'automation'], 'operations'],
+];
 
-    // Pattern: "an agent that <verb>s <noun>" → "<verb> <noun> agent"
-    const that = lower.match(/agent\s+that\s+([\w\s]+?)(?:\s+and\s+|\s+or\s+|$)/);
-    if (that?.[1]) {
-      const phrase = that[1].trim().replace(/\s+/g, ' ');
-      const words = phrase.split(' ').slice(0, 4);
-      return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Agent';
-    }
+/** Extract a human-readable name from a description. */
+function parseName(desc: string): string {
+  const lower = desc.toLowerCase();
 
-    // Fallback: first 3 meaningful words + "Agent"
-    const words = desc
-      .replace(/[^\w\s]/g, '')
-      .split(/\s+/)
-      .filter((w) => w.length > 3)
-      .slice(0, 3);
-
-    if (words.length === 0) return 'Custom Agent';
+  // Pattern: "an agent that <verb>s <noun>" → "<verb> <noun> agent"
+  const that = lower.match(/agent\s+that\s+([\w\s]+?)(?:\s+and\s+|\s+or\s+|$)/);
+  if (that?.[1]) {
+    const phrase = that[1].trim().replace(/\s+/g, ' ');
+    const words = phrase.split(' ').slice(0, 4);
     return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Agent';
   }
 
-  /** Convert name to a valid kebab-case slug. */
-  function toSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]/g, '')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 48);
-  }
+  // Fallback: first 3 meaningful words + "Agent"
+  const words = desc
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 3);
 
-  /** Infer category from description keywords. */
-  function inferCategory(desc: string): AgentCategory {
-    const lower = desc.toLowerCase();
-    for (const [signals, cat] of CATEGORY_SIGNALS) {
-      if (signals.some((kw) => lower.includes(kw))) return cat;
-    }
-    return 'specialized';
-  }
+  if (words.length === 0) return 'Custom Agent';
+  return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + ' Agent';
+}
 
-  /** Extract skill keywords as tool suggestions. */
-  function extractTools(desc: string): string[] {
-    const toolPatterns = [
-      'github', 'jira', 'slack', 'notion', 'figma', 'linear',
-      'postgres', 'mysql', 'redis', 'aws', 'gcp', 'azure',
-      'bash', 'python', 'typescript', 'rust', 'elixir',
-    ];
-    const lower = desc.toLowerCase();
-    return toolPatterns.filter((t) => lower.includes(t)).slice(0, 6);
-  }
+/** Convert name to a valid kebab-case slug. */
+function toSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48);
+}
 
-  function generateConfig(desc: string): CreateAgentBody {
-    const name = parseName(desc);
-    return {
-      slug: toSlug(name),
-      name,
-      category: inferCategory(desc),
-      description: desc.trim(),
-      default_runtime: 'claude-local',
-      tools: extractTools(desc),
-    };
+/** Infer category from description keywords. */
+function inferCategory(desc: string): AgentCategory {
+  const lower = desc.toLowerCase();
+  for (const [signals, cat] of CATEGORY_SIGNALS) {
+    if (signals.some((kw) => lower.includes(kw))) return cat;
   }
+  return 'specialized';
+}
 
-  function handleGenerate(): void {
-    if (!description.trim()) return;
-    preview = generateConfig(description);
-    submitError = null;
-  }
+/** Extract skill keywords as tool suggestions. */
+function extractTools(desc: string): string[] {
+  const toolPatterns = [
+    'github',
+    'jira',
+    'slack',
+    'notion',
+    'figma',
+    'linear',
+    'postgres',
+    'mysql',
+    'redis',
+    'aws',
+    'gcp',
+    'azure',
+    'bash',
+    'python',
+    'typescript',
+    'rust',
+    'elixir',
+  ];
+  const lower = desc.toLowerCase();
+  return toolPatterns.filter((t) => lower.includes(t)).slice(0, 6);
+}
 
-  async function handleConfirm(): Promise<void> {
-    if (!preview || isPending) return;
-    isPending = true;
-    submitError = null;
-    try {
-      const agent = await createAgent(preview);
-      onClose();
-      void goto(`/agents/${agent.slug}`);
-    } catch (err) {
-      submitError = err instanceof Error ? err.message : 'Failed to create agent.';
-    } finally {
-      isPending = false;
-    }
-  }
+function generateConfig(desc: string): CreateAgentBody {
+  const name = parseName(desc);
+  return {
+    slug: toSlug(name),
+    name,
+    category: inferCategory(desc),
+    description: desc.trim(),
+    default_runtime: 'claude-local',
+    tools: extractTools(desc),
+  };
+}
 
-  function handleReset(): void {
-    preview = null;
-    submitError = null;
-  }
+function handleGenerate(): void {
+  if (!description.trim()) return;
+  preview = generateConfig(description);
+  submitError = null;
+}
 
-  function handleBackdropClick(e: MouseEvent): void {
-    if ((e.target as HTMLElement).classList.contains('nlac-backdrop')) onClose();
+async function handleConfirm(): Promise<void> {
+  if (!preview || isPending) return;
+  isPending = true;
+  submitError = null;
+  try {
+    const agent = await createAgent(preview);
+    onClose();
+    void goto(`/agents/${agent.slug}`);
+  } catch (err) {
+    submitError = err instanceof Error ? err.message : 'Failed to create agent.';
+  } finally {
+    isPending = false;
   }
+}
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') onClose();
-  }
+function handleReset(): void {
+  preview = null;
+  submitError = null;
+}
+
+function handleBackdropClick(e: MouseEvent): void {
+  if ((e.target as HTMLElement).classList.contains('nlac-backdrop')) onClose();
+}
+
+function handleKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') onClose();
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

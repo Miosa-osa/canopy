@@ -43,8 +43,8 @@ import {
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import { Tooltip } from '$lib/design/foundation';
-import { ui } from '$lib/stores/ui.svelte.js';
 import { sidebarConfig } from '$lib/stores/sidebar-config.svelte.js';
+import { ui } from '$lib/stores/ui.svelte.js';
 import StatusDot from './StatusDot.svelte';
 
 // lucide-svelte v1 components are Svelte 4 class-based — not assignable to the

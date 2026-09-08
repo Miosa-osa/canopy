@@ -18,13 +18,7 @@ interface Props {
   isDetaching?: boolean;
 }
 
-let {
-  runtime,
-  collapsed,
-  onToggleCollapse,
-  onDetach,
-  isDetaching = false,
-}: Props = $props();
+let { runtime, collapsed, onToggleCollapse, onDetach, isDetaching = false }: Props = $props();
 
 const isAuthenticated = $derived(
   runtime.status === 'installed' || runtime.status === 'misconfigured'
@@ -39,11 +33,7 @@ const authLabel = $derived(
 );
 
 const authVariant = $derived<'ok' | 'warn' | 'off'>(
-  runtime.status === 'installed'
-    ? 'ok'
-    : runtime.status === 'misconfigured'
-      ? 'warn'
-      : 'off'
+  runtime.status === 'installed' ? 'ok' : runtime.status === 'misconfigured' ? 'warn' : 'off'
 );
 </script>
 

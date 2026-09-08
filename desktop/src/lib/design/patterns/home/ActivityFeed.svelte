@@ -1,10 +1,10 @@
 <script lang="ts">
 import { createQuery } from '@tanstack/svelte-query';
-import { goto } from '$app/navigation';
 import { ArrowRight } from 'lucide-svelte';
+import { goto } from '$app/navigation';
 import { sessionsQuery } from '$lib/api/queries/sessions.js';
-import { mosaicLayout } from '$lib/stores/mosaic-layout.svelte.js';
 import type { Session } from '$lib/domain/sessions/types.js';
+import { mosaicLayout } from '$lib/stores/mosaic-layout.svelte.js';
 
 const feed = createQuery({
   ...sessionsQuery({ limit: 10 }),

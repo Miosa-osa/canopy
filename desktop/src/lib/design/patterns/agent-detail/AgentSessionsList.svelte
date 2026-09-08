@@ -1,38 +1,43 @@
 <script lang="ts">
-  /**
-   * AgentSessionsList — recent sessions this agent ran.
-   * Uses agentSessionsQuery which filters by agent_slug.
-   * CSS prefix: asl- (AgentSessionsList)
-   */
-  import { goto } from '$app/navigation';
-  import type { Session } from '$lib/domain/sessions/types.js';
+/**
+ * AgentSessionsList — recent sessions this agent ran.
+ * Uses agentSessionsQuery which filters by agent_slug.
+ * CSS prefix: asl- (AgentSessionsList)
+ */
+import { goto } from '$app/navigation';
+import type { Session } from '$lib/domain/sessions/types.js';
 
-  interface Props {
-    sessions: Session[];
-    isLoading: boolean;
-    agentSlug: string;
+interface Props {
+  sessions: Session[];
+  isLoading: boolean;
+  agentSlug: string;
+}
+
+let { sessions, isLoading, agentSlug }: Props = $props();
+
+function statusColor(status: string): string {
+  switch (status) {
+    case 'running':
+      return 'green';
+    case 'completed':
+      return 'grey';
+    case 'failed':
+      return 'red';
+    case 'cancelled':
+      return 'amber';
+    default:
+      return 'grey';
   }
+}
 
-  let { sessions, isLoading, agentSlug }: Props = $props();
-
-  function statusColor(status: string): string {
-    switch (status) {
-      case 'running': return 'green';
-      case 'completed': return 'grey';
-      case 'failed': return 'red';
-      case 'cancelled': return 'amber';
-      default: return 'grey';
-    }
-  }
-
-  function formatDate(iso: string): string {
-    return new Date(iso).toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 </script>
 
 <div class="asl-root">

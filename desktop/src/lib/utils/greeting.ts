@@ -10,16 +10,16 @@
  */
 
 export type GreetingPeriod =
-  | "Late night"
-  | "Good morning"
-  | "Good afternoon"
-  | "Good evening"
-  | "Good night";
+  | 'Late night'
+  | 'Good morning'
+  | 'Good afternoon'
+  | 'Good evening'
+  | 'Good night';
 
 export function greetingFor(hour: number): GreetingPeriod {
-  if (hour >= 5 && hour < 12) return "Good morning";
-  if (hour >= 12 && hour < 17) return "Good afternoon";
-  if (hour >= 17 && hour < 21) return "Good evening";
-  if (hour >= 21) return "Good night";
-  return "Late night"; // 0–4
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 17) return 'Good afternoon';
+  if (hour >= 17 && hour < 21) return 'Good evening';
+  if (hour >= 21) return 'Good night';
+  return 'Late night'; // 0–4
 }

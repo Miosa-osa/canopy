@@ -23,10 +23,10 @@
  * `name` and `rootPath`. Both are kept in sync via `setActive()`.
  */
 
-import type { Workspace } from "$lib/domain/workspaces/types.js";
+import type { Workspace } from '$lib/domain/workspaces/types.js';
 
-const LS_KEY = "canopy.activeWorkspace.slug";
-const EVENT_NAME = "workspace.changed";
+const LS_KEY = 'canopy.activeWorkspace.slug';
+const EVENT_NAME = 'workspace.changed';
 
 /**
  * Detail payload for the `workspace.changed` CustomEvent. Listeners can
@@ -56,7 +56,7 @@ class ActiveWorkspaceStore {
   #pool: Workspace[] = [];
 
   constructor() {
-    if (typeof localStorage !== "undefined") {
+    if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem(LS_KEY);
       if (saved) this.slug = saved;
     }
@@ -143,7 +143,7 @@ class ActiveWorkspaceStore {
   }
 
   #persist(slug: string | null): void {
-    if (typeof localStorage === "undefined") return;
+    if (typeof localStorage === 'undefined') return;
     if (slug === null) {
       localStorage.removeItem(LS_KEY);
     } else {
@@ -152,7 +152,7 @@ class ActiveWorkspaceStore {
   }
 
   #emit(): void {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
     const detail: WorkspaceChangedDetail = {
       slug: this.slug,
       name: this.name,

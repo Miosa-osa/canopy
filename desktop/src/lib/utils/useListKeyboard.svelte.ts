@@ -36,9 +36,7 @@ export interface UseListKeyboardReturn {
   clearSelection: () => void;
 }
 
-export function useListKeyboard<T>(
-  opts: UseListKeyboardOptions<T>,
-): UseListKeyboardReturn {
+export function useListKeyboard<T>(opts: UseListKeyboardOptions<T>): UseListKeyboardReturn {
   let selectedIndex = $state(-1);
 
   function handleKeydown(e: KeyboardEvent): void {
@@ -47,11 +45,7 @@ export function useListKeyboard<T>(
 
     // Skip if focus is inside a text input/textarea
     const target = e.target as HTMLElement;
-    if (
-      target.tagName === "INPUT" ||
-      target.tagName === "TEXTAREA" ||
-      target.isContentEditable
-    ) {
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
       return;
     }
 
@@ -60,36 +54,36 @@ export function useListKeyboard<T>(
     if (len === 0) return;
 
     switch (e.key) {
-      case "ArrowDown":
-      case "j":
+      case 'ArrowDown':
+      case 'j':
         e.preventDefault();
         selectedIndex = selectedIndex < len - 1 ? selectedIndex + 1 : 0;
         break;
 
-      case "ArrowUp":
-      case "k":
+      case 'ArrowUp':
+      case 'k':
         e.preventDefault();
         selectedIndex = selectedIndex > 0 ? selectedIndex - 1 : len - 1;
         break;
 
-      case "Enter":
+      case 'Enter':
         if (selectedIndex >= 0 && selectedIndex < len) {
           e.preventDefault();
           opts.onSelect(items[selectedIndex], selectedIndex);
         }
         break;
 
-      case "r":
+      case 'r':
         e.preventDefault();
         opts.onRefresh?.();
         break;
 
-      case "?":
+      case '?':
         e.preventDefault();
         opts.onHelp?.();
         break;
 
-      case "Escape":
+      case 'Escape':
         e.preventDefault();
         selectedIndex = -1;
         break;

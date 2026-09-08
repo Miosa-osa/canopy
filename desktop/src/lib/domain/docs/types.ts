@@ -48,7 +48,7 @@ export interface UpdateFolderBody {
 
 /** ProseMirror doc root shape — minimal for phase 4 plain-textarea editing. */
 export interface ProseMirrorDoc {
-  type: "doc";
+  type: 'doc';
   content: ProseMirrorNode[];
 }
 
@@ -59,11 +59,11 @@ export interface ProseMirrorNode {
 }
 
 export interface ProseMirrorTextNode {
-  type: "text";
+  type: 'text';
   text: string;
 }
 
-export type AuthorType = "user" | "agent" | "system";
+export type AuthorType = 'user' | 'agent' | 'system';
 
 export interface Document {
   id: string;

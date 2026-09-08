@@ -1,13 +1,13 @@
 <script lang="ts">
 import {
-  Code,
-  FlaskConical,
+  Bug,
   CircleAlert,
+  Code,
   FileSearch,
+  FileText,
+  FlaskConical,
   Plus,
   RefreshCw,
-  Bug,
-  FileText,
 } from 'lucide-svelte';
 
 interface Props {
@@ -17,14 +17,30 @@ interface Props {
 let { onSelect }: Props = $props();
 
 const CHIPS = [
-  { label: 'Review code',      prompt: 'Review my code for bugs, security issues, and improvements', icon: 'code' },
-  { label: 'Write tests',      prompt: 'Write comprehensive tests for the current module',           icon: 'flask' },
-  { label: 'Fix failing CI',   prompt: 'Investigate and fix the failing CI pipeline',                 icon: 'alert' },
-  { label: 'Explain codebase', prompt: 'Explain this codebase architecture and key patterns',         icon: 'search' },
-  { label: 'New feature',      prompt: 'Create a new feature',                                        icon: 'plus' },
-  { label: 'Refactor',         prompt: 'Refactor this file for clarity and maintainability',           icon: 'refresh' },
-  { label: 'Debug issue',      prompt: 'Debug this issue systematically',                             icon: 'bug' },
-  { label: 'Write docs',       prompt: 'Write clear documentation for this module',                   icon: 'file' },
+  {
+    label: 'Review code',
+    prompt: 'Review my code for bugs, security issues, and improvements',
+    icon: 'code',
+  },
+  {
+    label: 'Write tests',
+    prompt: 'Write comprehensive tests for the current module',
+    icon: 'flask',
+  },
+  { label: 'Fix failing CI', prompt: 'Investigate and fix the failing CI pipeline', icon: 'alert' },
+  {
+    label: 'Explain codebase',
+    prompt: 'Explain this codebase architecture and key patterns',
+    icon: 'search',
+  },
+  { label: 'New feature', prompt: 'Create a new feature', icon: 'plus' },
+  {
+    label: 'Refactor',
+    prompt: 'Refactor this file for clarity and maintainability',
+    icon: 'refresh',
+  },
+  { label: 'Debug issue', prompt: 'Debug this issue systematically', icon: 'bug' },
+  { label: 'Write docs', prompt: 'Write clear documentation for this module', icon: 'file' },
 ] as const;
 </script>
 

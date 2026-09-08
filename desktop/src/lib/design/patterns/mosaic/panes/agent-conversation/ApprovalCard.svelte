@@ -1,104 +1,95 @@
 <script lang="ts">
-  /**
-   * ApprovalCard — inline approval card for governance blocks.
-   *
-   * Rendered by Block.svelte when block.kind === 'approval' (via the existing
-   * ApprovalBlock). This component provides a standalone card variant with an
-   * amber warning border, tool-params preview, and Approve/Reject buttons that
-   * call the existing governance mutation endpoints.
-   *
-   * After a decision the card collapses to a single-line status line.
-   * Wires to POST /governance/approvals/:id/approve|reject via the existing
-   * approveApprovalMutation / rejectApprovalMutation factories.
-   *
-   * CSS prefix: apc-
-   */
+/**
+ * ApprovalCard — inline approval card for governance blocks.
+ *
+ * Rendered by Block.svelte when block.kind === 'approval' (via the existing
+ * ApprovalBlock). This component provides a standalone card variant with an
+ * amber warning border, tool-params preview, and Approve/Reject buttons that
+ * call the existing governance mutation endpoints.
+ *
+ * After a decision the card collapses to a single-line status line.
+ * Wires to POST /governance/approvals/:id/approve|reject via the existing
+ * approveApprovalMutation / rejectApprovalMutation factories.
+ *
+ * CSS prefix: apc-
+ */
 
-  import { Check, X } from 'lucide-svelte';
-  import {
-    type CreateMutationOptions,
-    createMutation,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import {
-    approveApprovalMutation,
-    rejectApprovalMutation,
-  } from '$lib/api/queries/governance.js';
-  import { blocksKey } from '$lib/api/queries/blocks.js';
-  import type { Approval, DecisionBody } from '$lib/domain/governance/types.js';
-  import type { Block } from '$lib/domain/blocks/types.js';
+import { type CreateMutationOptions, createMutation, useQueryClient } from '@tanstack/svelte-query';
+import { Check, X } from 'lucide-svelte';
+import { blocksKey } from '$lib/api/queries/blocks.js';
+import { approveApprovalMutation, rejectApprovalMutation } from '$lib/api/queries/governance.js';
+import type { Block } from '$lib/domain/blocks/types.js';
+import type { Approval, DecisionBody } from '$lib/domain/governance/types.js';
 
-  interface Props {
-    block: Block;
-    onDecision?: (decision: 'approved' | 'rejected') => void;
+interface Props {
+  block: Block;
+  onDecision?: (decision: 'approved' | 'rejected') => void;
+}
+
+let { block, onDecision }: Props = $props();
+
+const queryClient = useQueryClient();
+
+const approvalId = $derived(
+  typeof block.metadata?.approval_id === 'string' ? (block.metadata.approval_id as string) : null
+);
+
+const actionDescription = $derived(
+  typeof block.metadata?.summary === 'string'
+    ? (block.metadata.summary as string)
+    : (block.inputText ?? 'Action requires approval')
+);
+
+const toolName = $derived(
+  typeof block.metadata?.tool_name === 'string'
+    ? (block.metadata.tool_name as string)
+    : typeof block.metadata?.toolName === 'string'
+      ? (block.metadata.toolName as string)
+      : null
+);
+
+/** Compact JSON preview of params — truncated to 120 chars. */
+const paramsPreview = $derived.by(() => {
+  const p = block.metadata?.params ?? block.metadata?.args;
+  if (!p) return null;
+  try {
+    const s = JSON.stringify(p);
+    return s.length > 120 ? `${s.slice(0, 120)}…` : s;
+  } catch {
+    return null;
   }
+});
 
-  let { block, onDecision }: Props = $props();
+type DecisionInput = { id: string; body?: DecisionBody };
 
-  const queryClient = useQueryClient();
+const approve = createMutation<Approval, Error, DecisionInput>({
+  ...approveApprovalMutation(),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: blocksKey(block.sessionId) });
+    onDecision?.('approved');
+  },
+} as CreateMutationOptions<Approval, Error, DecisionInput>);
 
-  const approvalId = $derived(
-    typeof block.metadata?.approval_id === 'string'
-      ? (block.metadata.approval_id as string)
-      : null,
-  );
+const reject = createMutation<Approval, Error, DecisionInput>({
+  ...rejectApprovalMutation(),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: blocksKey(block.sessionId) });
+    onDecision?.('rejected');
+  },
+} as CreateMutationOptions<Approval, Error, DecisionInput>);
 
-  const actionDescription = $derived(
-    typeof block.metadata?.summary === 'string'
-      ? (block.metadata.summary as string)
-      : (block.inputText ?? 'Action requires approval'),
-  );
+const isPending = $derived(block.status === 'pending_approval');
+const isBusy = $derived($approve.isPending || $reject.isPending);
 
-  const toolName = $derived(
-    typeof block.metadata?.tool_name === 'string'
-      ? (block.metadata.tool_name as string)
-      : typeof block.metadata?.toolName === 'string'
-        ? (block.metadata.toolName as string)
-        : null,
-  );
+function handleApprove() {
+  if (!approvalId) return;
+  $approve.mutate({ id: approvalId });
+}
 
-  /** Compact JSON preview of params — truncated to 120 chars. */
-  const paramsPreview = $derived.by(() => {
-    const p = block.metadata?.params ?? block.metadata?.args;
-    if (!p) return null;
-    try {
-      const s = JSON.stringify(p);
-      return s.length > 120 ? `${s.slice(0, 120)}…` : s;
-    } catch {
-      return null;
-    }
-  });
-
-  type DecisionInput = { id: string; body?: DecisionBody };
-
-  const approve = createMutation<Approval, Error, DecisionInput>({
-    ...approveApprovalMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: blocksKey(block.sessionId) });
-      onDecision?.('approved');
-    },
-  } as CreateMutationOptions<Approval, Error, DecisionInput>);
-
-  const reject = createMutation<Approval, Error, DecisionInput>({
-    ...rejectApprovalMutation(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: blocksKey(block.sessionId) });
-      onDecision?.('rejected');
-    },
-  } as CreateMutationOptions<Approval, Error, DecisionInput>);
-
-  const isPending = $derived(block.status === 'pending_approval');
-  const isBusy = $derived($approve.isPending || $reject.isPending);
-
-  function handleApprove() {
-    if (!approvalId) return;
-    $approve.mutate({ id: approvalId });
-  }
-
-  function handleReject() {
-    if (!approvalId) return;
-    $reject.mutate({ id: approvalId });
-  }
+function handleReject() {
+  if (!approvalId) return;
+  $reject.mutate({ id: approvalId });
+}
 </script>
 
 <div class="apc-root" data-status={block.status}>

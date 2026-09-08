@@ -4,8 +4,9 @@
  * Shown when /sessions or /sessions/[id] load functions throw.
  * Uses EmptyState for consistent visual treatment.
  */
-import { page } from '$app/state';
+
 import { goto } from '$app/navigation';
+import { page } from '$app/state';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 
 const status = $derived(page.status);

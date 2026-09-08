@@ -1,16 +1,16 @@
 <script lang="ts">
-  /**
-   * PausedOverlay — semi-transparent overlay shown over a terminal when the
-   * session is paused. Exposes a "Resume" action button.
-   * CSS prefix: po- (PausedOverlay)
-   */
+/**
+ * PausedOverlay — semi-transparent overlay shown over a terminal when the
+ * session is paused. Exposes a "Resume" action button.
+ * CSS prefix: po- (PausedOverlay)
+ */
 
-  interface Props {
-    onResume: () => void;
-    isPending?: boolean;
-  }
+interface Props {
+  onResume: () => void;
+  isPending?: boolean;
+}
 
-  let { onResume, isPending = false }: Props = $props();
+let { onResume, isPending = false }: Props = $props();
 </script>
 
 <div class="po-overlay" role="status" aria-label="Session paused">

@@ -7,16 +7,16 @@
  */
 
 import { createQuery } from '@tanstack/svelte-query';
-import { writable } from 'svelte/store';
-import { untrack, onDestroy } from 'svelte';
 import { Activity } from 'lucide-svelte';
+import { onDestroy, untrack } from 'svelte';
+import { writable } from 'svelte/store';
 import { activityQuery } from '$lib/api/queries/activity.js';
 import { subscribeLiveRuns } from '$lib/api/queries/live-runs.js';
-import ActivityRow from '$lib/design/patterns/activity/ActivityRow.svelte';
 import ActivityFilterBar from '$lib/design/patterns/activity/ActivityFilterBar.svelte';
-import type { ActivityEvent, ActivityEventType } from '$lib/domain/activity/types.js';
-import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import ActivityRow from '$lib/design/patterns/activity/ActivityRow.svelte';
 import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import type { ActivityEvent, ActivityEventType } from '$lib/domain/activity/types.js';
 
 // ── Live-run WebSocket subscription ───────────────────────────────────────────
 // Prepend run lifecycle events to the activity list in real time.
@@ -27,7 +27,9 @@ const { events: liveEvents, disconnect: disconnectLiveRuns } = subscribeLiveRuns
 });
 
 // Convert a live run event into a synthetic ActivityEvent for display.
-function liveEventToActivity(ev: import('$lib/api/queries/live-runs.js').LiveRunEvent): ActivityEvent | null {
+function liveEventToActivity(
+  ev: import('$lib/api/queries/live-runs.js').LiveRunEvent
+): ActivityEvent | null {
   const p = ev.payload as unknown as Record<string, unknown>;
   const runId = (p.runId ?? p.run_id ?? '') as string;
   const shortId = (p.shortId ?? p.short_id ?? runId) as string;
@@ -62,9 +64,7 @@ let liveActivityEvents = $state<ActivityEvent[]>([]);
 $effect(() => {
   const evs = $liveEvents;
   if (evs.length === 0) return;
-  const converted = evs
-    .map(liveEventToActivity)
-    .filter((e): e is ActivityEvent => e !== null);
+  const converted = evs.map(liveEventToActivity).filter((e): e is ActivityEvent => e !== null);
   // Only prepend the newest batch (avoid re-inserting already-seen events).
   liveActivityEvents = converted;
 });
@@ -78,11 +78,7 @@ let workspaceSlug = $state('');
 
 // ── Query ─────────────────────────────────────────────────────────────────────
 
-const queryOpts = writable(
-  untrack(() =>
-    activityQuery({ limit: 50 }),
-  ),
-);
+const queryOpts = writable(untrack(() => activityQuery({ limit: 50 })));
 
 const activityQ = createQuery<ActivityEvent[]>(queryOpts);
 
@@ -93,7 +89,7 @@ $effect(() => {
       limit: 50,
       workspace_slug: workspaceSlug || undefined,
       type: selectedTypes.length > 0 ? selectedTypes : undefined,
-    }),
+    })
   );
 });
 
@@ -110,7 +106,13 @@ const isLoading = $derived($activityQ.isLoading);
 const isError = $derived($activityQ.isError);
 
 const availableWorkspaces = $derived(
-  [...new Set(allEvents().map((e) => e.workspace_slug).filter(Boolean))].sort(),
+  [
+    ...new Set(
+      allEvents()
+        .map((e) => e.workspace_slug)
+        .filter(Boolean)
+    ),
+  ].sort()
 );
 
 // ── Day grouping ──────────────────────────────────────────────────────────────

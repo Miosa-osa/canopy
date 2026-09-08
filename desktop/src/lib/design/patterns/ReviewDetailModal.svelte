@@ -1,91 +1,91 @@
 <script lang="ts">
-  /**
-   * ReviewDetailModal — full preview + approve/reject/request-changes actions.
-   * CSS prefix: rdm- (ReviewDetailModal)
-   * LOC target: ≤ 200.
-   */
-  import type {
-    ApproveReviewBody,
-    RejectReviewBody,
-    RequestChangesBody,
-    Review,
-  } from '$lib/domain/reviews/types.js';
+/**
+ * ReviewDetailModal — full preview + approve/reject/request-changes actions.
+ * CSS prefix: rdm- (ReviewDetailModal)
+ * LOC target: ≤ 200.
+ */
+import type {
+  ApproveReviewBody,
+  RejectReviewBody,
+  RequestChangesBody,
+  Review,
+} from '$lib/domain/reviews/types.js';
 
-  interface Props {
-    review: Review;
-    isPending?: boolean;
-    onApprove: (body: ApproveReviewBody) => void;
-    onReject: (body: RejectReviewBody) => void;
-    onRequestChanges: (body: RequestChangesBody) => void;
-    onResubmit?: () => void;
-    onClose: () => void;
+interface Props {
+  review: Review;
+  isPending?: boolean;
+  onApprove: (body: ApproveReviewBody) => void;
+  onReject: (body: RejectReviewBody) => void;
+  onRequestChanges: (body: RequestChangesBody) => void;
+  onResubmit?: () => void;
+  onClose: () => void;
+}
+
+let {
+  review,
+  isPending = false,
+  onApprove,
+  onReject,
+  onRequestChanges,
+  onResubmit,
+  onClose,
+}: Props = $props();
+
+let feedback = $state('');
+const isPending_ = $derived(isPending);
+const isDecided = $derived(review.status !== 'pending');
+const isChangesRequested = $derived(review.status === 'changes_requested');
+const rawRecord = $derived(JSON.stringify(review, null, 2));
+
+function handleKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') onClose();
+}
+
+function handleBackdropClick(e: MouseEvent): void {
+  if ((e.target as HTMLElement).classList.contains('rdm-backdrop')) onClose();
+}
+
+function handleApprove(): void {
+  onApprove({});
+}
+
+function handleReject(): void {
+  onReject({ feedback: feedback.trim() || undefined });
+}
+
+function handleRequestChanges(): void {
+  onRequestChanges({ feedback: feedback.trim() || undefined });
+}
+
+function statusClass(status: string): string {
+  if (status === 'pending') return 'rdm-pill rdm-pill--pending';
+  if (status === 'approved') return 'rdm-pill rdm-pill--approved';
+  if (status === 'rejected') return 'rdm-pill rdm-pill--rejected';
+  if (status === 'changes_requested') return 'rdm-pill rdm-pill--changes';
+  return 'rdm-pill rdm-pill--expired';
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleString();
+}
+
+function creationPath(r: Review): string {
+  if (r.kind === 'artifact') {
+    return 'POST /api/v1/reviews or Canopy.Reviews.request_artifact/1';
   }
-
-  let {
-    review,
-    isPending = false,
-    onApprove,
-    onReject,
-    onRequestChanges,
-    onResubmit,
-    onClose,
-  }: Props = $props();
-
-  let feedback = $state('');
-  const isPending_ = $derived(isPending);
-  const isDecided = $derived(review.status !== 'pending');
-  const isChangesRequested = $derived(review.status === 'changes_requested');
-  const rawRecord = $derived(JSON.stringify(review, null, 2));
-
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') onClose();
+  if (r.kind === 'tool_call') {
+    return 'Agent tool dispatch or Canopy.Reviews.request_tool_call/4';
   }
+  return 'Canopy.Reviews.request_hire_agent/5 from canopy.spawn_session';
+}
 
-  function handleBackdropClick(e: MouseEvent): void {
-    if ((e.target as HTMLElement).classList.contains('rdm-backdrop')) onClose();
-  }
-
-  function handleApprove(): void {
-    onApprove({});
-  }
-
-  function handleReject(): void {
-    onReject({ feedback: feedback.trim() || undefined });
-  }
-
-  function handleRequestChanges(): void {
-    onRequestChanges({ feedback: feedback.trim() || undefined });
-  }
-
-  function statusClass(status: string): string {
-    if (status === 'pending') return 'rdm-pill rdm-pill--pending';
-    if (status === 'approved') return 'rdm-pill rdm-pill--approved';
-    if (status === 'rejected') return 'rdm-pill rdm-pill--rejected';
-    if (status === 'changes_requested') return 'rdm-pill rdm-pill--changes';
-    return 'rdm-pill rdm-pill--expired';
-  }
-
-  function formatTime(iso: string): string {
-    return new Date(iso).toLocaleString();
-  }
-
-  function creationPath(r: Review): string {
-    if (r.kind === 'artifact') {
-      return 'POST /api/v1/reviews or Canopy.Reviews.request_artifact/1';
-    }
-    if (r.kind === 'tool_call') {
-      return 'Agent tool dispatch or Canopy.Reviews.request_tool_call/4';
-    }
-    return 'Canopy.Reviews.request_hire_agent/5 from canopy.spawn_session';
-  }
-
-  function decisionPath(status: string): string {
-    if (status === 'approved') return 'POST /api/v1/reviews/:id/approve';
-    if (status === 'rejected') return 'POST /api/v1/reviews/:id/reject';
-    if (status === 'changes_requested') return 'POST /api/v1/reviews/:id/request_changes';
-    if (status === 'pending') return 'Waiting for approve, reject, or request_changes';
-    return 'Expired';
-  }
+function decisionPath(status: string): string {
+  if (status === 'approved') return 'POST /api/v1/reviews/:id/approve';
+  if (status === 'rejected') return 'POST /api/v1/reviews/:id/reject';
+  if (status === 'changes_requested') return 'POST /api/v1/reviews/:id/request_changes';
+  if (status === 'pending') return 'Waiting for approve, reject, or request_changes';
+  return 'Expired';
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

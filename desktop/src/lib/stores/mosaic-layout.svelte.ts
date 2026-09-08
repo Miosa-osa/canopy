@@ -20,27 +20,24 @@
  *
  * LOC target: ≤ 320.
  */
-import {
-  getWorkspaceState,
-  putWorkspaceState,
-} from "$lib/api/queries/workspace-states.js";
-import { WORKSPACE_CHANGED_EVENT } from "./active-workspace.svelte.js";
+import { getWorkspaceState, putWorkspaceState } from '$lib/api/queries/workspace-states.js';
+import { WORKSPACE_CHANGED_EVENT } from './active-workspace.svelte.js';
 
 export type PaneKind =
-  | "session"
-  | "issue"
-  | "task"
-  | "doc"
-  | "file"
-  | "terminal"
-  | "changes"
-  | "knowledge"
-  | "agent_conversation"
-  | "agent_kanban"
-  | "block_stream"
-  | "workflow"
-  | "notebook"
-  | "history";
+  | 'session'
+  | 'issue'
+  | 'task'
+  | 'doc'
+  | 'file'
+  | 'terminal'
+  | 'changes'
+  | 'knowledge'
+  | 'agent_conversation'
+  | 'agent_kanban'
+  | 'block_stream'
+  | 'workflow'
+  | 'notebook'
+  | 'history';
 
 export interface Pane {
   id: string;
@@ -59,16 +56,16 @@ export interface Pane {
 }
 
 export interface Tile {
-  type: "tile";
+  type: 'tile';
   id: string;
   panes: Pane[];
   activePaneId: string | null;
 }
 
 export interface Split {
-  type: "split";
+  type: 'split';
   id: string;
-  orientation: "horizontal" | "vertical";
+  orientation: 'horizontal' | 'vertical';
   /** 0–1 fraction for first child */
   ratio: number;
   a: Node;
@@ -93,13 +90,13 @@ function lsKey(slug: string): string {
 }
 
 /** Backend `workspace_states` key for the mosaic layout tree. */
-export const MOSAIC_LAYOUT_STATE_KEY = "mosaic.layout";
+export const MOSAIC_LAYOUT_STATE_KEY = 'mosaic.layout';
 
 /** Debounce window for backend PUTs — matches `useWorkspaceState` (500 ms). */
 const BACKEND_DEBOUNCE_MS = 500;
 
 function emptyTile(): Tile {
-  return { type: "tile", id: uid(), panes: [], activePaneId: null };
+  return { type: 'tile', id: uid(), panes: [], activePaneId: null };
 }
 
 /** Build the canonical empty layout for a workspace slug. */
@@ -113,19 +110,19 @@ function defaultLayout(slug: string): MosaicLayout {
 
 /** Find the tile with `tileId` anywhere in the tree. Returns null if missing. */
 function findTile(node: Node, tileId: string): Tile | null {
-  if (node.type === "tile") return node.id === tileId ? node : null;
+  if (node.type === 'tile') return node.id === tileId ? node : null;
   return findTile(node.a, tileId) ?? findTile(node.b, tileId);
 }
 
 /** Collect all tiles in tree order. */
 function allTiles(node: Node): Tile[] {
-  if (node.type === "tile") return [node];
+  if (node.type === 'tile') return [node];
   return [...allTiles(node.a), ...allTiles(node.b)];
 }
 
 /** Replace a tile in the tree, returning the new tree root. */
 function replaceTile(node: Node, tileId: string, replacement: Node): Node {
-  if (node.type === "tile") {
+  if (node.type === 'tile') {
     return node.id === tileId ? replacement : node;
   }
   return {
@@ -144,7 +141,7 @@ function sortedPanes(panes: Pane[]): Pane[] {
 
 /** Remove a tile and collapse the sibling up. */
 function removeTile(node: Node, tileId: string): Node | null {
-  if (node.type === "tile") return node.id === tileId ? null : node;
+  if (node.type === 'tile') return node.id === tileId ? null : node;
   const newA = removeTile(node.a, tileId);
   const newB = removeTile(node.b, tileId);
   if (newA === null) return newB;
@@ -155,7 +152,7 @@ function removeTile(node: Node, tileId: string): Node | null {
 // ── store class ────────────────────────────────────────────────────────────────
 
 class MosaicLayoutStore {
-  layout = $state<MosaicLayout>(defaultLayout("default"));
+  layout = $state<MosaicLayout>(defaultLayout('default'));
 
   /** Active tile: the first tile in tree order (updated by MosaicTile on focus). */
   activeTileId = $state<string | null>(null);
@@ -177,19 +174,19 @@ class MosaicLayoutStore {
    */
   #wireWorkspaceListener(): void {
     if (this.#listenerWired) return;
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
     this.#listenerWired = true;
 
     window.addEventListener(WORKSPACE_CHANGED_EVENT, (ev: Event) => {
       const detail = (ev as CustomEvent<{ slug: string | null }>).detail;
-      const nextSlug = detail?.slug ?? "default";
+      const nextSlug = detail?.slug ?? 'default';
       // Console-log for debugging swap correctness — visible in DevTools.
       // eslint-disable-next-line no-console
       console.debug(
-        "[mosaic-layout] workspace.changed →",
+        '[mosaic-layout] workspace.changed →',
         this.layout.workspaceSlug,
-        "→",
-        nextSlug,
+        '→',
+        nextSlug
       );
       // Save the current layout under its current slug BEFORE we swap.
       this.save();
@@ -209,8 +206,7 @@ class MosaicLayoutStore {
   load(slug: string): void {
     const key = lsKey(slug);
     try {
-      const raw =
-        typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
       if (raw) {
         const parsed = JSON.parse(raw) as MosaicLayout;
         this.layout = parsed;
@@ -244,10 +240,7 @@ class MosaicLayoutStore {
    */
   async #hydrateFromBackend(slug: string): Promise<void> {
     try {
-      const remote = await getWorkspaceState<MosaicLayout>(
-        slug,
-        MOSAIC_LAYOUT_STATE_KEY,
-      );
+      const remote = await getWorkspaceState<MosaicLayout>(slug, MOSAIC_LAYOUT_STATE_KEY);
       if (remote && this.layout.workspaceSlug === slug) {
         // Defensive: ensure the persisted slug matches; rewrite if the
         // backend has stale slug metadata.
@@ -260,18 +253,15 @@ class MosaicLayoutStore {
     } catch (err) {
       // Backend may be down — degrade to localStorage gracefully.
       // eslint-disable-next-line no-console
-      console.debug("[mosaic-layout] backend hydrate failed:", err);
+      console.debug('[mosaic-layout] backend hydrate failed:', err);
     }
   }
 
   /** Write the current layout to its slug's localStorage key. */
   #writeLocalStorage(): void {
     try {
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(
-          lsKey(this.layout.workspaceSlug),
-          JSON.stringify(this.layout),
-        );
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(lsKey(this.layout.workspaceSlug), JSON.stringify(this.layout));
       }
     } catch {
       /* quota exceeded */
@@ -280,7 +270,7 @@ class MosaicLayoutStore {
 
   /** Schedule a debounced backend PUT for the current layout. */
   #scheduleBackendWrite(): void {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
     if (this.#backendTimer !== null) clearTimeout(this.#backendTimer);
     const slugAtSchedule = this.layout.workspaceSlug;
     this.#backendTimer = setTimeout(() => {
@@ -308,14 +298,10 @@ class MosaicLayoutStore {
             // workspace's value via #writeLocalStorage.
             null;
       if (payload === null) return;
-      await putWorkspaceState<MosaicLayout>(
-        slug,
-        MOSAIC_LAYOUT_STATE_KEY,
-        payload,
-      );
+      await putWorkspaceState<MosaicLayout>(slug, MOSAIC_LAYOUT_STATE_KEY, payload);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.debug("[mosaic-layout] backend PUT failed:", err);
+      console.debug('[mosaic-layout] backend PUT failed:', err);
     }
   }
 
@@ -332,9 +318,7 @@ class MosaicLayoutStore {
 
   openPane(pane: Pane, targetTileId?: string): void {
     const tid = targetTileId ?? this.activeTileId;
-    const tile = tid
-      ? findTile(this.layout.root, tid)
-      : allTiles(this.layout.root)[0];
+    const tile = tid ? findTile(this.layout.root, tid) : allTiles(this.layout.root)[0];
     if (!tile) return;
     tile.panes = sortedPanes([...tile.panes, pane]);
     tile.activePaneId = pane.id;
@@ -346,9 +330,7 @@ class MosaicLayoutStore {
     const tile = findTile(this.layout.root, tileId);
     if (!tile) return;
     tile.panes = sortedPanes(
-      tile.panes.map((p) =>
-        p.id === paneId ? { ...p, pinned: !p.pinned } : p,
-      ),
+      tile.panes.map((p) => (p.id === paneId ? { ...p, pinned: !p.pinned } : p))
     );
     this.save();
   }
@@ -371,12 +353,7 @@ class MosaicLayoutStore {
     this.save();
   }
 
-  movePane(
-    fromTileId: string,
-    paneId: string,
-    toTileId: string,
-    position?: number,
-  ): void {
+  movePane(fromTileId: string, paneId: string, toTileId: string, position?: number): void {
     const from = findTile(this.layout.root, fromTileId);
     const to = findTile(this.layout.root, toTileId);
     if (!from || !to) return;
@@ -387,31 +364,23 @@ class MosaicLayoutStore {
       from.activePaneId = from.panes[from.panes.length - 1]?.id ?? null;
     }
     const idx = position !== undefined ? position : to.panes.length;
-    to.panes = sortedPanes([
-      ...to.panes.slice(0, idx),
-      pane,
-      ...to.panes.slice(idx),
-    ]);
+    to.panes = sortedPanes([...to.panes.slice(0, idx), pane, ...to.panes.slice(idx)]);
     to.activePaneId = pane.id;
     this.save();
   }
 
-  splitTile(
-    tileId: string,
-    orientation: "horizontal" | "vertical",
-    newPane?: Pane,
-  ): void {
+  splitTile(tileId: string, orientation: 'horizontal' | 'vertical', newPane?: Pane): void {
     const newTile = emptyTile();
     if (newPane) {
       newTile.panes = [newPane];
       newTile.activePaneId = newPane.id;
     }
     const split: Split = {
-      type: "split",
+      type: 'split',
       id: uid(),
       orientation,
       ratio: 0.5,
-      a: { type: "tile", id: tileId, panes: [], activePaneId: null }, // placeholder
+      a: { type: 'tile', id: tileId, panes: [], activePaneId: null }, // placeholder
       b: newTile,
     };
     // Replace the target tile with a split, preserving its content

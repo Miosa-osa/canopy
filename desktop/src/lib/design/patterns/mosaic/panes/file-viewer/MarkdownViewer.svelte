@@ -1,27 +1,27 @@
 <script lang="ts">
-  /**
-   * MarkdownViewer — read-only markdown render.
-   * CSS prefix: mvw- (Markdown Viewer Wrapper).
-   *
-   * REUSES the existing inline markdown renderer at $lib/utils/markdown.ts,
-   * which is already used by FilePreview.svelte and FileViewer.svelte.
-   * No new markdown library is added.
-   *
-   * The .fv-* class names emitted by renderMarkdown() are styled globally
-   * (see FileViewer.svelte's :global blocks) — those styles apply here too.
-   *
-   * Editing belongs in TiptapEditor / FileViewer; this is a viewer only.
-   */
-  import { renderMarkdown } from "$lib/utils/markdown.js";
+/**
+ * MarkdownViewer — read-only markdown render.
+ * CSS prefix: mvw- (Markdown Viewer Wrapper).
+ *
+ * REUSES the existing inline markdown renderer at $lib/utils/markdown.ts,
+ * which is already used by FilePreview.svelte and FileViewer.svelte.
+ * No new markdown library is added.
+ *
+ * The .fv-* class names emitted by renderMarkdown() are styled globally
+ * (see FileViewer.svelte's :global blocks) — those styles apply here too.
+ *
+ * Editing belongs in TiptapEditor / FileViewer; this is a viewer only.
+ */
+import { renderMarkdown } from '$lib/utils/markdown.js';
 
-  interface Props {
-    /** Raw markdown source. */
-    content: string;
-  }
+interface Props {
+  /** Raw markdown source. */
+  content: string;
+}
 
-  let { content }: Props = $props();
+let { content }: Props = $props();
 
-  const html = $derived(renderMarkdown(content));
+const html = $derived(renderMarkdown(content));
 </script>
 
 <article class="mvw-root" aria-label="Markdown preview">

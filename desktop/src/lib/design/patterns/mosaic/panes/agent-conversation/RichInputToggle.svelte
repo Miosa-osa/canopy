@@ -1,13 +1,13 @@
 <script lang="ts" module>
-  /**
-   * Pure helper: did this keyboard event request a Rich Input toggle?
-   * Exported for tests so we don't need a runes-aware test runner.
-   */
-  export function isRichInputToggleEvent(e: KeyboardEvent): boolean {
-    // ⌃G (control+g) on every platform — never `metaKey`. Letting metaKey
-    // through would steal ⌘G ("Find Next") from the OS.
-    return e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'g' || e.key === 'G');
-  }
+/**
+ * Pure helper: did this keyboard event request a Rich Input toggle?
+ * Exported for tests so we don't need a runes-aware test runner.
+ */
+export function isRichInputToggleEvent(e: KeyboardEvent): boolean {
+  // ⌃G (control+g) on every platform — never `metaKey`. Letting metaKey
+  // through would steal ⌘G ("Find Next") from the OS.
+  return e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'g' || e.key === 'G');
+}
 </script>
 
 <script lang="ts">

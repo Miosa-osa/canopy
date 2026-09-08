@@ -22,19 +22,19 @@ import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { page } from '$app/state';
 import { apiDelete, apiPost } from '$lib/api/client.js';
+import { runtimeDetailQuery } from '$lib/api/queries/runtimes.js';
 import { listSessions } from '$lib/api/queries/sessions.js';
 import { listWorkspaces } from '$lib/api/queries/workspaces.js';
-import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
-import { runtimeDetailQuery } from '$lib/api/queries/runtimes.js';
-import type { RuntimeDetail } from '$lib/domain/runtimes/types.js';
-import type { CreateSessionBody, Session } from '$lib/domain/sessions/types.js';
 import ChangesPanel from '$lib/design/patterns/diff/ChangesPanel.svelte';
 import NewSessionModal from '$lib/design/patterns/NewSessionModal.svelte';
-import ResizablePanel from '$lib/design/primitives/ResizablePanel.svelte';
-import RuntimeTerminalHeader from '$lib/design/patterns/runtime-view/RuntimeTerminalHeader.svelte';
-import RuntimeSessionList from '$lib/design/patterns/runtime-view/RuntimeSessionList.svelte';
 import RuntimeInfoPanel from '$lib/design/patterns/runtime-view/RuntimeInfoPanel.svelte';
+import RuntimeSessionList from '$lib/design/patterns/runtime-view/RuntimeSessionList.svelte';
+import RuntimeTerminalHeader from '$lib/design/patterns/runtime-view/RuntimeTerminalHeader.svelte';
 import RuntimeTerminalPane from '$lib/design/patterns/runtime-view/RuntimeTerminalPane.svelte';
+import ResizablePanel from '$lib/design/primitives/ResizablePanel.svelte';
+import type { RuntimeDetail } from '$lib/domain/runtimes/types.js';
+import type { CreateSessionBody, Session } from '$lib/domain/sessions/types.js';
+import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
 
 const queryClient = useQueryClient();
 const runtimeType = $derived(page.params.type ?? '');
@@ -52,12 +52,15 @@ const detailQuery = createQuery<RuntimeDetail>(detailOptsStore);
 // ── Sessions for this runtime (sidebar list) ──────────────────────────────────
 
 const sessionsOptsStore = writable(
-  untrack(() => ({
-    queryKey: ['sessions', { runtimeType }] as const,
-    queryFn: () => listSessions({ runtimeType }),
-    staleTime: 10_000,
-    enabled: Boolean(runtimeType),
-  }) as CreateQueryOptions<Session[]>)
+  untrack(
+    () =>
+      ({
+        queryKey: ['sessions', { runtimeType }] as const,
+        queryFn: () => listSessions({ runtimeType }),
+        staleTime: 10_000,
+        enabled: Boolean(runtimeType),
+      }) as CreateQueryOptions<Session[]>
+  )
 );
 $effect(() => {
   sessionsOptsStore.set({
@@ -81,9 +84,7 @@ let sidebarTab = $state<'sessions' | 'info' | 'logs' | 'changes'>('sessions');
 // Sidebar collapse — persisted in localStorage
 const SIDEBAR_KEY = 'canopy.runtime_detail.sidebar_collapsed';
 let sidebarCollapsed = $state(
-  typeof localStorage !== 'undefined'
-    ? localStorage.getItem(SIDEBAR_KEY) === 'true'
-    : false
+  typeof localStorage !== 'undefined' ? localStorage.getItem(SIDEBAR_KEY) === 'true' : false
 );
 function toggleSidebar(): void {
   sidebarCollapsed = !sidebarCollapsed;

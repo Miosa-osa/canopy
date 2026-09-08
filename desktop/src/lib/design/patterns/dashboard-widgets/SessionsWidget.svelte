@@ -1,33 +1,34 @@
 <script lang="ts">
-  /**
-   * SessionsWidget — active sessions count + mini list.
-   * CSS prefix: sw- (SessionsWidget)
-   * Reads GET /api/v1/sessions (filter: status=running)
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { sessionsQuery } from '$lib/api/queries/sessions.js';
-  import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-  import type { Session } from '$lib/domain/sessions/types.js';
-  import type { CreateQueryOptions } from '@tanstack/svelte-query';
+/**
+ * SessionsWidget — active sessions count + mini list.
+ * CSS prefix: sw- (SessionsWidget)
+ * Reads GET /api/v1/sessions (filter: status=running)
+ */
 
-  const optsStore = writable(
-    untrack(() => sessionsQuery({ status: 'running', limit: 10 }) as CreateQueryOptions<Session[]>),
-  );
-  const query = createQuery<Session[]>(optsStore);
+import type { CreateQueryOptions } from '@tanstack/svelte-query';
+import { createQuery } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { sessionsQuery } from '$lib/api/queries/sessions.js';
+import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+import type { Session } from '$lib/domain/sessions/types.js';
 
-  const sessions = $derived(($query.data ?? []) as Session[]);
+const optsStore = writable(
+  untrack(() => sessionsQuery({ status: 'running', limit: 10 }) as CreateQueryOptions<Session[]>)
+);
+const query = createQuery<Session[]>(optsStore);
 
-  function relativeTime(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const sec = Math.floor(diff / 1000);
-    if (sec < 60) return `${sec}s`;
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m`;
-    return `${Math.floor(min / 60)}h`;
-  }
+const sessions = $derived(($query.data ?? []) as Session[]);
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m`;
+  return `${Math.floor(min / 60)}h`;
+}
 </script>
 
 <div class="sw-widget">

@@ -1,81 +1,82 @@
 <script lang="ts">
-  /**
-   * TaskCreateForm — inline new-task form (open/close driven by parent).
-   * CSS prefix: tl- (shared with /tasks page).
-   */
-  import type { Task, CreateTaskBody, TaskStatus } from '$lib/domain/tasks/types.js';
-  import {
-    type CreateMutationOptions,
-    createMutation,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { createTaskMutation } from '$lib/api/queries/tasks.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * TaskCreateForm — inline new-task form (open/close driven by parent).
+ * CSS prefix: tl- (shared with /tasks page).
+ */
 
-  interface Props {
-    onClose: () => void;
-  }
+import { type CreateMutationOptions, createMutation, useQueryClient } from '@tanstack/svelte-query';
+import { createTaskMutation } from '$lib/api/queries/tasks.js';
+import type { CreateTaskBody, Task, TaskStatus } from '$lib/domain/tasks/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  let { onClose }: Props = $props();
+interface Props {
+  onClose: () => void;
+}
 
-  const queryClient = useQueryClient();
+let { onClose }: Props = $props();
 
-  let newTitle = $state('');
-  let newDescription = $state('');
-  let newStatus = $state<TaskStatus>('todo');
-  let newPriority = $state(0);
-  let newDueAt = $state('');
-  let newLabels = $state('');
-  let newParentId = $state('');
-  let createError = $state<string | null>(null);
+const queryClient = useQueryClient();
 
-  const createMut = createMutation<Task, Error, CreateTaskBody>(
-    createTaskMutation() as CreateMutationOptions<Task, Error, CreateTaskBody>,
-  );
+let newTitle = $state('');
+let newDescription = $state('');
+let newStatus = $state<TaskStatus>('todo');
+let newPriority = $state(0);
+let newDueAt = $state('');
+let newLabels = $state('');
+let newParentId = $state('');
+let createError = $state<string | null>(null);
 
-  function reset(): void {
-    newTitle = '';
-    newDescription = '';
-    newStatus = 'todo';
-    newPriority = 0;
-    newDueAt = '';
-    newLabels = '';
-    newParentId = '';
-    createError = null;
-  }
+const createMut = createMutation<Task, Error, CreateTaskBody>(
+  createTaskMutation() as CreateMutationOptions<Task, Error, CreateTaskBody>
+);
 
-  function handleCancel(): void {
-    reset();
-    onClose();
-  }
+function reset(): void {
+  newTitle = '';
+  newDescription = '';
+  newStatus = 'todo';
+  newPriority = 0;
+  newDueAt = '';
+  newLabels = '';
+  newParentId = '';
+  createError = null;
+}
 
-  function submitCreate(e: SubmitEvent): void {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    createError = null;
+function handleCancel(): void {
+  reset();
+  onClose();
+}
 
-    const body: CreateTaskBody = {
-      title: newTitle.trim(),
-      status: newStatus,
-      priority: newPriority as 0 | 1 | 2 | 3,
-    };
-    if (newDescription.trim()) body.description = newDescription.trim();
-    if (newDueAt) body.dueAt = new Date(newDueAt).toISOString();
-    if (newLabels.trim()) body.labels = newLabels.split(',').map((l) => l.trim()).filter(Boolean);
-    if (newParentId.trim()) body.parentId = newParentId.trim();
+function submitCreate(e: SubmitEvent): void {
+  e.preventDefault();
+  if (!newTitle.trim()) return;
+  createError = null;
 
-    $createMut.mutate(body, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['tasks'] });
-        toasts.success('Task created');
-        reset();
-        onClose();
-      },
-      onError: (err: Error) => {
-        createError = err.message ?? 'Create failed';
-      },
-    });
-  }
+  const body: CreateTaskBody = {
+    title: newTitle.trim(),
+    status: newStatus,
+    priority: newPriority as 0 | 1 | 2 | 3,
+  };
+  if (newDescription.trim()) body.description = newDescription.trim();
+  if (newDueAt) body.dueAt = new Date(newDueAt).toISOString();
+  if (newLabels.trim())
+    body.labels = newLabels
+      .split(',')
+      .map((l) => l.trim())
+      .filter(Boolean);
+  if (newParentId.trim()) body.parentId = newParentId.trim();
+
+  $createMut.mutate(body, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toasts.success('Task created');
+      reset();
+      onClose();
+    },
+    onError: (err: Error) => {
+      createError = err.message ?? 'Create failed';
+    },
+  });
+}
 </script>
 
 <form class="tl-create-form glass-panel" onsubmit={submitCreate} aria-label="New task form">

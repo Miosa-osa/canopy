@@ -61,10 +61,7 @@ function handleAutoRunToggle(): void {
 async function handleDetect(): Promise<void> {
   isDetecting = true;
   try {
-    const result = await apiPost<DetectResult>(
-      `/workspaces/${workspaceSlug}/init/detect`,
-      {}
-    );
+    const result = await apiPost<DetectResult>(`/workspaces/${workspaceSlug}/init/detect`, {});
     if (result.detected && result.suggested_script) {
       script = result.suggested_script;
       isDirty = true;

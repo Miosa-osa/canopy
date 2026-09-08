@@ -10,18 +10,18 @@
 /** Escape HTML entities so raw user content cannot inject markup. */
 export function escapeHtml(raw: string): string {
   return raw
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
  * Allowlisted URL schemes for rendered links.
  * javascript:, data:, file:, vbscript:, and all other schemes are blocked.
  */
-const SAFE_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+const SAFE_SCHEMES = new Set(['http:', 'https:', 'mailto:']);
 
 /**
  * Validate a URL's scheme against the allowlist.
@@ -46,9 +46,9 @@ function inlineRender(escaped: string): string {
   return (
     escaped
       // Bold: **text** — must come before italic to avoid partial match
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       // Italic: *text*
-      .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>")
+      .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
       // Inline code: `code` — use a replacement function to avoid nested processing
       .replace(/`([^`]+)`/g, '<code class="fv-inline-code">$1</code>')
       // Links: [text](url) — sanitize href scheme before emitting anchor.
@@ -66,8 +66,8 @@ function inlineRender(escaped: string): string {
 
 /** Render a markdown string to an HTML string. Never throws — falls back to raw text. */
 export function renderMarkdown(md: string): string {
-  if (md === "") return "";
-  const lines = md.split("\n");
+  if (md === '') return '';
+  const lines = md.split('\n');
   const out: string[] = [];
   let i = 0;
 
@@ -75,16 +75,16 @@ export function renderMarkdown(md: string): string {
     const line = lines[i];
 
     // Fenced code block
-    if (line.trimStart().startsWith("```")) {
+    if (line.trimStart().startsWith('```')) {
       const lang = escapeHtml(line.trimStart().slice(3).trim());
       const codeLines: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].trimStart().startsWith("```")) {
+      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
         codeLines.push(escapeHtml(lines[i]));
         i++;
       }
       out.push(
-        `<pre class="fv-code-block"><code${lang ? ` data-lang="${lang}"` : ""}>${codeLines.join("\n")}</code></pre>`,
+        `<pre class="fv-code-block"><code${lang ? ` data-lang="${lang}"` : ''}>${codeLines.join('\n')}</code></pre>`
       );
       i++; // skip closing ```
       continue;
@@ -117,7 +117,7 @@ export function renderMarkdown(md: string): string {
         items.push(`<li>${inlineRender(escapeHtml(lines[i].slice(2)))}</li>`);
         i++;
       }
-      out.push(`<ul class="fv-ul">${items.join("")}</ul>`);
+      out.push(`<ul class="fv-ul">${items.join('')}</ul>`);
       continue;
     }
 
@@ -125,18 +125,16 @@ export function renderMarkdown(md: string): string {
     if (/^\d+\. /.test(line)) {
       const items: string[] = [];
       while (i < lines.length && /^\d+\. /.test(lines[i])) {
-        items.push(
-          `<li>${inlineRender(escapeHtml(lines[i].replace(/^\d+\. /, "")))}</li>`,
-        );
+        items.push(`<li>${inlineRender(escapeHtml(lines[i].replace(/^\d+\. /, '')))}</li>`);
         i++;
       }
-      out.push(`<ol class="fv-ol">${items.join("")}</ol>`);
+      out.push(`<ol class="fv-ol">${items.join('')}</ol>`);
       continue;
     }
 
     // Blank line → paragraph break
-    if (line.trim() === "") {
-      out.push("<br>");
+    if (line.trim() === '') {
+      out.push('<br>');
       i++;
       continue;
     }
@@ -146,5 +144,5 @@ export function renderMarkdown(md: string): string {
     i++;
   }
 
-  return out.join("\n");
+  return out.join('\n');
 }

@@ -23,21 +23,21 @@ import {
 } from '$lib/api/queries/agents.js';
 import { createSession } from '$lib/api/queries/sessions.js';
 import AgentCard from '$lib/design/patterns/AgentCard.svelte';
-import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-import HireAgentModal from '$lib/design/patterns/agents/HireAgentModal.svelte';
 import AgentOrgChart from '$lib/design/patterns/agents/AgentOrgChart.svelte';
+import HireAgentModal from '$lib/design/patterns/agents/HireAgentModal.svelte';
 import NLAgentCreator from '$lib/design/patterns/agents/NLAgentCreator.svelte';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
 import type {
   Agent,
   AgentCategory,
   HireAgentBody,
   WorkspaceAgentSyncResult,
 } from '$lib/domain/agents/types.js';
-import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
-import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
-import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
-import { toasts } from '$lib/stores/toasts.svelte.js';
 import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
 
 const queryClient = useQueryClient();
 
@@ -146,15 +146,16 @@ function handleSyncWorkspaceAgents(): void {
 async function handleRun(slug: string): Promise<void> {
   const agent = agents.find((a) => a.slug === slug);
   try {
-    const session = await createSession({
+    const session = (await createSession({
       agentSlug: slug,
       runtimeType: agent?.defaultRuntime ?? 'claude-local',
       cwd: '~',
       kind: 'agent_conversation',
       prompt: `Run ${agent?.name ?? slug}.`,
-    }) as { id?: string; sessionId?: string };
+    })) as { id?: string; sessionId?: string };
     const sessionId = session.id ?? session.sessionId;
-    if (!sessionId) throw new Error('Session started, but the backend did not return a session id.');
+    if (!sessionId)
+      throw new Error('Session started, but the backend did not return a session id.');
     await goto(`/sessions/${sessionId}`);
   } catch (err) {
     toasts.show(err instanceof Error ? err.message : 'Failed to start agent run.', 'error');

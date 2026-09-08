@@ -1,126 +1,126 @@
 <script lang="ts">
-  /**
-   * Block — single-block renderer for the agentic terminal.
-   *
-   * Discriminates on `kind` and delegates the body to the matching
-   * kind-specific component. Header carries the kind icon, status pill,
-   * duration + cost, and a collapse toggle. Footer carries action buttons
-   * (copy, re-run, share, pin, delete) emitted via callback props.
-   *
-   * Thin component — owns no state beyond local UI (collapsed). Renders
-   * existing foundation primitives (Button) and emits actions via props.
-   *
-   * CSS prefix: blk-
-   */
+/**
+ * Block — single-block renderer for the agentic terminal.
+ *
+ * Discriminates on `kind` and delegates the body to the matching
+ * kind-specific component. Header carries the kind icon, status pill,
+ * duration + cost, and a collapse toggle. Footer carries action buttons
+ * (copy, re-run, share, pin, delete) emitted via callback props.
+ *
+ * Thin component — owns no state beyond local UI (collapsed). Renders
+ * existing foundation primitives (Button) and emits actions via props.
+ *
+ * CSS prefix: blk-
+ */
 
-  import {
-    AlertTriangle,
-    Bot,
-    ChevronDown,
-    ChevronRight,
-    Copy,
-    FileDiff,
-    Info,
-    Pin,
-    Play,
-    Share2,
-    ShieldAlert,
-    Terminal,
-    Trash2,
-    Wrench,
-  } from 'lucide-svelte';
+import {
+  AlertTriangle,
+  Bot,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  FileDiff,
+  Info,
+  Pin,
+  Play,
+  Share2,
+  ShieldAlert,
+  Terminal,
+  Trash2,
+  Wrench,
+} from 'lucide-svelte';
 
-  import type { Block as BlockType, BlockKind, BlockStatus } from '$lib/domain/blocks/types.js';
+import type { BlockKind, BlockStatus, Block as BlockType } from '$lib/domain/blocks/types.js';
 
-  import AgentMessageBlock from './AgentMessageBlock.svelte';
-  import ApprovalBlock from './ApprovalBlock.svelte';
-  import CommandBlock from './CommandBlock.svelte';
-  import SystemEventBlock from './SystemEventBlock.svelte';
-  import ToolCallBlock from './ToolCallBlock.svelte';
+import AgentMessageBlock from './AgentMessageBlock.svelte';
+import ApprovalBlock from './ApprovalBlock.svelte';
+import CommandBlock from './CommandBlock.svelte';
+import SystemEventBlock from './SystemEventBlock.svelte';
+import ToolCallBlock from './ToolCallBlock.svelte';
 
-  type IconComponent = typeof Info;
+type IconComponent = typeof Info;
 
-  const KIND_ICONS: Record<BlockKind, IconComponent> = {
-    command: Terminal,
-    agent_message: Bot,
-    tool_call: Wrench,
-    tool_result: Wrench,
-    approval: ShieldAlert,
-    diff: FileDiff,
-    system_event: Info,
-    error: AlertTriangle,
-  };
+const KIND_ICONS: Record<BlockKind, IconComponent> = {
+  command: Terminal,
+  agent_message: Bot,
+  tool_call: Wrench,
+  tool_result: Wrench,
+  approval: ShieldAlert,
+  diff: FileDiff,
+  system_event: Info,
+  error: AlertTriangle,
+};
 
-  const KIND_LABEL: Record<BlockKind, string> = {
-    command: 'command',
-    agent_message: 'agent',
-    tool_call: 'tool',
-    tool_result: 'tool result',
-    approval: 'approval',
-    diff: 'diff',
-    system_event: 'system',
-    error: 'error',
-  };
+const KIND_LABEL: Record<BlockKind, string> = {
+  command: 'command',
+  agent_message: 'agent',
+  tool_call: 'tool',
+  tool_result: 'tool result',
+  approval: 'approval',
+  diff: 'diff',
+  system_event: 'system',
+  error: 'error',
+};
 
-  // ── Props ────────────────────────────────────────────────────────────────
+// ── Props ────────────────────────────────────────────────────────────────
 
-  interface Props {
-    block: BlockType;
-    /** Optional inline-controls — emitted up to the parent stream. */
-    onCopy?: (block: BlockType) => void;
-    onRerun?: (block: BlockType) => void;
-    onShare?: (block: BlockType) => void;
-    onPin?: (block: BlockType) => void;
-    onDelete?: (block: BlockType) => void;
-    /** When true, collapse the body by default. */
-    defaultCollapsed?: boolean;
-    /** When true, renders with a keyboard-focus highlight ring. */
-    isFocused?: boolean;
-  }
+interface Props {
+  block: BlockType;
+  /** Optional inline-controls — emitted up to the parent stream. */
+  onCopy?: (block: BlockType) => void;
+  onRerun?: (block: BlockType) => void;
+  onShare?: (block: BlockType) => void;
+  onPin?: (block: BlockType) => void;
+  onDelete?: (block: BlockType) => void;
+  /** When true, collapse the body by default. */
+  defaultCollapsed?: boolean;
+  /** When true, renders with a keyboard-focus highlight ring. */
+  isFocused?: boolean;
+}
 
-  let {
-    block,
-    onCopy,
-    onRerun,
-    onShare,
-    onPin,
-    onDelete,
-    defaultCollapsed = false,
-    isFocused = false,
-  }: Props = $props();
+let {
+  block,
+  onCopy,
+  onRerun,
+  onShare,
+  onPin,
+  onDelete,
+  defaultCollapsed = false,
+  isFocused = false,
+}: Props = $props();
 
-  let collapsed = $state(defaultCollapsed);
+let collapsed = $state(defaultCollapsed);
 
-  // ── Derived ──────────────────────────────────────────────────────────────
+// ── Derived ──────────────────────────────────────────────────────────────
 
-  const KindIcon = $derived(KIND_ICONS[block.kind] ?? Info);
-  const kindLabel = $derived(KIND_LABEL[block.kind] ?? block.kind);
+const KindIcon = $derived(KIND_ICONS[block.kind] ?? Info);
+const kindLabel = $derived(KIND_LABEL[block.kind] ?? block.kind);
 
-  const durationLabel = $derived(formatDuration(block.durationMs));
-  const costLabel = $derived(formatCost(block.costCents));
-  const isPinned = $derived(block.tags.includes('pinned'));
+const durationLabel = $derived(formatDuration(block.durationMs));
+const costLabel = $derived(formatCost(block.costCents));
+const isPinned = $derived(block.tags.includes('pinned'));
 
-  function formatDuration(ms: number | null): string | null {
-    if (ms == null) return null;
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-    const minutes = Math.floor(ms / 60_000);
-    const seconds = Math.round((ms % 60_000) / 1000);
-    return `${minutes}m ${seconds}s`;
-  }
+function formatDuration(ms: number | null): string | null {
+  if (ms == null) return null;
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  const minutes = Math.floor(ms / 60_000);
+  const seconds = Math.round((ms % 60_000) / 1000);
+  return `${minutes}m ${seconds}s`;
+}
 
-  function formatCost(cents: number | null): string | null {
-    if (cents == null || cents === 0) return null;
-    return `$${(cents / 100).toFixed(2)}`;
-  }
+function formatCost(cents: number | null): string | null {
+  if (cents == null || cents === 0) return null;
+  return `$${(cents / 100).toFixed(2)}`;
+}
 
-  function statusVariant(status: BlockStatus): string {
-    return `blk-pill--${status}`;
-  }
+function statusVariant(status: BlockStatus): string {
+  return `blk-pill--${status}`;
+}
 
-  function toggle() {
-    collapsed = !collapsed;
-  }
+function toggle() {
+  collapsed = !collapsed;
+}
 </script>
 
 <article class="blk-root" class:blk-focused={isFocused} data-kind={block.kind} data-status={block.status} aria-label="{kindLabel} block">

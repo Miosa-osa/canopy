@@ -1,162 +1,156 @@
 <script lang="ts">
-  /**
-   * ComposerChips — strip of contextual chips that sits below the
-   * Composer textarea inside an Agent Conversation pane.
-   *
-   * Layout:
-   *   📁 cwd (popover) · model · 📡 remote · ✨ Rich Input · 🌳 Files
-   *   · 🔔 runtime notifications (only when embeddedRuntime set)
-   *   · 🎤 mic · ➕ attach
-   *
-   * Stateless presentation — every chip emits an event and the parent
-   * (`ConversationComposer`) owns the source of truth.
-   *
-   * CSS prefix: cnp-chips-
-   */
-  import {
-    Box,
-    Calendar,
-    ChevronDown,
-    Clock,
-    FolderOpen,
-    LayoutTemplate,
-    Folder,
-    Mic,
-    Plus,
-    Radio,
-    Sparkles,
-    SquareArrowOutUpRight,
-    Zap,
-  } from 'lucide-svelte';
-  import CwdPickerPopover from './CwdPickerPopover.svelte';
-  import FileExplorerChip from './FileExplorerChip.svelte';
-  import RichInputToggle from './RichInputToggle.svelte';
-  import RuntimeNotificationChip from './RuntimeNotificationChip.svelte';
-  import DrivePickerPopover from './module-launchers/DrivePickerPopover.svelte';
-  import SkillsPickerPopover from './module-launchers/SkillsPickerPopover.svelte';
-  import TemplatesPickerPopover from './module-launchers/TemplatesPickerPopover.svelte';
-  import SandboxQuickActions from './module-launchers/SandboxQuickActions.svelte';
-  import ScheduleQuickActions from './module-launchers/ScheduleQuickActions.svelte';
-  import type { DriveEntry } from '$lib/domain/drive/types.js';
-  import type { Skill } from '$lib/domain/skills/types.js';
-  import type { Template } from '$lib/domain/templates/types.js';
+/**
+ * ComposerChips — strip of contextual chips that sits below the
+ * Composer textarea inside an Agent Conversation pane.
+ *
+ * Layout:
+ *   📁 cwd (popover) · model · 📡 remote · ✨ Rich Input · 🌳 Files
+ *   · 🔔 runtime notifications (only when embeddedRuntime set)
+ *   · 🎤 mic · ➕ attach
+ *
+ * Stateless presentation — every chip emits an event and the parent
+ * (`ConversationComposer`) owns the source of truth.
+ *
+ * CSS prefix: cnp-chips-
+ */
+import {
+  Box,
+  Calendar,
+  ChevronDown,
+  Clock,
+  Folder,
+  FolderOpen,
+  LayoutTemplate,
+  Mic,
+  Plus,
+  Radio,
+  Sparkles,
+  SquareArrowOutUpRight,
+  Zap,
+} from 'lucide-svelte';
+import type { DriveEntry } from '$lib/domain/drive/types.js';
+import type { Skill } from '$lib/domain/skills/types.js';
+import type { Template } from '$lib/domain/templates/types.js';
+import CwdPickerPopover from './CwdPickerPopover.svelte';
+import FileExplorerChip from './FileExplorerChip.svelte';
+import DrivePickerPopover from './module-launchers/DrivePickerPopover.svelte';
+import SandboxQuickActions from './module-launchers/SandboxQuickActions.svelte';
+import ScheduleQuickActions from './module-launchers/ScheduleQuickActions.svelte';
+import SkillsPickerPopover from './module-launchers/SkillsPickerPopover.svelte';
+import TemplatesPickerPopover from './module-launchers/TemplatesPickerPopover.svelte';
+import RichInputToggle from './RichInputToggle.svelte';
+import RuntimeNotificationChip from './RuntimeNotificationChip.svelte';
 
-  interface Props {
-    cwd: string;
-    model: string;
-    remoteControl?: boolean;
+interface Props {
+  cwd: string;
+  model: string;
+  remoteControl?: boolean;
 
-    /** Workspace slug — required for the cwd picker + file explorer chips. */
-    workspaceSlug?: string;
+  /** Workspace slug — required for the cwd picker + file explorer chips. */
+  workspaceSlug?: string;
 
-    /** Set when the pane is hosting an embedded runtime — unlocks the
-     *  rich-input toggle + notification chip. */
-    embeddedRuntimeType?: string | null;
-    /** Two-way: ON = composer visible; OFF = passthrough to runtime. */
-    richInputOn?: boolean;
-    /** Per-runtime notification preference. */
-    notificationsOn?: boolean;
+  /** Set when the pane is hosting an embedded runtime — unlocks the
+   *  rich-input toggle + notification chip. */
+  embeddedRuntimeType?: string | null;
+  /** Two-way: ON = composer visible; OFF = passthrough to runtime. */
+  richInputOn?: boolean;
+  /** Per-runtime notification preference. */
+  notificationsOn?: boolean;
 
-    onCwdClick?: () => void;
-    onCwdOpen?: () => void;
-    /** Fires when the user picks a new working directory in the popover. */
-    onCwdChange?: (newCwd: string) => void;
-    onModelClick?: () => void;
-    onRemoteToggle?: () => void;
-    onMicClick?: () => void;
-    onAttach?: () => void;
-    onRichInputToggle?: () => void;
-    /** Fires when the user picks a file in the explorer popover. */
-    onPickFile?: (path: string) => void;
-    onNotificationsToggle?: () => void;
+  onCwdClick?: () => void;
+  onCwdOpen?: () => void;
+  /** Fires when the user picks a new working directory in the popover. */
+  onCwdChange?: (newCwd: string) => void;
+  onModelClick?: () => void;
+  onRemoteToggle?: () => void;
+  onMicClick?: () => void;
+  onAttach?: () => void;
+  onRichInputToggle?: () => void;
+  /** Fires when the user picks a file in the explorer popover. */
+  onPickFile?: (path: string) => void;
+  onNotificationsToggle?: () => void;
 
-    // ── Module-launcher hooks (Drive / Skills / Templates / Sandbox / Schedule)
-    /** Drive picker — fires with a reference string (e.g. `"@drive:foo "`)
-     *  to insert into the composer. */
-    onPickDriveEntry?: (reference: string, entry: DriveEntry) => void;
-    /** Skills picker — fires with the chosen skill so the parent can dispatch
-     *  an `apply_skill` event to the embedded runtime. */
-    onApplySkill?: (skill: Skill) => void;
-    /** Templates picker — fires with the chosen template so the parent can
-     *  navigate to /templates/[slug] or kick off `instantiate_template`. */
-    onPickTemplate?: (template: Template) => void;
-    /** Sandbox picker — emits the sandbox id selected. */
-    onPickSandbox?: (sandboxId: string) => void;
-    /** Sandbox picker — emits when "+ New" is clicked. */
-    onNewSandbox?: () => void;
-    /** Schedule — emits when "Schedule this conversation" is clicked. */
-    onScheduleConversation?: () => void;
-    /** Schedule — emits the spec slug picked from the recent list. */
-    onPickSpec?: (slug: string) => void;
-  }
+  // ── Module-launcher hooks (Drive / Skills / Templates / Sandbox / Schedule)
+  /** Drive picker — fires with a reference string (e.g. `"@drive:foo "`)
+   *  to insert into the composer. */
+  onPickDriveEntry?: (reference: string, entry: DriveEntry) => void;
+  /** Skills picker — fires with the chosen skill so the parent can dispatch
+   *  an `apply_skill` event to the embedded runtime. */
+  onApplySkill?: (skill: Skill) => void;
+  /** Templates picker — fires with the chosen template so the parent can
+   *  navigate to /templates/[slug] or kick off `instantiate_template`. */
+  onPickTemplate?: (template: Template) => void;
+  /** Sandbox picker — emits the sandbox id selected. */
+  onPickSandbox?: (sandboxId: string) => void;
+  /** Sandbox picker — emits when "+ New" is clicked. */
+  onNewSandbox?: () => void;
+  /** Schedule — emits when "Schedule this conversation" is clicked. */
+  onScheduleConversation?: () => void;
+  /** Schedule — emits the spec slug picked from the recent list. */
+  onPickSpec?: (slug: string) => void;
+}
 
-  let {
-    cwd,
-    model,
-    remoteControl = false,
-    workspaceSlug,
-    embeddedRuntimeType = null,
-    richInputOn = true,
-    notificationsOn = false,
-    onCwdClick,
-    onCwdOpen,
-    onCwdChange,
-    onModelClick,
-    onRemoteToggle,
-    onMicClick,
-    onAttach,
-    onRichInputToggle,
-    onPickFile,
-    onNotificationsToggle,
-    onPickDriveEntry,
-    onApplySkill,
-    onPickTemplate,
-    onPickSandbox,
-    onNewSandbox,
-    onScheduleConversation,
-    onPickSpec,
-  }: Props = $props();
+let {
+  cwd,
+  model,
+  remoteControl = false,
+  workspaceSlug,
+  embeddedRuntimeType = null,
+  richInputOn = true,
+  notificationsOn = false,
+  onCwdClick,
+  onCwdOpen,
+  onCwdChange,
+  onModelClick,
+  onRemoteToggle,
+  onMicClick,
+  onAttach,
+  onRichInputToggle,
+  onPickFile,
+  onNotificationsToggle,
+  onPickDriveEntry,
+  onApplySkill,
+  onPickTemplate,
+  onPickSandbox,
+  onNewSandbox,
+  onScheduleConversation,
+  onPickSpec,
+}: Props = $props();
 
-  /** Truncate a working directory path for display. */
-  function shortenCwd(p: string): string {
-    if (!p) return '~';
-    if (p.length <= 36) return p;
-    const segs = p.split('/').filter(Boolean);
-    if (segs.length <= 2) return p;
-    return `…/${segs.slice(-2).join('/')}`;
-  }
+/** Truncate a working directory path for display. */
+function shortenCwd(p: string): string {
+  if (!p) return '~';
+  if (p.length <= 36) return p;
+  const segs = p.split('/').filter(Boolean);
+  if (segs.length <= 2) return p;
+  return `…/${segs.slice(-2).join('/')}`;
+}
 
-  const cwdShort = $derived(shortenCwd(cwd));
+const cwdShort = $derived(shortenCwd(cwd));
 
-  // ── cwd popover state ──────────────────────────────────────────────────────
-  let cwdPopOpen = $state(false);
-  let cwdChipEl = $state<HTMLButtonElement | null>(null);
+// ── cwd popover state ──────────────────────────────────────────────────────
+let cwdPopOpen = $state(false);
+let cwdChipEl = $state<HTMLButtonElement | null>(null);
 
-  function toggleCwdPop(): void {
-    cwdPopOpen = !cwdPopOpen;
-    onCwdClick?.();
-  }
+function toggleCwdPop(): void {
+  cwdPopOpen = !cwdPopOpen;
+  onCwdClick?.();
+}
 
-  // ── Module-launcher popover state ──────────────────────────────────────────
-  // One slot — open at most one popover at a time. Cleaner than 5 booleans
-  // when chips share a row.
-  type LauncherSlot =
-    | null
-    | 'drive'
-    | 'skills'
-    | 'templates'
-    | 'sandboxes'
-    | 'schedule';
+// ── Module-launcher popover state ──────────────────────────────────────────
+// One slot — open at most one popover at a time. Cleaner than 5 booleans
+// when chips share a row.
+type LauncherSlot = null | 'drive' | 'skills' | 'templates' | 'sandboxes' | 'schedule';
 
-  let launcherOpen = $state<LauncherSlot>(null);
+let launcherOpen = $state<LauncherSlot>(null);
 
-  function toggleLauncher(slot: Exclude<LauncherSlot, null>): void {
-    launcherOpen = launcherOpen === slot ? null : slot;
-  }
+function toggleLauncher(slot: Exclude<LauncherSlot, null>): void {
+  launcherOpen = launcherOpen === slot ? null : slot;
+}
 
-  function closeLauncher(): void {
-    launcherOpen = null;
-  }
+function closeLauncher(): void {
+  launcherOpen = null;
+}
 </script>
 
 <div class="cnp-chips" role="toolbar" aria-label="Conversation context">

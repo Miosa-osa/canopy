@@ -1,63 +1,68 @@
 <script lang="ts">
-  /**
-   * TypedTranscript — renders typed blocks from GET /runs/:id/transcript.
-   *
-   * Displays each block with a distinct icon and background tint per kind:
-   *   user_prompt         → speech bubble icon, accent tint
-   *   permission_request  → shield icon, amber tint
-   *   tool_call           → terminal icon, neutral
-   *   tool_result         → check icon, muted
-   *   thinking            → eye icon, subtle
-   *   stdout / stderr     → text, mono
-   *   exit                → power icon, faint
-   *
-   * CSS prefix: tt- (TypedTranscript)
-   * LOC target: ≤ 200.
-   */
+/**
+ * TypedTranscript — renders typed blocks from GET /runs/:id/transcript.
+ *
+ * Displays each block with a distinct icon and background tint per kind:
+ *   user_prompt         → speech bubble icon, accent tint
+ *   permission_request  → shield icon, amber tint
+ *   tool_call           → terminal icon, neutral
+ *   tool_result         → check icon, muted
+ *   thinking            → eye icon, subtle
+ *   stdout / stderr     → text, mono
+ *   exit                → power icon, faint
+ *
+ * CSS prefix: tt- (TypedTranscript)
+ * LOC target: ≤ 200.
+ */
 
-  import type { TranscriptBlock, TranscriptBlockKind } from '$lib/api/queries/runs.js';
+import type { TranscriptBlock, TranscriptBlockKind } from '$lib/api/queries/runs.js';
 
-  interface Props {
-    blocks: TranscriptBlock[];
-    isLoading?: boolean;
-    error?: string | null;
+interface Props {
+  blocks: TranscriptBlock[];
+  isLoading?: boolean;
+  error?: string | null;
+}
+
+const { blocks, isLoading = false, error = null }: Props = $props();
+
+// ── Block metadata ─────────────────────────────────────────────────────────
+
+const KIND_META: Record<TranscriptBlockKind, { label: string; icon: string; css: string }> = {
+  user_prompt: { label: 'Prompt', icon: '💬', css: 'tt-block--prompt' },
+  permission_request: { label: 'Permission', icon: '🔐', css: 'tt-block--permission' },
+  tool_call: { label: 'Tool call', icon: '⚙️', css: 'tt-block--tool-call' },
+  tool_result: { label: 'Tool result', icon: '✓', css: 'tt-block--tool-result' },
+  thinking: { label: 'Thinking', icon: '◉', css: 'tt-block--thinking' },
+  stdout: { label: 'Output', icon: '▸', css: 'tt-block--stdout' },
+  stderr: { label: 'Error', icon: '✗', css: 'tt-block--stderr' },
+  exit: { label: 'Exit', icon: '◼', css: 'tt-block--exit' },
+};
+
+function metaFor(kind: TranscriptBlockKind) {
+  return KIND_META[kind] ?? { label: kind, icon: '·', css: '' };
+}
+
+function payloadText(block: TranscriptBlock): string {
+  const p = block.payload;
+  if (typeof p['data'] === 'string') return p['data'];
+  if (typeof p['prompt'] === 'string') return p['prompt'];
+  if (typeof p['tool_name'] === 'string') {
+    const params = p['params'] ? JSON.stringify(p['params'], null, 2) : '';
+    return params ? `${p['tool_name']}\n${params}` : String(p['tool_name']);
   }
+  if (typeof p['result'] === 'object' && p['result'] !== null)
+    return JSON.stringify(p['result'], null, 2);
+  return JSON.stringify(p, null, 2);
+}
 
-  const { blocks, isLoading = false, error = null }: Props = $props();
-
-  // ── Block metadata ─────────────────────────────────────────────────────────
-
-  const KIND_META: Record<TranscriptBlockKind, { label: string; icon: string; css: string }> = {
-    user_prompt:        { label: 'Prompt',      icon: '💬', css: 'tt-block--prompt' },
-    permission_request: { label: 'Permission',  icon: '🔐', css: 'tt-block--permission' },
-    tool_call:          { label: 'Tool call',   icon: '⚙️', css: 'tt-block--tool-call' },
-    tool_result:        { label: 'Tool result', icon: '✓',  css: 'tt-block--tool-result' },
-    thinking:           { label: 'Thinking',    icon: '◉',  css: 'tt-block--thinking' },
-    stdout:             { label: 'Output',      icon: '▸',  css: 'tt-block--stdout' },
-    stderr:             { label: 'Error',       icon: '✗',  css: 'tt-block--stderr' },
-    exit:               { label: 'Exit',        icon: '◼',  css: 'tt-block--exit' },
-  };
-
-  function metaFor(kind: TranscriptBlockKind) {
-    return KIND_META[kind] ?? { label: kind, icon: '·', css: '' };
+function formatAt(iso: string): string {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleTimeString();
+  } catch {
+    return iso;
   }
-
-  function payloadText(block: TranscriptBlock): string {
-    const p = block.payload;
-    if (typeof p['data'] === 'string') return p['data'];
-    if (typeof p['prompt'] === 'string') return p['prompt'];
-    if (typeof p['tool_name'] === 'string') {
-      const params = p['params'] ? JSON.stringify(p['params'], null, 2) : '';
-      return params ? `${p['tool_name']}\n${params}` : String(p['tool_name']);
-    }
-    if (typeof p['result'] === 'object' && p['result'] !== null) return JSON.stringify(p['result'], null, 2);
-    return JSON.stringify(p, null, 2);
-  }
-
-  function formatAt(iso: string): string {
-    if (!iso) return '';
-    try { return new Date(iso).toLocaleTimeString(); } catch { return iso; }
-  }
+}
 </script>
 
 <div class="tt-root" aria-label="Run transcript">

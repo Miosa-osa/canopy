@@ -1,34 +1,34 @@
 <script lang="ts">
-  /**
-   * MosaicNode — recursive renderer for Split | Tile nodes.
-   * Uses svelte:self for recursion on split children.
-   * CSS prefix: mn-
-   * LOC target: ≤ 100.
-   */
-  import ResizablePanel from '$lib/design/primitives/ResizablePanel.svelte';
-  import type { Node, Split, Tile } from '$lib/stores/mosaic-layout.svelte.js';
-  import MosaicTile from './MosaicTile.svelte';
+/**
+ * MosaicNode — recursive renderer for Split | Tile nodes.
+ * Uses svelte:self for recursion on split children.
+ * CSS prefix: mn-
+ * LOC target: ≤ 100.
+ */
+import ResizablePanel from '$lib/design/primitives/ResizablePanel.svelte';
+import type { Node, Split, Tile } from '$lib/stores/mosaic-layout.svelte.js';
+import MosaicTile from './MosaicTile.svelte';
 
-  interface Props {
-    node: Node;
-  }
+interface Props {
+  node: Node;
+}
 
-  let { node }: Props = $props();
+let { node }: Props = $props();
 
-  function isSplit(n: Node): n is Split {
-    return n.type === 'split';
-  }
+function isSplit(n: Node): n is Split {
+  return n.type === 'split';
+}
 
-  // ResizablePanel sizes the *second* pane. ratio is for the first child.
-  const VIEWPORT_REF = 1200;
+// ResizablePanel sizes the *second* pane. ratio is for the first child.
+const VIEWPORT_REF = 1200;
 
-  function ratioToSecondPx(ratio: number): number {
-    return Math.round((1 - ratio) * VIEWPORT_REF);
-  }
+function ratioToSecondPx(ratio: number): number {
+  return Math.round((1 - ratio) * VIEWPORT_REF);
+}
 
-  // Narrowed reactive refs so template snippets close over typed values.
-  const splitNode = $derived(isSplit(node) ? node : null);
-  const tileNode = $derived(!isSplit(node) ? (node as Tile) : null);
+// Narrowed reactive refs so template snippets close over typed values.
+const splitNode = $derived(isSplit(node) ? node : null);
+const tileNode = $derived(!isSplit(node) ? (node as Tile) : null);
 </script>
 
 {#if splitNode !== null}

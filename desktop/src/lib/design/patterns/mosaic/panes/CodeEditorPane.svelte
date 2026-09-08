@@ -1,283 +1,299 @@
 <script lang="ts">
-  /**
-   * CodeEditorPane — Code editor pane content for Mosaic.
-   *
-   * Today: textarea + Shiki overlay (read-only highlight) with ⌘S save and
-   *        ⌘F find/replace. Lightweight, uses ONLY primitives that already
-   *        exist in the repo (Shiki ^4.0.2, foundation/Button, foundation/Input).
-   *
-   * Future: swap the textarea for a CodeMirror 6 EditorView once
-   *        @codemirror/* packages land (see wiring/code-editor-wiring.md).
-   *        The save/dirty/state plumbing is identical either way — only the
-   *        rendering layer changes.
-   *
-   * REUSES (no new fetcher / store / primitive created):
-   *   - workspaceFileQuery / saveCodeFileMutation (queries/code-editor.ts)
-   *   - fileQuery (queries/files.ts)
-   *   - toasts (stores/toasts.svelte.ts)
-   *   - foundation Button, Input, Textarea
-   *   - Shiki dynamic-import pattern (matches DiffViewer.svelte)
-   *
-   * CSS prefix: cep- (Code Editor Pane).
-   * LOC target: ≤ 360.
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { Save, X, Search } from 'lucide-svelte';
-  import { onMount, untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import {
-    codeEditorContentQuery,
-    codeEditorMetadataQuery,
-    isSaveable,
-    saveCodeFileMutation,
-  } from '$lib/api/queries/code-editor.js';
-  import {
-    type CodeEditorPaneConfig,
-    type CodeEditorSaveResult,
-    languageFromExtension,
-  } from '$lib/domain/code-editor/types.js';
-  import {
-    SHIKI_LANGUAGES_TO_PRELOAD,
-    SHIKI_THEME,
-    shikiLanguageFromExtension,
-  } from './code-editor/extensions.js';
-  import { CodeEditorSaveState } from './code-editor/save-state.svelte.js';
-  import type { FileRecord } from '$lib/domain/files/types.js';
-  import type { FileReadResponse } from '$lib/domain/workspaces/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * CodeEditorPane — Code editor pane content for Mosaic.
+ *
+ * Today: textarea + Shiki overlay (read-only highlight) with ⌘S save and
+ *        ⌘F find/replace. Lightweight, uses ONLY primitives that already
+ *        exist in the repo (Shiki ^4.0.2, foundation/Button, foundation/Input).
+ *
+ * Future: swap the textarea for a CodeMirror 6 EditorView once
+ *        @codemirror/* packages land (see wiring/code-editor-wiring.md).
+ *        The save/dirty/state plumbing is identical either way — only the
+ *        rendering layer changes.
+ *
+ * REUSES (no new fetcher / store / primitive created):
+ *   - workspaceFileQuery / saveCodeFileMutation (queries/code-editor.ts)
+ *   - fileQuery (queries/files.ts)
+ *   - toasts (stores/toasts.svelte.ts)
+ *   - foundation Button, Input, Textarea
+ *   - Shiki dynamic-import pattern (matches DiffViewer.svelte)
+ *
+ * CSS prefix: cep- (Code Editor Pane).
+ * LOC target: ≤ 360.
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { Save, Search, X } from 'lucide-svelte';
+import { onMount, untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import {
+  codeEditorContentQuery,
+  codeEditorMetadataQuery,
+  isSaveable,
+  saveCodeFileMutation,
+} from '$lib/api/queries/code-editor.js';
+import {
+  type CodeEditorPaneConfig,
+  type CodeEditorSaveResult,
+  languageFromExtension,
+} from '$lib/domain/code-editor/types.js';
+import type { FileRecord } from '$lib/domain/files/types.js';
+import type { FileReadResponse } from '$lib/domain/workspaces/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import {
+  SHIKI_LANGUAGES_TO_PRELOAD,
+  SHIKI_THEME,
+  shikiLanguageFromExtension,
+} from './code-editor/extensions.js';
+import { CodeEditorSaveState } from './code-editor/save-state.svelte.js';
 
-  interface Props {
-    fileId?: string;
-    path?: string;
-    workspaceSlug: string;
-    /** Optional callback so MosaicTile can reflect dirty state in the pane title. */
-    onDirtyChange?: (isDirty: boolean) => void;
+interface Props {
+  fileId?: string;
+  path?: string;
+  workspaceSlug: string;
+  /** Optional callback so MosaicTile can reflect dirty state in the pane title. */
+  onDirtyChange?: (isDirty: boolean) => void;
+}
+
+let { fileId, path, workspaceSlug, onDirtyChange }: Props = $props();
+
+const config = $derived<CodeEditorPaneConfig>({
+  fileId,
+  workspaceSlug,
+  path,
+});
+
+// ── Resolve metadata (when addressed by fileId) ─────────────────────────────
+
+const metaOptsStore = writable(
+  untrack(() =>
+    fileId
+      ? (codeEditorMetadataQuery(fileId) as CreateQueryOptions<FileRecord>)
+      : ({
+          queryKey: ['code-editor', 'no-file'],
+          queryFn: async () => null,
+          enabled: false,
+        } as unknown as CreateQueryOptions<FileRecord>)
+  )
+);
+$effect(() => {
+  if (fileId) {
+    metaOptsStore.set(codeEditorMetadataQuery(fileId) as CreateQueryOptions<FileRecord>);
   }
+});
+const metaQ = createQuery<FileRecord>(metaOptsStore);
+const fileMeta = $derived($metaQ.data as FileRecord | undefined);
 
-  let { fileId, path, workspaceSlug, onDirtyChange }: Props = $props();
+// ── Resolve text content via the workspace-scoped read endpoint ────────────
 
-  const config = $derived<CodeEditorPaneConfig>({
-    fileId,
-    workspaceSlug,
-    path,
-  });
+const resolvedSlug = $derived(workspaceSlug);
+const resolvedPath = $derived(path ?? fileMeta?.path ?? '');
 
-  // ── Resolve metadata (when addressed by fileId) ─────────────────────────────
-
-  const metaOptsStore = writable(
-    untrack(() =>
-      fileId
-        ? (codeEditorMetadataQuery(fileId) as CreateQueryOptions<FileRecord>)
-        : ({ queryKey: ['code-editor', 'no-file'], queryFn: async () => null, enabled: false } as unknown as CreateQueryOptions<FileRecord>),
-    ),
-  );
-  $effect(() => {
-    if (fileId) {
-      metaOptsStore.set(codeEditorMetadataQuery(fileId) as CreateQueryOptions<FileRecord>);
-    }
-  });
-  const metaQ = createQuery<FileRecord>(metaOptsStore);
-  const fileMeta = $derived($metaQ.data as FileRecord | undefined);
-
-  // ── Resolve text content via the workspace-scoped read endpoint ────────────
-
-  const resolvedSlug = $derived(workspaceSlug);
-  const resolvedPath = $derived(path ?? fileMeta?.path ?? '');
-
-  const contentOptsStore = writable(
-    untrack(() =>
-      resolvedSlug && resolvedPath
-        ? (codeEditorContentQuery(resolvedSlug, resolvedPath) as CreateQueryOptions<FileReadResponse>)
-        : ({ queryKey: ['code-editor', 'no-content'], queryFn: async () => null, enabled: false } as unknown as CreateQueryOptions<FileReadResponse>),
-    ),
-  );
-  $effect(() => {
-    if (resolvedSlug && resolvedPath) {
-      contentOptsStore.set(
-        codeEditorContentQuery(resolvedSlug, resolvedPath) as CreateQueryOptions<FileReadResponse>,
-      );
-    }
-  });
-  const contentQ = createQuery<FileReadResponse>(contentOptsStore);
-
-  // The backend returns `{path, content}` (singular); the workspaces TS layer
-  // declares `contents` (plural). Read both defensively until they reconcile.
-  const remoteContent = $derived(
-    (() => {
-      const data = $contentQ.data as (FileReadResponse & { content?: string }) | undefined;
-      if (!data) return null;
-      if (typeof data.contents === 'string') return data.contents;
-      if (typeof data.content === 'string') return data.content;
-      return '';
-    })(),
-  );
-
-  // ── Save state (dirty tracking + last-saved baseline) ──────────────────────
-
-  const saveState = new CodeEditorSaveState('');
-
-  $effect(() => {
-    if (remoteContent !== null) {
-      // Reset baseline + draft when freshly fetched content arrives.
-      saveState.loadFromRemote(remoteContent);
-    }
-  });
-
-  $effect(() => {
-    onDirtyChange?.(saveState.isDirty);
-  });
-
-  // ── Save mutation ──────────────────────────────────────────────────────────
-
-  const queryClient = useQueryClient();
-  const saveMut = createMutation<CodeEditorSaveResult, Error, { path: string; content: string }>(
-    saveCodeFileMutation(workspaceSlug) as CreateMutationOptions<
-      CodeEditorSaveResult,
-      Error,
-      { path: string; content: string }
-    >,
-  );
-
-  function triggerSave(): void {
-    if (!isSaveable(config)) {
-      toasts.error('Cannot save — pane is missing workspace + path.');
-      return;
-    }
-    if (!saveState.isDirty) return;
-
-    const sentContent = saveState.draft;
-    const targetPath = resolvedPath;
-
-    // Optimistic baseline update — flip clean immediately so the UI reflects
-    // the user's intent. Roll back if the network call fails.
-    const previousBaseline = saveState.baseline;
-    saveState.markSaved(sentContent);
-
-    $saveMut.mutate(
-      { path: targetPath, content: sentContent },
-      {
-        onSuccess: () => {
-          // Invalidate the read cache so next mount shows the latest content.
-          queryClient.invalidateQueries({
-            queryKey: ['workspaces', workspaceSlug, 'file', targetPath],
-          });
-          toasts.success(`Saved ${targetPath}`);
-        },
-        onError: (err: Error) => {
-          // Rollback the baseline so the dirty indicator + warning come back.
-          saveState.baseline = previousBaseline;
-          toasts.error(`Save failed: ${err.message}`);
-        },
-      },
+const contentOptsStore = writable(
+  untrack(() =>
+    resolvedSlug && resolvedPath
+      ? (codeEditorContentQuery(resolvedSlug, resolvedPath) as CreateQueryOptions<FileReadResponse>)
+      : ({
+          queryKey: ['code-editor', 'no-content'],
+          queryFn: async () => null,
+          enabled: false,
+        } as unknown as CreateQueryOptions<FileReadResponse>)
+  )
+);
+$effect(() => {
+  if (resolvedSlug && resolvedPath) {
+    contentOptsStore.set(
+      codeEditorContentQuery(resolvedSlug, resolvedPath) as CreateQueryOptions<FileReadResponse>
     );
   }
+});
+const contentQ = createQuery<FileReadResponse>(contentOptsStore);
 
-  // ── Keyboard handling: ⌘S save, ⌘F find ───────────────────────────────────
+// The backend returns `{path, content}` (singular); the workspaces TS layer
+// declares `contents` (plural). Read both defensively until they reconcile.
+const remoteContent = $derived(
+  (() => {
+    const data = $contentQ.data as (FileReadResponse & { content?: string }) | undefined;
+    if (!data) return null;
+    if (typeof data.contents === 'string') return data.contents;
+    if (typeof data.content === 'string') return data.content;
+    return '';
+  })()
+);
 
-  let findOpen = $state(false);
-  let findQuery = $state('');
-  let replaceWith = $state('');
-  let editorRef = $state<HTMLTextAreaElement | undefined>();
+// ── Save state (dirty tracking + last-saved baseline) ──────────────────────
 
-  function handleKeydown(e: KeyboardEvent): void {
-    const mod = e.metaKey || e.ctrlKey;
-    if (!mod) return;
-    if (e.key === 's' || e.key === 'S') {
-      e.preventDefault();
-      triggerSave();
-    } else if (e.key === 'f' || e.key === 'F') {
-      e.preventDefault();
-      findOpen = true;
-    }
+const saveState = new CodeEditorSaveState('');
+
+$effect(() => {
+  if (remoteContent !== null) {
+    // Reset baseline + draft when freshly fetched content arrives.
+    saveState.loadFromRemote(remoteContent);
   }
+});
 
-  function closeFind(): void {
-    findOpen = false;
-    findQuery = '';
-    replaceWith = '';
-    editorRef?.focus();
+$effect(() => {
+  onDirtyChange?.(saveState.isDirty);
+});
+
+// ── Save mutation ──────────────────────────────────────────────────────────
+
+const queryClient = useQueryClient();
+const saveMut = createMutation<CodeEditorSaveResult, Error, { path: string; content: string }>(
+  saveCodeFileMutation(workspaceSlug) as CreateMutationOptions<
+    CodeEditorSaveResult,
+    Error,
+    { path: string; content: string }
+  >
+);
+
+function triggerSave(): void {
+  if (!isSaveable(config)) {
+    toasts.error('Cannot save — pane is missing workspace + path.');
+    return;
   }
+  if (!saveState.isDirty) return;
 
-  function findNext(): void {
-    if (!editorRef || !findQuery) return;
-    const text = saveState.draft;
-    const startFrom = editorRef.selectionEnd ?? 0;
-    const nextIdx = text.indexOf(findQuery, startFrom);
-    const idx = nextIdx >= 0 ? nextIdx : text.indexOf(findQuery);
-    if (idx < 0) {
-      toasts.info(`No match for "${findQuery}"`);
-      return;
+  const sentContent = saveState.draft;
+  const targetPath = resolvedPath;
+
+  // Optimistic baseline update — flip clean immediately so the UI reflects
+  // the user's intent. Roll back if the network call fails.
+  const previousBaseline = saveState.baseline;
+  saveState.markSaved(sentContent);
+
+  $saveMut.mutate(
+    { path: targetPath, content: sentContent },
+    {
+      onSuccess: () => {
+        // Invalidate the read cache so next mount shows the latest content.
+        queryClient.invalidateQueries({
+          queryKey: ['workspaces', workspaceSlug, 'file', targetPath],
+        });
+        toasts.success(`Saved ${targetPath}`);
+      },
+      onError: (err: Error) => {
+        // Rollback the baseline so the dirty indicator + warning come back.
+        saveState.baseline = previousBaseline;
+        toasts.error(`Save failed: ${err.message}`);
+      },
     }
-    editorRef.focus();
-    editorRef.setSelectionRange(idx, idx + findQuery.length);
+  );
+}
+
+// ── Keyboard handling: ⌘S save, ⌘F find ───────────────────────────────────
+
+let findOpen = $state(false);
+let findQuery = $state('');
+let replaceWith = $state('');
+let editorRef = $state<HTMLTextAreaElement | undefined>();
+
+function handleKeydown(e: KeyboardEvent): void {
+  const mod = e.metaKey || e.ctrlKey;
+  if (!mod) return;
+  if (e.key === 's' || e.key === 'S') {
+    e.preventDefault();
+    triggerSave();
+  } else if (e.key === 'f' || e.key === 'F') {
+    e.preventDefault();
+    findOpen = true;
   }
+}
 
-  function replaceAll(): void {
-    if (!findQuery) return;
-    const before = saveState.draft;
-    if (!before.includes(findQuery)) {
-      toasts.info(`No match for "${findQuery}"`);
-      return;
-    }
-    saveState.setDraft(before.split(findQuery).join(replaceWith));
-    toasts.success(`Replaced all occurrences of "${findQuery}"`);
+function closeFind(): void {
+  findOpen = false;
+  findQuery = '';
+  replaceWith = '';
+  editorRef?.focus();
+}
+
+function findNext(): void {
+  if (!editorRef || !findQuery) return;
+  const text = saveState.draft;
+  const startFrom = editorRef.selectionEnd ?? 0;
+  const nextIdx = text.indexOf(findQuery, startFrom);
+  const idx = nextIdx >= 0 ? nextIdx : text.indexOf(findQuery);
+  if (idx < 0) {
+    toasts.info(`No match for "${findQuery}"`);
+    return;
   }
+  editorRef.focus();
+  editorRef.setSelectionRange(idx, idx + findQuery.length);
+}
 
-  // ── Shiki overlay (read-only highlight on top of textarea) ─────────────────
-
-  let highlightedHtml = $state('');
-  let shikiReady = $state(false);
-  let highlighter: { codeToHtml: (s: string, opts: { lang: string; theme: string }) => string } | null = null;
-
-  const language = $derived(languageFromExtension(fileMeta?.extension ?? extensionFromPath(resolvedPath)));
-  const shikiLang = $derived(shikiLanguageFromExtension(fileMeta?.extension ?? extensionFromPath(resolvedPath)));
-
-  function extensionFromPath(p: string | undefined): string | null {
-    if (!p) return null;
-    const dot = p.lastIndexOf('.');
-    if (dot < 0 || dot === p.length - 1) return null;
-    return p.slice(dot + 1);
+function replaceAll(): void {
+  if (!findQuery) return;
+  const before = saveState.draft;
+  if (!before.includes(findQuery)) {
+    toasts.info(`No match for "${findQuery}"`);
+    return;
   }
+  saveState.setDraft(before.split(findQuery).join(replaceWith));
+  toasts.success(`Replaced all occurrences of "${findQuery}"`);
+}
 
-  onMount(async () => {
-    try {
-      const { createHighlighter } = await import('shiki');
-      highlighter = await createHighlighter({
-        themes: [SHIKI_THEME],
-        langs: SHIKI_LANGUAGES_TO_PRELOAD,
-      });
-      shikiReady = true;
-    } catch {
-      // Shiki failed — overlay stays empty, textarea still usable.
-    }
-  });
+// ── Shiki overlay (read-only highlight on top of textarea) ─────────────────
 
-  $effect(() => {
-    if (!shikiReady || !highlighter) return;
-    const draft = saveState.draft;
-    try {
-      const html = highlighter.codeToHtml(draft, { lang: shikiLang, theme: SHIKI_THEME });
-      // Strip the outer <pre><code> so we can layer it visually under the textarea.
-      highlightedHtml = html.replace(/^<pre[^>]*><code[^>]*>([\s\S]*)<\/code><\/pre>$/, '$1');
-    } catch {
-      highlightedHtml = '';
-    }
-  });
+let highlightedHtml = $state('');
+let shikiReady = $state(false);
+let highlighter: {
+  codeToHtml: (s: string, opts: { lang: string; theme: string }) => string;
+} | null = null;
 
-  // ── Loading + error states ─────────────────────────────────────────────────
+const language = $derived(
+  languageFromExtension(fileMeta?.extension ?? extensionFromPath(resolvedPath))
+);
+const shikiLang = $derived(
+  shikiLanguageFromExtension(fileMeta?.extension ?? extensionFromPath(resolvedPath))
+);
 
-  const isLoading = $derived(($contentQ.isLoading || (fileId && $metaQ.isLoading)) as boolean);
-  const loadError = $derived(($contentQ.error?.message ?? $metaQ.error?.message ?? null) as string | null);
+function extensionFromPath(p: string | undefined): string | null {
+  if (!p) return null;
+  const dot = p.lastIndexOf('.');
+  if (dot < 0 || dot === p.length - 1) return null;
+  return p.slice(dot + 1);
+}
 
-  // ── Pane title for the host (MosaicTile reads onDirtyChange separately) ───
+onMount(async () => {
+  try {
+    const { createHighlighter } = await import('shiki');
+    highlighter = await createHighlighter({
+      themes: [SHIKI_THEME],
+      langs: SHIKI_LANGUAGES_TO_PRELOAD,
+    });
+    shikiReady = true;
+  } catch {
+    // Shiki failed — overlay stays empty, textarea still usable.
+  }
+});
 
-  const titlePath = $derived(resolvedPath || (fileId ? `file:${fileId}` : 'Untitled'));
+$effect(() => {
+  if (!shikiReady || !highlighter) return;
+  const draft = saveState.draft;
+  try {
+    const html = highlighter.codeToHtml(draft, { lang: shikiLang, theme: SHIKI_THEME });
+    // Strip the outer <pre><code> so we can layer it visually under the textarea.
+    highlightedHtml = html.replace(/^<pre[^>]*><code[^>]*>([\s\S]*)<\/code><\/pre>$/, '$1');
+  } catch {
+    highlightedHtml = '';
+  }
+});
+
+// ── Loading + error states ─────────────────────────────────────────────────
+
+const isLoading = $derived(($contentQ.isLoading || (fileId && $metaQ.isLoading)) as boolean);
+const loadError = $derived(
+  ($contentQ.error?.message ?? $metaQ.error?.message ?? null) as string | null
+);
+
+// ── Pane title for the host (MosaicTile reads onDirtyChange separately) ───
+
+const titlePath = $derived(resolvedPath || (fileId ? `file:${fileId}` : 'Untitled'));
 </script>
 
 <svelte:window onkeydown={(e) => {
@@ -358,7 +374,6 @@
         value={saveState.draft}
         oninput={(e) => saveState.setDraft((e.currentTarget as HTMLTextAreaElement).value)}
         spellcheck="false"
-        autocorrect="off"
         autocapitalize="off"
         wrap="off"
         aria-label="Code editor"

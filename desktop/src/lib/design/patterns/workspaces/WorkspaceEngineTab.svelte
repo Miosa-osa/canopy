@@ -1,7 +1,7 @@
 <script lang="ts">
 import {
-  type CreateQueryOptions,
   type CreateMutationOptions,
+  type CreateQueryOptions,
   createMutation,
   createQuery,
   useQueryClient,
@@ -32,8 +32,8 @@ let { workspaceSlug }: Props = $props();
 const queryClient = useQueryClient();
 
 const healthOptsStore = writable(
-  untrack(() =>
-    workspaceEngineHealthQuery(workspaceSlug) as CreateQueryOptions<WorkspaceEngineHealth>
+  untrack(
+    () => workspaceEngineHealthQuery(workspaceSlug) as CreateQueryOptions<WorkspaceEngineHealth>
   )
 );
 
@@ -44,14 +44,19 @@ $effect(() => {
 });
 
 const commandsOptsStore = writable(
-  untrack(() =>
-    workspaceEngineCommandsQuery(workspaceSlug) as CreateQueryOptions<WorkspaceEngineCommandsResponse>
+  untrack(
+    () =>
+      workspaceEngineCommandsQuery(
+        workspaceSlug
+      ) as CreateQueryOptions<WorkspaceEngineCommandsResponse>
   )
 );
 
 $effect(() => {
   commandsOptsStore.set(
-    workspaceEngineCommandsQuery(workspaceSlug) as CreateQueryOptions<WorkspaceEngineCommandsResponse>
+    workspaceEngineCommandsQuery(
+      workspaceSlug
+    ) as CreateQueryOptions<WorkspaceEngineCommandsResponse>
   );
 });
 
@@ -59,12 +64,13 @@ const healthQ = createQuery<WorkspaceEngineHealth>(healthOptsStore);
 const commandsQ = createQuery<WorkspaceEngineCommandsResponse>(commandsOptsStore);
 
 const runOptsStore = writable(
-  untrack(() =>
-    runWorkspaceEngineCommandMutation(workspaceSlug) as CreateMutationOptions<
-      WorkspaceEngineRunResult,
-      Error,
-      WorkspaceEngineRunBody
-    >
+  untrack(
+    () =>
+      runWorkspaceEngineCommandMutation(workspaceSlug) as CreateMutationOptions<
+        WorkspaceEngineRunResult,
+        Error,
+        WorkspaceEngineRunBody
+      >
   )
 );
 
@@ -78,7 +84,9 @@ $effect(() => {
   );
 });
 
-const runMut = createMutation<WorkspaceEngineRunResult, Error, WorkspaceEngineRunBody>(runOptsStore);
+const runMut = createMutation<WorkspaceEngineRunResult, Error, WorkspaceEngineRunBody>(
+  runOptsStore
+);
 
 let selectedCommandName = $state('');
 let argsText = $state('');
@@ -86,7 +94,7 @@ let timeoutMs = $state(60_000);
 let runResult = $state<WorkspaceEngineRunResult | null>(null);
 
 const health = $derived(($healthQ.data ?? null) as WorkspaceEngineHealth | null);
-const commands = $derived((($commandsQ.data?.commands ?? []) as WorkspaceEngineCommand[]));
+const commands = $derived(($commandsQ.data?.commands ?? []) as WorkspaceEngineCommand[]);
 const selectedCommand = $derived(
   commands.find((command) => command.name === selectedCommandName) ?? commands[0] ?? null
 );
@@ -110,7 +118,9 @@ function parseArgs(text: string): string[] {
 async function refresh(): Promise<void> {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceSlug, 'engine', 'health'] }),
-    queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceSlug, 'engine', 'commands'] }),
+    queryClient.invalidateQueries({
+      queryKey: ['workspaces', workspaceSlug, 'engine', 'commands'],
+    }),
   ]);
 }
 

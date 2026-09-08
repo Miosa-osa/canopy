@@ -38,15 +38,13 @@ export interface MosaicTabShortcutHooks {
  *
  * Returns true if the event was handled (consumer should NOT also process it).
  */
-export function makeMosaicTabKeydown(
-  hooks: MosaicTabShortcutHooks,
-): (e: KeyboardEvent) => boolean {
+export function makeMosaicTabKeydown(hooks: MosaicTabShortcutHooks): (e: KeyboardEvent) => boolean {
   return function handleTabKeydown(e: KeyboardEvent): boolean {
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return false;
 
     // ⌘Tab / ⌘⇧Tab — cycle between panes in active tile.
-    if (e.key === "Tab") {
+    if (e.key === 'Tab') {
       const tid = hooks.getActiveTileId();
       if (!tid) return false;
       const panes = hooks.getTilePanes(tid);
@@ -75,7 +73,7 @@ export function makeMosaicTabKeydown(
     }
 
     // ⌘W — close active pane.
-    if (!e.shiftKey && e.key === "w") {
+    if (!e.shiftKey && e.key === 'w') {
       const tid = hooks.getActiveTileId();
       if (!tid) return false;
       const activeId = hooks.getActivePaneId(tid);
@@ -86,7 +84,7 @@ export function makeMosaicTabKeydown(
     }
 
     // ⌘T — new pane picker.
-    if (!e.shiftKey && e.key === "t") {
+    if (!e.shiftKey && e.key === 't') {
       e.preventDefault();
       hooks.openPicker(hooks.getActiveTileId());
       return true;
@@ -104,9 +102,9 @@ export const MOSAIC_TAB_SHORTCUTS: ReadonlyArray<{
   keys: string[];
   description: string;
 }> = [
-  { keys: ["⌘", "1"], description: "Jump to tab 1 (1–9 supported)" },
-  { keys: ["⌘", "Tab"], description: "Next tab in active tile" },
-  { keys: ["⌘", "⇧", "Tab"], description: "Previous tab in active tile" },
-  { keys: ["⌘", "W"], description: "Close active tab" },
-  { keys: ["⌘", "T"], description: "Open new pane picker" },
+  { keys: ['⌘', '1'], description: 'Jump to tab 1 (1–9 supported)' },
+  { keys: ['⌘', 'Tab'], description: 'Next tab in active tile' },
+  { keys: ['⌘', '⇧', 'Tab'], description: 'Previous tab in active tile' },
+  { keys: ['⌘', 'W'], description: 'Close active tab' },
+  { keys: ['⌘', 'T'], description: 'Open new pane picker' },
 ];

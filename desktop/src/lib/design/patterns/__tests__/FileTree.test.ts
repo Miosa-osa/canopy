@@ -9,16 +9,13 @@
  * agents.test.ts for precedent.
  */
 
-import { describe, expect, it } from "vitest";
-import type { FileTreeNode } from "$lib/domain/workspaces/types.js";
+import { describe, expect, it } from 'vitest';
+import type { FileTreeNode } from '$lib/domain/workspaces/types.js';
 
 // ── Pure functions mirroring FileTree.svelte logic ───────────────────────────
 
 /** Collect all visible nodes given the current expanded set. */
-function collectVisible(
-  node: FileTreeNode,
-  expandedPaths: Set<string>,
-): FileTreeNode[] {
+function collectVisible(node: FileTreeNode, expandedPaths: Set<string>): FileTreeNode[] {
   const result: FileTreeNode[] = [node];
   if (node.isDir && expandedPaths.has(node.path)) {
     for (const child of node.children) {
@@ -28,10 +25,7 @@ function collectVisible(
   return result;
 }
 
-function visibleNodes(
-  root: FileTreeNode,
-  expandedPaths: Set<string>,
-): FileTreeNode[] {
+function visibleNodes(root: FileTreeNode, expandedPaths: Set<string>): FileTreeNode[] {
   return root.children.flatMap((child) => collectVisible(child, expandedPaths));
 }
 
@@ -48,15 +42,14 @@ function toggleDir(path: string, expandedPaths: Set<string>): Set<string> {
 
 /** Resolve next focused index after ↑ / ↓. Wraps. */
 function moveFocus(
-  direction: "up" | "down",
+  direction: 'up' | 'down',
   currentPath: string | undefined,
-  nodes: FileTreeNode[],
+  nodes: FileTreeNode[]
 ): string | undefined {
   if (nodes.length === 0) return undefined;
-  const currentIdx =
-    currentPath != null ? nodes.findIndex((n) => n.path === currentPath) : -1;
+  const currentIdx = currentPath != null ? nodes.findIndex((n) => n.path === currentPath) : -1;
 
-  if (direction === "down") {
+  if (direction === 'down') {
     const nextIdx = currentIdx < nodes.length - 1 ? currentIdx + 1 : 0;
     return nodes[nextIdx]?.path;
   } else {
@@ -71,7 +64,7 @@ function makeNode(
   name: string,
   path: string,
   isDir: boolean,
-  children: FileTreeNode[] = [],
+  children: FileTreeNode[] = []
 ): FileTreeNode {
   return {
     name,
@@ -83,48 +76,48 @@ function makeNode(
   };
 }
 
-const TREE: FileTreeNode = makeNode("root", "", true, [
-  makeNode("agents", "agents", true, [
-    makeNode("sales.md", "agents/sales.md", false),
-    makeNode("research.md", "agents/research.md", false),
+const TREE: FileTreeNode = makeNode('root', '', true, [
+  makeNode('agents', 'agents', true, [
+    makeNode('sales.md', 'agents/sales.md', false),
+    makeNode('research.md', 'agents/research.md', false),
   ]),
-  makeNode("notes", "notes", true, [makeNode("Q2.md", "notes/Q2.md", false)]),
-  makeNode("SYSTEM.md", "SYSTEM.md", false),
+  makeNode('notes', 'notes', true, [makeNode('Q2.md', 'notes/Q2.md', false)]),
+  makeNode('SYSTEM.md', 'SYSTEM.md', false),
 ]);
 
 // ── Tests — visible node collection ──────────────────────────────────────────
 
-describe("visibleNodes()", () => {
-  it("shows only top-level nodes when nothing is expanded", () => {
+describe('visibleNodes()', () => {
+  it('shows only top-level nodes when nothing is expanded', () => {
     const nodes = visibleNodes(TREE, new Set());
-    expect(nodes.map((n) => n.path)).toEqual(["agents", "notes", "SYSTEM.md"]);
+    expect(nodes.map((n) => n.path)).toEqual(['agents', 'notes', 'SYSTEM.md']);
   });
 
-  it("shows children of expanded dirs", () => {
-    const nodes = visibleNodes(TREE, new Set(["agents"]));
+  it('shows children of expanded dirs', () => {
+    const nodes = visibleNodes(TREE, new Set(['agents']));
     expect(nodes.map((n) => n.path)).toEqual([
-      "agents",
-      "agents/sales.md",
-      "agents/research.md",
-      "notes",
-      "SYSTEM.md",
+      'agents',
+      'agents/sales.md',
+      'agents/research.md',
+      'notes',
+      'SYSTEM.md',
     ]);
   });
 
-  it("shows deeply nested nodes when multiple dirs expanded", () => {
-    const nodes = visibleNodes(TREE, new Set(["agents", "notes"]));
+  it('shows deeply nested nodes when multiple dirs expanded', () => {
+    const nodes = visibleNodes(TREE, new Set(['agents', 'notes']));
     expect(nodes.map((n) => n.path)).toEqual([
-      "agents",
-      "agents/sales.md",
-      "agents/research.md",
-      "notes",
-      "notes/Q2.md",
-      "SYSTEM.md",
+      'agents',
+      'agents/sales.md',
+      'agents/research.md',
+      'notes',
+      'notes/Q2.md',
+      'SYSTEM.md',
     ]);
   });
 
-  it("returns empty array when root has no children", () => {
-    const emptyRoot = makeNode("root", "", true, []);
+  it('returns empty array when root has no children', () => {
+    const emptyRoot = makeNode('root', '', true, []);
     const nodes = visibleNodes(emptyRoot, new Set());
     expect(nodes).toHaveLength(0);
   });
@@ -132,90 +125,90 @@ describe("visibleNodes()", () => {
 
 // ── Tests — toggleDir ─────────────────────────────────────────────────────────
 
-describe("toggleDir()", () => {
-  it("adds a path when not expanded", () => {
-    const next = toggleDir("agents", new Set());
-    expect(next.has("agents")).toBe(true);
+describe('toggleDir()', () => {
+  it('adds a path when not expanded', () => {
+    const next = toggleDir('agents', new Set());
+    expect(next.has('agents')).toBe(true);
   });
 
-  it("removes a path when already expanded", () => {
-    const next = toggleDir("agents", new Set(["agents"]));
-    expect(next.has("agents")).toBe(false);
+  it('removes a path when already expanded', () => {
+    const next = toggleDir('agents', new Set(['agents']));
+    expect(next.has('agents')).toBe(false);
   });
 
-  it("does not mutate the original set", () => {
-    const original = new Set(["agents"]);
-    toggleDir("agents", original);
-    expect(original.has("agents")).toBe(true);
+  it('does not mutate the original set', () => {
+    const original = new Set(['agents']);
+    toggleDir('agents', original);
+    expect(original.has('agents')).toBe(true);
   });
 });
 
 // ── Tests — keyboard navigation ───────────────────────────────────────────────
 
-describe("moveFocus()", () => {
+describe('moveFocus()', () => {
   const nodes = visibleNodes(TREE, new Set());
   // nodes = ['agents', 'notes', 'SYSTEM.md']
 
-  it("moves down from first node", () => {
-    const next = moveFocus("down", "agents", nodes);
-    expect(next).toBe("notes");
+  it('moves down from first node', () => {
+    const next = moveFocus('down', 'agents', nodes);
+    expect(next).toBe('notes');
   });
 
-  it("moves down from last node — wraps to first", () => {
-    const next = moveFocus("down", "SYSTEM.md", nodes);
-    expect(next).toBe("agents");
+  it('moves down from last node — wraps to first', () => {
+    const next = moveFocus('down', 'SYSTEM.md', nodes);
+    expect(next).toBe('agents');
   });
 
-  it("moves up from last node", () => {
-    const next = moveFocus("up", "SYSTEM.md", nodes);
-    expect(next).toBe("notes");
+  it('moves up from last node', () => {
+    const next = moveFocus('up', 'SYSTEM.md', nodes);
+    expect(next).toBe('notes');
   });
 
-  it("moves up from first node — wraps to last", () => {
-    const next = moveFocus("up", "agents", nodes);
-    expect(next).toBe("SYSTEM.md");
+  it('moves up from first node — wraps to last', () => {
+    const next = moveFocus('up', 'agents', nodes);
+    expect(next).toBe('SYSTEM.md');
   });
 
-  it("starts at first node when currentPath is undefined", () => {
-    const next = moveFocus("down", undefined, nodes);
-    expect(next).toBe("agents");
+  it('starts at first node when currentPath is undefined', () => {
+    const next = moveFocus('down', undefined, nodes);
+    expect(next).toBe('agents');
   });
 
-  it("returns undefined when node list is empty", () => {
-    const next = moveFocus("down", undefined, []);
+  it('returns undefined when node list is empty', () => {
+    const next = moveFocus('down', undefined, []);
     expect(next).toBeUndefined();
   });
 });
 
 // ── Tests — keyboard: right/left expand/collapse ──────────────────────────────
 
-describe("keyboard expand/collapse logic", () => {
-  it("→ expands a collapsed dir", () => {
+describe('keyboard expand/collapse logic', () => {
+  it('→ expands a collapsed dir', () => {
     const nodes = visibleNodes(TREE, new Set());
-    const agentNode = nodes.find((n) => n.path === "agents")!;
+    const agentNode = nodes.find((n) => n.path === 'agents')!;
     expect(agentNode.isDir).toBe(true);
 
     let expandedPaths = new Set<string>();
     if (agentNode.isDir && !expandedPaths.has(agentNode.path)) {
       expandedPaths = toggleDir(agentNode.path, expandedPaths);
     }
-    expect(expandedPaths.has("agents")).toBe(true);
+    expect(expandedPaths.has('agents')).toBe(true);
   });
 
-  it("← collapses an expanded dir", () => {
-    const nodes = visibleNodes(TREE, new Set(["agents"]));
-    const agentNode = nodes.find((n) => n.path === "agents")!;
+  it('← collapses an expanded dir', () => {
+    const nodes = visibleNodes(TREE, new Set(['agents']));
+    const agentNode = nodes.find((n) => n.path === 'agents')!;
 
-    let expandedPaths = new Set<string>(["agents"]);
+    let expandedPaths = new Set<string>(['agents']);
     if (agentNode.isDir && expandedPaths.has(agentNode.path)) {
       expandedPaths = toggleDir(agentNode.path, expandedPaths);
     }
-    expect(expandedPaths.has("agents")).toBe(false);
+    expect(expandedPaths.has('agents')).toBe(false);
   });
 
-  it("→ on a file does nothing to expandedPaths", () => {
+  it('→ on a file does nothing to expandedPaths', () => {
     const nodes = visibleNodes(TREE, new Set());
-    const fileNode = nodes.find((n) => n.path === "SYSTEM.md")!;
+    const fileNode = nodes.find((n) => n.path === 'SYSTEM.md')!;
     expect(fileNode.isDir).toBe(false);
 
     let expandedPaths = new Set<string>();
@@ -228,32 +221,28 @@ describe("keyboard expand/collapse logic", () => {
 
 // ── Tests — workspaceTreeQuery factory (smoke) ────────────────────────────────
 
-describe("workspaceTreeQuery()", () => {
-  it("returns correct query key shape", async () => {
-    const { workspaceTreeQuery } =
-      await import("$lib/api/queries/workspaces.js");
-    const q = workspaceTreeQuery("sales-engine");
-    expect(q.queryKey).toEqual(["workspaces", "sales-engine", "tree"]);
+describe('workspaceTreeQuery()', () => {
+  it('returns correct query key shape', async () => {
+    const { workspaceTreeQuery } = await import('$lib/api/queries/workspaces.js');
+    const q = workspaceTreeQuery('sales-engine');
+    expect(q.queryKey).toEqual(['workspaces', 'sales-engine', 'tree']);
   });
 
-  it("is disabled when slug is empty", async () => {
-    const { workspaceTreeQuery } =
-      await import("$lib/api/queries/workspaces.js");
-    const q = workspaceTreeQuery("");
+  it('is disabled when slug is empty', async () => {
+    const { workspaceTreeQuery } = await import('$lib/api/queries/workspaces.js');
+    const q = workspaceTreeQuery('');
     expect(q.enabled).toBe(false);
   });
 
-  it("is enabled when slug is non-empty", async () => {
-    const { workspaceTreeQuery } =
-      await import("$lib/api/queries/workspaces.js");
-    const q = workspaceTreeQuery("dev-shop");
+  it('is enabled when slug is non-empty', async () => {
+    const { workspaceTreeQuery } = await import('$lib/api/queries/workspaces.js');
+    const q = workspaceTreeQuery('dev-shop');
     expect(q.enabled).toBe(true);
   });
 
-  it("has staleTime of 10_000", async () => {
-    const { workspaceTreeQuery } =
-      await import("$lib/api/queries/workspaces.js");
-    const q = workspaceTreeQuery("dev-shop");
+  it('has staleTime of 10_000', async () => {
+    const { workspaceTreeQuery } = await import('$lib/api/queries/workspaces.js');
+    const q = workspaceTreeQuery('dev-shop');
     expect(q.staleTime).toBe(10_000);
   });
 });

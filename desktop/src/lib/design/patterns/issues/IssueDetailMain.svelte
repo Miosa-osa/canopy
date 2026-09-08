@@ -1,58 +1,62 @@
 <script lang="ts">
-  /**
-   * IssueDetailMain — left pane of the issue detail page.
-   * Renders title (inline edit), description textarea, and activity feed.
-   * CSS prefix: id- (shared with /issues/[short_id] page).
-   */
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import type { Issue } from '$lib/domain/issues/types.js';
+/**
+ * IssueDetailMain — left pane of the issue detail page.
+ * Renders title (inline edit), description textarea, and activity feed.
+ * CSS prefix: id- (shared with /issues/[short_id] page).
+ */
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Issue } from '$lib/domain/issues/types.js';
 
-  interface Props {
-    issue: Issue | undefined;
-    isLoading: boolean;
-    isError: boolean;
-    backendUnavailable: boolean;
-    errorMessage: string;
-    localTitle: string;
-    localDesc: string;
-    titleDirty: boolean;
-    descDirty: boolean;
-    isSaving: boolean;
-    onTitleInput: (value: string) => void;
-    onTitleBlur: () => void;
-    onTitleKeydown: (e: KeyboardEvent) => void;
-    onSaveTitle: () => void;
-    onDescInput: (value: string) => void;
-    onDescKeydown: (e: KeyboardEvent) => void;
-    onSaveDesc: () => void;
-    onDiscardDesc: () => void;
-  }
+interface Props {
+  issue: Issue | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  backendUnavailable: boolean;
+  errorMessage: string;
+  localTitle: string;
+  localDesc: string;
+  titleDirty: boolean;
+  descDirty: boolean;
+  isSaving: boolean;
+  onTitleInput: (value: string) => void;
+  onTitleBlur: () => void;
+  onTitleKeydown: (e: KeyboardEvent) => void;
+  onSaveTitle: () => void;
+  onDescInput: (value: string) => void;
+  onDescKeydown: (e: KeyboardEvent) => void;
+  onSaveDesc: () => void;
+  onDiscardDesc: () => void;
+}
 
-  let {
-    issue,
-    isLoading,
-    isError,
-    backendUnavailable,
-    errorMessage,
-    localTitle,
-    localDesc,
-    titleDirty,
-    descDirty,
-    isSaving,
-    onTitleInput,
-    onTitleBlur,
-    onTitleKeydown,
-    onSaveTitle,
-    onDescInput,
-    onDescKeydown,
-    onSaveDesc,
-    onDiscardDesc,
-  }: Props = $props();
+let {
+  issue,
+  isLoading,
+  isError,
+  backendUnavailable,
+  errorMessage,
+  localTitle,
+  localDesc,
+  titleDirty,
+  descDirty,
+  isSaving,
+  onTitleInput,
+  onTitleBlur,
+  onTitleKeydown,
+  onSaveTitle,
+  onDescInput,
+  onDescKeydown,
+  onSaveDesc,
+  onDiscardDesc,
+}: Props = $props();
 
-  function formatDate(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  }
+function formatDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 </script>
 
 <main class="id-main">

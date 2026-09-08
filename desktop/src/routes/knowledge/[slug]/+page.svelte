@@ -13,12 +13,12 @@ import {
   createMutation,
   createQuery,
   useQueryClient,
-} from "@tanstack/svelte-query";
-import { ArrowLeft, BookOpen, RefreshCw } from "lucide-svelte";
-import { untrack } from "svelte";
-import { writable } from "svelte/store";
-import { goto } from "$app/navigation";
-import { page } from "$app/stores";
+} from '@tanstack/svelte-query';
+import { ArrowLeft, BookOpen, RefreshCw } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { page } from '$app/stores';
 import {
   addFileMutation,
   assignAgentMutation,
@@ -27,9 +27,9 @@ import {
   rebuildIndexMutation,
   searchMutation,
   unassignAgentMutation,
-} from "$lib/api/queries/knowledge.js";
-import EmptyState from "$lib/design/patterns/EmptyState.svelte";
-import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
+} from '$lib/api/queries/knowledge.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
 import type {
   AddFileBody,
   IndexResult,
@@ -38,7 +38,7 @@ import type {
   KbChunkListResponse,
   KnowledgeBase,
   SearchResponse,
-} from "$lib/domain/knowledge/types.js";
+} from '$lib/domain/knowledge/types.js';
 
 const queryClient = useQueryClient();
 // SvelteKit guarantees params.slug is defined for [slug] routes.
@@ -47,7 +47,7 @@ const slug = $derived($page.params.slug!);
 // ── KB detail query ───────────────────────────────────────────────────────────
 
 const detailOptsStore = writable(
-  untrack(() => knowledgeBaseQuery(slug) as CreateQueryOptions<KnowledgeBase>),
+  untrack(() => knowledgeBaseQuery(slug) as CreateQueryOptions<KnowledgeBase>)
 );
 $effect(() => {
   detailOptsStore.set(knowledgeBaseQuery(slug) as CreateQueryOptions<KnowledgeBase>);
@@ -62,13 +62,12 @@ const chunkLimit = 50;
 
 const chunksOptsStore = writable(
   untrack(
-    () =>
-      kbChunksQuery(slug, chunkLimit, chunkOffset) as CreateQueryOptions<KbChunkListResponse>,
-  ),
+    () => kbChunksQuery(slug, chunkLimit, chunkOffset) as CreateQueryOptions<KbChunkListResponse>
+  )
 );
 $effect(() => {
   chunksOptsStore.set(
-    kbChunksQuery(slug, chunkLimit, chunkOffset) as CreateQueryOptions<KbChunkListResponse>,
+    kbChunksQuery(slug, chunkLimit, chunkOffset) as CreateQueryOptions<KbChunkListResponse>
   );
 });
 const chunksQ = createQuery<KbChunkListResponse>(chunksOptsStore);
@@ -76,16 +75,20 @@ const chunks = $derived(($chunksQ.data?.data ?? []) as KbChunk[]);
 
 // ── Tab state ─────────────────────────────────────────────────────────────────
 
-type Tab = "files" | "chunks" | "agents" | "search";
-let activeTab = $state<Tab>("files");
+type Tab = 'files' | 'chunks' | 'agents' | 'search';
+let activeTab = $state<Tab>('files');
 
 // ── Add file (file_id JSON form) ──────────────────────────────────────────────
 
-let addFileId = $state("");
+let addFileId = $state('');
 let addFileError = $state<string | null>(null);
 
 const addFileMut = createMutation<IndexResult, Error, { slug: string; body: AddFileBody }>(
-  addFileMutation() as CreateMutationOptions<IndexResult, Error, { slug: string; body: AddFileBody }>,
+  addFileMutation() as CreateMutationOptions<
+    IndexResult,
+    Error,
+    { slug: string; body: AddFileBody }
+  >
 );
 
 function handleAddFile(e: Event): void {
@@ -96,21 +99,21 @@ function handleAddFile(e: Event): void {
     { slug, body: { file_id: addFileId.trim() } },
     {
       onSuccess: () => {
-        addFileId = "";
-        queryClient.invalidateQueries({ queryKey: ["knowledge-bases", slug] });
-        queryClient.invalidateQueries({ queryKey: ["knowledge-bases", slug, "chunks"] });
-        activeTab = "chunks";
+        addFileId = '';
+        queryClient.invalidateQueries({ queryKey: ['knowledge-bases', slug] });
+        queryClient.invalidateQueries({ queryKey: ['knowledge-bases', slug, 'chunks'] });
+        activeTab = 'chunks';
       },
       onError: (err) => {
         addFileError = err.message;
       },
-    },
+    }
   );
 }
 
 // ── Assign agent ──────────────────────────────────────────────────────────────
 
-let assignSlug = $state("");
+let assignSlug = $state('');
 let assignError = $state<string | null>(null);
 let assignments = $state<KbAssignment[]>([]);
 
@@ -119,15 +122,11 @@ const assignMut = createMutation<KbAssignment, Error, { slug: string; agentSlug:
     KbAssignment,
     Error,
     { slug: string; agentSlug: string }
-  >,
+  >
 );
 
 const unassignMut = createMutation<void, Error, { slug: string; agentSlug: string }>(
-  unassignAgentMutation() as CreateMutationOptions<
-    void,
-    Error,
-    { slug: string; agentSlug: string }
-  >,
+  unassignAgentMutation() as CreateMutationOptions<void, Error, { slug: string; agentSlug: string }>
 );
 
 function handleAssign(e: Event): void {
@@ -139,13 +138,13 @@ function handleAssign(e: Event): void {
     {
       onSuccess: (a) => {
         assignments = [...assignments, a];
-        assignSlug = "";
-        queryClient.invalidateQueries({ queryKey: ["knowledge-bases", slug] });
+        assignSlug = '';
+        queryClient.invalidateQueries({ queryKey: ['knowledge-bases', slug] });
       },
       onError: (err) => {
         assignError = err.message;
       },
-    },
+    }
   );
 }
 
@@ -155,25 +154,29 @@ function handleUnassign(agentSlug: string): void {
     {
       onSuccess: () => {
         assignments = assignments.filter((a) => a.agent_slug !== agentSlug);
-        queryClient.invalidateQueries({ queryKey: ["knowledge-bases", slug] });
+        queryClient.invalidateQueries({ queryKey: ['knowledge-bases', slug] });
       },
-    },
+    }
   );
 }
 
 // ── Search tab ────────────────────────────────────────────────────────────────
 
-let searchQuery = $state("");
+let searchQuery = $state('');
 let searchResults = $state<KbChunk[]>([]);
-let searchNote = $state("");
+let searchNote = $state('');
 let searchError = $state<string | null>(null);
 
-const searchMut = createMutation<SearchResponse, Error, { slug: string; body: { query: string; limit: number } }>(
+const searchMut = createMutation<
+  SearchResponse,
+  Error,
+  { slug: string; body: { query: string; limit: number } }
+>(
   searchMutation() as CreateMutationOptions<
     SearchResponse,
     Error,
     { slug: string; body: { query: string; limit: number } }
-  >,
+  >
 );
 
 function handleSearch(e: Event): void {
@@ -190,23 +193,23 @@ function handleSearch(e: Event): void {
       onError: (err) => {
         searchError = err.message;
       },
-    },
+    }
   );
 }
 
 // ── Rebuild ───────────────────────────────────────────────────────────────────
 
 const rebuildMut = createMutation<IndexResult, Error, string>(
-  rebuildIndexMutation() as CreateMutationOptions<IndexResult, Error, string>,
+  rebuildIndexMutation() as CreateMutationOptions<IndexResult, Error, string>
 );
 
 function handleRebuild(): void {
-  if (!confirm("Rebuild index? All chunks will be deleted and re-indexed from Files sources."))
+  if (!confirm('Rebuild index? All chunks will be deleted and re-indexed from Files sources.'))
     return;
   $rebuildMut.mutate(slug, {
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge-bases", slug] });
-      queryClient.invalidateQueries({ queryKey: ["knowledge-bases", slug, "chunks"] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases', slug] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases', slug, 'chunks'] });
     },
   });
 }
@@ -215,14 +218,14 @@ function handleRebuild(): void {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
 }
 
 function preview(content: string, max = 200): string {
-  return content.length <= max ? content : content.slice(0, max) + "…";
+  return content.length <= max ? content : content.slice(0, max) + '…';
 }
 </script>
 

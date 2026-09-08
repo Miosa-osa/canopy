@@ -1,144 +1,151 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import {
-    Bot,
-    CheckCircle2,
-    Clock3,
-    Cpu,
-    FileText,
-    Folder,
-    GitPullRequest,
-    ListChecks,
-    Play,
-    Terminal,
-  } from 'lucide-svelte';
-  import { goto } from '$app/navigation';
-  import { listAgents } from '$lib/api/queries/agents.js';
-  import { listRuntimes } from '$lib/api/queries/runtimes.js';
-  import { listSandboxes } from '$lib/api/queries/sandboxes.js';
-  import { listSessions } from '$lib/api/queries/sessions.js';
-  import { listSkills } from '$lib/api/queries/skills.js';
-  import { listTasks } from '$lib/api/queries/tasks.js';
-  import { listWorkspaces } from '$lib/api/queries/workspaces.js';
+import {
+  Bot,
+  CheckCircle2,
+  Clock3,
+  Cpu,
+  FileText,
+  Folder,
+  GitPullRequest,
+  ListChecks,
+  Play,
+  Terminal,
+} from 'lucide-svelte';
+import { onMount } from 'svelte';
+import { goto } from '$app/navigation';
+import { listAgents } from '$lib/api/queries/agents.js';
+import { listRuntimes } from '$lib/api/queries/runtimes.js';
+import { listSandboxes } from '$lib/api/queries/sandboxes.js';
+import { listSessions } from '$lib/api/queries/sessions.js';
+import { listSkills } from '$lib/api/queries/skills.js';
+import { listTasks } from '$lib/api/queries/tasks.js';
+import { listWorkspaces } from '$lib/api/queries/workspaces.js';
 
-  interface Props {
-    title: string;
-    subtitle: string;
-    route?: string;
-    onAddTerminal: () => void;
-    onAddAgent: () => void;
-    onAddGit: () => void;
-    onAddFiles: () => void;
-    onAddMission: () => void;
-  }
+interface Props {
+  title: string;
+  subtitle: string;
+  route?: string;
+  onAddTerminal: () => void;
+  onAddAgent: () => void;
+  onAddGit: () => void;
+  onAddFiles: () => void;
+  onAddMission: () => void;
+}
 
-  let {
-    title,
-    subtitle,
-    route,
-    onAddTerminal,
-    onAddAgent,
-    onAddGit,
-    onAddFiles,
-    onAddMission,
-  }: Props = $props();
+let {
+  title,
+  subtitle,
+  route,
+  onAddTerminal,
+  onAddAgent,
+  onAddGit,
+  onAddFiles,
+  onAddMission,
+}: Props = $props();
 
-  let loading = $state(false);
-  let error = $state('');
-  let rows = $state<Array<{ label: string; meta: string; tone?: 'good' | 'warn' | 'muted' }>>([]);
+let loading = $state(false);
+let error = $state('');
+let rows = $state<Array<{ label: string; meta: string; tone?: 'good' | 'warn' | 'muted' }>>([]);
 
-  const Icon = $derived(iconFor(route));
-  const primaryAction = $derived(actionFor(route));
+const Icon = $derived(iconFor(route));
+const primaryAction = $derived(actionFor(route));
 
-  onMount(() => {
-    void load();
-  });
+onMount(() => {
+  void load();
+});
 
-  async function load(): Promise<void> {
-    loading = true;
-    error = '';
-    try {
-      if (route === '/sessions') {
-        const sessions = await listSessions({ limit: 6 });
-        rows = sessions.map((session) => ({
-          label: session.prompt || session.cwd || session.id.slice(0, 8),
-          meta: `${session.status} / ${session.runtimeType}`,
-          tone: session.status === 'running' ? 'good' : session.status === 'error' ? 'warn' : 'muted',
-        }));
-      } else if (route === '/agents' || route === '/agent-control') {
-        const agents = await listAgents({ hired: true });
-        rows = agents.slice(0, 6).map((agent) => ({
-          label: agent.name,
-          meta: `${agent.category}${agent.defaultRuntime ? ` / ${agent.defaultRuntime}` : ''}`,
-          tone: agent.hired ? 'good' : 'muted',
-        }));
-      } else if (route === '/tasks' || route === '/build' || route === '/review') {
-        const tasks = await listTasks(route === '/tasks' ? undefined : { status: 'in_progress' });
-        rows = tasks.slice(0, 6).map((task) => ({
-          label: `${task.shortId} ${task.title}`,
-          meta: `${task.status}${task.assigneeId ? ` / ${task.assigneeId}` : ''}`,
-          tone: task.status === 'in_progress' ? 'good' : task.status === 'todo' ? 'warn' : 'muted',
-        }));
-      } else if (route === '/runtimes') {
-        const runtimes = await listRuntimes();
-        rows = runtimes.slice(0, 6).map((runtime) => ({
-          label: runtime.name || runtime.type,
-          meta: runtime.status,
-          tone: runtime.status === 'installed' ? 'good' : runtime.status === 'not_installed' ? 'warn' : 'muted',
-        }));
-      } else if (route === '/workspaces') {
-        const workspaces = await listWorkspaces();
-        rows = workspaces.slice(0, 6).map((workspace) => ({
-          label: workspace.name || workspace.slug,
-          meta: workspace.rootPath,
-          tone: workspace.deletedAt ? 'warn' : 'good',
-        }));
-      } else if (route === '/skills') {
-        const skills = await listSkills();
-        rows = skills.slice(0, 6).map((skill) => ({
-          label: skill.name || skill.slug,
-          meta: `${skill.source}${skill.enabled ? ' / enabled' : ' / disabled'}`,
-          tone: skill.enabled ? 'good' : 'muted',
-        }));
-      } else if (route === '/sandboxes') {
-        const response = await listSandboxes();
-        rows = response.data.slice(0, 6).map((sandbox) => ({
-          label: sandbox.sandbox_id,
-          meta: `${sandbox.status}${sandbox.url ? ` / ${sandbox.url}` : ''}`,
-          tone: sandbox.status === 'ready' ? 'good' : sandbox.status === 'failed' ? 'warn' : 'muted',
-        }));
-      } else {
-        rows = [];
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load module';
+async function load(): Promise<void> {
+  loading = true;
+  error = '';
+  try {
+    if (route === '/sessions') {
+      const sessions = await listSessions({ limit: 6 });
+      rows = sessions.map((session) => ({
+        label: session.prompt || session.cwd || session.id.slice(0, 8),
+        meta: `${session.status} / ${session.runtimeType}`,
+        tone: session.status === 'running' ? 'good' : session.status === 'error' ? 'warn' : 'muted',
+      }));
+    } else if (route === '/agents' || route === '/agent-control') {
+      const agents = await listAgents({ hired: true });
+      rows = agents.slice(0, 6).map((agent) => ({
+        label: agent.name,
+        meta: `${agent.category}${agent.defaultRuntime ? ` / ${agent.defaultRuntime}` : ''}`,
+        tone: agent.hired ? 'good' : 'muted',
+      }));
+    } else if (route === '/tasks' || route === '/build' || route === '/review') {
+      const tasks = await listTasks(route === '/tasks' ? undefined : { status: 'in_progress' });
+      rows = tasks.slice(0, 6).map((task) => ({
+        label: `${task.shortId} ${task.title}`,
+        meta: `${task.status}${task.assigneeId ? ` / ${task.assigneeId}` : ''}`,
+        tone: task.status === 'in_progress' ? 'good' : task.status === 'todo' ? 'warn' : 'muted',
+      }));
+    } else if (route === '/runtimes') {
+      const runtimes = await listRuntimes();
+      rows = runtimes.slice(0, 6).map((runtime) => ({
+        label: runtime.name || runtime.type,
+        meta: runtime.status,
+        tone:
+          runtime.status === 'installed'
+            ? 'good'
+            : runtime.status === 'not_installed'
+              ? 'warn'
+              : 'muted',
+      }));
+    } else if (route === '/workspaces') {
+      const workspaces = await listWorkspaces();
+      rows = workspaces.slice(0, 6).map((workspace) => ({
+        label: workspace.name || workspace.slug,
+        meta: workspace.rootPath,
+        tone: workspace.deletedAt ? 'warn' : 'good',
+      }));
+    } else if (route === '/skills') {
+      const skills = await listSkills();
+      rows = skills.slice(0, 6).map((skill) => ({
+        label: skill.name || skill.slug,
+        meta: `${skill.source}${skill.enabled ? ' / enabled' : ' / disabled'}`,
+        tone: skill.enabled ? 'good' : 'muted',
+      }));
+    } else if (route === '/sandboxes') {
+      const response = await listSandboxes();
+      rows = response.data.slice(0, 6).map((sandbox) => ({
+        label: sandbox.sandbox_id,
+        meta: `${sandbox.status}${sandbox.url ? ` / ${sandbox.url}` : ''}`,
+        tone: sandbox.status === 'ready' ? 'good' : sandbox.status === 'failed' ? 'warn' : 'muted',
+      }));
+    } else {
       rows = [];
-    } finally {
-      loading = false;
     }
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Failed to load module';
+    rows = [];
+  } finally {
+    loading = false;
   }
+}
 
-  function iconFor(value?: string): typeof Terminal {
-    if (value === '/agents' || value === '/agent-control') return Bot;
-    if (value === '/tasks' || value === '/build') return ListChecks;
-    if (value === '/review') return GitPullRequest;
-    if (value === '/files' || value === '/docs') return Folder;
-    if (value === '/runtimes') return Cpu;
-    if (value === '/sessions') return Terminal;
-    if (value === '/workspaces') return Folder;
-    if (value === '/skills') return ListChecks;
-    if (value === '/sandboxes') return Cpu;
-    return FileText;
-  }
+function iconFor(value?: string): typeof Terminal {
+  if (value === '/agents' || value === '/agent-control') return Bot;
+  if (value === '/tasks' || value === '/build') return ListChecks;
+  if (value === '/review') return GitPullRequest;
+  if (value === '/files' || value === '/docs') return Folder;
+  if (value === '/runtimes') return Cpu;
+  if (value === '/sessions') return Terminal;
+  if (value === '/workspaces') return Folder;
+  if (value === '/skills') return ListChecks;
+  if (value === '/sandboxes') return Cpu;
+  return FileText;
+}
 
-  function actionFor(value?: string): { label: string; run: () => void } {
-    if (value === '/sessions') return { label: 'Add terminal', run: onAddTerminal };
-    if (value === '/agents' || value === '/agent-control') return { label: 'Add agent', run: onAddAgent };
-    if (value === '/review') return { label: 'Add git review', run: onAddGit };
-    if (value === '/files' || value === '/docs') return { label: 'Add files', run: onAddFiles };
-    if (value === '/tasks' || value === '/build' || value === '/goals' || value === '/projects') return { label: 'Add mission', run: onAddMission };
-    return { label: 'Add terminal', run: onAddTerminal };
-  }
+function actionFor(value?: string): { label: string; run: () => void } {
+  if (value === '/sessions') return { label: 'Add terminal', run: onAddTerminal };
+  if (value === '/agents' || value === '/agent-control')
+    return { label: 'Add agent', run: onAddAgent };
+  if (value === '/review') return { label: 'Add git review', run: onAddGit };
+  if (value === '/files' || value === '/docs') return { label: 'Add files', run: onAddFiles };
+  if (value === '/tasks' || value === '/build' || value === '/goals' || value === '/projects')
+    return { label: 'Add mission', run: onAddMission };
+  return { label: 'Add terminal', run: onAddTerminal };
+}
 </script>
 
 <div class="wem-root">

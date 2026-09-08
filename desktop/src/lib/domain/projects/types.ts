@@ -3,8 +3,8 @@
  * All fields camelCase; client.ts unwraps {data:...} envelopes.
  */
 
-export type ProjectStatus = "active" | "paused" | "archived";
-export type ProjectOwnerType = "agent" | "human";
+export type ProjectStatus = 'active' | 'paused' | 'archived';
+export type ProjectOwnerType = 'agent' | 'human';
 
 export interface Project {
   id: string;

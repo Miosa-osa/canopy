@@ -1,94 +1,94 @@
 <script lang="ts">
-  /** /routines/[short_id] — routine detail / edit. */
-  import { createQuery, createMutation, useQueryClient } from "@tanstack/svelte-query";
-  import { page } from "$app/state";
-  import { goto } from "$app/navigation";
-  import { writable } from "svelte/store";
-  import { untrack } from "svelte";
-  import { Repeat, Flame, Trash2 } from "lucide-svelte";
-  import {
-    routineQuery,
-    updateRoutineMutation,
-    enableRoutineMutation,
-    disableRoutineMutation,
-    fireRoutineMutation,
-    deleteRoutineMutation,
-  } from "$lib/api/queries/routines.js";
-  import type { Routine } from "$lib/domain/routines/types.js";
+/** /routines/[short_id] — routine detail / edit. */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Flame, Repeat, Trash2 } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import {
+  deleteRoutineMutation,
+  disableRoutineMutation,
+  enableRoutineMutation,
+  fireRoutineMutation,
+  routineQuery,
+  updateRoutineMutation,
+} from '$lib/api/queries/routines.js';
+import type { Routine } from '$lib/domain/routines/types.js';
 
-  const queryClient = useQueryClient();
-  const shortId = $derived(page.params.short_id ?? "");
-  const optsStore = writable(untrack(() => routineQuery(shortId)));
-  $effect(() => {
-    optsStore.set(routineQuery(shortId));
+const queryClient = useQueryClient();
+const shortId = $derived(page.params.short_id ?? '');
+const optsStore = writable(untrack(() => routineQuery(shortId)));
+$effect(() => {
+  optsStore.set(routineQuery(shortId));
+});
+const routineQ = createQuery<Routine>(optsStore);
+const r = $derived($routineQ.data as Routine | undefined);
+
+let name = $state('');
+let description = $state('');
+let cron = $state('');
+let promptTemplate = $state('');
+let enabled = $state(true);
+
+let loaded = false;
+$effect(() => {
+  if (r && !loaded) {
+    name = r.name;
+    description = r.description ?? '';
+    cron = r.cron ?? '';
+    promptTemplate = r.promptTemplate ?? '';
+    enabled = r.enabled;
+    loaded = true;
+  }
+});
+
+const updateMut = createMutation(updateRoutineMutation());
+const fireMut = createMutation(fireRoutineMutation());
+const enableMut = createMutation(enableRoutineMutation());
+const disableMut = createMutation(disableRoutineMutation());
+const deleteMut = createMutation(deleteRoutineMutation());
+
+function invalidate(): void {
+  queryClient.invalidateQueries({ queryKey: ['routines'] });
+}
+
+function save(): void {
+  $updateMut.mutate(
+    { shortId, body: { name, description, cron, promptTemplate, enabled } },
+    { onSuccess: invalidate }
+  );
+}
+
+function fire(): void {
+  $fireMut.mutate(shortId, { onSuccess: invalidate });
+}
+
+function toggle(): void {
+  if (enabled) $disableMut.mutate(shortId, { onSuccess: invalidate });
+  else $enableMut.mutate(shortId, { onSuccess: invalidate });
+}
+
+function removeRoutine(): void {
+  if (!confirm('Delete this routine?')) return;
+  $deleteMut.mutate(shortId, {
+    onSuccess: () => {
+      invalidate();
+      goto('/routines');
+    },
   });
-  const routineQ = createQuery<Routine>(optsStore);
-  const r = $derived($routineQ.data as Routine | undefined);
+}
 
-  let name = $state("");
-  let description = $state("");
-  let cron = $state("");
-  let promptTemplate = $state("");
-  let enabled = $state(true);
-
-  let loaded = false;
-  $effect(() => {
-    if (r && !loaded) {
-      name = r.name;
-      description = r.description ?? "";
-      cron = r.cron ?? "";
-      promptTemplate = r.promptTemplate ?? "";
-      enabled = r.enabled;
-      loaded = true;
-    }
-  });
-
-  const updateMut = createMutation(updateRoutineMutation());
-  const fireMut = createMutation(fireRoutineMutation());
-  const enableMut = createMutation(enableRoutineMutation());
-  const disableMut = createMutation(disableRoutineMutation());
-  const deleteMut = createMutation(deleteRoutineMutation());
-
-  function invalidate(): void {
-    queryClient.invalidateQueries({ queryKey: ["routines"] });
-  }
-
-  function save(): void {
-    $updateMut.mutate(
-      { shortId, body: { name, description, cron, promptTemplate, enabled } },
-      { onSuccess: invalidate },
-    );
-  }
-
-  function fire(): void {
-    $fireMut.mutate(shortId, { onSuccess: invalidate });
-  }
-
-  function toggle(): void {
-    if (enabled) $disableMut.mutate(shortId, { onSuccess: invalidate });
-    else $enableMut.mutate(shortId, { onSuccess: invalidate });
-  }
-
-  function removeRoutine(): void {
-    if (!confirm("Delete this routine?")) return;
-    $deleteMut.mutate(shortId, {
-      onSuccess: () => {
-        invalidate();
-        goto("/routines");
-      },
-    });
-  }
-
-  function decodeCron(c: string): string {
-    const map: Record<string, string> = {
-      "0 9 * * 1": "Every Monday at 9:00",
-      "0 9 * * *": "Every day at 9:00",
-      "0 0 * * *": "Every day at midnight",
-      "*/15 * * * *": "Every 15 minutes",
-      "0 * * * *": "Every hour",
-    };
-    return map[c] ?? c;
-  }
+function decodeCron(c: string): string {
+  const map: Record<string, string> = {
+    '0 9 * * 1': 'Every Monday at 9:00',
+    '0 9 * * *': 'Every day at 9:00',
+    '0 0 * * *': 'Every day at midnight',
+    '*/15 * * * *': 'Every 15 minutes',
+    '0 * * * *': 'Every hour',
+  };
+  return map[c] ?? c;
+}
 </script>
 
 <div class="rd-page">

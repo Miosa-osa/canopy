@@ -1,149 +1,148 @@
 <script lang="ts">
-  /**
-   * BoardEditor — modal for creating/editing a board config.
-   * CSS prefix: be- (BoardEditor)
-   */
-  import { dndzone, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
-  import type { DndEvent } from 'svelte-dnd-action';
-  import {
-    kanbanBoards,
-    inferVerb,
-    type BoardConfig,
-    type BoardScope,
-    type ColumnConfig,
-    type TransitionVerb,
-  } from '$lib/stores/kanban-boards.svelte.js';
-  import type { TaskStatus } from '$lib/domain/tasks/types.js';
+/**
+ * BoardEditor — modal for creating/editing a board config.
+ * CSS prefix: be- (BoardEditor)
+ */
 
-  const VERBS: TransitionVerb[] = ['noop', 'start', 'build', 'pause', 'resume', 'stop', 'done'];
+import type { DndEvent } from 'svelte-dnd-action';
+import { dndzone, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
+import type { TaskStatus } from '$lib/domain/tasks/types.js';
+import {
+  type BoardConfig,
+  type BoardScope,
+  type ColumnConfig,
+  inferVerb,
+  kanbanBoards,
+  type TransitionVerb,
+} from '$lib/stores/kanban-boards.svelte.js';
 
-  interface Props {
-    /** If provided, we're editing an existing board. If null, creating new. */
-    board?: BoardConfig | null;
-    onClose: () => void;
+const VERBS: TransitionVerb[] = ['noop', 'start', 'build', 'pause', 'resume', 'stop', 'done'];
+
+interface Props {
+  /** If provided, we're editing an existing board. If null, creating new. */
+  board?: BoardConfig | null;
+  onClose: () => void;
+}
+
+let { board = null, onClose }: Props = $props();
+
+// ── Local state ───────────────────────────────────────────────────────────────
+
+type ScopeType = 'workspace' | 'agent' | 'assignee_agent' | 'assignee_human';
+
+let name = $state(board?.name ?? '');
+let scopeType = $state<ScopeType>(deriveScopeType(board?.scope ?? null));
+let agentId = $state(board?.scope?.type === 'agent' ? board.scope.agentId : '');
+
+// Columns need an 'id' field for svelte-dnd-action
+type DndColumn = ColumnConfig & { id: string };
+
+let columns = $state<DndColumn[]>(
+  (board?.columns ?? defaultColumns()).map((c, i) => ({ ...c, id: String(i) }))
+);
+
+const TASK_STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done', 'cancelled'];
+
+function defaultColumns(): ColumnConfig[] {
+  return [
+    { status: 'todo', label: 'Todo', wipLimit: 999 },
+    { status: 'in_progress', label: 'In Progress', wipLimit: 5 },
+    { status: 'done', label: 'Done', wipLimit: 999 },
+    { status: 'cancelled', label: 'Cancelled', wipLimit: 999 },
+  ];
+}
+
+function deriveScopeType(scope: BoardScope | null): ScopeType {
+  if (!scope) return 'workspace';
+  if (scope.type === 'agent') return 'agent';
+  if (scope.type === 'assignee_type') {
+    return scope.value === 'agent' ? 'assignee_agent' : 'assignee_human';
+  }
+  return 'workspace';
+}
+
+function buildScope(): BoardScope {
+  switch (scopeType) {
+    case 'agent':
+      return { type: 'agent', agentId: agentId.trim() };
+    case 'assignee_agent':
+      return { type: 'assignee_type', value: 'agent' };
+    case 'assignee_human':
+      return { type: 'assignee_type', value: 'human' };
+    default:
+      return { type: 'workspace', slug: 'default' };
+  }
+}
+
+// ── DnD ───────────────────────────────────────────────────────────────────────
+
+function handleConsider(e: CustomEvent<DndEvent<DndColumn>>) {
+  columns = e.detail.items;
+}
+
+function handleFinalize(e: CustomEvent<DndEvent<DndColumn>>) {
+  columns = e.detail.items.filter((c) => c.id !== SHADOW_PLACEHOLDER_ITEM_ID);
+}
+
+// ── Column CRUD ───────────────────────────────────────────────────────────────
+
+function addColumn() {
+  const usedStatuses = new Set(columns.map((c) => c.status));
+  const next = TASK_STATUSES.find((s) => !usedStatuses.has(s));
+  if (!next) return;
+  columns = [
+    ...columns,
+    { id: crypto.randomUUID(), status: next, label: next.replace('_', ' '), wipLimit: 999 },
+  ];
+}
+
+function removeColumn(id: string) {
+  columns = columns.filter((c) => c.id !== id);
+}
+
+function updateColumn(id: string, patch: Partial<ColumnConfig>) {
+  columns = columns.map((c) => (c.id === id ? { ...c, ...patch } : c));
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+
+let nameError = $state('');
+
+function save() {
+  if (!name.trim()) {
+    nameError = 'Board name is required';
+    return;
+  }
+  if (scopeType === 'agent' && !agentId.trim()) {
+    nameError = 'Agent ID is required for agent-scoped boards';
+    return;
+  }
+  nameError = '';
+
+  const scope = buildScope();
+  // Strip dnd 'id' back to plain ColumnConfig
+  const cleanColumns: ColumnConfig[] = columns.map(({ status, label, wipLimit, verb }) => ({
+    status,
+    label,
+    wipLimit,
+    ...(verb !== undefined ? { verb } : {}),
+  }));
+
+  if (board) {
+    kanbanBoards.renameBoard(board.id, name.trim());
+    kanbanBoards.updateScope(board.id, scope);
+    kanbanBoards.updateColumns(board.id, cleanColumns);
+    kanbanBoards.setActive(board.id);
+  } else {
+    kanbanBoards.createBoard(name.trim(), scope, cleanColumns);
   }
 
-  let { board = null, onClose }: Props = $props();
+  onClose();
+}
 
-  // ── Local state ───────────────────────────────────────────────────────────────
-
-  type ScopeType = 'workspace' | 'agent' | 'assignee_agent' | 'assignee_human';
-
-  let name = $state(board?.name ?? '');
-  let scopeType = $state<ScopeType>(deriveScopeType(board?.scope ?? null));
-  let agentId = $state(
-    board?.scope?.type === 'agent' ? board.scope.agentId : '',
-  );
-
-  // Columns need an 'id' field for svelte-dnd-action
-  type DndColumn = ColumnConfig & { id: string };
-
-  let columns = $state<DndColumn[]>(
-    (board?.columns ?? defaultColumns()).map((c, i) => ({ ...c, id: String(i) })),
-  );
-
-  const TASK_STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done', 'cancelled'];
-
-  function defaultColumns(): ColumnConfig[] {
-    return [
-      { status: 'todo', label: 'Todo', wipLimit: 999 },
-      { status: 'in_progress', label: 'In Progress', wipLimit: 5 },
-      { status: 'done', label: 'Done', wipLimit: 999 },
-      { status: 'cancelled', label: 'Cancelled', wipLimit: 999 },
-    ];
-  }
-
-  function deriveScopeType(scope: BoardScope | null): ScopeType {
-    if (!scope) return 'workspace';
-    if (scope.type === 'agent') return 'agent';
-    if (scope.type === 'assignee_type') {
-      return scope.value === 'agent' ? 'assignee_agent' : 'assignee_human';
-    }
-    return 'workspace';
-  }
-
-  function buildScope(): BoardScope {
-    switch (scopeType) {
-      case 'agent':
-        return { type: 'agent', agentId: agentId.trim() };
-      case 'assignee_agent':
-        return { type: 'assignee_type', value: 'agent' };
-      case 'assignee_human':
-        return { type: 'assignee_type', value: 'human' };
-      default:
-        return { type: 'workspace', slug: 'default' };
-    }
-  }
-
-  // ── DnD ───────────────────────────────────────────────────────────────────────
-
-  function handleConsider(e: CustomEvent<DndEvent<DndColumn>>) {
-    columns = e.detail.items;
-  }
-
-  function handleFinalize(e: CustomEvent<DndEvent<DndColumn>>) {
-    columns = e.detail.items.filter((c) => c.id !== SHADOW_PLACEHOLDER_ITEM_ID);
-  }
-
-  // ── Column CRUD ───────────────────────────────────────────────────────────────
-
-  function addColumn() {
-    const usedStatuses = new Set(columns.map((c) => c.status));
-    const next = TASK_STATUSES.find((s) => !usedStatuses.has(s));
-    if (!next) return;
-    columns = [
-      ...columns,
-      { id: crypto.randomUUID(), status: next, label: next.replace('_', ' '), wipLimit: 999 },
-    ];
-  }
-
-  function removeColumn(id: string) {
-    columns = columns.filter((c) => c.id !== id);
-  }
-
-  function updateColumn(id: string, patch: Partial<ColumnConfig>) {
-    columns = columns.map((c) => (c.id === id ? { ...c, ...patch } : c));
-  }
-
-  // ── Save ──────────────────────────────────────────────────────────────────────
-
-  let nameError = $state('');
-
-  function save() {
-    if (!name.trim()) {
-      nameError = 'Board name is required';
-      return;
-    }
-    if (scopeType === 'agent' && !agentId.trim()) {
-      nameError = 'Agent ID is required for agent-scoped boards';
-      return;
-    }
-    nameError = '';
-
-    const scope = buildScope();
-    // Strip dnd 'id' back to plain ColumnConfig
-    const cleanColumns: ColumnConfig[] = columns.map(({ status, label, wipLimit, verb }) => ({
-      status,
-      label,
-      wipLimit,
-      ...(verb !== undefined ? { verb } : {}),
-    }));
-
-    if (board) {
-      kanbanBoards.renameBoard(board.id, name.trim());
-      kanbanBoards.updateScope(board.id, scope);
-      kanbanBoards.updateColumns(board.id, cleanColumns);
-      kanbanBoards.setActive(board.id);
-    } else {
-      kanbanBoards.createBoard(name.trim(), scope, cleanColumns);
-    }
-
-    onClose();
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onClose();
-  }
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') onClose();
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

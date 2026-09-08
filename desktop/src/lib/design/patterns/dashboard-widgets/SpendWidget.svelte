@@ -1,30 +1,30 @@
 <script lang="ts">
-  /**
-   * SpendWidget — spend this month: total + per-agent bars.
-   * CSS prefix: spw- (SpendWidget)
-   * Data from dashboardSummaryQuery (already loaded by parent page).
-   */
-  import type { DashboardSummary } from '$lib/domain/dashboard/types.js';
+/**
+ * SpendWidget — spend this month: total + per-agent bars.
+ * CSS prefix: spw- (SpendWidget)
+ * Data from dashboardSummaryQuery (already loaded by parent page).
+ */
+import type { DashboardSummary } from '$lib/domain/dashboard/types.js';
 
-  interface Props {
-    summary: DashboardSummary | null;
-    loading: boolean;
-    error: boolean;
-  }
+interface Props {
+  summary: DashboardSummary | null;
+  loading: boolean;
+  error: boolean;
+}
 
-  let { summary, loading, error }: Props = $props();
+let { summary, loading, error }: Props = $props();
 
-  function formatUsd(raw: string | number): string {
-    const n = typeof raw === 'number' ? raw : parseFloat(raw);
-    return isNaN(n) ? '$—' : `$${n.toFixed(2)}`;
-  }
+function formatUsd(raw: string | number): string {
+  const n = typeof raw === 'number' ? raw : parseFloat(raw);
+  return isNaN(n) ? '$—' : `$${n.toFixed(2)}`;
+}
 
-  function barWidths(agents: { agentSlug: string; costUsd: string }[]): number[] {
-    if (agents.length === 0) return [];
-    const vals = agents.map((a) => Math.max(0, parseFloat(a.costUsd) || 0));
-    const max = Math.max(...vals, 0.001);
-    return vals.map((v) => Math.max(4, Math.round((v / max) * 100)));
-  }
+function barWidths(agents: { agentSlug: string; costUsd: string }[]): number[] {
+  if (agents.length === 0) return [];
+  const vals = agents.map((a) => Math.max(0, parseFloat(a.costUsd) || 0));
+  const max = Math.max(...vals, 0.001);
+  return vals.map((v) => Math.max(4, Math.round((v / max) * 100)));
+}
 </script>
 
 <div class="spw-widget">

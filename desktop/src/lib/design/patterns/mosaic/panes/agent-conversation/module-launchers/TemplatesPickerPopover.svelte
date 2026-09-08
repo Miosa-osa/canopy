@@ -1,19 +1,16 @@
 <script lang="ts" module>
-  import type { Template } from '$lib/domain/templates/types.js';
+import type { Template } from '$lib/domain/templates/types.js';
 
-  export function filterTemplates(
-    templates: readonly Template[],
-    query: string,
-  ): Template[] {
-    const q = query.trim().toLowerCase();
-    if (!q) return [...templates];
-    return templates.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.slug.toLowerCase().includes(q) ||
-        (t.description ?? '').toLowerCase().includes(q),
-    );
-  }
+export function filterTemplates(templates: readonly Template[], query: string): Template[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...templates];
+  return templates.filter(
+    (t) =>
+      t.name.toLowerCase().includes(q) ||
+      t.slug.toLowerCase().includes(q) ||
+      (t.description ?? '').toLowerCase().includes(q)
+  );
+}
 </script>
 
 <script lang="ts">
@@ -32,7 +29,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import { writable } from 'svelte/store';
   import { templatesQuery } from '$lib/api/queries/templates.js';
-  import type { Template, TemplateKind } from '$lib/domain/templates/types.js';
+  import type { TemplateKind } from '$lib/domain/templates/types.js';
 
   interface Props {
     /** Restrict to a kind. Defaults to all kinds — filter client-side. */

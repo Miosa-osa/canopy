@@ -891,7 +891,8 @@
  * via .canopy-panel-enter utility class.
  */
 .canopy-panel-enter {
-  animation: slide-in-right var(--dur-normal, 240ms) var(--ease-io, cubic-bezier(0.65, 0, 0.35, 1)) both;
+  animation: slide-in-right var(--dur-normal, 240ms) var(--ease-io, cubic-bezier(0.65, 0, 0.35, 1))
+    both;
 }
 
 /*

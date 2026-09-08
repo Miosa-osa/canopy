@@ -8,9 +8,9 @@
  */
 
 import { createQuery } from '@tanstack/svelte-query';
-import { writable } from 'svelte/store';
+import { Copy, ExternalLink } from 'lucide-svelte';
 import { untrack } from 'svelte';
-import { ExternalLink, Copy } from 'lucide-svelte';
+import { writable } from 'svelte/store';
 import { apiGet } from '$lib/api/client.js';
 import { toasts } from '$lib/stores/toasts.svelte.js';
 
@@ -30,7 +30,8 @@ let { sessionId }: Props = $props();
 const queryOptsStore = writable(
   untrack(() => ({
     queryKey: ['sessions', sessionId, 'ports'],
-    queryFn: () => apiGet<{ data: PortEntry[] }>(`/sessions/${sessionId}/ports`).then((r) => r.data ?? []),
+    queryFn: () =>
+      apiGet<{ data: PortEntry[] }>(`/sessions/${sessionId}/ports`).then((r) => r.data ?? []),
     refetchInterval: 5_000,
     enabled: !!sessionId,
   }))
@@ -39,7 +40,8 @@ const queryOptsStore = writable(
 $effect(() => {
   queryOptsStore.set({
     queryKey: ['sessions', sessionId, 'ports'],
-    queryFn: () => apiGet<{ data: PortEntry[] }>(`/sessions/${sessionId}/ports`).then((r) => r.data ?? []),
+    queryFn: () =>
+      apiGet<{ data: PortEntry[] }>(`/sessions/${sessionId}/ports`).then((r) => r.data ?? []),
     refetchInterval: 5_000,
     enabled: !!sessionId,
   });

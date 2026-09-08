@@ -1,12 +1,12 @@
 <script lang="ts" module>
-  import type { SandboxStateRow } from '$lib/domain/sandboxes_ng/types.js';
+import type { SandboxStateRow } from '$lib/domain/sandboxes_ng/types.js';
 
-  /** Active sandboxes — anything not in `archived` / `failed`. */
-  export function activeSandboxes(
-    rows: readonly SandboxStateRow[],
-  ): SandboxStateRow[] {
-    return rows.filter((r) => r.state !== 'archived' && r.state !== 'failed');
-  }
+/** Active sandboxes exclude archived, destroyed, and error states. */
+export function activeSandboxes(rows: readonly SandboxStateRow[]): SandboxStateRow[] {
+  return rows.filter(
+    (r) => r.state !== 'archived' && r.state !== 'error' && r.state !== 'destroyed'
+  );
+}
 </script>
 
 <script lang="ts">
@@ -29,7 +29,7 @@
   import { onMount, untrack } from 'svelte';
   import { writable } from 'svelte/store';
   import { sandboxStatesQuery } from '$lib/api/queries/sandboxes_ng.js';
-  import type { SandboxStateRow } from '$lib/domain/sandboxes_ng/types.js';
+
 
   interface Props {
     workspaceSlug?: string;

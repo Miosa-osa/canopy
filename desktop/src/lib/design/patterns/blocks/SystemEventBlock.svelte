@@ -1,39 +1,33 @@
 <script lang="ts">
-  /**
-   * SystemEventBlock — kind='system_event', 'error', and 'diff' renderer.
-   *
-   * Small grey row with an icon + message. For 'diff' blocks, the inputText
-   * carries the patch which is rendered in a code block. For 'error', the
-   * row is tinted red. Otherwise it is muted grey.
-   *
-   * Thin pure-render component.
-   *
-   * CSS prefix: sysblk-
-   */
+/**
+ * SystemEventBlock — kind='system_event', 'error', and 'diff' renderer.
+ *
+ * Small grey row with an icon + message. For 'diff' blocks, the inputText
+ * carries the patch which is rendered in a code block. For 'error', the
+ * row is tinted red. Otherwise it is muted grey.
+ *
+ * Thin pure-render component.
+ *
+ * CSS prefix: sysblk-
+ */
 
-  import { AlertCircle, FileDiff, Info } from 'lucide-svelte';
-  import type { Block } from '$lib/domain/blocks/types.js';
+import { AlertCircle, FileDiff, Info } from 'lucide-svelte';
+import type { Block } from '$lib/domain/blocks/types.js';
 
-  interface Props {
-    block: Block;
-  }
+interface Props {
+  block: Block;
+}
 
-  let { block }: Props = $props();
+let { block }: Props = $props();
 
-  const Icon = $derived(
-    block.kind === 'error'
-      ? AlertCircle
-      : block.kind === 'diff'
-        ? FileDiff
-        : Info,
-  );
+const Icon = $derived(
+  block.kind === 'error' ? AlertCircle : block.kind === 'diff' ? FileDiff : Info
+);
 
-  const message = $derived(block.outputText ?? block.inputText ?? '');
-  const filePath = $derived(
-    typeof block.metadata?.file_path === 'string'
-      ? (block.metadata.file_path as string)
-      : null,
-  );
+const message = $derived(block.outputText ?? block.inputText ?? '');
+const filePath = $derived(
+  typeof block.metadata?.file_path === 'string' ? (block.metadata.file_path as string) : null
+);
 </script>
 
 <div class="sysblk-root" data-kind={block.kind}>

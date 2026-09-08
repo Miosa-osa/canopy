@@ -12,9 +12,9 @@
  */
 import { createQuery } from '@tanstack/svelte-query';
 import { runtimesQuery } from '$lib/api/queries/runtimes.js';
-import { testRuntime } from '$lib/queries/runtime-auth.js';
-import type { Runtime } from '$lib/domain/runtimes/types.js';
 import RuntimeAuthCard from '$lib/design/patterns/runtime-auth/RuntimeAuthCard.svelte';
+import type { Runtime } from '$lib/domain/runtimes/types.js';
+import { testRuntime } from '$lib/queries/runtime-auth.js';
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -30,9 +30,7 @@ let filter = $state<Filter>('all');
  * The detailed per-method detection happens on the detail page.
  * Here we only need a coarse signal for filtering.
  */
-function inferAuthBucket(
-  r: Runtime,
-): 'subscription' | 'cli_login' | 'api_key' | 'none' | 'error' {
+function inferAuthBucket(r: Runtime): 'subscription' | 'cli_login' | 'api_key' | 'none' | 'error' {
   if (r.status === 'error') return 'error';
   if (!r.authProfile || r.authProfile.methods.length === 0) return 'none';
   const methods = r.authProfile.methods;

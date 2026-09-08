@@ -1,33 +1,30 @@
 <script lang="ts" module>
-  /**
-   * Pure helpers — pulled out so tests don't need a Svelte runtime.
-   */
-  import type { DirEntry } from '$lib/domain/workspaces/types.js';
+/**
+ * Pure helpers — pulled out so tests don't need a Svelte runtime.
+ */
+import type { DirEntry } from '$lib/domain/workspaces/types.js';
 
-  /**
-   * Resolve the parent path of a workspace-relative path. The workspace
-   * root is "" — its parent is also "" (we don't escape the workspace).
-   */
-  export function parentDir(path: string): string {
-    const trimmed = path.replace(/\/+$/, '');
-    if (!trimmed) return '';
-    const idx = trimmed.lastIndexOf('/');
-    return idx === -1 ? '' : trimmed.slice(0, idx);
-  }
+/**
+ * Resolve the parent path of a workspace-relative path. The workspace
+ * root is "" — its parent is also "" (we don't escape the workspace).
+ */
+export function parentDir(path: string): string {
+  const trimmed = path.replace(/\/+$/, '');
+  if (!trimmed) return '';
+  const idx = trimmed.lastIndexOf('/');
+  return idx === -1 ? '' : trimmed.slice(0, idx);
+}
 
-  /**
-   * Filter a flat directory listing to directories whose name contains
-   * the query (case-insensitive). Empty query = all dirs.
-   */
-  export function filterDirs(
-    entries: readonly DirEntry[],
-    query: string,
-  ): DirEntry[] {
-    const dirs = entries.filter((e) => e.isDir);
-    const q = query.trim().toLowerCase();
-    if (!q) return dirs;
-    return dirs.filter((d) => d.name.toLowerCase().includes(q));
-  }
+/**
+ * Filter a flat directory listing to directories whose name contains
+ * the query (case-insensitive). Empty query = all dirs.
+ */
+export function filterDirs(entries: readonly DirEntry[], query: string): DirEntry[] {
+  const dirs = entries.filter((e) => e.isDir);
+  const q = query.trim().toLowerCase();
+  if (!q) return dirs;
+  return dirs.filter((d) => d.name.toLowerCase().includes(q));
+}
 </script>
 
 <script lang="ts">
@@ -48,7 +45,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import { writable } from 'svelte/store';
   import { directoryListingQuery } from '$lib/api/queries/file-tree.js';
-  import type { DirEntry } from '$lib/domain/workspaces/types.js';
+
   import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
 
   interface Props {

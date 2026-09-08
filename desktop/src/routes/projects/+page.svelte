@@ -1,88 +1,90 @@
 <script lang="ts">
-  /**
-   * /projects — Project list page.
-   * Renders a card grid of projects for the current workspace.
-   * Calls GET /api/v1/projects?workspace_slug=<active>.
-   * Detail page /projects/[slug] is reachable by clicking a card.
-   * CSS prefix: pj- (projects).
-   * LOC target: ≤ 300.
-   */
-  import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
-  import { goto } from "$app/navigation";
-  import { FolderKanban, Plus, X } from "lucide-svelte";
-  import { listProjects, createProjectMutation } from "$lib/api/queries/projects.js";
-  import { activeWorkspace } from "$lib/stores/active-workspace.svelte.js";
-  import type { Project, ProjectStatus } from "$lib/domain/projects/types.js";
-  import type { CreateProjectBody } from "$lib/domain/projects/types.js";
-  import ViewPicker from "$lib/design/primitives/ViewPicker.svelte";
-  import type { ViewState } from "$lib/design/primitives/ViewPicker.svelte";
+/**
+ * /projects — Project list page.
+ * Renders a card grid of projects for the current workspace.
+ * Calls GET /api/v1/projects?workspace_slug=<active>.
+ * Detail page /projects/[slug] is reachable by clicking a card.
+ * CSS prefix: pj- (projects).
+ * LOC target: ≤ 300.
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { FolderKanban, Plus, X } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import { createProjectMutation, listProjects } from '$lib/api/queries/projects.js';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import type { CreateProjectBody, Project, ProjectStatus } from '$lib/domain/projects/types.js';
+import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
 
-  // ── State ─────────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────
 
-  let view = $state<ViewState>({ layout: "grid", density: "comfortable", sort: "recent" });
-  const workspaceSlug = $derived(activeWorkspace.slug ?? "default");
+let view = $state<ViewState>({ layout: 'grid', density: 'comfortable', sort: 'recent' });
+const workspaceSlug = $derived(activeWorkspace.slug ?? 'default');
 
-  // ── Query ──────────────────────────────────────────────────────────────────
+// ── Query ──────────────────────────────────────────────────────────────────
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  const projectsQ = createQuery({
-    get queryKey() { return ["projects", { workspaceSlug }] as const; },
-    get queryFn() { return () => listProjects({ workspaceSlug }); },
-    staleTime: 15_000,
-    retry: false,
-  });
+const projectsQ = createQuery({
+  get queryKey() {
+    return ['projects', { workspaceSlug }] as const;
+  },
+  get queryFn() {
+    return () => listProjects({ workspaceSlug });
+  },
+  staleTime: 15_000,
+  retry: false,
+});
 
-  const projects = $derived(($projectsQ.data ?? []) as Project[]);
+const projects = $derived(($projectsQ.data ?? []) as Project[]);
 
-  const backendUnavailable = $derived(
-    $projectsQ.isError &&
-      String(($projectsQ.error as Error)?.message ?? "").includes("404"),
-  );
+const backendUnavailable = $derived(
+  $projectsQ.isError && String(($projectsQ.error as Error)?.message ?? '').includes('404')
+);
 
-  // ── Create modal ──────────────────────────────────────────────────────────
+// ── Create modal ──────────────────────────────────────────────────────────
 
-  let modalOpen = $state(false);
-  let draft = $state<CreateProjectBody>({
-    name: "",
-    workspaceSlug: "default",
-    description: "",
-    status: "active",
-  });
-  let createError = $state<string | null>(null);
+let modalOpen = $state(false);
+let draft = $state<CreateProjectBody>({
+  name: '',
+  workspaceSlug: 'default',
+  description: '',
+  status: 'active',
+});
+let createError = $state<string | null>(null);
 
-  const createMut = createMutation(createProjectMutation());
+const createMut = createMutation(createProjectMutation());
 
-  async function submitProject() {
-    if (!draft.name.trim()) return;
-    createError = null;
-    try {
-      const body: CreateProjectBody = {
-        name: draft.name.trim(),
-        workspaceSlug,
-        status: draft.status ?? "active",
-      };
-      if (draft.description?.trim()) body.description = draft.description.trim();
-      await $createMut.mutateAsync(body);
-      await queryClient.invalidateQueries({ queryKey: ["projects"] });
-      modalOpen = false;
-      draft = { name: "", workspaceSlug: "default", description: "", status: "active" };
-    } catch (err) {
-      createError = err instanceof Error ? err.message : "Failed to create project";
-    }
+async function submitProject() {
+  if (!draft.name.trim()) return;
+  createError = null;
+  try {
+    const body: CreateProjectBody = {
+      name: draft.name.trim(),
+      workspaceSlug,
+      status: draft.status ?? 'active',
+    };
+    if (draft.description?.trim()) body.description = draft.description.trim();
+    await $createMut.mutateAsync(body);
+    await queryClient.invalidateQueries({ queryKey: ['projects'] });
+    modalOpen = false;
+    draft = { name: '', workspaceSlug: 'default', description: '', status: 'active' };
+  } catch (err) {
+    createError = err instanceof Error ? err.message : 'Failed to create project';
   }
+}
 
-  function openModal() {
-    createError = null;
-    draft = { name: "", workspaceSlug, description: "", status: "active" };
-    modalOpen = true;
-  }
+function openModal() {
+  createError = null;
+  draft = { name: '', workspaceSlug, description: '', status: 'active' };
+  modalOpen = true;
+}
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-  function statusLabel(status: Project["status"]): string {
-    return { active: "Active", paused: "Paused", archived: "Archived" }[status];
-  }
+function statusLabel(status: Project['status']): string {
+  return { active: 'Active', paused: 'Paused', archived: 'Archived' }[status];
+}
 </script>
 
 <div class="pj-page">

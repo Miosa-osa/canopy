@@ -15,14 +15,18 @@ import { Search, Zap } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
-import {
-  importSkillMutation,
-  skillsQuery,
-} from '$lib/api/queries/skills.js';
+import { importSkillMutation, skillsQuery } from '$lib/api/queries/skills.js';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-import type { ImportSkillBody, ImportSkillResponse, Skill, SkillFilters, SkillKind, SkillSource } from '$lib/domain/skills/types.js';
+import type {
+  ImportSkillBody,
+  ImportSkillResponse,
+  Skill,
+  SkillFilters,
+  SkillKind,
+  SkillSource,
+} from '$lib/domain/skills/types.js';
 import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
 
 const queryClient = useQueryClient();
@@ -40,9 +44,7 @@ const filters = $derived<SkillFilters>({
   enabled: enabledFilter,
 });
 
-const optsStore = writable(
-  untrack(() => skillsQuery(filters) as CreateQueryOptions<Skill[]>)
-);
+const optsStore = writable(untrack(() => skillsQuery(filters) as CreateQueryOptions<Skill[]>));
 
 $effect(() => {
   optsStore.set(skillsQuery(filters) as CreateQueryOptions<Skill[]>);
@@ -126,10 +128,14 @@ function formatRelative(iso: string): string {
 
 function sourceLabel(source: SkillSource): string {
   switch (source) {
-    case 'clawhub': return 'Clawhub';
-    case 'skills_sh': return 'Skills.sh';
-    case 'local': return 'Local';
-    case 'user': return 'User';
+    case 'clawhub':
+      return 'Clawhub';
+    case 'skills_sh':
+      return 'Skills.sh';
+    case 'local':
+      return 'Local';
+    case 'user':
+      return 'User';
   }
 }
 </script>

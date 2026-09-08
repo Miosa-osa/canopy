@@ -1,125 +1,120 @@
 <script lang="ts">
-  /**
-   * /tasks — Task list with multi-board Kanban support.
-   * CSS prefix: tl- (TaskList)
-   */
-  import {
-    type CreateQueryOptions,
-    createQuery,
-  } from '@tanstack/svelte-query';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { page } from '$app/state';
-  import { tasksQuery } from '$lib/api/queries/tasks.js';
-  import KanbanBoard from '$lib/design/patterns/KanbanBoard.svelte';
-  import BoardPicker from '$lib/design/patterns/kanban/BoardPicker.svelte';
-  import BoardEditor from '$lib/design/patterns/kanban/BoardEditor.svelte';
-  import TaskCreateForm from '$lib/design/patterns/tasks/TaskCreateForm.svelte';
-  import TasksListView from '$lib/design/patterns/tasks/TasksListView.svelte';
-  import TasksFilterBar from '$lib/design/patterns/tasks/TasksFilterBar.svelte';
-  import { kanbanBoards, type BoardConfig } from '$lib/stores/kanban-boards.svelte.js';
-  import type { Task, TaskFilters, TaskStatus } from '$lib/domain/tasks/types.js';
-  import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
-  import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+/**
+ * /tasks — Task list with multi-board Kanban support.
+ * CSS prefix: tl- (TaskList)
+ */
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { page } from '$app/state';
+import { tasksQuery } from '$lib/api/queries/tasks.js';
+import KanbanBoard from '$lib/design/patterns/KanbanBoard.svelte';
+import BoardEditor from '$lib/design/patterns/kanban/BoardEditor.svelte';
+import BoardPicker from '$lib/design/patterns/kanban/BoardPicker.svelte';
+import TaskCreateForm from '$lib/design/patterns/tasks/TaskCreateForm.svelte';
+import TasksFilterBar from '$lib/design/patterns/tasks/TasksFilterBar.svelte';
+import TasksListView from '$lib/design/patterns/tasks/TasksListView.svelte';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import type { Task, TaskFilters, TaskStatus } from '$lib/domain/tasks/types.js';
+import { type BoardConfig, kanbanBoards } from '$lib/stores/kanban-boards.svelte.js';
 
-  // ── Deep-link: ?board=<id> ────────────────────────────────────────────────────
+// ── Deep-link: ?board=<id> ────────────────────────────────────────────────────
 
-  $effect(() => {
-    const boardId = page.url.searchParams.get('board');
-    if (boardId && kanbanBoards.boards.some((b) => b.id === boardId)) {
-      kanbanBoards.setActive(boardId);
+$effect(() => {
+  const boardId = page.url.searchParams.get('board');
+  if (boardId && kanbanBoards.boards.some((b) => b.id === boardId)) {
+    kanbanBoards.setActive(boardId);
+  }
+});
+
+// ── Board editor modal ────────────────────────────────────────────────────────
+
+let editorOpen = $state(false);
+let editorTarget = $state<BoardConfig | null>(null);
+
+function openNew(): void {
+  editorTarget = null;
+  editorOpen = true;
+}
+
+function openEdit(): void {
+  editorTarget = kanbanBoards.activeBoard ?? null;
+  editorOpen = true;
+}
+
+function closeEditor(): void {
+  editorOpen = false;
+  editorTarget = null;
+}
+
+// ── View state (via ViewPicker) ───────────────────────────────────────────────
+
+let view = $state<ViewState>({ layout: 'list', density: 'comfortable', sort: 'recent' });
+
+// Derive viewMode from ViewPicker layout for existing KanbanBoard/TasksListView
+const viewMode = $derived<'list' | 'board'>(view.layout === 'board' ? 'board' : 'list');
+
+// ── Board-scoped filters ──────────────────────────────────────────────────────
+
+const boardFilters = $derived<TaskFilters>(
+  (() => {
+    const scope = kanbanBoards.activeBoard?.scope;
+    if (!scope) return {};
+    switch (scope.type) {
+      case 'agent':
+        return { assigneeType: 'agent', assigneeId: scope.agentId };
+      case 'assignee_type':
+        return { assigneeType: scope.value };
+      case 'workspace':
+      default:
+        return {};
     }
-  });
+  })()
+);
 
-  // ── Board editor modal ────────────────────────────────────────────────────────
+// ── Status filter + search ────────────────────────────────────────────────────
 
-  let editorOpen = $state(false);
-  let editorTarget = $state<BoardConfig | null>(null);
+type StatusChip = 'all' | TaskStatus;
 
-  function openNew(): void {
-    editorTarget = null;
-    editorOpen = true;
-  }
+let statusChip = $state<StatusChip>('all');
+let searchText = $state('');
 
-  function openEdit(): void {
-    editorTarget = kanbanBoards.activeBoard ?? null;
-    editorOpen = true;
-  }
+const filters = $derived<TaskFilters>({
+  ...boardFilters,
+  status: statusChip !== 'all' ? statusChip : undefined,
+  q: searchText.trim() || undefined,
+});
 
-  function closeEditor(): void {
-    editorOpen = false;
-    editorTarget = null;
-  }
+// ── Whether active board has non-default columns ──────────────────────────────
 
-  // ── View state (via ViewPicker) ───────────────────────────────────────────────
+const hasCustomColumns = $derived(
+  (() => {
+    const cols = kanbanBoards.activeBoard?.columns;
+    if (!cols) return false;
+    const defaultStatuses = ['todo', 'in_progress', 'done', 'cancelled'];
+    const activeStatuses = cols.map((c) => c.status);
+    return (
+      activeStatuses.length !== defaultStatuses.length ||
+      activeStatuses.some((s, i) => s !== defaultStatuses[i])
+    );
+  })()
+);
 
-  let view = $state<ViewState>({ layout: 'list', density: 'comfortable', sort: 'recent' });
+// ── Query (list view) ─────────────────────────────────────────────────────────
 
-  // Derive viewMode from ViewPicker layout for existing KanbanBoard/TasksListView
-  const viewMode = $derived<'list' | 'board'>(view.layout === 'board' ? 'board' : 'list');
+const queryOptsStore = writable(untrack(() => tasksQuery(filters) as CreateQueryOptions<Task[]>));
 
-  // ── Board-scoped filters ──────────────────────────────────────────────────────
+$effect(() => {
+  queryOptsStore.set(tasksQuery(filters) as CreateQueryOptions<Task[]>);
+});
 
-  const boardFilters = $derived<TaskFilters>(
-    (() => {
-      const scope = kanbanBoards.activeBoard?.scope;
-      if (!scope) return {};
-      switch (scope.type) {
-        case 'agent':
-          return { assigneeType: 'agent', assigneeId: scope.agentId };
-        case 'assignee_type':
-          return { assigneeType: scope.value };
-        case 'workspace':
-        default:
-          return {};
-      }
-    })()
-  );
+const query = createQuery<Task[]>(queryOptsStore);
+const tasks = $derived(($query.data ?? []) as Task[]);
 
-  // ── Status filter + search ────────────────────────────────────────────────────
+// ── Create form ───────────────────────────────────────────────────────────────
 
-  type StatusChip = 'all' | TaskStatus;
-
-  let statusChip = $state<StatusChip>('all');
-  let searchText = $state('');
-
-  const filters = $derived<TaskFilters>({
-    ...boardFilters,
-    status: statusChip !== 'all' ? statusChip : undefined,
-    q: searchText.trim() || undefined,
-  });
-
-  // ── Whether active board has non-default columns ──────────────────────────────
-
-  const hasCustomColumns = $derived(
-    (() => {
-      const cols = kanbanBoards.activeBoard?.columns;
-      if (!cols) return false;
-      const defaultStatuses = ['todo', 'in_progress', 'done', 'cancelled'];
-      const activeStatuses = cols.map((c) => c.status);
-      return (
-        activeStatuses.length !== defaultStatuses.length ||
-        activeStatuses.some((s, i) => s !== defaultStatuses[i])
-      );
-    })()
-  );
-
-  // ── Query (list view) ─────────────────────────────────────────────────────────
-
-  const queryOptsStore = writable(
-    untrack(() => tasksQuery(filters) as CreateQueryOptions<Task[]>),
-  );
-
-  $effect(() => {
-    queryOptsStore.set(tasksQuery(filters) as CreateQueryOptions<Task[]>);
-  });
-
-  const query = createQuery<Task[]>(queryOptsStore);
-  const tasks = $derived(($query.data ?? []) as Task[]);
-
-  // ── Create form ───────────────────────────────────────────────────────────────
-
-  let createOpen = $state(false);
+let createOpen = $state(false);
 </script>
 
 <div class="tl-page">

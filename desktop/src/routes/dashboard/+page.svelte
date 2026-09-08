@@ -1,155 +1,156 @@
 <script lang="ts">
-  /**
-   * /dashboard — Moveable widget grid.
-   *
-   * 6 draggable widgets, persistent order + size via localStorage.
-   * Uses svelte-dnd-action (already installed). No heavy gridstack library.
-   * CSS prefix: dg- (DashboardGrid)
-   *
-   * Layout key: canopy.dashboard.layout
-   * Shape: {id: string, size: 'compact'|'normal'|'wide'}[]
-   */
-  import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-  import { dndzone } from 'svelte-dnd-action';
-  import type { DndEvent } from 'svelte-dnd-action';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import { RefreshCw, RotateCcw } from 'lucide-svelte';
-  import { dashboardSummaryQuery } from '$lib/api/queries/dashboard.js';
-  import type { DashboardSummary } from '$lib/domain/dashboard/types.js';
-  import type { CreateQueryOptions } from '@tanstack/svelte-query';
-  import WidgetShell from '$lib/design/patterns/dashboard-widgets/WidgetShell.svelte';
-  import SessionsWidget from '$lib/design/patterns/dashboard-widgets/SessionsWidget.svelte';
-  import TasksWidget from '$lib/design/patterns/dashboard-widgets/TasksWidget.svelte';
-  import ActivityWidget from '$lib/design/patterns/dashboard-widgets/ActivityWidget.svelte';
-  import SpendWidget from '$lib/design/patterns/dashboard-widgets/SpendWidget.svelte';
-  import RuntimesWidget from '$lib/design/patterns/dashboard-widgets/RuntimesWidget.svelte';
-  import ScheduleWidget from '$lib/design/patterns/dashboard-widgets/ScheduleWidget.svelte';
-  import ActivitySparkline from '$lib/design/patterns/dashboard-widgets/ActivitySparkline.svelte';
-  import BudgetAlertWidget from '$lib/design/patterns/dashboard-widgets/BudgetAlertWidget.svelte';
-  import StatTile from '$lib/design/patterns/dashboard-widgets/StatTile.svelte';
+/**
+ * /dashboard — Moveable widget grid.
+ *
+ * 6 draggable widgets, persistent order + size via localStorage.
+ * Uses svelte-dnd-action (already installed). No heavy gridstack library.
+ * CSS prefix: dg- (DashboardGrid)
+ *
+ * Layout key: canopy.dashboard.layout
+ * Shape: {id: string, size: 'compact'|'normal'|'wide'}[]
+ */
 
-  const queryClient = useQueryClient();
+import type { CreateQueryOptions } from '@tanstack/svelte-query';
+import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { RefreshCw, RotateCcw } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import type { DndEvent } from 'svelte-dnd-action';
+import { dndzone } from 'svelte-dnd-action';
+import { dashboardSummaryQuery } from '$lib/api/queries/dashboard.js';
+import ActivitySparkline from '$lib/design/patterns/dashboard-widgets/ActivitySparkline.svelte';
+import ActivityWidget from '$lib/design/patterns/dashboard-widgets/ActivityWidget.svelte';
+import BudgetAlertWidget from '$lib/design/patterns/dashboard-widgets/BudgetAlertWidget.svelte';
+import RuntimesWidget from '$lib/design/patterns/dashboard-widgets/RuntimesWidget.svelte';
+import ScheduleWidget from '$lib/design/patterns/dashboard-widgets/ScheduleWidget.svelte';
+import SessionsWidget from '$lib/design/patterns/dashboard-widgets/SessionsWidget.svelte';
+import SpendWidget from '$lib/design/patterns/dashboard-widgets/SpendWidget.svelte';
+import StatTile from '$lib/design/patterns/dashboard-widgets/StatTile.svelte';
+import TasksWidget from '$lib/design/patterns/dashboard-widgets/TasksWidget.svelte';
+import WidgetShell from '$lib/design/patterns/dashboard-widgets/WidgetShell.svelte';
+import type { DashboardSummary } from '$lib/domain/dashboard/types.js';
 
-  // ── Dashboard summary (for SpendWidget) ──────────────────────────────────────
+const queryClient = useQueryClient();
 
-  const summaryOptsStore = writable(
-    untrack(() => dashboardSummaryQuery() as CreateQueryOptions<DashboardSummary>),
-  );
-  const summaryQuery = createQuery<DashboardSummary>(summaryOptsStore);
-  const summary = $derived($summaryQuery.data ?? null);
+// ── Dashboard summary (for SpendWidget) ──────────────────────────────────────
 
-  // ── Layout persistence ────────────────────────────────────────────────────────
+const summaryOptsStore = writable(
+  untrack(() => dashboardSummaryQuery() as CreateQueryOptions<DashboardSummary>)
+);
+const summaryQuery = createQuery<DashboardSummary>(summaryOptsStore);
+const summary = $derived($summaryQuery.data ?? null);
 
-  type WidgetSize = 'compact' | 'normal' | 'wide';
+// ── Layout persistence ────────────────────────────────────────────────────────
 
-  interface WidgetItem {
-    id: string;
-    size: WidgetSize;
+type WidgetSize = 'compact' | 'normal' | 'wide';
+
+interface WidgetItem {
+  id: string;
+  size: WidgetSize;
+}
+
+const LAYOUT_KEY = 'canopy.dashboard.layout';
+
+const WIDGET_LABELS: Record<string, string> = {
+  sessions: 'Active Sessions',
+  tasks: 'Tasks by Status',
+  activity: 'Recent Activity',
+  spend: 'Spend This Month',
+  runtimes: 'Runtimes Status',
+  schedule: 'Upcoming Schedule',
+  activity_sparkline: 'Activity Trend',
+  budget_alerts: 'Budget Alerts',
+  stat_tiles: 'Stats',
+};
+
+const DEFAULT_LAYOUT: WidgetItem[] = [
+  { id: 'sessions', size: 'normal' },
+  { id: 'tasks', size: 'normal' },
+  { id: 'activity', size: 'normal' },
+  { id: 'spend', size: 'normal' },
+  { id: 'runtimes', size: 'normal' },
+  { id: 'schedule', size: 'normal' },
+  { id: 'activity_sparkline', size: 'compact' },
+  { id: 'budget_alerts', size: 'normal' },
+  { id: 'stat_tiles', size: 'normal' },
+];
+
+function loadLayout(): WidgetItem[] {
+  if (typeof localStorage === 'undefined') return DEFAULT_LAYOUT;
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEY);
+    if (!raw) return DEFAULT_LAYOUT;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return DEFAULT_LAYOUT;
+    // Validate and fill in any missing ids from default
+    const valid = (parsed as WidgetItem[]).filter(
+      (item) => typeof item.id === 'string' && typeof item.size === 'string'
+    );
+    const ids = new Set(valid.map((i) => i.id));
+    const missing = DEFAULT_LAYOUT.filter((d) => !ids.has(d.id));
+    return [...valid, ...missing];
+  } catch {
+    return DEFAULT_LAYOUT;
   }
+}
 
-  const LAYOUT_KEY = 'canopy.dashboard.layout';
+function saveLayout(items: WidgetItem[]): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(LAYOUT_KEY, JSON.stringify(items));
+}
 
-  const WIDGET_LABELS: Record<string, string> = {
-    sessions: 'Active Sessions',
-    tasks: 'Tasks by Status',
-    activity: 'Recent Activity',
-    spend: 'Spend This Month',
-    runtimes: 'Runtimes Status',
-    schedule: 'Upcoming Schedule',
-    activity_sparkline: 'Activity Trend',
-    budget_alerts: 'Budget Alerts',
-    stat_tiles: 'Stats',
-  };
+let items = $state<WidgetItem[]>(loadLayout());
 
-  const DEFAULT_LAYOUT: WidgetItem[] = [
-    { id: 'sessions', size: 'normal' },
-    { id: 'tasks', size: 'normal' },
-    { id: 'activity', size: 'normal' },
-    { id: 'spend', size: 'normal' },
-    { id: 'runtimes', size: 'normal' },
-    { id: 'schedule', size: 'normal' },
-    { id: 'activity_sparkline', size: 'compact' },
-    { id: 'budget_alerts', size: 'normal' },
-    { id: 'stat_tiles', size: 'normal' },
-  ];
+// ── DnD ───────────────────────────────────────────────────────────────────────
 
-  function loadLayout(): WidgetItem[] {
-    if (typeof localStorage === 'undefined') return DEFAULT_LAYOUT;
-    try {
-      const raw = localStorage.getItem(LAYOUT_KEY);
-      if (!raw) return DEFAULT_LAYOUT;
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return DEFAULT_LAYOUT;
-      // Validate and fill in any missing ids from default
-      const valid = (parsed as WidgetItem[]).filter(
-        (item) => typeof item.id === 'string' && typeof item.size === 'string',
-      );
-      const ids = new Set(valid.map((i) => i.id));
-      const missing = DEFAULT_LAYOUT.filter((d) => !ids.has(d.id));
-      return [...valid, ...missing];
-    } catch {
-      return DEFAULT_LAYOUT;
-    }
+const FLIP_MS = 200;
+
+function handleConsider(e: CustomEvent<DndEvent<WidgetItem>>): void {
+  items = e.detail.items;
+}
+
+function handleFinalize(e: CustomEvent<DndEvent<WidgetItem>>): void {
+  items = e.detail.items;
+  saveLayout(items);
+}
+
+// ── Size changes ──────────────────────────────────────────────────────────────
+
+function handleSizeChange(id: string, size: WidgetSize): void {
+  items = items.map((item) => (item.id === id ? { ...item, size } : item));
+  saveLayout(items);
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+function resetLayout(): void {
+  items = [...DEFAULT_LAYOUT];
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(LAYOUT_KEY);
   }
+}
 
-  function saveLayout(items: WidgetItem[]): void {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify(items));
-  }
+function handleRefresh(): void {
+  void queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
+}
 
-  let items = $state<WidgetItem[]>(loadLayout());
+const updatedLabel = $derived(
+  $summaryQuery.dataUpdatedAt > 0
+    ? `Updated ${relativeTime(new Date($summaryQuery.dataUpdatedAt).toISOString())}`
+    : ''
+);
 
-  // ── DnD ───────────────────────────────────────────────────────────────────────
-
-  const FLIP_MS = 200;
-
-  function handleConsider(e: CustomEvent<DndEvent<WidgetItem>>): void {
-    items = e.detail.items;
-  }
-
-  function handleFinalize(e: CustomEvent<DndEvent<WidgetItem>>): void {
-    items = e.detail.items;
-    saveLayout(items);
-  }
-
-  // ── Size changes ──────────────────────────────────────────────────────────────
-
-  function handleSizeChange(id: string, size: WidgetSize): void {
-    items = items.map((item) => (item.id === id ? { ...item, size } : item));
-    saveLayout(items);
-  }
-
-  // ── Actions ───────────────────────────────────────────────────────────────────
-
-  function resetLayout(): void {
-    items = [...DEFAULT_LAYOUT];
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(LAYOUT_KEY);
-    }
-  }
-
-  function handleRefresh(): void {
-    void queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
-  }
-
-  const updatedLabel = $derived(
-    $summaryQuery.dataUpdatedAt > 0
-      ? `Updated ${relativeTime(new Date($summaryQuery.dataUpdatedAt).toISOString())}`
-      : '',
-  );
-
-  function relativeTime(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    const diff = Date.now() - new Date(iso).getTime();
-    if (diff < 0) return 'just now';
-    const sec = Math.floor(diff / 1000);
-    if (sec < 60) return `${sec}s ago`;
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m ago`;
-    const hr = Math.floor(min / 60);
-    return `${hr}h ago`;
-  }
+function relativeTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return 'just now';
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  return `${hr}h ago`;
+}
 </script>
 
 <div class="dg-page">

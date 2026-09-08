@@ -24,56 +24,42 @@
  *
  * LOC target: ≤ 240.
  */
-import {
-  getWorkspaceState,
-  putWorkspaceState,
-} from "$lib/api/queries/workspace-states.js";
-import {
-  activeWorkspace,
-  WORKSPACE_CHANGED_EVENT,
-} from "./active-workspace.svelte.js";
+import { getWorkspaceState, putWorkspaceState } from '$lib/api/queries/workspace-states.js';
+import { activeWorkspace, WORKSPACE_CHANGED_EVENT } from './active-workspace.svelte.js';
 
-export type RailSection =
-  | "conversations"
-  | "tabs"
-  | "explorer"
-  | "search"
-  | "drive";
+export type RailSection = 'conversations' | 'tabs' | 'explorer' | 'search' | 'drive';
 
 /** All rail sections in display order. The icon column renders these top-to-bottom. */
 export const RAIL_SECTIONS: readonly RailSection[] = [
-  "conversations",
-  "tabs",
-  "explorer",
-  "search",
-  "drive",
+  'conversations',
+  'tabs',
+  'explorer',
+  'search',
+  'drive',
 ] as const;
 
 /** Default section selected on first boot when no localStorage entry exists. */
-export const DEFAULT_RAIL_SECTION: RailSection = "conversations";
+export const DEFAULT_RAIL_SECTION: RailSection = 'conversations';
 
-const LS_SECTION_KEY = "canopy.build.sideRail.section";
+const LS_SECTION_KEY = 'canopy.build.sideRail.section';
 
 /** Backend `workspace_states` key for the per-workspace active section. */
-export const RAIL_SECTION_STATE_KEY = "build.sideRail.section";
+export const RAIL_SECTION_STATE_KEY = 'build.sideRail.section';
 
 /** Debounce window for backend PUTs — matches `useWorkspaceState` (500 ms). */
 const BACKEND_DEBOUNCE_MS = 500;
 
 /** Verifies an unknown string is a valid RailSection. */
 export function isRailSection(value: unknown): value is RailSection {
-  return (
-    typeof value === "string" &&
-    (RAIL_SECTIONS as readonly string[]).includes(value)
-  );
+  return typeof value === 'string' && (RAIL_SECTIONS as readonly string[]).includes(value);
 }
 
 /** Pure helper — load the persisted section, or null if none/invalid. */
 export function loadActiveSection(): RailSection | null {
   try {
-    if (typeof localStorage === "undefined") return null;
+    if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem(LS_SECTION_KEY);
-    if (raw === null || raw === "none") return null;
+    if (raw === null || raw === 'none') return null;
     return isRailSection(raw) ? raw : null;
   } catch {
     return null;
@@ -83,8 +69,8 @@ export function loadActiveSection(): RailSection | null {
 /** Pure helper — persist the active section (or "none" when collapsed). */
 export function saveActiveSection(section: RailSection | null): void {
   try {
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(LS_SECTION_KEY, section ?? "none");
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(LS_SECTION_KEY, section ?? 'none');
   } catch {
     // Quota / private mode — ignore.
   }
@@ -93,7 +79,7 @@ export function saveActiveSection(section: RailSection | null): void {
 /** Pure helper — clear persisted state (used by tests + reset). */
 export function clearActiveSection(): void {
   try {
-    if (typeof localStorage !== "undefined") {
+    if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(LS_SECTION_KEY);
     }
   } catch {
@@ -118,7 +104,7 @@ class BuildRailStore {
   }
 
   constructor() {
-    if (typeof localStorage !== "undefined") {
+    if (typeof localStorage !== 'undefined') {
       // First-boot: nothing persisted (load returns null) AND no explicit
       // 'none' sentinel saved → seed with DEFAULT_RAIL_SECTION so the
       // primary panel is visible on day one.
@@ -148,13 +134,13 @@ class BuildRailStore {
    *  swaps to the new workspace's saved value. Idempotent. */
   #wireWorkspaceListener(): void {
     if (this.#listenerWired) return;
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
     this.#listenerWired = true;
     window.addEventListener(WORKSPACE_CHANGED_EVENT, (ev: Event) => {
       const detail = (ev as CustomEvent<{ slug: string | null }>).detail;
       const nextSlug = detail?.slug ?? null;
       // eslint-disable-next-line no-console
-      console.debug("[build-rail] workspace.changed →", nextSlug);
+      console.debug('[build-rail] workspace.changed →', nextSlug);
       if (nextSlug) void this.#hydrateFromBackend(nextSlug);
     });
   }
@@ -162,44 +148,39 @@ class BuildRailStore {
   /** GET the workspace's saved section and apply it; fall back to default. */
   async #hydrateFromBackend(slug: string): Promise<void> {
     try {
-      const remote = await getWorkspaceState<RailSection | "none">(
-        slug,
-        RAIL_SECTION_STATE_KEY,
-      );
+      const remote = await getWorkspaceState<RailSection | 'none'>(slug, RAIL_SECTION_STATE_KEY);
       if (remote === null) {
         // No per-workspace value yet → keep current localStorage-derived
         // value (already shown). Do NOT overwrite the user's session.
         return;
       }
-      if (remote === "none") {
+      if (remote === 'none') {
         this.activeSection = null;
       } else if (isRailSection(remote)) {
         this.activeSection = remote;
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.debug("[build-rail] backend hydrate failed:", err);
+      console.debug('[build-rail] backend hydrate failed:', err);
     }
   }
 
   /** Schedule a debounced backend PUT for the current section. */
   #scheduleBackendWrite(): void {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
     const slug = activeWorkspace.slug;
     if (!slug) return;
     if (this.#backendTimer !== null) clearTimeout(this.#backendTimer);
     const sectionAtSchedule = this.activeSection;
     this.#backendTimer = setTimeout(() => {
       this.#backendTimer = null;
-      const value: RailSection | "none" = sectionAtSchedule ?? "none";
-      void putWorkspaceState<RailSection | "none">(
-        slug,
-        RAIL_SECTION_STATE_KEY,
-        value,
-      ).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.debug("[build-rail] backend PUT failed:", err);
-      });
+      const value: RailSection | 'none' = sectionAtSchedule ?? 'none';
+      void putWorkspaceState<RailSection | 'none'>(slug, RAIL_SECTION_STATE_KEY, value).catch(
+        (err) => {
+          // eslint-disable-next-line no-console
+          console.debug('[build-rail] backend PUT failed:', err);
+        }
+      );
     }, BACKEND_DEBOUNCE_MS);
   }
 

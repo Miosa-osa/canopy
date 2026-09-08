@@ -1,20 +1,20 @@
 <script lang="ts">
-  /**
-   * ChannelHeader — right-pane top bar for a channel.
-   * CSS prefix: ch2- (ChannelHeader)
-   * LOC target: ≤100
-   */
-  import { Hash, Lock, Settings, Users } from 'lucide-svelte';
-  import type { Channel } from '$lib/domain/channels/types.js';
+/**
+ * ChannelHeader — right-pane top bar for a channel.
+ * CSS prefix: ch2- (ChannelHeader)
+ * LOC target: ≤100
+ */
+import { Hash, Lock, Settings, Users } from 'lucide-svelte';
+import type { Channel } from '$lib/domain/channels/types.js';
 
-  interface Props {
-    channel: Channel;
-    memberCount?: number;
-    onSettings?: () => void;
-    onMembers?: () => void;
-  }
+interface Props {
+  channel: Channel;
+  memberCount?: number;
+  onSettings?: () => void;
+  onMembers?: () => void;
+}
 
-  let { channel, memberCount = 0, onSettings, onMembers }: Props = $props();
+let { channel, memberCount = 0, onSettings, onMembers }: Props = $props();
 </script>
 
 <header class="ch2-header" aria-label="Channel {channel.name}">

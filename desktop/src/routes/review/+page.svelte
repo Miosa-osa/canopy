@@ -1,293 +1,334 @@
 <script lang="ts">
-  /**
-   * /review — Human-review approval queue + git changes panel.
-   * CSS prefix: rq- (ReviewQueue)
-   * LOC target: ≤ 320.
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { ShieldCheck, FileText, Terminal, RefreshCw, GitBranch, Plus, Database, Bot, Search } from 'lucide-svelte';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import GitChangesPanel from '$lib/design/patterns/review/GitChangesPanel.svelte';
-  import {
-    approveReviewMutation,
-    createReviewMutation,
-    rejectReviewMutation,
-    requestChangesMutation,
-    resubmitReviewMutation,
-    reviewSummaryQuery,
-    reviewsQuery,
-  } from '$lib/api/queries/reviews.js';
-  import ReviewDetailModal from '$lib/design/patterns/ReviewDetailModal.svelte';
-  import ReviewCreateModal from '$lib/design/patterns/ReviewCreateModal.svelte';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
-  import type {
-    ApproveReviewBody,
-    CreateReviewBody,
-    RejectReviewBody,
-    RequestChangesBody,
+/**
+ * /review — Human-review approval queue + git changes panel.
+ * CSS prefix: rq- (ReviewQueue)
+ * LOC target: ≤ 320.
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import {
+  Bot,
+  Database,
+  FileText,
+  GitBranch,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Terminal,
+} from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import {
+  approveReviewMutation,
+  createReviewMutation,
+  rejectReviewMutation,
+  requestChangesMutation,
+  resubmitReviewMutation,
+  reviewSummaryQuery,
+  reviewsQuery,
+} from '$lib/api/queries/reviews.js';
+import ReviewCreateModal from '$lib/design/patterns/ReviewCreateModal.svelte';
+import ReviewDetailModal from '$lib/design/patterns/ReviewDetailModal.svelte';
+import GitChangesPanel from '$lib/design/patterns/review/GitChangesPanel.svelte';
+import type {
+  ApproveReviewBody,
+  CreateReviewBody,
+  RejectReviewBody,
+  RequestChangesBody,
+  Review,
+  ReviewFilters,
+  ReviewSummary,
+} from '$lib/domain/reviews/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+
+const queryClient = useQueryClient();
+
+// ── Top-level view switcher ───────────────────────────────────────────────────
+
+type View = 'overview' | 'queue' | 'sources' | 'git';
+let activeView = $state<View>('overview');
+
+// ── Tab state ─────────────────────────────────────────────────────────────────
+
+type Tab =
+  | 'all'
+  | 'artifacts'
+  | 'tool_calls'
+  | 'hire_agents'
+  | 'approved'
+  | 'rejected'
+  | 'changes_requested';
+let activeTab = $state<Tab>('all');
+
+const tabFilters: Record<Tab, ReviewFilters> = {
+  all: {},
+  artifacts: { kind: 'artifact' },
+  tool_calls: { kind: 'tool_call' },
+  hire_agents: { kind: 'hire_agent' },
+  approved: { status: 'approved' },
+  rejected: { status: 'rejected' },
+  changes_requested: { status: 'changes_requested' },
+};
+
+// ── Query ─────────────────────────────────────────────────────────────────────
+
+const queryOptsStore = writable(
+  untrack(() => reviewsQuery(tabFilters[activeTab]) as CreateQueryOptions<Review[]>)
+);
+
+$effect(() => {
+  queryOptsStore.set(reviewsQuery(tabFilters[activeTab]) as CreateQueryOptions<Review[]>);
+});
+
+const query = createQuery<Review[]>(queryOptsStore);
+const reviews = $derived(($query.data ?? []) as Review[]);
+const summaryQuery = createQuery<ReviewSummary>(
+  reviewSummaryQuery() as CreateQueryOptions<ReviewSummary>
+);
+const summary = $derived($summaryQuery.data as ReviewSummary | undefined);
+let searchQuery = $state('');
+let workspaceFilter = $state('');
+
+const filteredReviews = $derived.by(() => {
+  const search = searchQuery.trim().toLowerCase();
+  const workspace = workspaceFilter.trim().toLowerCase();
+
+  return reviews.filter((review) => {
+    const matchesWorkspace =
+      !workspace || (review.workspaceSlug ?? '').toLowerCase().includes(workspace);
+    if (!matchesWorkspace) return false;
+    if (!search) return true;
+
+    const haystack = [
+      review.id,
+      review.workspaceSlug,
+      review.kind,
+      review.status,
+      review.artifactType,
+      review.artifactId,
+      review.artifactPreview,
+      review.toolName,
+      review.toolArgs ? JSON.stringify(review.toolArgs) : null,
+      review.sessionId,
+      review.agentId,
+      review.feedback,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(search);
+  });
+});
+
+const pendingCount = $derived(reviews.filter((r) => r.status === 'pending').length);
+const artifactCount = $derived(reviews.filter((r) => r.kind === 'artifact').length);
+const toolCallCount = $derived(reviews.filter((r) => r.kind === 'tool_call').length);
+const hireAgentCount = $derived(reviews.filter((r) => r.kind === 'hire_agent').length);
+const summaryPendingCount = $derived(summary?.pendingCount ?? pendingCount);
+
+// ── Detail modal ──────────────────────────────────────────────────────────────
+
+let selectedReview = $state<Review | null>(null);
+let createOpen = $state(false);
+
+// ── Mutations ─────────────────────────────────────────────────────────────────
+
+const approveMut = createMutation<Review, Error, { id: string; body?: ApproveReviewBody }>(
+  approveReviewMutation() as CreateMutationOptions<
     Review,
-    ReviewFilters,
-    ReviewSummary,
-  } from '$lib/domain/reviews/types.js';
+    Error,
+    { id: string; body?: ApproveReviewBody }
+  >
+);
 
-  const queryClient = useQueryClient();
+const rejectMut = createMutation<Review, Error, { id: string; body?: RejectReviewBody }>(
+  rejectReviewMutation() as CreateMutationOptions<
+    Review,
+    Error,
+    { id: string; body?: RejectReviewBody }
+  >
+);
 
-  // ── Top-level view switcher ───────────────────────────────────────────────────
+const changesMut = createMutation<Review, Error, { id: string; body?: RequestChangesBody }>(
+  requestChangesMutation() as CreateMutationOptions<
+    Review,
+    Error,
+    { id: string; body?: RequestChangesBody }
+  >
+);
 
-  type View = 'overview' | 'queue' | 'sources' | 'git';
-  let activeView = $state<View>('overview');
+const resubmitMut = createMutation<
+  Review,
+  Error,
+  { id: string; attrs?: { artifactPreview?: string } }
+>(
+  resubmitReviewMutation() as CreateMutationOptions<
+    Review,
+    Error,
+    { id: string; attrs?: { artifactPreview?: string } }
+  >
+);
 
-  // ── Tab state ─────────────────────────────────────────────────────────────────
+const createMut = createMutation<Review, Error, CreateReviewBody>(
+  createReviewMutation() as CreateMutationOptions<Review, Error, CreateReviewBody>
+);
 
-  type Tab = 'all' | 'artifacts' | 'tool_calls' | 'hire_agents' | 'approved' | 'rejected' | 'changes_requested';
-  let activeTab = $state<Tab>('all');
+const isMutating = $derived(
+  $approveMut.isPending || $rejectMut.isPending || $changesMut.isPending || $resubmitMut.isPending
+);
 
-  const tabFilters: Record<Tab, ReviewFilters> = {
-    all: {},
-    artifacts: { kind: 'artifact' },
-    tool_calls: { kind: 'tool_call' },
-    hire_agents: { kind: 'hire_agent' },
-    approved: { status: 'approved' },
-    rejected: { status: 'rejected' },
-    changes_requested: { status: 'changes_requested' },
-  };
+function invalidate(): void {
+  queryClient.invalidateQueries({ queryKey: ['reviews'] });
+}
 
-  // ── Query ─────────────────────────────────────────────────────────────────────
-
-  const queryOptsStore = writable(
-    untrack(() => reviewsQuery(tabFilters[activeTab]) as CreateQueryOptions<Review[]>),
-  );
-
-  $effect(() => {
-    queryOptsStore.set(reviewsQuery(tabFilters[activeTab]) as CreateQueryOptions<Review[]>);
-  });
-
-  const query = createQuery<Review[]>(queryOptsStore);
-  const reviews = $derived(($query.data ?? []) as Review[]);
-  const summaryQuery = createQuery<ReviewSummary>(
-    reviewSummaryQuery() as CreateQueryOptions<ReviewSummary>,
-  );
-  const summary = $derived($summaryQuery.data as ReviewSummary | undefined);
-  let searchQuery = $state('');
-  let workspaceFilter = $state('');
-
-  const filteredReviews = $derived.by(() => {
-    const search = searchQuery.trim().toLowerCase();
-    const workspace = workspaceFilter.trim().toLowerCase();
-
-    return reviews.filter((review) => {
-      const matchesWorkspace = !workspace || (review.workspaceSlug ?? '').toLowerCase().includes(workspace);
-      if (!matchesWorkspace) return false;
-      if (!search) return true;
-
-      const haystack = [
-        review.id,
-        review.workspaceSlug,
-        review.kind,
-        review.status,
-        review.artifactType,
-        review.artifactId,
-        review.artifactPreview,
-        review.toolName,
-        review.toolArgs ? JSON.stringify(review.toolArgs) : null,
-        review.sessionId,
-        review.agentId,
-        review.feedback,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      return haystack.includes(search);
-    });
-  });
-
-  const pendingCount = $derived(reviews.filter((r) => r.status === 'pending').length);
-  const artifactCount = $derived(reviews.filter((r) => r.kind === 'artifact').length);
-  const toolCallCount = $derived(reviews.filter((r) => r.kind === 'tool_call').length);
-  const hireAgentCount = $derived(reviews.filter((r) => r.kind === 'hire_agent').length);
-  const summaryPendingCount = $derived(summary?.pendingCount ?? pendingCount);
-
-  // ── Detail modal ──────────────────────────────────────────────────────────────
-
-  let selectedReview = $state<Review | null>(null);
-  let createOpen = $state(false);
-
-  // ── Mutations ─────────────────────────────────────────────────────────────────
-
-  const approveMut = createMutation<Review, Error, { id: string; body?: ApproveReviewBody }>(
-    approveReviewMutation() as CreateMutationOptions<Review, Error, { id: string; body?: ApproveReviewBody }>,
-  );
-
-  const rejectMut = createMutation<Review, Error, { id: string; body?: RejectReviewBody }>(
-    rejectReviewMutation() as CreateMutationOptions<Review, Error, { id: string; body?: RejectReviewBody }>,
-  );
-
-  const changesMut = createMutation<Review, Error, { id: string; body?: RequestChangesBody }>(
-    requestChangesMutation() as CreateMutationOptions<Review, Error, { id: string; body?: RequestChangesBody }>,
-  );
-
-  const resubmitMut = createMutation<Review, Error, { id: string; attrs?: { artifactPreview?: string } }>(
-    resubmitReviewMutation() as CreateMutationOptions<Review, Error, { id: string; attrs?: { artifactPreview?: string } }>,
-  );
-
-  const createMut = createMutation<Review, Error, CreateReviewBody>(
-    createReviewMutation() as CreateMutationOptions<Review, Error, CreateReviewBody>,
-  );
-
-  const isMutating = $derived(
-    $approveMut.isPending || $rejectMut.isPending || $changesMut.isPending || $resubmitMut.isPending,
-  );
-
-  function invalidate(): void {
-    queryClient.invalidateQueries({ queryKey: ['reviews'] });
-  }
-
-  function handleApprove(body: ApproveReviewBody): void {
-    if (!selectedReview) return;
-    $approveMut.mutate(
-      { id: selectedReview.id, body },
-      {
-        onSuccess: () => {
-          toasts.success('Review approved');
-          selectedReview = null;
-          invalidate();
-        },
-        onError: (err) => toasts.error(`Approve failed: ${err.message}`),
-      },
-    );
-  }
-
-  function handleReject(body: RejectReviewBody): void {
-    if (!selectedReview) return;
-    $rejectMut.mutate(
-      { id: selectedReview.id, body },
-      {
-        onSuccess: () => {
-          toasts.success('Review rejected');
-          selectedReview = null;
-          invalidate();
-        },
-        onError: (err) => toasts.error(`Reject failed: ${err.message}`),
-      },
-    );
-  }
-
-  function handleRequestChanges(body: RequestChangesBody): void {
-    if (!selectedReview) return;
-    $changesMut.mutate(
-      { id: selectedReview.id, body },
-      {
-        onSuccess: () => {
-          toasts.success('Changes requested');
-          selectedReview = null;
-          invalidate();
-        },
-        onError: (err) => toasts.error(`Request changes failed: ${err.message}`),
-      },
-    );
-  }
-
-  function handleResubmit(): void {
-    if (!selectedReview) return;
-    $resubmitMut.mutate(
-      { id: selectedReview.id },
-      {
-        onSuccess: (updated) => {
-          toasts.success('Resubmitted for review');
-          selectedReview = updated;
-          invalidate();
-        },
-        onError: (err) => toasts.error(`Resubmit failed: ${err.message}`),
-      },
-    );
-  }
-
-  function handleCreate(body: CreateReviewBody): void {
-    $createMut.mutate(body, {
-      onSuccess: (review) => {
-        toasts.success('Review created');
-        createOpen = false;
-        selectedReview = review;
+function handleApprove(body: ApproveReviewBody): void {
+  if (!selectedReview) return;
+  $approveMut.mutate(
+    { id: selectedReview.id, body },
+    {
+      onSuccess: () => {
+        toasts.success('Review approved');
+        selectedReview = null;
         invalidate();
       },
-      onError: (err) => toasts.error(`Create failed: ${err.message}`),
-    });
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-
-  function statusClass(status: string): string {
-    if (status === 'pending') return 'rq-status rq-status--pending';
-    if (status === 'approved') return 'rq-status rq-status--approved';
-    if (status === 'rejected') return 'rq-status rq-status--rejected';
-    if (status === 'changes_requested') return 'rq-status rq-status--changes';
-    return 'rq-status rq-status--expired';
-  }
-
-  function reviewTitle(r: Review): string {
-    if (r.kind === 'tool_call') return r.toolName ?? 'tool_call';
-    if (r.kind === 'hire_agent') {
-      const slug = (r.toolArgs?.['child_agent_slug'] as string | undefined) ?? 'agent';
-      return `Hire: ${slug}`;
+      onError: (err) => toasts.error(`Approve failed: ${err.message}`),
     }
-    return r.artifactType ? `${r.artifactType}${r.artifactId ? ` · ${r.artifactId}` : ''}` : 'Artifact';
-  }
+  );
+}
 
-  function sourceLabel(r: Review): string {
-    if (r.kind === 'artifact') return 'Artifact gate';
-    if (r.kind === 'tool_call') return 'Tool approval';
-    return 'Agent hire gate';
-  }
+function handleReject(body: RejectReviewBody): void {
+  if (!selectedReview) return;
+  $rejectMut.mutate(
+    { id: selectedReview.id, body },
+    {
+      onSuccess: () => {
+        toasts.success('Review rejected');
+        selectedReview = null;
+        invalidate();
+      },
+      onError: (err) => toasts.error(`Reject failed: ${err.message}`),
+    }
+  );
+}
 
-  function sourceDetail(r: Review): string {
-    if (r.kind === 'artifact') return 'Created by POST /reviews or Canopy.Reviews.request_artifact/1';
-    if (r.kind === 'tool_call') return 'Created by agent tool dispatch or Canopy.Reviews.request_tool_call/4';
-    return 'Created by canopy.spawn_session approval gate';
-  }
+function handleRequestChanges(body: RequestChangesBody): void {
+  if (!selectedReview) return;
+  $changesMut.mutate(
+    { id: selectedReview.id, body },
+    {
+      onSuccess: () => {
+        toasts.success('Changes requested');
+        selectedReview = null;
+        invalidate();
+      },
+      onError: (err) => toasts.error(`Request changes failed: ${err.message}`),
+    }
+  );
+}
 
-  function truncate(s: string | null | undefined, n = 100): string {
-    if (!s) return '';
-    return s.length > n ? `${s.slice(0, n)}…` : s;
-  }
+function handleResubmit(): void {
+  if (!selectedReview) return;
+  $resubmitMut.mutate(
+    { id: selectedReview.id },
+    {
+      onSuccess: (updated) => {
+        toasts.success('Resubmitted for review');
+        selectedReview = updated;
+        invalidate();
+      },
+      onError: (err) => toasts.error(`Resubmit failed: ${err.message}`),
+    }
+  );
+}
 
-  function formatTime(iso: string): string {
-    return new Date(iso).toLocaleString();
-  }
+function handleCreate(body: CreateReviewBody): void {
+  $createMut.mutate(body, {
+    onSuccess: (review) => {
+      toasts.success('Review created');
+      createOpen = false;
+      selectedReview = review;
+      invalidate();
+    },
+    onError: (err) => toasts.error(`Create failed: ${err.message}`),
+  });
+}
 
-  function formatOptionalTime(iso: string | null | undefined): string {
-    return iso ? formatTime(iso) : 'none';
-  }
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  function topEntries(values: Record<string, number> | undefined, limit = 4): [string, number][] {
-    return Object.entries(values ?? {})
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit);
-  }
+function statusClass(status: string): string {
+  if (status === 'pending') return 'rq-status rq-status--pending';
+  if (status === 'approved') return 'rq-status rq-status--approved';
+  if (status === 'rejected') return 'rq-status rq-status--rejected';
+  if (status === 'changes_requested') return 'rq-status rq-status--changes';
+  return 'rq-status rq-status--expired';
+}
 
-  function viewTitle(view: View): string {
-    if (view === 'overview') return 'Review overview';
-    if (view === 'queue') return 'Review queue';
-    if (view === 'sources') return 'Review routing';
-    return 'Git changes';
+function reviewTitle(r: Review): string {
+  if (r.kind === 'tool_call') return r.toolName ?? 'tool_call';
+  if (r.kind === 'hire_agent') {
+    const slug = (r.toolArgs?.['child_agent_slug'] as string | undefined) ?? 'agent';
+    return `Hire: ${slug}`;
   }
+  return r.artifactType
+    ? `${r.artifactType}${r.artifactId ? ` · ${r.artifactId}` : ''}`
+    : 'Artifact';
+}
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'artifacts', label: 'Artifacts' },
-    { id: 'tool_calls', label: 'Tool calls' },
-    { id: 'hire_agents', label: 'Hire agent' },
-    { id: 'approved', label: 'Approved' },
-    { id: 'rejected', label: 'Rejected' },
-    { id: 'changes_requested', label: 'Changes requested' },
-  ];
+function sourceLabel(r: Review): string {
+  if (r.kind === 'artifact') return 'Artifact gate';
+  if (r.kind === 'tool_call') return 'Tool approval';
+  return 'Agent hire gate';
+}
+
+function sourceDetail(r: Review): string {
+  if (r.kind === 'artifact') return 'Created by POST /reviews or Canopy.Reviews.request_artifact/1';
+  if (r.kind === 'tool_call')
+    return 'Created by agent tool dispatch or Canopy.Reviews.request_tool_call/4';
+  return 'Created by canopy.spawn_session approval gate';
+}
+
+function truncate(s: string | null | undefined, n = 100): string {
+  if (!s) return '';
+  return s.length > n ? `${s.slice(0, n)}…` : s;
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleString();
+}
+
+function formatOptionalTime(iso: string | null | undefined): string {
+  return iso ? formatTime(iso) : 'none';
+}
+
+function topEntries(values: Record<string, number> | undefined, limit = 4): [string, number][] {
+  return Object.entries(values ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+}
+
+function viewTitle(view: View): string {
+  if (view === 'overview') return 'Review overview';
+  if (view === 'queue') return 'Review queue';
+  if (view === 'sources') return 'Review routing';
+  return 'Git changes';
+}
+
+const tabs: { id: Tab; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'artifacts', label: 'Artifacts' },
+  { id: 'tool_calls', label: 'Tool calls' },
+  { id: 'hire_agents', label: 'Hire agent' },
+  { id: 'approved', label: 'Approved' },
+  { id: 'rejected', label: 'Rejected' },
+  { id: 'changes_requested', label: 'Changes requested' },
+];
 </script>
 
 <div class="rq-page">

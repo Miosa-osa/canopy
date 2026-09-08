@@ -1,53 +1,51 @@
 <script lang="ts">
-  /**
-   * ActivitySparkline — 7-day mini bar chart of a numeric metric.
-   * Pure SVG, no charting library.
-   * CSS prefix: asp-
-   *
-   * Props:
-   *   label   — display label above chart (e.g. "Sessions")
-   *   values  — array of 7 numbers (oldest → newest)
-   *   color   — optional CSS color for bars (defaults to --cnp-accent)
-   */
+/**
+ * ActivitySparkline — 7-day mini bar chart of a numeric metric.
+ * Pure SVG, no charting library.
+ * CSS prefix: asp-
+ *
+ * Props:
+ *   label   — display label above chart (e.g. "Sessions")
+ *   values  — array of 7 numbers (oldest → newest)
+ *   color   — optional CSS color for bars (defaults to --cnp-accent)
+ */
 
-  interface Props {
-    label: string;
-    values: number[];
-    color?: string;
-  }
+interface Props {
+  label: string;
+  values: number[];
+  color?: string;
+}
 
-  let { label, values = [], color }: Props = $props();
+let { label, values = [], color }: Props = $props();
 
-  const BAR_COUNT = 7;
-  const BAR_W = 6;
-  const BAR_GAP = 3;
-  const SVG_H = 32;
-  const SVG_W = BAR_COUNT * BAR_W + (BAR_COUNT - 1) * BAR_GAP;
+const BAR_COUNT = 7;
+const BAR_W = 6;
+const BAR_GAP = 3;
+const SVG_H = 32;
+const SVG_W = BAR_COUNT * BAR_W + (BAR_COUNT - 1) * BAR_GAP;
 
-  // Pad/trim to 7 values
-  const bars = $derived(
-    values.length >= BAR_COUNT
-      ? values.slice(-BAR_COUNT)
-      : [...Array<number>(BAR_COUNT - values.length).fill(0), ...values]
-  );
+// Pad/trim to 7 values
+const bars = $derived(
+  values.length >= BAR_COUNT
+    ? values.slice(-BAR_COUNT)
+    : [...Array<number>(BAR_COUNT - values.length).fill(0), ...values]
+);
 
-  const maxVal = $derived(Math.max(...bars, 1));
+const maxVal = $derived(Math.max(...bars, 1));
 
-  function barHeight(v: number): number {
-    return Math.max(2, Math.round((v / maxVal) * SVG_H));
-  }
+function barHeight(v: number): number {
+  return Math.max(2, Math.round((v / maxVal) * SVG_H));
+}
 
-  function barY(v: number): number {
-    return SVG_H - barHeight(v);
-  }
+function barY(v: number): number {
+  return SVG_H - barHeight(v);
+}
 
-  const today = $derived(bars[bars.length - 1] ?? 0);
-  const yesterday = $derived(bars[bars.length - 2] ?? 0);
-  const delta = $derived(
-    yesterday === 0
-      ? null
-      : Math.round(((today - yesterday) / yesterday) * 100)
-  );
+const today = $derived(bars[bars.length - 1] ?? 0);
+const yesterday = $derived(bars[bars.length - 2] ?? 0);
+const delta = $derived(
+  yesterday === 0 ? null : Math.round(((today - yesterday) / yesterday) * 100)
+);
 </script>
 
 <div class="asp-widget">

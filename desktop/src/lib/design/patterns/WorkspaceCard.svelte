@@ -23,9 +23,7 @@ const TEMPLATE_EMOJI: Record<string, string> = {
   'content-factory': '🎬',
 };
 
-const emoji = $derived(
-  workspace.template ? (TEMPLATE_EMOJI[workspace.template] ?? '📁') : '📁'
-);
+const emoji = $derived(workspace.template ? (TEMPLATE_EMOJI[workspace.template] ?? '📁') : '📁');
 
 let menuOpen = $state(false);
 let confirmDelete = $state(false);

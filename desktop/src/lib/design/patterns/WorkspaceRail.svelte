@@ -1,51 +1,51 @@
 <script lang="ts">
-  /**
-   * WorkspaceRail — narrow 56px left rail with workspace icons.
-   * CSS prefix: wr-
-   *
-   * Mount between the sidebar and shell main area. Controlled by
-   * Settings → Appearance → Show workspace rail (localStorage).
-   *
-   * The rail renders workspace initials as icon buttons. Current workspace
-   * is highlighted with the accent color.
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { Plus } from 'lucide-svelte';
-  import { goto } from '$app/navigation';
-  import { page } from '$app/state';
-  import { apiGet } from '$lib/api/client.js';
-  import { ui } from '$lib/stores/ui.svelte.js';
+/**
+ * WorkspaceRail — narrow 56px left rail with workspace icons.
+ * CSS prefix: wr-
+ *
+ * Mount between the sidebar and shell main area. Controlled by
+ * Settings → Appearance → Show workspace rail (localStorage).
+ *
+ * The rail renders workspace initials as icon buttons. Current workspace
+ * is highlighted with the accent color.
+ */
+import { createQuery } from '@tanstack/svelte-query';
+import { Plus } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import { apiGet } from '$lib/api/client.js';
+import { ui } from '$lib/stores/ui.svelte.js';
 
-  interface Workspace {
-    slug: string;
-    name: string;
-  }
+interface Workspace {
+  slug: string;
+  name: string;
+}
 
-  // ── Query ─────────────────────────────────────────────────────────────────
+// ── Query ─────────────────────────────────────────────────────────────────
 
-  const workspacesQ = createQuery<Workspace[]>({
-    queryKey: ['workspaces'],
-    queryFn: () => apiGet<{ data: Workspace[] }>('/workspaces').then((r) => r.data ?? []),
-    staleTime: 60_000,
-  });
+const workspacesQ = createQuery<Workspace[]>({
+  queryKey: ['workspaces'],
+  queryFn: () => apiGet<{ data: Workspace[] }>('/workspaces').then((r) => r.data ?? []),
+  staleTime: 60_000,
+});
 
-  const workspaces = $derived($workspacesQ.data ?? []);
-  const currentSlug = $derived(ui.currentWorkspaceSlug);
+const workspaces = $derived($workspacesQ.data ?? []);
+const currentSlug = $derived(ui.currentWorkspaceSlug);
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────
 
-  function initials(name: string): string {
-    return name
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? '')
-      .join('');
-  }
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+}
 
-  function navigateTo(slug: string) {
-    ui.setCurrentWorkspace(slug);
-    void goto(`/workspaces/${slug}`);
-  }
+function navigateTo(slug: string) {
+  ui.setCurrentWorkspace(slug);
+  void goto(`/workspaces/${slug}`);
+}
 </script>
 
 <nav class="wr-rail" aria-label="Workspace switcher rail">

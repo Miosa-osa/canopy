@@ -5,7 +5,7 @@
  * CSS prefix: obw-rt-
  */
 import { createQuery } from '@tanstack/svelte-query';
-import { Check, Circle, AlertTriangle } from 'lucide-svelte';
+import { AlertTriangle, Check, Circle } from 'lucide-svelte';
 import { runtimesQuery } from '$lib/api/queries/runtimes.js';
 import type { Runtime } from '$lib/domain/runtimes/types.js';
 
@@ -44,7 +44,14 @@ const CATEGORY_DESCS: Record<Category, string> = {
 
 function categorize(rt: Runtime): Category {
   const t = rt.type.toLowerCase();
-  if (t.endsWith('-api') || t === 'anthropic-api' || t === 'openai-api' || t === 'groq-api' || t === 'mistral-api') return 'api';
+  if (
+    t.endsWith('-api') ||
+    t === 'anthropic-api' ||
+    t === 'openai-api' ||
+    t === 'groq-api' ||
+    t === 'mistral-api'
+  )
+    return 'api';
   if (t === 'cline' || t === 'continue-cli' || t.startsWith('cursor-')) return 'ide';
   return 'cli';
 }
@@ -54,7 +61,8 @@ function dedup(runtimes: Runtime[]): GroupedRuntime[] {
   for (const rt of runtimes) {
     const key = rt.name.toLowerCase().replace(/[^a-z0-9]/g, '');
     const existing = seen.get(key);
-    const installed = (rt as Runtime & { installed?: boolean }).installed === true || rt.status === 'installed';
+    const installed =
+      (rt as Runtime & { installed?: boolean }).installed === true || rt.status === 'installed';
     if (!existing || (installed && !existing.installed)) {
       seen.set(key, {
         name: rt.name,
@@ -81,11 +89,14 @@ const grouped = $derived.by(() => {
     groups.get(cat)!.push(rt);
   }
   for (const [cat, items] of groups) {
-    groups.set(cat, items.sort((a, b) => {
-      if (a.installed && !b.installed) return -1;
-      if (!a.installed && b.installed) return 1;
-      return a.name.localeCompare(b.name);
-    }));
+    groups.set(
+      cat,
+      items.sort((a, b) => {
+        if (a.installed && !b.installed) return -1;
+        if (!a.installed && b.installed) return 1;
+        return a.name.localeCompare(b.name);
+      })
+    );
   }
   return groups;
 });
@@ -119,7 +130,7 @@ function toggleRuntime(type: string): void {
   {:else if $query.isError}
     <div class="obw-rt__empty">Could not reach runtime API. You can configure runtimes later.</div>
   {:else}
-    {#each ['cli', 'api', 'ide'] as cat (cat)}
+    {#each ['cli', 'api', 'ide'] as const as cat (cat)}
       {@const items = grouped.get(cat) ?? []}
       {@const installed = items.filter((r) => r.installed)}
       {@const notInstalled = items.filter((r) => !r.installed)}

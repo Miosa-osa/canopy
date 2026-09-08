@@ -1,214 +1,188 @@
 <script lang="ts">
-  /**
-   * /analytics — Analytics super-module dashboard.
-   * Powered by Iris (the Analytics Agent) via /api/v1/analytics/*.
-   *
-   * Sections:
-   *   1. Stat tiles — sessions, tasks, tokens, spend (from dashboard summary)
-   *   2. Cost trend — 30-day cost time-series (analytics/costs)
-   *   3. Insights feed — recent anomalies / findings (analytics/insights)
-   *   4. Alerts panel — active alert configurations (analytics/alerts)
-   *
-   * CSS prefix: an-
-   */
-  import {
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import {
-    Activity,
-    AlertTriangle,
-    BarChart2,
-    Bell,
-    Coins,
-    Cpu,
-    Sparkles,
-    TrendingDown,
-    TrendingUp,
-  } from "lucide-svelte";
-  import { dashboardSummaryQuery } from "$lib/api/queries/dashboard.js";
-  import {
-    acknowledgeInsight,
-    alertsQuery,
-    costQuery,
-    insightsQuery,
-  } from "$lib/api/queries/analytics.js";
-  import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
-  import type { DashboardSummary } from "$lib/domain/dashboard/types.js";
-  import type {
-    Alert,
-    CostBuckets,
-    Insight,
-  } from "$lib/domain/analytics/types.js";
+/**
+ * /analytics — Analytics super-module dashboard.
+ * Powered by Iris (the Analytics Agent) via /api/v1/analytics/*.
+ *
+ * Sections:
+ *   1. Stat tiles — sessions, tasks, tokens, spend (from dashboard summary)
+ *   2. Cost trend — 30-day cost time-series (analytics/costs)
+ *   3. Insights feed — recent anomalies / findings (analytics/insights)
+ *   4. Alerts panel — active alert configurations (analytics/alerts)
+ *
+ * CSS prefix: an-
+ */
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import {
+  Activity,
+  AlertTriangle,
+  BarChart2,
+  Bell,
+  Coins,
+  Cpu,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import {
+  acknowledgeInsight,
+  alertsQuery,
+  costQuery,
+  insightsQuery,
+} from '$lib/api/queries/analytics.js';
+import { dashboardSummaryQuery } from '$lib/api/queries/dashboard.js';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Alert, CostBuckets, Insight } from '$lib/domain/analytics/types.js';
+import type { DashboardSummary } from '$lib/domain/dashboard/types.js';
 
-  const qc = useQueryClient();
+const qc = useQueryClient();
 
-  // ── Queries ────────────────────────────────────────────────────────────────
+// ── Queries ────────────────────────────────────────────────────────────────
 
-  const summaryStore = writable(
-    untrack(() => dashboardSummaryQuery() as CreateQueryOptions<DashboardSummary>),
-  );
-  const summaryQ = createQuery<DashboardSummary>(summaryStore);
+const summaryStore = writable(
+  untrack(() => dashboardSummaryQuery() as CreateQueryOptions<DashboardSummary>)
+);
+const summaryQ = createQuery<DashboardSummary>(summaryStore);
 
-  const costsStore = writable(
-    untrack(() =>
+const costsStore = writable(
+  untrack(
+    () =>
       costQuery({
-        granularity: "day",
+        granularity: 'day',
         from: thirtyDaysAgo(),
-      }) as CreateQueryOptions<CostBuckets>,
-    ),
-  );
-  const costsQ = createQuery<CostBuckets>(costsStore);
+      }) as CreateQueryOptions<CostBuckets>
+  )
+);
+const costsQ = createQuery<CostBuckets>(costsStore);
 
-  const insightsStore = writable(
-    untrack(
-      () =>
-        insightsQuery({ limit: 8 }) as CreateQueryOptions<Insight[]>,
-    ),
-  );
-  const insightsQ = createQuery<Insight[]>(insightsStore);
+const insightsStore = writable(
+  untrack(() => insightsQuery({ limit: 8 }) as CreateQueryOptions<Insight[]>)
+);
+const insightsQ = createQuery<Insight[]>(insightsStore);
 
-  const alertsStore = writable(
-    untrack(() => alertsQuery() as CreateQueryOptions<Alert[]>),
-  );
-  const alertsQ = createQuery<Alert[]>(alertsStore);
+const alertsStore = writable(untrack(() => alertsQuery() as CreateQueryOptions<Alert[]>));
+const alertsQ = createQuery<Alert[]>(alertsStore);
 
-  // ── Acknowledge mutation ───────────────────────────────────────────────────
+// ── Acknowledge mutation ───────────────────────────────────────────────────
 
-  const ackMut = createMutation({
-    mutationFn: ({
-      slug,
-      feedback,
-    }: {
-      slug: string;
-      feedback?: "true_positive" | "false_positive";
-    }) => acknowledgeInsight(slug, "user", feedback),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["analytics", "insights"] });
-    },
+const ackMut = createMutation({
+  mutationFn: ({
+    slug,
+    feedback,
+  }: {
+    slug: string;
+    feedback?: 'true_positive' | 'false_positive';
+  }) => acknowledgeInsight(slug, 'user', feedback),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['analytics', 'insights'] });
+  },
+});
+
+function handleAck(slug: string, feedback?: 'true_positive' | 'false_positive') {
+  $ackMut.mutate({ slug, feedback });
+}
+
+// ── Stat tiles (from dashboard summary) ────────────────────────────────────
+
+const summary = $derived($summaryQ.data ?? null);
+const sessionCount = $derived(summary?.totalSessions?.count ?? 0);
+const tasksCompleted = $derived(summary?.successRate?.completed ?? 0);
+const tokensUsed = $derived(summary?.totalTokens?.total ?? 0);
+const spendUsd = $derived(
+  summary ? parseFloat(summary.spendThisMonth.totalUsd || '0').toFixed(2) : '0.00'
+);
+
+// ── Cost trend ─────────────────────────────────────────────────────────────
+
+const costData = $derived($costsQ.data?.rows ?? []);
+const costMax = $derived(Math.max(...costData.map((b) => b.costCents), 1));
+const costTotal = $derived(costData.reduce((sum, b) => sum + (b.costCents || 0), 0));
+const previousHalfTotal = $derived(
+  costData.slice(0, Math.floor(costData.length / 2)).reduce((sum, b) => sum + (b.costCents || 0), 0)
+);
+const recentHalfTotal = $derived(
+  costData.slice(Math.floor(costData.length / 2)).reduce((sum, b) => sum + (b.costCents || 0), 0)
+);
+const costDeltaPct = $derived(
+  previousHalfTotal === 0
+    ? 0
+    : Math.round(((recentHalfTotal - previousHalfTotal) / previousHalfTotal) * 100)
+);
+
+const COST_W = 600;
+const COST_H = 120;
+const COST_BAR_GAP = 2;
+
+const costBars = $derived(
+  costData.map((b, i) => {
+    const bw = COST_W / Math.max(costData.length, 1) - COST_BAR_GAP;
+    const bh = Math.round((b.costCents / costMax) * (COST_H - 4));
+    return {
+      x: i * (COST_W / Math.max(costData.length, 1)) + COST_BAR_GAP / 2,
+      y: COST_H - bh,
+      w: bw,
+      h: bh,
+      bucket: b.bucket,
+      cost: b.costCents,
+    };
+  })
+);
+
+// ── Insights feed ──────────────────────────────────────────────────────────
+
+const insights = $derived($insightsQ.data ?? []);
+const unacknowledgedCount = $derived(insights.filter((i) => !i.acknowledgedAt).length);
+
+// ── Alerts ─────────────────────────────────────────────────────────────────
+
+const alerts = $derived($alertsQ.data ?? []);
+const activeAlerts = $derived(alerts.filter((a) => a.enabled));
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function fmtNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function fmtCents(c: number): string {
+  return `$${(c / 100).toFixed(2)}`;
+}
+
+function fmtBucket(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
   });
+}
 
-  function handleAck(slug: string, feedback?: "true_positive" | "false_positive") {
-    $ackMut.mutate({ slug, feedback });
-  }
+function fmtRelative(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
 
-  // ── Stat tiles (from dashboard summary) ────────────────────────────────────
+function thirtyDaysAgo(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toISOString();
+}
 
-  const summary = $derived($summaryQ.data ?? null);
-  const sessionCount = $derived(summary?.totalSessions?.count ?? 0);
-  const tasksCompleted = $derived(summary?.successRate?.completed ?? 0);
-  const tokensUsed = $derived(summary?.totalTokens?.total ?? 0);
-  const spendUsd = $derived(
-    summary
-      ? parseFloat(summary.spendThisMonth.totalUsd || "0").toFixed(2)
-      : "0.00",
-  );
+function severityClass(severity: string): string {
+  return `an-sev-${severity}`;
+}
 
-  // ── Cost trend ─────────────────────────────────────────────────────────────
-
-  const costData = $derived($costsQ.data?.rows ?? []);
-  const costMax = $derived(
-    Math.max(...costData.map((b) => b.costCents), 1),
-  );
-  const costTotal = $derived(
-    costData.reduce((sum, b) => sum + (b.costCents || 0), 0),
-  );
-  const previousHalfTotal = $derived(
-    costData.slice(0, Math.floor(costData.length / 2)).reduce(
-      (sum, b) => sum + (b.costCents || 0),
-      0,
-    ),
-  );
-  const recentHalfTotal = $derived(
-    costData.slice(Math.floor(costData.length / 2)).reduce(
-      (sum, b) => sum + (b.costCents || 0),
-      0,
-    ),
-  );
-  const costDeltaPct = $derived(
-    previousHalfTotal === 0
-      ? 0
-      : Math.round(
-          ((recentHalfTotal - previousHalfTotal) / previousHalfTotal) * 100,
-        ),
-  );
-
-  const COST_W = 600;
-  const COST_H = 120;
-  const COST_BAR_GAP = 2;
-
-  const costBars = $derived(
-    costData.map((b, i) => {
-      const bw = COST_W / Math.max(costData.length, 1) - COST_BAR_GAP;
-      const bh = Math.round((b.costCents / costMax) * (COST_H - 4));
-      return {
-        x: i * (COST_W / Math.max(costData.length, 1)) + COST_BAR_GAP / 2,
-        y: COST_H - bh,
-        w: bw,
-        h: bh,
-        bucket: b.bucket,
-        cost: b.costCents,
-      };
-    }),
-  );
-
-  // ── Insights feed ──────────────────────────────────────────────────────────
-
-  const insights = $derived($insightsQ.data ?? []);
-  const unacknowledgedCount = $derived(
-    insights.filter((i) => !i.acknowledgedAt).length,
-  );
-
-  // ── Alerts ─────────────────────────────────────────────────────────────────
-
-  const alerts = $derived($alertsQ.data ?? []);
-  const activeAlerts = $derived(alerts.filter((a) => a.enabled));
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-
-  function fmtNum(n: number): string {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-    return String(n);
-  }
-
-  function fmtCents(c: number): string {
-    return `$${(c / 100).toFixed(2)}`;
-  }
-
-  function fmtBucket(iso: string): string {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-  function fmtRelative(iso: string): string {
-    const ms = Date.now() - new Date(iso).getTime();
-    const s = Math.floor(ms / 1000);
-    if (s < 60) return `${s}s ago`;
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
-  }
-
-  function thirtyDaysAgo(): string {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString();
-  }
-
-  function severityClass(severity: string): string {
-    return `an-sev-${severity}`;
-  }
-
-  const isLoading = $derived(
-    $summaryQ.isLoading || $costsQ.isLoading || $insightsQ.isLoading,
-  );
+const isLoading = $derived($summaryQ.isLoading || $costsQ.isLoading || $insightsQ.isLoading);
 </script>
 
 <div class="an-page">

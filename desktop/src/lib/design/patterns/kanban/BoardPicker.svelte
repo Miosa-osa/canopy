@@ -1,52 +1,52 @@
 <script lang="ts">
-  /**
-   * BoardPicker — active board selector + board management menu.
-   * CSS prefix: bp- (BoardPicker)
-   */
-  import { kanbanBoards } from '$lib/stores/kanban-boards.svelte.js';
+/**
+ * BoardPicker — active board selector + board management menu.
+ * CSS prefix: bp- (BoardPicker)
+ */
+import { kanbanBoards } from '$lib/stores/kanban-boards.svelte.js';
 
-  interface Props {
-    onEdit?: () => void;
-    onNew?: () => void;
-  }
+interface Props {
+  onEdit?: () => void;
+  onNew?: () => void;
+}
 
-  let { onEdit, onNew }: Props = $props();
+let { onEdit, onNew }: Props = $props();
 
-  let menuOpen = $state(false);
+let menuOpen = $state(false);
 
-  function toggleMenu() {
-    menuOpen = !menuOpen;
-  }
+function toggleMenu() {
+  menuOpen = !menuOpen;
+}
 
-  function closeMenu() {
-    menuOpen = false;
-  }
+function closeMenu() {
+  menuOpen = false;
+}
 
-  function selectBoard(id: string) {
-    kanbanBoards.setActive(id);
-    closeMenu();
-  }
+function selectBoard(id: string) {
+  kanbanBoards.setActive(id);
+  closeMenu();
+}
 
-  function handleNew() {
-    closeMenu();
-    onNew?.();
-  }
+function handleNew() {
+  closeMenu();
+  onNew?.();
+}
 
-  function handleEdit() {
-    closeMenu();
-    onEdit?.();
-  }
+function handleEdit() {
+  closeMenu();
+  onEdit?.();
+}
 
-  function handleDelete() {
-    closeMenu();
-    const id = kanbanBoards.activeBoardId;
-    if (kanbanBoards.boards.length <= 1) return; // never delete the last board
-    kanbanBoards.deleteBoard(id);
-  }
+function handleDelete() {
+  closeMenu();
+  const id = kanbanBoards.activeBoardId;
+  if (kanbanBoards.boards.length <= 1) return; // never delete the last board
+  kanbanBoards.deleteBoard(id);
+}
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') closeMenu();
-  }
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeMenu();
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

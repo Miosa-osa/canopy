@@ -10,11 +10,11 @@
  * snake_case ↔ camelCase conversion is handled by `apiPost` (see client.ts).
  */
 
-import { apiPost } from "$lib/api/client.js";
+import { apiPost } from '$lib/api/client.js';
 import {
   worktreeDiffQuery as sessionsWorktreeDiffQuery,
   worktreeStatusQuery as sessionsWorktreeStatusQuery,
-} from "$lib/api/queries/sessions.js";
+} from '$lib/api/queries/sessions.js';
 import type {
   CommitRequest,
   CommitResult,
@@ -22,7 +22,7 @@ import type {
   DiscardHunkResult,
   StageRequest,
   StageResult,
-} from "$lib/domain/diff/types.js";
+} from '$lib/domain/diff/types.js';
 
 // ── Re-exported query factories ──────────────────────────────────────────────
 
@@ -38,28 +38,19 @@ export function useWorktreeStatus(sessionId: string) {
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
-export function commitWorktree(
-  sessionId: string,
-  body: CommitRequest,
-): Promise<CommitResult> {
+export function commitWorktree(sessionId: string, body: CommitRequest): Promise<CommitResult> {
   return apiPost<CommitResult>(`/sessions/${sessionId}/worktree/commit`, body);
 }
 
-export function stageWorktreeFiles(
-  sessionId: string,
-  body: StageRequest,
-): Promise<StageResult> {
+export function stageWorktreeFiles(sessionId: string, body: StageRequest): Promise<StageResult> {
   return apiPost<StageResult>(`/sessions/${sessionId}/worktree/stage`, body);
 }
 
 export function discardWorktreeHunk(
   sessionId: string,
-  body: DiscardHunkRequest,
+  body: DiscardHunkRequest
 ): Promise<DiscardHunkResult> {
-  return apiPost<DiscardHunkResult>(
-    `/sessions/${sessionId}/worktree/discard-hunk`,
-    body,
-  );
+  return apiPost<DiscardHunkResult>(`/sessions/${sessionId}/worktree/discard-hunk`, body);
 }
 
 // ── Mutation factories ───────────────────────────────────────────────────────
@@ -67,7 +58,7 @@ export function discardWorktreeHunk(
 /** Commit changes in a session worktree. */
 export function commitMutation(sessionId: string) {
   return {
-    mutationKey: ["sessions", sessionId, "worktree", "commit"] as const,
+    mutationKey: ['sessions', sessionId, 'worktree', 'commit'] as const,
     mutationFn: (body: CommitRequest) => commitWorktree(sessionId, body),
   };
 }
@@ -75,7 +66,7 @@ export function commitMutation(sessionId: string) {
 /** Stage one or more files in a session worktree. */
 export function stageFileMutation(sessionId: string) {
   return {
-    mutationKey: ["sessions", sessionId, "worktree", "stage"] as const,
+    mutationKey: ['sessions', sessionId, 'worktree', 'stage'] as const,
     mutationFn: (body: StageRequest) => stageWorktreeFiles(sessionId, body),
   };
 }
@@ -83,8 +74,7 @@ export function stageFileMutation(sessionId: string) {
 /** Reverse-apply a single hunk in a session worktree (discard). */
 export function discardHunkMutation(sessionId: string) {
   return {
-    mutationKey: ["sessions", sessionId, "worktree", "discard-hunk"] as const,
-    mutationFn: (body: DiscardHunkRequest) =>
-      discardWorktreeHunk(sessionId, body),
+    mutationKey: ['sessions', sessionId, 'worktree', 'discard-hunk'] as const,
+    mutationFn: (body: DiscardHunkRequest) => discardWorktreeHunk(sessionId, body),
   };
 }

@@ -6,8 +6,8 @@
  * CSS prefix: odf-
  */
 import { onDestroy } from 'svelte';
+import type { AuthPollResponse, AuthStartResponse } from '$lib/queries/runtime-auth.js';
 import { createAuthPoller, probeAuthModule } from '$lib/queries/runtime-auth.js';
-import type { AuthStartResponse, AuthPollResponse } from '$lib/queries/runtime-auth.js';
 
 interface Props {
   runtimeId: string;
@@ -32,7 +32,9 @@ let poller = createAuthPoller(
   runtimeId,
   flowData.device_code ?? '',
   intervalMs,
-  (result: AuthPollResponse) => { pollStatus = result.status; },
+  (result: AuthPollResponse) => {
+    pollStatus = result.status;
+  },
   (result: AuthPollResponse) => {
     pollStatus = result.status;
     if (result.status === 'active') onSuccess();
@@ -66,7 +68,9 @@ async function copyCode() {
   try {
     await navigator.clipboard.writeText(userCode);
     copied = true;
-    setTimeout(() => { copied = false; }, 2000);
+    setTimeout(() => {
+      copied = false;
+    }, 2000);
   } catch {
     // clipboard not available
   }

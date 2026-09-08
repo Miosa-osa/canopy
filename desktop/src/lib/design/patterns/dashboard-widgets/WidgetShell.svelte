@@ -1,31 +1,31 @@
 <script lang="ts">
-  /**
-   * WidgetShell — drag handle + size toggle + header bar wrapper for dashboard widgets.
-   * CSS prefix: ws- (WidgetShell)
-   * Size: compact | normal | wide
-   */
-  import { GripVertical, Minimize2, Square, Maximize2 } from 'lucide-svelte';
-  import type { Snippet } from 'svelte';
+/**
+ * WidgetShell — drag handle + size toggle + header bar wrapper for dashboard widgets.
+ * CSS prefix: ws- (WidgetShell)
+ * Size: compact | normal | wide
+ */
+import { GripVertical, Maximize2, Minimize2, Square } from 'lucide-svelte';
+import type { Snippet } from 'svelte';
 
-  type WidgetSize = 'compact' | 'normal' | 'wide';
+type WidgetSize = 'compact' | 'normal' | 'wide';
 
-  interface Props {
-    id: string;
-    label: string;
-    size: WidgetSize;
-    onSizeChange?: (id: string, size: WidgetSize) => void;
-    children: Snippet;
-  }
+interface Props {
+  id: string;
+  label: string;
+  size: WidgetSize;
+  onSizeChange?: (id: string, size: WidgetSize) => void;
+  children: Snippet;
+}
 
-  let { id, label, size, onSizeChange, children }: Props = $props();
+let { id, label, size, onSizeChange, children }: Props = $props();
 
-  const SIZE_CYCLE: WidgetSize[] = ['compact', 'normal', 'wide'];
+const SIZE_CYCLE: WidgetSize[] = ['compact', 'normal', 'wide'];
 
-  function cycleSize() {
-    const idx = SIZE_CYCLE.indexOf(size);
-    const next = SIZE_CYCLE[(idx + 1) % SIZE_CYCLE.length];
-    onSizeChange?.(id, next);
-  }
+function cycleSize() {
+  const idx = SIZE_CYCLE.indexOf(size);
+  const next = SIZE_CYCLE[(idx + 1) % SIZE_CYCLE.length];
+  onSizeChange?.(id, next);
+}
 </script>
 
 <div class="ws-shell ws-shell--{size}" aria-label={label}>

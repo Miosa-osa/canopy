@@ -1,21 +1,19 @@
 <script lang="ts" module>
-  /**
-   * Build the human-readable label for a given runtime type.
-   * Exported so tests / parents can render the same string.
-   */
-  export function notificationChipLabel(runtimeType: string, on: boolean): string {
-    const product =
-      runtimeType === 'claude-local'
-        ? 'Claude Code'
-        : runtimeType === 'codex-local'
+/**
+ * Build the human-readable label for a given runtime type.
+ * Exported so tests / parents can render the same string.
+ */
+export function notificationChipLabel(runtimeType: string, on: boolean): string {
+  const product =
+    runtimeType === 'claude-local'
+      ? 'Claude Code'
+      : runtimeType === 'codex-local'
         ? 'Codex'
         : runtimeType === 'gemini-local'
-        ? 'Gemini'
-        : runtimeType;
-    return on
-      ? `${product} notifications on`
-      : `Enable ${product} notifications`;
-  }
+          ? 'Gemini'
+          : runtimeType;
+  return on ? `${product} notifications on` : `Enable ${product} notifications`;
+}
 </script>
 
 <script lang="ts">

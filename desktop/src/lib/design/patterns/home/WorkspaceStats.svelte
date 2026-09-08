@@ -1,9 +1,9 @@
 <script lang="ts">
 import { createQuery } from '@tanstack/svelte-query';
-import { Bot, Activity, Clock } from 'lucide-svelte';
+import { Activity, Bot, Clock } from 'lucide-svelte';
 import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
-import { sessionsQuery } from '$lib/api/queries/sessions.js';
 import { specsQuery } from '$lib/api/queries/schedule.js';
+import { sessionsQuery } from '$lib/api/queries/sessions.js';
 import type { Agent } from '$lib/domain/agents/types.js';
 import type { Session } from '$lib/domain/sessions/types.js';
 
@@ -13,7 +13,7 @@ const specsQ = createQuery(specsQuery({ status: 'active' }));
 
 const agentCount = $derived(($agentsQ.data as Agent[] | undefined)?.length ?? 0);
 const runningSessions = $derived(
-  (($sessionsQ.data as Session[] | undefined) ?? []).filter((s) => s.status === 'running'),
+  (($sessionsQ.data as Session[] | undefined) ?? []).filter((s) => s.status === 'running')
 );
 const runningCount = $derived(runningSessions.length);
 const scheduledCount = $derived(($specsQ.data as unknown[] | undefined)?.length ?? 0);

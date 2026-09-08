@@ -11,6 +11,7 @@
  * re-export from here.
  */
 
+import type { CreateSessionBody, Session, SessionStatus } from '$lib/domain/sessions/types.js';
 import {
   cancelSession,
   cancelSessionMutation,
@@ -18,12 +19,7 @@ import {
   createSessionMutation,
   type SessionFilters,
   sessionsQuery,
-} from "./sessions.js";
-import type {
-  CreateSessionBody,
-  Session,
-  SessionStatus,
-} from "$lib/domain/sessions/types.js";
+} from './sessions.js';
 
 // ── Filters ──────────────────────────────────────────────────────────────────
 
@@ -35,7 +31,7 @@ export interface ConversationFilters {
 
 /** Treat unset/legacy `kind` as "terminal" — only true conversations pass. */
 export function isAgentConversation(s: Session): boolean {
-  return s.kind === "agent_conversation";
+  return s.kind === 'agent_conversation';
 }
 
 /**
@@ -43,9 +39,7 @@ export function isAgentConversation(s: Session): boolean {
  * completed, cancelled, error — is "recent" history.
  */
 export function isActiveConversation(s: Session): boolean {
-  return (
-    s.status === "running" || s.status === "pending" || s.status === "paused"
-  );
+  return s.status === 'running' || s.status === 'pending' || s.status === 'paused';
 }
 
 // ── Query factory ────────────────────────────────────────────────────────────
@@ -57,7 +51,7 @@ export function isActiveConversation(s: Session): boolean {
  */
 export function agentConversationsQuery(filters?: ConversationFilters) {
   const merged: SessionFilters = {
-    kind: "agent_conversation",
+    kind: 'agent_conversation',
     workspaceSlug: filters?.workspaceSlug,
     status: filters?.status,
     limit: filters?.limit ?? 100,
@@ -67,7 +61,7 @@ export function agentConversationsQuery(filters?: ConversationFilters) {
     ...base,
     // Override the queryKey root so devtools / cache eviction can target
     // conversations specifically without clobbering the broader sessions cache.
-    queryKey: ["agent-conversations", merged] as const,
+    queryKey: ['agent-conversations', merged] as const,
   };
 }
 
@@ -76,24 +70,19 @@ export function agentConversationsQuery(filters?: ConversationFilters) {
 /** Mutation options to create a new agent conversation session. */
 export function createAgentConversationMutation() {
   return {
-    mutationKey: ["agent-conversations", "create"] as const,
-    mutationFn: (body: Omit<CreateSessionBody, "kind">) =>
-      createSession({ ...body, kind: "agent_conversation" }),
+    mutationKey: ['agent-conversations', 'create'] as const,
+    mutationFn: (body: Omit<CreateSessionBody, 'kind'>) =>
+      createSession({ ...body, kind: 'agent_conversation' }),
   };
 }
 
 /** Mutation options to delete (cancel) an agent conversation session. */
 export function deleteAgentConversationMutation() {
   return {
-    mutationKey: ["agent-conversations", "delete"] as const,
+    mutationKey: ['agent-conversations', 'delete'] as const,
     mutationFn: (id: string) => cancelSession(id),
   };
 }
 
 // Re-export underlying primitives for callers that need the lower-level API.
-export {
-  createSession,
-  cancelSession,
-  createSessionMutation,
-  cancelSessionMutation,
-};
+export { cancelSession, cancelSessionMutation, createSession, createSessionMutation };

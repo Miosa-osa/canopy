@@ -14,7 +14,9 @@ function handleSave(): void {
   profile.setDisplayName(name.trim());
   profile.setEmail(email.trim());
   saved = true;
-  setTimeout(() => { saved = false; }, 2000);
+  setTimeout(() => {
+    saved = false;
+  }, 2000);
 }
 </script>
 

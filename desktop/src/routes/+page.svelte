@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { onMount } from 'svelte';
+import { onMount } from 'svelte';
+import { goto } from '$app/navigation';
 
-  onMount(() => {
-    void goto('/home', { replaceState: true });
-  });
+onMount(() => {
+  void goto('/home', { replaceState: true });
+});
 </script>
 
 <!-- Placeholder while redirect fires — invisible in practice -->

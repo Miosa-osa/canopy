@@ -15,10 +15,10 @@ import { runtimesQuery } from '$lib/api/queries/runtimes.js';
 import Skeleton from '$lib/design/foundation/skeleton/Skeleton.svelte';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import RuntimeCard from '$lib/design/patterns/RuntimeCard.svelte';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
 import type { Runtime } from '$lib/domain/runtimes/types.js';
 import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
-import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
-import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
 
 const queryClient = useQueryClient();
 const query = createQuery<Runtime[]>(runtimesQuery() as CreateQueryOptions<Runtime[]>);
@@ -56,7 +56,14 @@ type Category = 'cli' | 'api' | 'ide';
 
 function categorize(rt: Runtime): Category {
   const t = rt.type.toLowerCase();
-  if (t.endsWith('-api') || t === 'anthropic-api' || t === 'openai-api' || t === 'groq-api' || t === 'mistral-api') return 'api';
+  if (
+    t.endsWith('-api') ||
+    t === 'anthropic-api' ||
+    t === 'openai-api' ||
+    t === 'groq-api' ||
+    t === 'mistral-api'
+  )
+    return 'api';
   if (t === 'cline' || t === 'continue-cli' || t.startsWith('cursor-')) return 'ide';
   return 'cli';
 }
@@ -96,12 +103,15 @@ const grouped = $derived.by(() => {
 
   // Sort: installed first, then alphabetical by name
   for (const [cat, entries] of map) {
-    map.set(cat, entries.sort((a, b) => {
-      const aInst = a.runtime.status === 'installed' ? 0 : 1;
-      const bInst = b.runtime.status === 'installed' ? 0 : 1;
-      if (aInst !== bInst) return aInst - bInst;
-      return a.runtime.name.localeCompare(b.runtime.name);
-    }));
+    map.set(
+      cat,
+      entries.sort((a, b) => {
+        const aInst = a.runtime.status === 'installed' ? 0 : 1;
+        const bInst = b.runtime.status === 'installed' ? 0 : 1;
+        if (aInst !== bInst) return aInst - bInst;
+        return a.runtime.name.localeCompare(b.runtime.name);
+      })
+    );
   }
 
   return map;

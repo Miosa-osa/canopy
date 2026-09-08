@@ -47,7 +47,7 @@ export interface McpServer {
   id: string;
   name: string;
   url: string | null;
-  status: "connected" | "disconnected" | "error";
+  status: 'connected' | 'disconnected' | 'error';
   toolCount: number;
 }
 
@@ -64,7 +64,7 @@ export interface ToolInvocation {
   toolName: string;
   params: Record<string, unknown>;
   result: Record<string, unknown> | null;
-  status: "ok" | "error" | "pending_review";
+  status: 'ok' | 'error' | 'pending_review';
   error: string | null;
   reviewId: string | null;
   insertedAt: string;

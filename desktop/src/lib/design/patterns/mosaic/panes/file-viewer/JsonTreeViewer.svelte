@@ -1,94 +1,94 @@
 <script lang="ts">
-  /**
-   * JsonTreeViewer — collapsible tree for JSON / YAML.
-   * CSS prefix: jtv- (Json Tree Viewer).
-   *
-   * Pure DOM; no external library. YAML support uses a dynamic import of
-   * js-yaml ONLY if it exists in the bundle — gracefully falls back to
-   * showing raw text if the parse fails. (The wiring doc notes js-yaml as
-   * an optional dep; without it, .yaml falls through to the code viewer.)
-   *
-   * Read-only by design. Click a key to collapse / expand its subtree.
-   */
-  import { onMount } from "svelte";
+/**
+ * JsonTreeViewer — collapsible tree for JSON / YAML.
+ * CSS prefix: jtv- (Json Tree Viewer).
+ *
+ * Pure DOM; no external library. YAML support uses a dynamic import of
+ * js-yaml ONLY if it exists in the bundle — gracefully falls back to
+ * showing raw text if the parse fails. (The wiring doc notes js-yaml as
+ * an optional dep; without it, .yaml falls through to the code viewer.)
+ *
+ * Read-only by design. Click a key to collapse / expand its subtree.
+ */
+import { onMount } from 'svelte';
 
-  interface Props {
-    /** Raw JSON or YAML source. */
-    content: string;
-    /** "json" or "yaml" — affects parse path only. */
-    format?: "json" | "yaml";
-  }
+interface Props {
+  /** Raw JSON or YAML source. */
+  content: string;
+  /** "json" or "yaml" — affects parse path only. */
+  format?: 'json' | 'yaml';
+}
 
-  let { content, format = "json" }: Props = $props();
+let { content, format = 'json' }: Props = $props();
 
-  // ── Parse ───────────────────────────────────────────────────────────────────
+// ── Parse ───────────────────────────────────────────────────────────────────
 
-  let parsed = $state<unknown>(undefined);
-  let parseError = $state<string | null>(null);
+let parsed = $state<unknown>(undefined);
+let parseError = $state<string | null>(null);
 
-  $effect(() => {
-    void content;
-    void format;
-    parsed = undefined;
-    parseError = null;
+$effect(() => {
+  void content;
+  void format;
+  parsed = undefined;
+  parseError = null;
 
-    if (format === "json") {
-      try {
-        parsed = JSON.parse(content);
-      } catch (err) {
-        parseError = err instanceof Error ? err.message : "Invalid JSON";
-      }
-      return;
+  if (format === 'json') {
+    try {
+      parsed = JSON.parse(content);
+    } catch (err) {
+      parseError = err instanceof Error ? err.message : 'Invalid JSON';
     }
+    return;
+  }
 
-    // YAML: parse via js-yaml.
-    (async () => {
-      try {
-        const yaml = await import("js-yaml");
-        parsed = yaml.load(content);
-      } catch {
-        parseError = "Failed to parse YAML.";
-      }
-    })();
-  });
-
-  // ── Tree render helpers ─────────────────────────────────────────────────────
-
-  /** A path is a stable string used as a Set key for collapse state. */
-  function describe(value: unknown): {
-    kind: "object" | "array" | "primitive";
-    size: number;
-  } {
-    if (value === null || typeof value !== "object") {
-      return { kind: "primitive", size: 0 };
+  // YAML: parse via js-yaml.
+  (async () => {
+    try {
+      const yaml = await import('js-yaml');
+      parsed = yaml.load(content);
+    } catch {
+      parseError = 'Failed to parse YAML.';
     }
-    if (Array.isArray(value)) return { kind: "array", size: value.length };
-    return { kind: "object", size: Object.keys(value as object).length };
-  }
+  })();
+});
 
-  /** Set of currently-collapsed paths (objects/arrays only). */
-  let collapsed = $state<Set<string>>(new Set());
+// ── Tree render helpers ─────────────────────────────────────────────────────
 
-  function toggle(path: string): void {
-    const next = new Set(collapsed);
-    if (next.has(path)) next.delete(path);
-    else next.add(path);
-    collapsed = next;
+/** A path is a stable string used as a Set key for collapse state. */
+function describe(value: unknown): {
+  kind: 'object' | 'array' | 'primitive';
+  size: number;
+} {
+  if (value === null || typeof value !== 'object') {
+    return { kind: 'primitive', size: 0 };
   }
+  if (Array.isArray(value)) return { kind: 'array', size: value.length };
+  return { kind: 'object', size: Object.keys(value as object).length };
+}
 
-  function primitiveClass(value: unknown): string {
-    if (value === null) return "jtv-null";
-    if (typeof value === "string") return "jtv-string";
-    if (typeof value === "number") return "jtv-number";
-    if (typeof value === "boolean") return "jtv-boolean";
-    return "jtv-other";
-  }
+/** Set of currently-collapsed paths (objects/arrays only). */
+let collapsed = $state<Set<string>>(new Set());
 
-  function primitiveText(value: unknown): string {
-    if (value === null) return "null";
-    if (typeof value === "string") return JSON.stringify(value);
-    return String(value);
-  }
+function toggle(path: string): void {
+  const next = new Set(collapsed);
+  if (next.has(path)) next.delete(path);
+  else next.add(path);
+  collapsed = next;
+}
+
+function primitiveClass(value: unknown): string {
+  if (value === null) return 'jtv-null';
+  if (typeof value === 'string') return 'jtv-string';
+  if (typeof value === 'number') return 'jtv-number';
+  if (typeof value === 'boolean') return 'jtv-boolean';
+  return 'jtv-other';
+}
+
+function primitiveText(value: unknown): string {
+  if (value === null) return 'null';
+  if (typeof value === 'string') return JSON.stringify(value);
+  return String(value);
+}
 </script>
 
 <div class="jtv-root" role="tree" aria-label="JSON tree">

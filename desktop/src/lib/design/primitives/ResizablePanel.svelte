@@ -1,108 +1,109 @@
 <script lang="ts">
-  /**
-   * ResizablePanel — drag-to-resize two-pane layout primitive.
-   * CSS prefix: rp-
-   * Orientation: 'horizontal' (left|right) | 'vertical' (top|bottom).
-   * Uses pointer events — no library deps.
-   * LOC target: ≤ 180.
-   */
+/**
+ * ResizablePanel — drag-to-resize two-pane layout primitive.
+ * CSS prefix: rp-
+ * Orientation: 'horizontal' (left|right) | 'vertical' (top|bottom).
+ * Uses pointer events — no library deps.
+ * LOC target: ≤ 180.
+ */
 
-  import type { Snippet } from 'svelte';
+import type { Snippet } from 'svelte';
 
-  interface Props {
-    orientation?: 'horizontal' | 'vertical';
-    defaultSize?: number;
-    minSize?: number;
-    maxSize?: number;
-    persistKey?: string;
-    left?: Snippet;
-    right?: Snippet;
-    top?: Snippet;
-    bottom?: Snippet;
+interface Props {
+  orientation?: 'horizontal' | 'vertical';
+  defaultSize?: number;
+  minSize?: number;
+  maxSize?: number;
+  persistKey?: string;
+  left?: Snippet;
+  right?: Snippet;
+  top?: Snippet;
+  bottom?: Snippet;
+}
+
+let {
+  orientation = 'horizontal',
+  defaultSize = 280,
+  minSize = 200,
+  maxSize = 600,
+  persistKey,
+  left,
+  right,
+  top,
+  bottom,
+}: Props = $props();
+
+// ── Size state ──────────────────────────────────────────────────────────────
+
+function readPersisted(): number {
+  if (!persistKey || typeof localStorage === 'undefined') return defaultSize;
+  const stored = localStorage.getItem(persistKey);
+  const n = stored !== null ? Number(stored) : NaN;
+  return isNaN(n) ? defaultSize : Math.min(maxSize, Math.max(minSize, n));
+}
+
+let size = $state(readPersisted());
+
+function persistSize(n: number): void {
+  if (persistKey && typeof localStorage !== 'undefined') {
+    localStorage.setItem(persistKey, String(n));
   }
+}
 
-  let {
-    orientation = 'horizontal',
-    defaultSize = 280,
-    minSize = 200,
-    maxSize = 600,
-    persistKey,
-    left,
-    right,
-    top,
-    bottom,
-  }: Props = $props();
+// ── Drag logic ──────────────────────────────────────────────────────────────
 
-  // ── Size state ──────────────────────────────────────────────────────────────
+let dragging = $state(false);
+let dividerEl = $state<HTMLButtonElement | undefined>();
+let containerEl = $state<HTMLDivElement | undefined>();
+let dragStartPos = $state(0);
+let dragStartSize = $state(0);
 
-  function readPersisted(): number {
-    if (!persistKey || typeof localStorage === 'undefined') return defaultSize;
-    const stored = localStorage.getItem(persistKey);
-    const n = stored !== null ? Number(stored) : NaN;
-    return isNaN(n) ? defaultSize : Math.min(maxSize, Math.max(minSize, n));
-  }
+function onPointerDown(e: PointerEvent): void {
+  e.preventDefault();
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  dragging = true;
+  dragStartPos = orientation === 'horizontal' ? e.clientX : e.clientY;
+  dragStartSize = size;
+}
 
-  let size = $state(readPersisted());
-
-  function persistSize(n: number): void {
-    if (persistKey && typeof localStorage !== 'undefined') {
-      localStorage.setItem(persistKey, String(n));
-    }
-  }
-
-  // ── Drag logic ──────────────────────────────────────────────────────────────
-
-  let dragging = $state(false);
-  let dividerEl = $state<HTMLButtonElement | undefined>();
-  let containerEl = $state<HTMLDivElement | undefined>();
-  let dragStartPos = $state(0);
-  let dragStartSize = $state(0);
-
-  function onPointerDown(e: PointerEvent): void {
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragging = true;
-    dragStartPos = orientation === 'horizontal' ? e.clientX : e.clientY;
-    dragStartSize = size;
-  }
-
-  function onPointerMove(e: PointerEvent): void {
-    if (!dragging) return;
-    const delta = orientation === 'horizontal'
-      ? dragStartPos - e.clientX   // right panel shrinks when dragging left
+function onPointerMove(e: PointerEvent): void {
+  if (!dragging) return;
+  const delta =
+    orientation === 'horizontal'
+      ? dragStartPos - e.clientX // right panel shrinks when dragging left
       : dragStartPos - e.clientY;
-    const next = Math.min(maxSize, Math.max(minSize, dragStartSize + delta));
-    size = next;
-  }
+  const next = Math.min(maxSize, Math.max(minSize, dragStartSize + delta));
+  size = next;
+}
 
-  function onPointerUp(): void {
-    if (!dragging) return;
-    dragging = false;
+function onPointerUp(): void {
+  if (!dragging) return;
+  dragging = false;
+  persistSize(size);
+}
+
+// ── Keyboard accessibility ──────────────────────────────────────────────────
+
+function onKeyDown(e: KeyboardEvent): void {
+  const step = 20;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    size = Math.min(maxSize, size + step);
+    persistSize(size);
+  } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    size = Math.max(minSize, size - step);
     persistSize(size);
   }
+}
 
-  // ── Keyboard accessibility ──────────────────────────────────────────────────
+// ── Derived CSS ─────────────────────────────────────────────────────────────
 
-  function onKeyDown(e: KeyboardEvent): void {
-    const step = 20;
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      size = Math.min(maxSize, size + step);
-      persistSize(size);
-    } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      size = Math.max(minSize, size - step);
-      persistSize(size);
-    }
-  }
-
-  // ── Derived CSS ─────────────────────────────────────────────────────────────
-
-  const isHorizontal = $derived(orientation === 'horizontal');
-  const containerStyle = $derived(isHorizontal ? 'flex-direction: row;' : 'flex-direction: column;');
-  const secondStyle = $derived(
-    isHorizontal ? `width: ${size}px; flex-shrink: 0;` : `height: ${size}px; flex-shrink: 0;`
-  );
+const isHorizontal = $derived(orientation === 'horizontal');
+const containerStyle = $derived(isHorizontal ? 'flex-direction: row;' : 'flex-direction: column;');
+const secondStyle = $derived(
+  isHorizontal ? `width: ${size}px; flex-shrink: 0;` : `height: ${size}px; flex-shrink: 0;`
+);
 </script>
 
 <div

@@ -24,8 +24,7 @@ import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import { listRunsForSession, transcriptQuery, type Run } from '$lib/api/queries/runs.js';
-import TypedTranscript from '$lib/design/patterns/runs/TypedTranscript.svelte';
+import { listRunsForSession, type Run, transcriptQuery } from '$lib/api/queries/runs.js';
 import {
   cancelSession,
   cleanupWorktree,
@@ -35,18 +34,19 @@ import {
   sendSessionMessage,
   sessionDetailQuery,
 } from '$lib/api/queries/sessions.js';
-import RichInputToggle from '$lib/design/patterns/mosaic/panes/agent-conversation/RichInputToggle.svelte';
 import Alert from '$lib/design/foundation/alert/Alert.svelte';
 import Skeleton from '$lib/design/foundation/skeleton/Skeleton.svelte';
 import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
 import ChangesPanel from '$lib/design/patterns/diff/ChangesPanel.svelte';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import RichInputToggle from '$lib/design/patterns/mosaic/panes/agent-conversation/RichInputToggle.svelte';
 import PausedOverlay from '$lib/design/patterns/PausedOverlay.svelte';
+import TypedTranscript from '$lib/design/patterns/runs/TypedTranscript.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+import LifecyclePanel from '$lib/design/patterns/sessions/LifecyclePanel.svelte';
+import PortsList from '$lib/design/patterns/sessions/PortsList.svelte';
 import TerminalHarness from '$lib/design/patterns/terminal-harness/TerminalHarness.svelte';
 import WorktreePanel from '$lib/design/patterns/worktree/WorktreePanel.svelte';
-import PortsList from '$lib/design/patterns/sessions/PortsList.svelte';
-import LifecyclePanel from '$lib/design/patterns/sessions/LifecyclePanel.svelte';
 import OpenInEditorButton from '$lib/design/primitives/OpenInEditorButton.svelte';
 import ResizablePanel from '$lib/design/primitives/ResizablePanel.svelte';
 import type {
@@ -114,7 +114,9 @@ const forkMut = createMutation<Session, Error, CreateSessionBody>({
 let cancelError = $state<string | null>(null);
 let pauseResumeError = $state<string | null>(null);
 let promptInput = $state('');
-let sidebarTab = $state<'context' | 'changes' | 'runs' | 'worktree' | 'ports' | 'lifecycle'>('context');
+let sidebarTab = $state<'context' | 'changes' | 'runs' | 'worktree' | 'ports' | 'lifecycle'>(
+  'context'
+);
 
 // ── Rich Input ─────────────────────────────────────────────────────────────────
 // PTY write function — populated when TerminalHarness reports ready.
@@ -126,9 +128,8 @@ let richInputOn = $state(false);
 
 $effect(() => {
   // Read persisted state once sessionId is known (runs on mount + sessionId change).
-  const stored = typeof localStorage !== 'undefined'
-    ? localStorage.getItem(richInputStorageKey)
-    : null;
+  const stored =
+    typeof localStorage !== 'undefined' ? localStorage.getItem(richInputStorageKey) : null;
   richInputOn = stored === 'true';
 });
 
@@ -155,7 +156,9 @@ async function handleSendPrompt(): Promise<void> {
   ptySend(`${content}\n`);
 
   // Fire-and-forget audit log — swallow errors if backend not yet wired.
-  void sendSessionMessage(sessionId, content).catch(() => { /* not yet wired */ });
+  void sendSessionMessage(sessionId, content).catch(() => {
+    /* not yet wired */
+  });
 
   promptInput = '';
   // Reset textarea height after clearing.
@@ -243,7 +246,6 @@ function handleFork(): void {
     parentSessionId: session.id,
   });
 }
-
 
 function copyId(): void {
   void navigator.clipboard.writeText(sessionId);

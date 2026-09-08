@@ -37,10 +37,7 @@ function resolveColumns(items: LayoutItem[], opts?: LayoutOptions): number {
   if (opts?.columns && opts.columns > 0) return opts.columns;
   const gap = resolveGap(opts);
   const container = resolveContainer(opts);
-  const avgWidth =
-    items.length > 0
-      ? items.reduce((s, it) => s + it.width, 0) / items.length
-      : 120;
+  const avgWidth = items.length > 0 ? items.reduce((s, it) => s + it.width, 0) / items.length : 120;
   return Math.max(1, Math.floor((container + gap) / (avgWidth + gap)));
 }
 
@@ -77,10 +74,7 @@ function mulberry32(seed: number): () => number {
  * @param opts  - Gap, column count, and container width overrides.
  * @returns     - A new array of items with x/y coordinates assigned.
  */
-export function gridLayout(
-  items: LayoutItem[],
-  opts?: LayoutOptions,
-): PositionedItem[] {
+export function gridLayout(items: LayoutItem[], opts?: LayoutOptions): PositionedItem[] {
   if (items.length === 0) return [];
 
   const gap = resolveGap(opts);
@@ -124,10 +118,7 @@ export function gridLayout(
  * @param opts  - Gap, column count, and container width overrides.
  * @returns     - A new array of items with x/y coordinates assigned.
  */
-export function bentoLayout(
-  items: LayoutItem[],
-  opts?: LayoutOptions,
-): PositionedItem[] {
+export function bentoLayout(items: LayoutItem[], opts?: LayoutOptions): PositionedItem[] {
   if (items.length === 0) return [];
 
   const gap = resolveGap(opts);
@@ -183,7 +174,7 @@ export function bentoLayout(
  */
 export function scatterLayout(
   items: LayoutItem[],
-  opts?: LayoutOptions & { seed?: number },
+  opts?: LayoutOptions & { seed?: number }
 ): PositionedItem[] {
   if (items.length === 0) return [];
 
@@ -193,10 +184,7 @@ export function scatterLayout(
   const rand = mulberry32(seed);
 
   // Estimate a reasonable canvas height for initial random placement.
-  const totalArea = items.reduce(
-    (s, it) => s + (it.width + gap) * (it.height + gap),
-    0,
-  );
+  const totalArea = items.reduce((s, it) => s + (it.width + gap) * (it.height + gap), 0);
   const canvasH = Math.max(600, Math.ceil(totalArea / container) * 2);
 
   const placed: PositionedItem[] = [];

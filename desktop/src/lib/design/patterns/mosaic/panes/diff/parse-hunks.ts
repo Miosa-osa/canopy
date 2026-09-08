@@ -8,18 +8,18 @@
  * can reverse-apply it via `git apply --reverse`.
  */
 
-import type { DiffHunk, DiffLine } from "$lib/domain/diff/types.js";
+import type { DiffHunk, DiffLine } from '$lib/domain/diff/types.js';
 
 /** Returns true if this DiffLine should appear in the rebuilt hunk body. */
 function isBodyLine(line: DiffLine): boolean {
-  return line.type !== "hunk_header";
+  return line.type !== 'hunk_header';
 }
 
 /** Single-character prefix used in unified-diff hunk bodies. */
 function prefixFor(line: DiffLine): string {
-  if (line.type === "add") return "+";
-  if (line.type === "del") return "-";
-  return " ";
+  if (line.type === 'add') return '+';
+  if (line.type === 'del') return '-';
+  return ' ';
 }
 
 /**
@@ -33,7 +33,7 @@ export function buildHunkContent(hunk: DiffHunk): string {
   return hunk.lines
     .filter(isBodyLine)
     .map((l) => `${prefixFor(l)}${l.content}`)
-    .join("\n");
+    .join('\n');
 }
 
 /**
@@ -41,5 +41,5 @@ export function buildHunkContent(hunk: DiffHunk): string {
  * action toolbar for the "N changes" label.
  */
 export function changedLineCount(hunk: DiffHunk): number {
-  return hunk.lines.filter((l) => l.type === "add" || l.type === "del").length;
+  return hunk.lines.filter((l) => l.type === 'add' || l.type === 'del').length;
 }

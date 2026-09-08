@@ -1,86 +1,83 @@
 <script lang="ts">
-  /**
-   * EmbeddedRuntime — wraps an existing runtime session inside an
-   * AgentConversationPane. Renders the runtime's live terminal output
-   * and exposes a header strip with status + "End runtime" affordance.
-   *
-   * REUSE — does NOT reimplement xterm. Renders <TerminalSession>
-   * (the same primitive RuntimeTerminalPane uses) under the hood.
-   *
-   * The pane owns the lifecycle config; this component is purely
-   * presentational + emits events upward.
-   *
-   * CSS prefix: emr-
-   */
-  import { type CreateQueryOptions, createQuery, createMutation } from '@tanstack/svelte-query';
-  import { Square } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import {
-    sessionDetailQuery,
-    cancelSessionMutation,
-  } from '$lib/api/queries/sessions.js';
-  import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
-  import type { SessionDetail } from '$lib/domain/sessions/types.js';
+/**
+ * EmbeddedRuntime — wraps an existing runtime session inside an
+ * AgentConversationPane. Renders the runtime's live terminal output
+ * and exposes a header strip with status + "End runtime" affordance.
+ *
+ * REUSE — does NOT reimplement xterm. Renders <TerminalSession>
+ * (the same primitive RuntimeTerminalPane uses) under the hood.
+ *
+ * The pane owns the lifecycle config; this component is purely
+ * presentational + emits events upward.
+ *
+ * CSS prefix: emr-
+ */
+import { type CreateQueryOptions, createMutation, createQuery } from '@tanstack/svelte-query';
+import { Square } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { cancelSessionMutation, sessionDetailQuery } from '$lib/api/queries/sessions.js';
+import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
+import type { SessionDetail } from '$lib/domain/sessions/types.js';
 
-  interface Props {
-    /** Runtime type label (e.g. "claude-local"). */
-    runtimeType: string;
-    /** The session id this runtime is bound to. */
-    sessionId: string;
-    /** Bubble up the sendInput function so the composer can pipe keystrokes. */
-    onSendInputReady?: (sendInput: (data: string) => void) => void;
-    /** Fires when the user clicks "End runtime". Parent unsets
-     *  pane.config.embeddedRuntime. */
-    onEnd?: () => void;
-  }
+interface Props {
+  /** Runtime type label (e.g. "claude-local"). */
+  runtimeType: string;
+  /** The session id this runtime is bound to. */
+  sessionId: string;
+  /** Bubble up the sendInput function so the composer can pipe keystrokes. */
+  onSendInputReady?: (sendInput: (data: string) => void) => void;
+  /** Fires when the user clicks "End runtime". Parent unsets
+   *  pane.config.embeddedRuntime. */
+  onEnd?: () => void;
+}
 
-  let { runtimeType, sessionId, onSendInputReady, onEnd }: Props = $props();
+let { runtimeType, sessionId, onSendInputReady, onEnd }: Props = $props();
 
-  // ── Status query (reuses sessionDetailQuery — no new fetcher) ──────────────
-  const optsStore = writable(
-    untrack(() => sessionDetailQuery(sessionId) as CreateQueryOptions<SessionDetail>),
-  );
-  $effect(() => {
-    optsStore.set(sessionDetailQuery(sessionId) as CreateQueryOptions<SessionDetail>);
-  });
-  const detailQ = createQuery<SessionDetail>(optsStore);
+// ── Status query (reuses sessionDetailQuery — no new fetcher) ──────────────
+const optsStore = writable(
+  untrack(() => sessionDetailQuery(sessionId) as CreateQueryOptions<SessionDetail>)
+);
+$effect(() => {
+  optsStore.set(sessionDetailQuery(sessionId) as CreateQueryOptions<SessionDetail>);
+});
+const detailQ = createQuery<SessionDetail>(optsStore);
 
-  const status = $derived<string>(($detailQ.data?.status as string) ?? 'starting');
+const status = $derived<string>($detailQ.data?.session.status ?? 'starting');
 
-  // Map raw status → semantic dot class.
-  const statusTone = $derived<'running' | 'paused' | 'completed' | 'failed' | 'starting'>(
-    status === 'running' || status === 'active'
-      ? 'running'
-      : status === 'paused'
+// Map raw status → semantic dot class.
+const statusTone = $derived<'running' | 'paused' | 'completed' | 'failed' | 'starting'>(
+  status === 'running' || status === 'active'
+    ? 'running'
+    : status === 'paused'
       ? 'paused'
       : status === 'failed' || status === 'cancelled'
-      ? 'failed'
-      : status === 'completed' || status === 'ended'
-      ? 'completed'
-      : 'starting',
-  );
+        ? 'failed'
+        : status === 'completed' || status === 'ended'
+          ? 'completed'
+          : 'starting'
+);
 
-  // ── End runtime mutation (reuses cancelSessionMutation) ────────────────────
-  const cancel = createMutation(cancelSessionMutation());
+// ── End runtime mutation (reuses cancelSessionMutation) ────────────────────
+const cancel = createMutation(cancelSessionMutation());
 
-  function handleEnd(): void {
-    if (!sessionId) return;
-    $cancel.mutate(sessionId, {
-      onSettled: () => onEnd?.(),
-    });
-  }
+function handleEnd(): void {
+  if (!sessionId) return;
+  $cancel.mutate(sessionId, {
+    onSettled: () => onEnd?.(),
+  });
+}
 
-  // ── Pretty label per runtime type ──────────────────────────────────────────
-  const runtimeLabel = $derived<string>(
-    runtimeType === 'claude-local'
-      ? 'Claude Code'
-      : runtimeType === 'codex-local'
+// ── Pretty label per runtime type ──────────────────────────────────────────
+const runtimeLabel = $derived<string>(
+  runtimeType === 'claude-local'
+    ? 'Claude Code'
+    : runtimeType === 'codex-local'
       ? 'Codex'
       : runtimeType === 'gemini-local'
-      ? 'Gemini'
-      : runtimeType,
-  );
+        ? 'Gemini'
+        : runtimeType
+);
 </script>
 
 <div class="emr-root" data-runtime={runtimeType}>

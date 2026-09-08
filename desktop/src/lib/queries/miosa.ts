@@ -10,28 +10,26 @@
  * banner and disable the form.
  */
 
-import { apiGet, apiPut, ApiError } from "$lib/api/client.js";
+import { ApiError, apiGet, apiPut } from '$lib/api/client.js';
 import type {
   MiosaHealthResponse,
-  MiosaSettingsResponse,
   MiosaSavePayload,
   MiosaSaveResponse,
-} from "$lib/types/miosa.js";
+  MiosaSettingsResponse,
+} from '$lib/types/miosa.js';
 
 // ── Raw API calls ─────────────────────────────────────────────────────────────
 
 export function fetchMiosaHealth(): Promise<MiosaHealthResponse> {
-  return apiGet<MiosaHealthResponse>("/miosa/health");
+  return apiGet<MiosaHealthResponse>('/miosa/health');
 }
 
 export function fetchMiosaSettings(): Promise<MiosaSettingsResponse> {
-  return apiGet<MiosaSettingsResponse>("/miosa");
+  return apiGet<MiosaSettingsResponse>('/miosa');
 }
 
-export function saveMiosaSettings(
-  payload: MiosaSavePayload,
-): Promise<MiosaSaveResponse> {
-  return apiPut<MiosaSaveResponse>("/settings/miosa", payload);
+export function saveMiosaSettings(payload: MiosaSavePayload): Promise<MiosaSaveResponse> {
+  return apiPut<MiosaSaveResponse>('/settings/miosa', payload);
 }
 
 // ── Probe: is the MIOSA module available? ─────────────────────────────────────
@@ -56,7 +54,7 @@ export async function probeMiosaModule(): Promise<boolean> {
 /** Query options: MIOSA health status. staleTime 30s — frequently polled. */
 export function miosaHealthQuery() {
   return {
-    queryKey: ["miosa", "health"] as const,
+    queryKey: ['miosa', 'health'] as const,
     queryFn: fetchMiosaHealth,
     staleTime: 30_000,
     retry: 1,
@@ -66,7 +64,7 @@ export function miosaHealthQuery() {
 /** Query options: MIOSA settings. staleTime 5min — rarely changes. */
 export function miosaSettingsQuery() {
   return {
-    queryKey: ["miosa", "settings"] as const,
+    queryKey: ['miosa', 'settings'] as const,
     queryFn: fetchMiosaSettings,
     staleTime: 5 * 60_000,
     retry: 1,
@@ -80,13 +78,13 @@ export function miosaSettingsQuery() {
  */
 export function saveMiosaSettingsMutation() {
   return {
-    mutationKey: ["miosa", "save"] as const,
+    mutationKey: ['miosa', 'save'] as const,
     mutationFn: (payload: MiosaSavePayload) => saveMiosaSettings(payload),
   };
 }
 
 /** Query keys exported for manual invalidation in the page component. */
 export const MIOSA_QUERY_KEYS = {
-  health: ["miosa", "health"] as const,
-  settings: ["miosa", "settings"] as const,
+  health: ['miosa', 'health'] as const,
+  settings: ['miosa', 'settings'] as const,
 };

@@ -6,11 +6,11 @@
  * PUT /api/v1/settings/miosa → MiosaSaveResponse
  */
 
-export type MiosaStatus = "ok" | "unreachable" | "unconfigured";
+export type MiosaStatus = 'ok' | 'unreachable' | 'unconfigured';
 
-export type MiosaTier = "free" | "pro" | "growth" | "business";
+export type MiosaTier = 'free' | 'pro' | 'growth' | 'business';
 
-export type MiosaRegion = "us-east" | "us-west" | "eu-central" | null;
+export type MiosaRegion = 'us-east' | 'us-west' | 'eu-central' | null;
 
 export interface MiosaHealthResponse {
   status: MiosaStatus;

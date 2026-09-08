@@ -14,8 +14,16 @@ import {
   useQueryClient,
 } from '@tanstack/svelte-query';
 import { goto } from '$app/navigation';
-import { createWorkspaceMutation, startInitJob, workspaceTemplatesQuery } from '$lib/api/queries/workspaces.js';
-import type { CreateWorkspaceBody, Workspace, WorkspaceTemplate } from '$lib/domain/workspaces/types.js';
+import {
+  createWorkspaceMutation,
+  startInitJob,
+  workspaceTemplatesQuery,
+} from '$lib/api/queries/workspaces.js';
+import type {
+  CreateWorkspaceBody,
+  Workspace,
+  WorkspaceTemplate,
+} from '$lib/domain/workspaces/types.js';
 
 interface Props {
   open: boolean;

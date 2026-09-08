@@ -11,7 +11,7 @@ export interface RegistryCommand {
   id: string;
   label: string;
   /** Section label shown in palette */
-  section: "Navigate" | "Actions" | "Recent" | "Runtimes" | string;
+  section: 'Navigate' | 'Actions' | 'Recent' | 'Runtimes' | string;
   shortcut?: string;
   action: () => void;
 }
@@ -31,17 +31,11 @@ class CommandRegistry {
   }
 
   /** Replace all commands with a given section (idempotent bulk registration). */
-  registerSection(
-    section: string,
-    cmds: Omit<RegistryCommand, "section">[],
-  ): () => void {
+  registerSection(section: string, cmds: Omit<RegistryCommand, 'section'>[]): () => void {
     const tagged = cmds.map((c) => ({ ...c, section }));
     const ids = tagged.map((c) => c.id);
     // Remove any existing commands for these ids
-    this.commands = [
-      ...this.commands.filter((c) => !ids.includes(c.id)),
-      ...tagged,
-    ];
+    this.commands = [...this.commands.filter((c) => !ids.includes(c.id)), ...tagged];
     return () => {
       this.commands = this.commands.filter((c) => !ids.includes(c.id));
     };

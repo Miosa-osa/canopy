@@ -1,91 +1,83 @@
 <script lang="ts">
-  /**
-   * Settings › Analytics — alert configuration + Iris agent settings.
-   * Reads /api/v1/analytics/alerts. Posts to create new alerts.
-   */
-  import {
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { Bell, Plus } from "lucide-svelte";
-  import { alertsQuery, createAlert } from "$lib/api/queries/analytics.js";
-  import type {
-    AlertCreate,
-    AlertType,
-    InsightSeverity,
-  } from "$lib/domain/analytics/types.js";
+/**
+ * Settings › Analytics — alert configuration + Iris agent settings.
+ * Reads /api/v1/analytics/alerts. Posts to create new alerts.
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Bell, Plus } from 'lucide-svelte';
+import { alertsQuery, createAlert } from '$lib/api/queries/analytics.js';
+import type { AlertCreate, AlertType, InsightSeverity } from '$lib/domain/analytics/types.js';
 
-  const qc = useQueryClient();
-  const alertsResult = createQuery(alertsQuery());
+const qc = useQueryClient();
+const alertsResult = createQuery(alertsQuery());
 
-  // ── Form state ─────────────────────────────────────────────────────────────
+// ── Form state ─────────────────────────────────────────────────────────────
 
-  let creating = $state(false);
-  let formSlug = $state("");
-  let formName = $state("");
-  let formMetric = $state("cost_cents");
-  let formType = $state<AlertType>("anomaly");
-  let formSeverity = $state<InsightSeverity>("medium");
-  let formSensitivity = $state(0.8);
-  let formDescription = $state("");
-  let formError = $state<string | null>(null);
+let creating = $state(false);
+let formSlug = $state('');
+let formName = $state('');
+let formMetric = $state('cost_cents');
+let formType = $state<AlertType>('anomaly');
+let formSeverity = $state<InsightSeverity>('medium');
+let formSensitivity = $state(0.8);
+let formDescription = $state('');
+let formError = $state<string | null>(null);
 
-  function resetForm() {
-    formSlug = "";
-    formName = "";
-    formMetric = "cost_cents";
-    formType = "anomaly";
-    formSeverity = "medium";
-    formSensitivity = 0.8;
-    formDescription = "";
-    formError = null;
+function resetForm() {
+  formSlug = '';
+  formName = '';
+  formMetric = 'cost_cents';
+  formType = 'anomaly';
+  formSeverity = 'medium';
+  formSensitivity = 0.8;
+  formDescription = '';
+  formError = null;
+}
+
+const createMut = createMutation({
+  mutationFn: (body: AlertCreate) => createAlert(body),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['analytics', 'alerts'] });
+    creating = false;
+    resetForm();
+  },
+  onError: (err: Error) => {
+    formError = err.message;
+  },
+});
+
+function submitCreate(e: Event) {
+  e.preventDefault();
+  formError = null;
+  if (!formSlug.trim() || !formName.trim()) {
+    formError = 'Slug and name are required.';
+    return;
   }
-
-  const createMut = createMutation({
-    mutationFn: (body: AlertCreate) => createAlert(body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["analytics", "alerts"] });
-      creating = false;
-      resetForm();
-    },
-    onError: (err: Error) => {
-      formError = err.message;
+  $createMut.mutate({
+    slug: formSlug.trim(),
+    name: formName.trim(),
+    metric: formMetric,
+    type: formType,
+    severity: formSeverity,
+    sensitivity: formSensitivity,
+    description: formDescription.trim() || undefined,
+    enabled: true,
+    config:
+      formType === 'anomaly'
+        ? { lookback_hours: 168, season: 'weekly' }
+        : { value: 0, direction: 'above', window_seconds: 300 },
+    routing: {
+      channels: ['#analytics-alerts'],
+      cooldown_seconds: 600,
     },
   });
+}
 
-  function submitCreate(e: Event) {
-    e.preventDefault();
-    formError = null;
-    if (!formSlug.trim() || !formName.trim()) {
-      formError = "Slug and name are required.";
-      return;
-    }
-    $createMut.mutate({
-      slug: formSlug.trim(),
-      name: formName.trim(),
-      metric: formMetric,
-      type: formType,
-      severity: formSeverity,
-      sensitivity: formSensitivity,
-      description: formDescription.trim() || undefined,
-      enabled: true,
-      config:
-        formType === "anomaly"
-          ? { lookback_hours: 168, season: "weekly" }
-          : { value: 0, direction: "above", window_seconds: 300 },
-      routing: {
-        channels: ["#analytics-alerts"],
-        cooldown_seconds: 600,
-      },
-    });
-  }
+const alerts = $derived($alertsResult.data ?? []);
 
-  const alerts = $derived($alertsResult.data ?? []);
-
-  function fmtFireCount(n: number): string {
-    return n === 0 ? "never" : `${n}×`;
-  }
+function fmtFireCount(n: number): string {
+  return n === 0 ? 'never' : `${n}×`;
+}
 </script>
 
 <div class="sa-page">

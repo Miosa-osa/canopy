@@ -1,207 +1,193 @@
 <script lang="ts">
-  /**
-   * FileViewerPane — universal read-only file viewer for the Mosaic.
-   * CSS prefix: fvp- (File Viewer Pane).
-   *
-   * Dispatches on the detected viewer type (see ./file-viewer/detect-type.ts):
-   *   markdown / code / json / yaml / csv / tsv / image / video / audio /
-   *   pdf / docx / xlsx / log / text / hex / too-large / unsupported.
-   *
-   * Addresses files via either { fileId } or { workspaceSlug, path }. Resolves
-   * metadata via the existing fileQuery() (files.ts) and content via either
-   * the /files/:id/content URL OR workspaceFileQuery() (workspaces.ts).
-   * NO new fetch logic; consolidates the reads behind one pane interface.
-   *
-   * Read-only by design. Editing belongs to a CodeEditorPane (separate dispatch).
-   */
-  import {
-    type CreateQueryOptions,
-    createQuery,
-  } from "@tanstack/svelte-query";
-  import { onDestroy, untrack } from "svelte";
-  import { writable } from "svelte/store";
+/**
+ * FileViewerPane — universal read-only file viewer for the Mosaic.
+ * CSS prefix: fvp- (File Viewer Pane).
+ *
+ * Dispatches on the detected viewer type (see ./file-viewer/detect-type.ts):
+ *   markdown / code / json / yaml / csv / tsv / image / video / audio /
+ *   pdf / docx / xlsx / log / text / hex / too-large / unsupported.
+ *
+ * Addresses files via either { fileId } or { workspaceSlug, path }. Resolves
+ * metadata via the existing fileQuery() (files.ts) and content via either
+ * the /files/:id/content URL OR workspaceFileQuery() (workspaces.ts).
+ * NO new fetch logic; consolidates the reads behind one pane interface.
+ *
+ * Read-only by design. Editing belongs to a CodeEditorPane (separate dispatch).
+ */
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { onDestroy, untrack } from 'svelte';
+import { writable } from 'svelte/store';
 
-  import {
-    fetchFileBytes,
-    fetchFileText,
-    fileContentUrl,
-    fileMetadataQuery,
-    isResolvable,
-    workspaceFileContentsQuery,
-  } from "$lib/api/queries/file-viewer.js";
-  import {
-    HEX_PREVIEW_BYTES,
-    type FileViewerPaneConfig,
-  } from "$lib/domain/file-viewer/types.js";
-  import type { FileRecord } from "$lib/domain/files/types.js";
-  import type { FileReadResponse } from "$lib/domain/workspaces/types.js";
-  import { detectType } from "./file-viewer/detect-type.js";
+import {
+  fetchFileBytes,
+  fetchFileText,
+  fileContentUrl,
+  fileMetadataQuery,
+  isResolvable,
+  workspaceFileContentsQuery,
+} from '$lib/api/queries/file-viewer.js';
+import { type FileViewerPaneConfig, HEX_PREVIEW_BYTES } from '$lib/domain/file-viewer/types.js';
+import type { FileRecord } from '$lib/domain/files/types.js';
+import type { FileReadResponse } from '$lib/domain/workspaces/types.js';
+import CodeViewer from './file-viewer/CodeViewer.svelte';
+import CsvTableViewer from './file-viewer/CsvTableViewer.svelte';
+import DocxViewer from './file-viewer/DocxViewer.svelte';
+import { detectType } from './file-viewer/detect-type.js';
+import HexPreview from './file-viewer/HexPreview.svelte';
+import ImageViewer from './file-viewer/ImageViewer.svelte';
+import JsonTreeViewer from './file-viewer/JsonTreeViewer.svelte';
+import LogViewer from './file-viewer/LogViewer.svelte';
+import MarkdownViewer from './file-viewer/MarkdownViewer.svelte';
+import MediaViewer from './file-viewer/MediaViewer.svelte';
+import PdfViewer from './file-viewer/PdfViewer.svelte';
+import XlsxViewer from './file-viewer/XlsxViewer.svelte';
 
-  import MarkdownViewer from "./file-viewer/MarkdownViewer.svelte";
-  import CodeViewer from "./file-viewer/CodeViewer.svelte";
-  import JsonTreeViewer from "./file-viewer/JsonTreeViewer.svelte";
-  import CsvTableViewer from "./file-viewer/CsvTableViewer.svelte";
-  import ImageViewer from "./file-viewer/ImageViewer.svelte";
-  import MediaViewer from "./file-viewer/MediaViewer.svelte";
-  import LogViewer from "./file-viewer/LogViewer.svelte";
-  import HexPreview from "./file-viewer/HexPreview.svelte";
-  import PdfViewer from "./file-viewer/PdfViewer.svelte";
-  import DocxViewer from "./file-viewer/DocxViewer.svelte";
-  import XlsxViewer from "./file-viewer/XlsxViewer.svelte";
+// ── Props ───────────────────────────────────────────────────────────────────
 
-  // ── Props ───────────────────────────────────────────────────────────────────
+interface Props {
+  config: FileViewerPaneConfig;
+}
 
-  interface Props {
-    config: FileViewerPaneConfig;
-  }
+let { config }: Props = $props();
 
-  let { config }: Props = $props();
+// ── Resolve metadata when addressing by fileId ──────────────────────────────
 
-  // ── Resolve metadata when addressing by fileId ──────────────────────────────
+const metaOptsStore = writable(
+  untrack(() => fileMetadataQuery(config.fileId ?? '') as CreateQueryOptions<FileRecord>)
+);
+$effect(() => {
+  metaOptsStore.set(fileMetadataQuery(config.fileId ?? '') as CreateQueryOptions<FileRecord>);
+});
+const metaQ = createQuery<FileRecord>(metaOptsStore);
+const fileRecord = $derived($metaQ.data ?? null);
 
-  const metaOptsStore = writable(
-    untrack(
-      () =>
-        fileMetadataQuery(config.fileId ?? "") as CreateQueryOptions<FileRecord>,
-    ),
-  );
-  $effect(() => {
-    metaOptsStore.set(
-      fileMetadataQuery(config.fileId ?? "") as CreateQueryOptions<FileRecord>,
-    );
-  });
-  const metaQ = createQuery<FileRecord>(metaOptsStore);
-  const fileRecord = $derived($metaQ.data ?? null);
+// ── Resolve text contents when addressing by workspace + path ───────────────
 
-  // ── Resolve text contents when addressing by workspace + path ───────────────
-
-  const wsOptsStore = writable(
-    untrack(
-      () =>
-        workspaceFileContentsQuery(
-          config.workspaceSlug ?? "",
-          config.path ?? "",
-        ) as CreateQueryOptions<FileReadResponse>,
-    ),
-  );
-  $effect(() => {
-    wsOptsStore.set(
+const wsOptsStore = writable(
+  untrack(
+    () =>
       workspaceFileContentsQuery(
-        config.workspaceSlug ?? "",
-        config.path ?? "",
-      ) as CreateQueryOptions<FileReadResponse>,
-    );
-  });
-  const wsQ = createQuery<FileReadResponse>(wsOptsStore);
-  const wsResponse = $derived($wsQ.data ?? null);
-
-  // ── Detected viewer type ────────────────────────────────────────────────────
-
-  /** Display name (filename or last segment of path). */
-  const displayName = $derived(
-    fileRecord?.name ?? config.path?.split("/").filter(Boolean).pop() ?? "",
+        config.workspaceSlug ?? '',
+        config.path ?? ''
+      ) as CreateQueryOptions<FileReadResponse>
+  )
+);
+$effect(() => {
+  wsOptsStore.set(
+    workspaceFileContentsQuery(
+      config.workspaceSlug ?? '',
+      config.path ?? ''
+    ) as CreateQueryOptions<FileReadResponse>
   );
-  const displayMime = $derived(fileRecord?.mimeType ?? null);
-  const displaySize = $derived(fileRecord?.sizeBytes ?? wsResponse?.size ?? 0);
+});
+const wsQ = createQuery<FileReadResponse>(wsOptsStore);
+const wsResponse = $derived($wsQ.data ?? null);
 
-  const detected = $derived(detectType(displayName, displayMime, displaySize));
+// ── Detected viewer type ────────────────────────────────────────────────────
 
-  // ── Lazy text fetch when needed (markdown / code / json / yaml / csv / log) ─
+/** Display name (filename or last segment of path). */
+const displayName = $derived(
+  fileRecord?.name ?? config.path?.split('/').filter(Boolean).pop() ?? ''
+);
+const displayMime = $derived(fileRecord?.mimeType ?? null);
+const displaySize = $derived(fileRecord?.sizeBytes ?? wsResponse?.size ?? 0);
 
-  /** Cached text content. Cleared on config change. */
-  let fetchedText = $state<string | null>(null);
-  let textErr = $state<string | null>(null);
-  let abort: AbortController | null = null;
+const detected = $derived(detectType(displayName, displayMime, displaySize));
 
-  $effect(() => {
-    // Re-fetch whenever the addressing changes.
-    void config.fileId;
-    void config.path;
-    void config.workspaceSlug;
-    void detected.viewer;
+// ── Lazy text fetch when needed (markdown / code / json / yaml / csv / log) ─
 
-    fetchedText = null;
-    textErr = null;
-    abort?.abort();
-    abort = null;
+/** Cached text content. Cleared on config change. */
+let fetchedText = $state<string | null>(null);
+let textErr = $state<string | null>(null);
+let abort: AbortController | null = null;
 
-    const v = detected.viewer;
-    const needsText =
-      v === "markdown" ||
-      v === "code" ||
-      v === "json" ||
-      v === "yaml" ||
-      v === "csv" ||
-      v === "tsv" ||
-      v === "log" ||
-      v === "text";
-    if (!needsText) return;
+$effect(() => {
+  // Re-fetch whenever the addressing changes.
+  void config.fileId;
+  void config.path;
+  void config.workspaceSlug;
+  void detected.viewer;
 
-    // Path-based: use the workspace query response.
-    if (wsResponse) {
-      fetchedText = wsResponse.contents;
-      return;
-    }
+  fetchedText = null;
+  textErr = null;
+  abort?.abort();
+  abort = null;
 
-    // FileId-based: do a one-shot fetch.
-    if (config.fileId) {
-      abort = new AbortController();
-      const ac = abort;
-      fetchFileText(config.fileId, ac.signal)
-        .then((t) => {
-          if (!ac.signal.aborted) fetchedText = t;
-        })
-        .catch((err: Error) => {
-          if (!ac.signal.aborted) textErr = err.message;
-        });
-    }
-  });
+  const v = detected.viewer;
+  const needsText =
+    v === 'markdown' ||
+    v === 'code' ||
+    v === 'json' ||
+    v === 'yaml' ||
+    v === 'csv' ||
+    v === 'tsv' ||
+    v === 'log' ||
+    v === 'text';
+  if (!needsText) return;
 
-  // ── Lazy bytes fetch for HexPreview ─────────────────────────────────────────
-
-  let hexBytes = $state<Uint8Array | null>(null);
-  let hexAbort: AbortController | null = null;
-
-  $effect(() => {
-    void config.fileId;
-    void detected.viewer;
-    hexBytes = null;
-    hexAbort?.abort();
-    hexAbort = null;
-    if (detected.viewer !== "hex" || !config.fileId) return;
-    hexAbort = new AbortController();
-    const ac = hexAbort;
-    fetchFileBytes(config.fileId, HEX_PREVIEW_BYTES, ac.signal)
-      .then((b) => {
-        if (!ac.signal.aborted) hexBytes = b;
-      })
-      .catch(() => {
-        // Swallow — hex viewer will show "Loading…" in this rare path.
-      });
-  });
-
-  // ── Blob URL for image / video / audio when needed ──────────────────────────
-
-  /** Direct URL for media — uses the /files/:id/content endpoint when fileId
-   * is set; otherwise no media playback (path-based playback would need a
-   * separate workspace media endpoint, which is out of scope here). */
-  const mediaUrl = $derived(
-    config.fileId ? fileContentUrl(config.fileId) : null,
-  );
-
-  onDestroy(() => {
-    abort?.abort();
-    hexAbort?.abort();
-  });
-
-  // ── Render guards ───────────────────────────────────────────────────────────
-
-  const resolvable = $derived(isResolvable(config));
-
-  /** Whether we need a FileRecord for the chosen viewer (the three Phase 5 wrappers). */
-  function needsFileRecord(viewer: string): boolean {
-    return viewer === "pdf" || viewer === "docx" || viewer === "xlsx";
+  // Path-based: use the workspace query response.
+  if (wsResponse) {
+    fetchedText = wsResponse.contents;
+    return;
   }
+
+  // FileId-based: do a one-shot fetch.
+  if (config.fileId) {
+    abort = new AbortController();
+    const ac = abort;
+    fetchFileText(config.fileId, ac.signal)
+      .then((t) => {
+        if (!ac.signal.aborted) fetchedText = t;
+      })
+      .catch((err: Error) => {
+        if (!ac.signal.aborted) textErr = err.message;
+      });
+  }
+});
+
+// ── Lazy bytes fetch for HexPreview ─────────────────────────────────────────
+
+let hexBytes = $state<Uint8Array | null>(null);
+let hexAbort: AbortController | null = null;
+
+$effect(() => {
+  void config.fileId;
+  void detected.viewer;
+  hexBytes = null;
+  hexAbort?.abort();
+  hexAbort = null;
+  if (detected.viewer !== 'hex' || !config.fileId) return;
+  hexAbort = new AbortController();
+  const ac = hexAbort;
+  fetchFileBytes(config.fileId, HEX_PREVIEW_BYTES, ac.signal)
+    .then((b) => {
+      if (!ac.signal.aborted) hexBytes = b;
+    })
+    .catch(() => {
+      // Swallow — hex viewer will show "Loading…" in this rare path.
+    });
+});
+
+// ── Blob URL for image / video / audio when needed ──────────────────────────
+
+/** Direct URL for media — uses the /files/:id/content endpoint when fileId
+ * is set; otherwise no media playback (path-based playback would need a
+ * separate workspace media endpoint, which is out of scope here). */
+const mediaUrl = $derived(config.fileId ? fileContentUrl(config.fileId) : null);
+
+onDestroy(() => {
+  abort?.abort();
+  hexAbort?.abort();
+});
+
+// ── Render guards ───────────────────────────────────────────────────────────
+
+const resolvable = $derived(isResolvable(config));
+
+/** Whether we need a FileRecord for the chosen viewer (the three Phase 5 wrappers). */
+function needsFileRecord(viewer: string): boolean {
+  return viewer === 'pdf' || viewer === 'docx' || viewer === 'xlsx';
+}
 </script>
 
 <div class="fvp-root">

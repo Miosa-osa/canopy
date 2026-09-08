@@ -6,22 +6,11 @@
 
 // ── Review ────────────────────────────────────────────────────────────────────
 
-export type ReviewKind = "artifact" | "tool_call" | "hire_agent";
+export type ReviewKind = 'artifact' | 'tool_call' | 'hire_agent';
 
-export type ArtifactType =
-  | "doc"
-  | "task"
-  | "issue"
-  | "pr"
-  | "file"
-  | "kb_chunk";
+export type ArtifactType = 'doc' | 'task' | 'issue' | 'pr' | 'file' | 'kb_chunk';
 
-export type ReviewStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "changes_requested"
-  | "expired";
+export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'changes_requested' | 'expired';
 
 /** A human-review request — either for an artifact or a tool-call gate. */
 export interface Review {
@@ -81,7 +70,7 @@ export interface ReviewSummary {
 // ── Mutation bodies ───────────────────────────────────────────────────────────
 
 export interface CreateArtifactReviewBody {
-  kind: "artifact";
+  kind: 'artifact';
   workspaceSlug?: string;
   artifactType?: ArtifactType;
   artifactId?: string;
@@ -90,7 +79,7 @@ export interface CreateArtifactReviewBody {
 }
 
 export interface CreateToolCallReviewBody {
-  kind: "tool_call";
+  kind: 'tool_call';
   workspaceSlug?: string;
   toolName: string;
   toolArgs?: Record<string, unknown>;
@@ -98,9 +87,7 @@ export interface CreateToolCallReviewBody {
   agentId?: string;
 }
 
-export type CreateReviewBody =
-  | CreateArtifactReviewBody
-  | CreateToolCallReviewBody;
+export type CreateReviewBody = CreateArtifactReviewBody | CreateToolCallReviewBody;
 
 export interface ApproveReviewBody {
   reviewerId?: string;

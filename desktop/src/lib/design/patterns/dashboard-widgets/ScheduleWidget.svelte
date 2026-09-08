@@ -1,50 +1,56 @@
 <script lang="ts">
-  /**
-   * ScheduleWidget — next 5 scheduled items from /schedule.
-   * Expects 404 gracefully — fallback to "No items scheduled".
-   * CSS prefix: schw- (ScheduleWidget)
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import { apiGet } from '$lib/api/client.js';
-  import type { CreateQueryOptions } from '@tanstack/svelte-query';
+/**
+ * ScheduleWidget — next 5 scheduled items from /schedule.
+ * Expects 404 gracefully — fallback to "No items scheduled".
+ * CSS prefix: schw- (ScheduleWidget)
+ */
 
-  interface ScheduleItem {
-    id: string;
-    title: string;
-    scheduledAt: string;
-    kind?: string;
+import type { CreateQueryOptions } from '@tanstack/svelte-query';
+import { createQuery } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { apiGet } from '$lib/api/client.js';
+
+interface ScheduleItem {
+  id: string;
+  title: string;
+  scheduledAt: string;
+  kind?: string;
+}
+
+async function fetchSchedule(): Promise<ScheduleItem[]> {
+  try {
+    return await apiGet<ScheduleItem[]>('/schedule');
+  } catch {
+    // 404 or any error → treat as empty
+    return [];
   }
+}
 
-  async function fetchSchedule(): Promise<ScheduleItem[]> {
-    try {
-      return await apiGet<ScheduleItem[]>('/schedule');
-    } catch {
-      // 404 or any error → treat as empty
-      return [];
-    }
-  }
+const optsStore = writable(
+  untrack(
+    () =>
+      ({
+        queryKey: ['schedule', 'upcoming'] as const,
+        queryFn: fetchSchedule,
+        staleTime: 60_000,
+        retry: false,
+      }) as CreateQueryOptions<ScheduleItem[]>
+  )
+);
+const query = createQuery<ScheduleItem[]>(optsStore);
 
-  const optsStore = writable(
-    untrack(
-      () =>
-        ({
-          queryKey: ['schedule', 'upcoming'] as const,
-          queryFn: fetchSchedule,
-          staleTime: 60_000,
-          retry: false,
-        }) as CreateQueryOptions<ScheduleItem[]>,
-    ),
-  );
-  const query = createQuery<ScheduleItem[]>(optsStore);
+const items = $derived(($query.data ?? []).slice(0, 5));
 
-  const items = $derived(($query.data ?? []).slice(0, 5));
-
-  function formatDate(iso: string): string {
-    const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  }
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 </script>
 
 <div class="schw-widget">

@@ -16,23 +16,23 @@
  * new sub-viewer is introduced — the detector and the dispatcher both rely on it.
  */
 export type ViewerType =
-  | "markdown"
-  | "code"
-  | "json"
-  | "yaml"
-  | "csv"
-  | "tsv"
-  | "image"
-  | "video"
-  | "audio"
-  | "pdf"
-  | "docx"
-  | "xlsx"
-  | "log"
-  | "text"
-  | "hex"
-  | "too-large"
-  | "unsupported";
+  | 'markdown'
+  | 'code'
+  | 'json'
+  | 'yaml'
+  | 'csv'
+  | 'tsv'
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'pdf'
+  | 'docx'
+  | 'xlsx'
+  | 'log'
+  | 'text'
+  | 'hex'
+  | 'too-large'
+  | 'unsupported';
 
 /**
  * Pane configuration — at least one of {fileId, (workspaceSlug + path)} must
@@ -53,10 +53,10 @@ export interface FileViewerPaneConfig {
  * mosaic-layout.svelte.ts.
  */
 export interface FileViewerPaneManifest {
-  paneType: "file_viewer";
-  label: "File Viewer";
+  paneType: 'file_viewer';
+  label: 'File Viewer';
   /** Lucide icon name — caller imports the actual component. */
-  icon: "FileText";
+  icon: 'FileText';
   defaultConfig: FileViewerPaneConfig;
 }
 

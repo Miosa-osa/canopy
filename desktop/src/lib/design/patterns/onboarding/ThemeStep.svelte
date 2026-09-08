@@ -5,7 +5,7 @@
  * CSS prefix: obw-ts-
  */
 import { Check, Moon, Sun } from 'lucide-svelte';
-import { themes, themeRegistry } from '$lib/stores/theme-registry.svelte.js';
+import { themeRegistry, themes } from '$lib/stores/theme-registry.svelte.js';
 
 interface Props {
   onNext: () => void;

@@ -1,47 +1,40 @@
 <script lang="ts">
-  /**
-   * GuardrailsPanel — budget picker, governance rule bindings, per-session limits.
-   * CSS prefix: grp- (GuardrailsPanel)
-   */
-  import type { Budget } from '$lib/api/queries/budgets.js';
-  import type { Rule } from '$lib/domain/governance/types.js';
-  import type { AgentGuardrails } from '$lib/domain/agents/config.js';
+/**
+ * GuardrailsPanel — budget picker, governance rule bindings, per-session limits.
+ * CSS prefix: grp- (GuardrailsPanel)
+ */
+import type { Budget } from '$lib/api/queries/budgets.js';
+import type { AgentGuardrails } from '$lib/domain/agents/config.js';
+import type { Rule } from '$lib/domain/governance/types.js';
 
-  interface Props {
-    guardrails: AgentGuardrails;
-    budgets: Budget[];
-    rules: Rule[];
-    budgetsLoading: boolean;
-    rulesLoading: boolean;
-    onChange: (g: AgentGuardrails) => void;
-    isLocalDraft: boolean;
-  }
+interface Props {
+  guardrails: AgentGuardrails;
+  budgets: Budget[];
+  rules: Rule[];
+  budgetsLoading: boolean;
+  rulesLoading: boolean;
+  onChange: (g: AgentGuardrails) => void;
+  isLocalDraft: boolean;
+}
 
-  let {
-    guardrails,
-    budgets,
-    rules,
-    budgetsLoading,
-    rulesLoading,
-    onChange,
-    isLocalDraft,
-  }: Props = $props();
+let { guardrails, budgets, rules, budgetsLoading, rulesLoading, onChange, isLocalDraft }: Props =
+  $props();
 
-  function patch(partial: Partial<AgentGuardrails>) {
-    onChange({ ...guardrails, ...partial });
-  }
+function patch(partial: Partial<AgentGuardrails>) {
+  onChange({ ...guardrails, ...partial });
+}
 
-  function toggleRule(id: string) {
-    const next = guardrails.rule_ids.includes(id)
-      ? guardrails.rule_ids.filter((r) => r !== id)
-      : [...guardrails.rule_ids, id];
-    patch({ rule_ids: next });
-  }
+function toggleRule(id: string) {
+  const next = guardrails.rule_ids.includes(id)
+    ? guardrails.rule_ids.filter((r) => r !== id)
+    : [...guardrails.rule_ids, id];
+  patch({ rule_ids: next });
+}
 
-  function parseOptInt(v: string): number | null {
-    const n = parseInt(v, 10);
-    return isNaN(n) || n <= 0 ? null : n;
-  }
+function parseOptInt(v: string): number | null {
+  const n = parseInt(v, 10);
+  return isNaN(n) || n <= 0 ? null : n;
+}
 </script>
 
 <div class="grp-root">

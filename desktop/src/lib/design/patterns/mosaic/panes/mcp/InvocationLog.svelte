@@ -1,62 +1,60 @@
 <script lang="ts">
-  /**
-   * InvocationLog — tail of recent tool calls.
-   *
-   * Source of truth: `Canopy.Agents.ToolCalls.list/1` (cross-session,
-   * cross-agent persistent audit trail). Polled every 5s via `toolInvocationsQuery`.
-   * No PubSub yet — pane is single-tab in practice and polling matches the
-   * existing analytics pattern. See mcp-wiring.md for Phase B PubSub plan.
-   *
-   * CSS prefix: il-
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { CircleAlert, CircleCheck, Clock } from 'lucide-svelte';
-  import { toolInvocationsQuery } from '$lib/api/queries/mcp.js';
-  import type { ToolInvocation } from '$lib/domain/mcp/types.js';
+/**
+ * InvocationLog — tail of recent tool calls.
+ *
+ * Source of truth: `Canopy.Agents.ToolCalls.list/1` (cross-session,
+ * cross-agent persistent audit trail). Polled every 5s via `toolInvocationsQuery`.
+ * No PubSub yet — pane is single-tab in practice and polling matches the
+ * existing analytics pattern. See mcp-wiring.md for Phase B PubSub plan.
+ *
+ * CSS prefix: il-
+ */
+import { createQuery } from '@tanstack/svelte-query';
+import { CircleAlert, CircleCheck, Clock } from 'lucide-svelte';
+import { toolInvocationsQuery } from '$lib/api/queries/mcp.js';
+import type { ToolInvocation } from '$lib/domain/mcp/types.js';
 
-  interface Props {
-    /** When set, only show invocations of this tool. */
-    filterTool?: string | null;
+interface Props {
+  /** When set, only show invocations of this tool. */
+  filterTool?: string | null;
+}
+
+let { filterTool = null }: Props = $props();
+
+const log = createQuery(toolInvocationsQuery({ limit: 100 }));
+
+const visible = $derived<ToolInvocation[]>(
+  filterTool ? ($log.data ?? []).filter((row) => row.toolName === filterTool) : ($log.data ?? [])
+);
+
+function summarizeArgs(params: Record<string, unknown>): string {
+  const keys = Object.keys(params);
+  if (keys.length === 0) return '∅';
+  return keys
+    .map((k) => {
+      const v = params[k];
+      const s =
+        typeof v === 'string'
+          ? `"${v.length > 24 ? v.slice(0, 24) + '…' : v}"`
+          : typeof v === 'object'
+            ? '{…}'
+            : String(v);
+      return `${k}=${s}`;
+    })
+    .join(' ');
+}
+
+function formatTs(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  } catch {
+    return iso;
   }
-
-  let { filterTool = null }: Props = $props();
-
-  const log = createQuery(toolInvocationsQuery({ limit: 100 }));
-
-  const visible = $derived<ToolInvocation[]>(
-    filterTool
-      ? ($log.data ?? []).filter((row) => row.toolName === filterTool)
-      : ($log.data ?? []),
-  );
-
-  function summarizeArgs(params: Record<string, unknown>): string {
-    const keys = Object.keys(params);
-    if (keys.length === 0) return '∅';
-    return keys
-      .map((k) => {
-        const v = params[k];
-        const s =
-          typeof v === 'string'
-            ? `"${v.length > 24 ? v.slice(0, 24) + '…' : v}"`
-            : typeof v === 'object'
-              ? '{…}'
-              : String(v);
-        return `${k}=${s}`;
-      })
-      .join(' ');
-  }
-
-  function formatTs(iso: string): string {
-    try {
-      const d = new Date(iso);
-      const hh = String(d.getHours()).padStart(2, '0');
-      const mm = String(d.getMinutes()).padStart(2, '0');
-      const ss = String(d.getSeconds()).padStart(2, '0');
-      return `${hh}:${mm}:${ss}`;
-    } catch {
-      return iso;
-    }
-  }
+}
 </script>
 
 <div class="il-root" aria-label="Tool invocation log">

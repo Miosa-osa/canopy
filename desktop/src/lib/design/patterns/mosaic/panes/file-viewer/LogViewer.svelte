@@ -1,44 +1,44 @@
 <script lang="ts">
-  /**
-   * LogViewer — line-numbered mono text with a "Follow tail" toggle.
-   * CSS prefix: lvw- (Log Viewer).
-   *
-   * When "Follow tail" is on, the viewport auto-scrolls to the last line
-   * whenever the content prop changes. Toggle off to inspect history.
-   *
-   * The pane parent is responsible for refetching content (or wiring an
-   * SSE/WebSocket source) — this viewer only re-renders on prop change.
-   */
-  import { tick } from "svelte";
+/**
+ * LogViewer — line-numbered mono text with a "Follow tail" toggle.
+ * CSS prefix: lvw- (Log Viewer).
+ *
+ * When "Follow tail" is on, the viewport auto-scrolls to the last line
+ * whenever the content prop changes. Toggle off to inspect history.
+ *
+ * The pane parent is responsible for refetching content (or wiring an
+ * SSE/WebSocket source) — this viewer only re-renders on prop change.
+ */
+import { tick } from 'svelte';
 
-  interface Props {
-    /** Raw log text. */
-    content: string;
-    /** Initial follow state. Default: true. */
-    initialFollow?: boolean;
+interface Props {
+  /** Raw log text. */
+  content: string;
+  /** Initial follow state. Default: true. */
+  initialFollow?: boolean;
+}
+
+let { content, initialFollow = true }: Props = $props();
+
+let follow = $state(initialFollow);
+let scrollEl = $state<HTMLDivElement | null>(null);
+
+const lines = $derived(content.split('\n'));
+
+// Auto-scroll on content change when following.
+$effect(() => {
+  void content; // dependency
+  if (follow && scrollEl) {
+    void tick().then(() => {
+      if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+    });
   }
+});
 
-  let { content, initialFollow = true }: Props = $props();
-
-  let follow = $state(initialFollow);
-  let scrollEl = $state<HTMLDivElement | null>(null);
-
-  const lines = $derived(content.split("\n"));
-
-  // Auto-scroll on content change when following.
-  $effect(() => {
-    void content; // dependency
-    if (follow && scrollEl) {
-      void tick().then(() => {
-        if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
-      });
-    }
-  });
-
-  function toggleFollow(): void {
-    follow = !follow;
-    if (follow && scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
-  }
+function toggleFollow(): void {
+  follow = !follow;
+  if (follow && scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
+}
 </script>
 
 <div class="lvw-root">

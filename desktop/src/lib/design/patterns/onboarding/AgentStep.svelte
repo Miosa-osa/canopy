@@ -4,8 +4,9 @@
  * Pick 4-6 starter agents to hire. Uses hireAgent API.
  * CSS prefix: obw-
  */
+
+import { BarChart3, Bot, Check, PenTool, Search, Shield, Workflow, Wrench } from 'lucide-svelte';
 import { hireAgent } from '$lib/api/queries/agents.js';
-import { Workflow, Search, Shield, Wrench, PenTool, BarChart3, Bot, Check } from 'lucide-svelte';
 
 interface Props {
   onNext: () => void;
@@ -24,12 +25,48 @@ interface AgentCard {
 }
 
 const RECOMMENDED: AgentCard[] = [
-  { slug: 'conductor', name: 'Conductor', icon: Workflow, category: 'Orchestration', description: 'Orchestrates multi-agent workflows end-to-end' },
-  { slug: 'iris', name: 'Iris', icon: Search, category: 'Research', description: 'Research and knowledge synthesis' },
-  { slug: 'vault', name: 'Vault', icon: Shield, category: 'Security', description: 'Secure credential and secret management' },
-  { slug: 'forge', name: 'Forge', icon: Wrench, category: 'Engineering', description: 'Code generation and engineering tasks' },
-  { slug: 'copy-doctor', name: 'Copy Doctor', icon: PenTool, category: 'Content', description: 'Copywriting, editing, and content polish' },
-  { slug: 'data-analyst', name: 'Data Analyst', icon: BarChart3, category: 'Analytics', description: 'Data analysis, charts, and reporting' },
+  {
+    slug: 'conductor',
+    name: 'Conductor',
+    icon: Workflow,
+    category: 'Orchestration',
+    description: 'Orchestrates multi-agent workflows end-to-end',
+  },
+  {
+    slug: 'iris',
+    name: 'Iris',
+    icon: Search,
+    category: 'Research',
+    description: 'Research and knowledge synthesis',
+  },
+  {
+    slug: 'vault',
+    name: 'Vault',
+    icon: Shield,
+    category: 'Security',
+    description: 'Secure credential and secret management',
+  },
+  {
+    slug: 'forge',
+    name: 'Forge',
+    icon: Wrench,
+    category: 'Engineering',
+    description: 'Code generation and engineering tasks',
+  },
+  {
+    slug: 'copy-doctor',
+    name: 'Copy Doctor',
+    icon: PenTool,
+    category: 'Content',
+    description: 'Copywriting, editing, and content polish',
+  },
+  {
+    slug: 'data-analyst',
+    name: 'Data Analyst',
+    icon: BarChart3,
+    category: 'Analytics',
+    description: 'Data analysis, charts, and reporting',
+  },
 ];
 
 const hired = $state(new Set<string>());

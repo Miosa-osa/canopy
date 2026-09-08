@@ -1,45 +1,45 @@
 <script lang="ts">
-  /**
-   * AgentKanbanCard — single task card within an Agent Kanban column.
-   * CSS prefix: akc-
-   *
-   * Renders title, priority dot, claimed-by chip (when set), required-skills
-   * tags, and a session badge when in_progress. Wraps the existing Task domain
-   * shape — does NOT extend it.
-   */
+/**
+ * AgentKanbanCard — single task card within an Agent Kanban column.
+ * CSS prefix: akc-
+ *
+ * Renders title, priority dot, claimed-by chip (when set), required-skills
+ * tags, and a session badge when in_progress. Wraps the existing Task domain
+ * shape — does NOT extend it.
+ */
 
-  import type { Task, TaskPriority } from '$lib/domain/tasks/types.js';
+import type { Task, TaskPriority } from '$lib/domain/tasks/types.js';
 
-  interface Props {
-    task: Task & {
-      claimedByAgentId?: string | null;
-      requiredSkills?: string[];
-    };
-  }
-
-  let { task }: Props = $props();
-
-  const PRIORITY_LABELS: Record<TaskPriority, string> = {
-    0: 'none',
-    1: 'low',
-    2: 'med',
-    3: 'high',
+interface Props {
+  task: Task & {
+    claimedByAgentId?: string | null;
+    requiredSkills?: string[];
   };
+}
 
-  const claimedBy = $derived(
-    (task as unknown as { claimedByAgentId?: string | null; claimed_by_agent_id?: string | null })
-      .claimedByAgentId ??
-      (task as unknown as { claimed_by_agent_id?: string | null }).claimed_by_agent_id ??
-      null,
-  );
+let { task }: Props = $props();
 
-  const requiredSkills = $derived(
-    (task as unknown as { requiredSkills?: string[]; required_skills?: string[] }).requiredSkills ??
-      (task as unknown as { required_skills?: string[] }).required_skills ??
-      [],
-  );
+const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  0: 'none',
+  1: 'low',
+  2: 'med',
+  3: 'high',
+};
 
-  const priorityLabel = $derived(PRIORITY_LABELS[task.priority] ?? 'none');
+const claimedBy = $derived(
+  (task as unknown as { claimedByAgentId?: string | null; claimed_by_agent_id?: string | null })
+    .claimedByAgentId ??
+    (task as unknown as { claimed_by_agent_id?: string | null }).claimed_by_agent_id ??
+    null
+);
+
+const requiredSkills = $derived(
+  (task as unknown as { requiredSkills?: string[]; required_skills?: string[] }).requiredSkills ??
+    (task as unknown as { required_skills?: string[] }).required_skills ??
+    []
+);
+
+const priorityLabel = $derived(PRIORITY_LABELS[task.priority] ?? 'none');
 </script>
 
 <article

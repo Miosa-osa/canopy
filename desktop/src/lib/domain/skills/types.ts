@@ -5,13 +5,13 @@
  */
 
 /** Valid source registries for a skill. */
-export type SkillSource = "local" | "clawhub" | "skills_sh" | "user";
+export type SkillSource = 'local' | 'clawhub' | 'skills_sh' | 'user';
 
 /** Provider formats — which agent context file the skill is injected into. */
-export type SkillProviderFormat = "claude" | "agents_md" | "generic";
+export type SkillProviderFormat = 'claude' | 'agents_md' | 'generic';
 
 /** Skill kinds — determines how it is organized in the library. */
-export type SkillKind = "prompt" | "workflow" | "reference";
+export type SkillKind = 'prompt' | 'workflow' | 'reference';
 
 /** Skill summary shape returned by GET /api/v1/skills. */
 export interface Skill {
@@ -57,7 +57,7 @@ export interface SkillFilters {
  * The backend only supports "clawhub" and "skills_sh" as import sources.
  */
 export interface ImportSkillBody {
-  source: "clawhub" | "skills_sh";
+  source: 'clawhub' | 'skills_sh';
 }
 
 /** Response from POST /api/v1/skills/import. */
@@ -78,5 +78,5 @@ export interface CreateSkillBody {
   content: string;
   provider_format?: SkillProviderFormat;
   tags?: string[];
-  source: "local" | "user";
+  source: 'local' | 'user';
 }

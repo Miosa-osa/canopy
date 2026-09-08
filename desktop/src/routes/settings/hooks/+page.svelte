@@ -7,14 +7,14 @@
  * received by the Canopy backend from agents running anywhere on this machine.
  */
 
+import { onMount } from 'svelte';
 import {
   getHooksStatus,
-  installHooks,
-  uninstallHooks,
   type HookEvent,
+  installHooks,
   type RuntimeStatus,
-} from "$lib/api/queries/hooks.js";
-import { onMount } from "svelte";
+  uninstallHooks,
+} from '$lib/api/queries/hooks.js';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ let loading = $state(true);
 let actionPending = $state(false);
 let actionError = $state<string | null>(null);
 
-const RUNTIMES = ["claude", "cursor", "gemini", "codex", "opencode"] as const;
+const RUNTIMES = ['claude', 'cursor', 'gemini', 'codex', 'opencode'] as const;
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ async function refresh(): Promise<void> {
     runtimes = data.runtimes;
     recentEvents = data.recent_events;
   } catch (e) {
-    actionError = e instanceof Error ? e.message : "Failed to load hook status";
+    actionError = e instanceof Error ? e.message : 'Failed to load hook status';
   } finally {
     loading = false;
   }
@@ -53,7 +53,7 @@ async function handleInstall(): Promise<void> {
     await installHooks();
     await refresh();
   } catch (e) {
-    actionError = e instanceof Error ? e.message : "Install failed";
+    actionError = e instanceof Error ? e.message : 'Install failed';
   } finally {
     actionPending = false;
   }
@@ -66,7 +66,7 @@ async function handleUninstall(): Promise<void> {
     await uninstallHooks();
     await refresh();
   } catch (e) {
-    actionError = e instanceof Error ? e.message : "Uninstall failed";
+    actionError = e instanceof Error ? e.message : 'Uninstall failed';
   } finally {
     actionPending = false;
   }
@@ -75,19 +75,19 @@ async function handleUninstall(): Promise<void> {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function statusOf(name: string): RuntimeStatus {
-  return runtimes[name] ?? { status: "not_installed" };
+  return runtimes[name] ?? { status: 'not_installed' };
 }
 
 function isInstalled(s: RuntimeStatus): boolean {
-  return s.status === "installed" || s.status === "ok";
+  return s.status === 'installed' || s.status === 'ok';
 }
 
 function formatTime(iso: string): string {
   try {
     return new Date(iso).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
     });
   } catch {
     return iso;
@@ -97,11 +97,11 @@ function formatTime(iso: string): string {
 function eventLabel(event: string): string {
   return (
     {
-      PostToolUse: "tool use",
-      Stop: "stop",
-      UserPromptSubmit: "prompt",
-      PermissionRequest: "permission",
-      PostToolUseFailure: "tool fail",
+      PostToolUse: 'tool use',
+      Stop: 'stop',
+      UserPromptSubmit: 'prompt',
+      PermissionRequest: 'permission',
+      PostToolUseFailure: 'tool fail',
     }[event] ?? event
   );
 }

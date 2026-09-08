@@ -1,108 +1,101 @@
 <script lang="ts">
-  /**
-   * /issues — Issue list (developer persona). Linear-style dense rows, board secondary.
-   * CSS prefix: il- (IssueList)
-   * LOC target: ≤ 280.
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { Plus } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { goto } from '$app/navigation';
-  import {
-    createIssueMutation,
-    issuesQuery,
-  } from '$lib/api/queries/issues.js';
-  import NewIssueModal from '$lib/design/patterns/NewIssueModal.svelte';
-  import { ApiError } from '$lib/api/client.js';
-  import IssuesBoardView from '$lib/design/patterns/issues/IssuesBoardView.svelte';
-  import IssuesListView from '$lib/design/patterns/issues/IssuesListView.svelte';
-  import IssuesFilterBar from '$lib/design/patterns/issues/IssuesFilterBar.svelte';
-  import type {
-    CreateIssueBody,
-    Issue,
-    IssueFilters,
-    IssueStatus,
-  } from '$lib/domain/issues/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
-  import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
-  import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+/**
+ * /issues — Issue list (developer persona). Linear-style dense rows, board secondary.
+ * CSS prefix: il- (IssueList)
+ * LOC target: ≤ 280.
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { Plus } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { ApiError } from '$lib/api/client.js';
+import { createIssueMutation, issuesQuery } from '$lib/api/queries/issues.js';
+import IssuesBoardView from '$lib/design/patterns/issues/IssuesBoardView.svelte';
+import IssuesFilterBar from '$lib/design/patterns/issues/IssuesFilterBar.svelte';
+import IssuesListView from '$lib/design/patterns/issues/IssuesListView.svelte';
+import NewIssueModal from '$lib/design/patterns/NewIssueModal.svelte';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import type {
+  CreateIssueBody,
+  Issue,
+  IssueFilters,
+  IssueStatus,
+} from '$lib/domain/issues/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── View state (ViewPicker) ───────────────────────────────────────────────────
+// ── View state (ViewPicker) ───────────────────────────────────────────────────
 
-  let view = $state<ViewState>({ layout: 'list', density: 'comfortable', sort: 'recent' });
-  const viewMode = $derived<'list' | 'board'>(view.layout === 'board' ? 'board' : 'list');
+let view = $state<ViewState>({ layout: 'list', density: 'comfortable', sort: 'recent' });
+const viewMode = $derived<'list' | 'board'>(view.layout === 'board' ? 'board' : 'list');
 
-  // ── Status tabs ───────────────────────────────────────────────────────────────
+// ── Status tabs ───────────────────────────────────────────────────────────────
 
-  type StatusTab = 'all' | IssueStatus;
-  let statusTab = $state<StatusTab>('all');
+type StatusTab = 'all' | IssueStatus;
+let statusTab = $state<StatusTab>('all');
 
-  // ── Assignee filter ───────────────────────────────────────────────────────────
+// ── Assignee filter ───────────────────────────────────────────────────────────
 
-  type AssigneeFilter = 'all' | 'human' | 'agent';
-  let assigneeFilter = $state<AssigneeFilter>('all');
+type AssigneeFilter = 'all' | 'human' | 'agent';
+let assigneeFilter = $state<AssigneeFilter>('all');
 
-  // ── Query ─────────────────────────────────────────────────────────────────────
+// ── Query ─────────────────────────────────────────────────────────────────────
 
-  const filters = $derived<IssueFilters>({
-    status: statusTab !== 'all' ? (statusTab as IssueStatus) : undefined,
-    assigneeType: assigneeFilter !== 'all' ? assigneeFilter : undefined,
+const filters = $derived<IssueFilters>({
+  status: statusTab !== 'all' ? (statusTab as IssueStatus) : undefined,
+  assigneeType: assigneeFilter !== 'all' ? assigneeFilter : undefined,
+});
+
+const queryOptsStore = writable(untrack(() => issuesQuery(filters) as CreateQueryOptions<Issue[]>));
+
+$effect(() => {
+  queryOptsStore.set(issuesQuery(filters) as CreateQueryOptions<Issue[]>);
+});
+
+const query = createQuery<Issue[]>(queryOptsStore);
+// Deduplicate by id — API can return the same issue record more than once
+// when pagination cursors overlap, causing Svelte each_key_duplicate errors.
+const issues = $derived(
+  Array.from(new Map(($query.data ?? []).map((i) => [i.id, i])).values()) as Issue[]
+);
+
+const backendUnavailable = $derived(
+  $query.isError &&
+    ($query.error instanceof ApiError
+      ? $query.error.status === 404
+      : String(($query.error as Error)?.message ?? '').includes('404'))
+);
+
+// ── New-issue modal ───────────────────────────────────────────────────────────
+
+let newIssueOpen = $state(false);
+
+const createMut = createMutation<Issue, Error, CreateIssueBody>(
+  createIssueMutation() as CreateMutationOptions<Issue, Error, CreateIssueBody>
+);
+
+function handleCreate(body: CreateIssueBody): void {
+  $createMut.mutate(body, {
+    onSuccess: (issue) => {
+      queryClient.invalidateQueries({ queryKey: ['issues'] });
+      toasts.success('Issue created');
+      newIssueOpen = false;
+      goto(`/issues/${issue.shortId}`);
+    },
+    onError: (err: Error) => {
+      toasts.error(`Create failed: ${err.message}`);
+    },
   });
-
-  const queryOptsStore = writable(
-    untrack(() => issuesQuery(filters) as CreateQueryOptions<Issue[]>),
-  );
-
-  $effect(() => {
-    queryOptsStore.set(issuesQuery(filters) as CreateQueryOptions<Issue[]>);
-  });
-
-  const query = createQuery<Issue[]>(queryOptsStore);
-  // Deduplicate by id — API can return the same issue record more than once
-  // when pagination cursors overlap, causing Svelte each_key_duplicate errors.
-  const issues = $derived(
-    Array.from(
-      new Map(($query.data ?? []).map((i) => [i.id, i])).values(),
-    ) as Issue[],
-  );
-
-  const backendUnavailable = $derived(
-    $query.isError &&
-      ($query.error instanceof ApiError
-        ? $query.error.status === 404
-        : String(($query.error as Error)?.message ?? '').includes('404')),
-  );
-
-  // ── New-issue modal ───────────────────────────────────────────────────────────
-
-  let newIssueOpen = $state(false);
-
-  const createMut = createMutation<Issue, Error, CreateIssueBody>(
-    createIssueMutation() as CreateMutationOptions<Issue, Error, CreateIssueBody>,
-  );
-
-  function handleCreate(body: CreateIssueBody): void {
-    $createMut.mutate(body, {
-      onSuccess: (issue) => {
-        queryClient.invalidateQueries({ queryKey: ['issues'] });
-        toasts.success('Issue created');
-        newIssueOpen = false;
-        goto(`/issues/${issue.shortId}`);
-      },
-      onError: (err: Error) => {
-        toasts.error(`Create failed: ${err.message}`);
-      },
-    });
-  }
+}
 </script>
 
 <div class="il-page">

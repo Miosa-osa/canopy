@@ -1,20 +1,20 @@
 <script lang="ts">
-  /**
-   * McpServerList — connected MCP servers (Phase A: stub).
-   *
-   * Pulls from `GET /api/v1/mcp/servers`, which returns an empty list until
-   * the MCP server-management context is built (Track J — see roadmap).
-   * Toggle wiring is intentionally a no-op for Phase A; documented in
-   * mcp-wiring.md.
-   *
-   * CSS prefix: ms-
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { Plug } from 'lucide-svelte';
-  import Toggle from '$lib/design/foundation/toggle/Toggle.svelte';
-  import { mcpServersQuery } from '$lib/api/queries/mcp.js';
+/**
+ * McpServerList — connected MCP servers (Phase A: stub).
+ *
+ * Pulls from `GET /api/v1/mcp/servers`, which returns an empty list until
+ * the MCP server-management context is built (Track J — see roadmap).
+ * Toggle wiring is intentionally a no-op for Phase A; documented in
+ * mcp-wiring.md.
+ *
+ * CSS prefix: ms-
+ */
+import { createQuery } from '@tanstack/svelte-query';
+import { Plug } from 'lucide-svelte';
+import { mcpServersQuery } from '$lib/api/queries/mcp.js';
+import Toggle from '$lib/design/foundation/toggle/Toggle.svelte';
 
-  const servers = createQuery(mcpServersQuery());
+const servers = createQuery(mcpServersQuery());
 </script>
 
 <section class="ms-root" aria-label="Connected MCP servers">

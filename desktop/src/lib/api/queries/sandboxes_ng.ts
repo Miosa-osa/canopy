@@ -3,7 +3,7 @@
  * Endpoints under /api/v1/sandboxes-ng/*.
  */
 
-import { apiGet, apiPost, apiDelete } from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPost } from '$lib/api/client.js';
 import type {
   LifecycleEvent,
   PortForward,
@@ -13,7 +13,7 @@ import type {
   SandboxStateRow,
   Snapshot,
   SnapshotCreate,
-} from "$lib/domain/sandboxes_ng/types.js";
+} from '$lib/domain/sandboxes_ng/types.js';
 
 // ── Sandbox state grid ───────────────────────────────────────────────────────
 
@@ -24,11 +24,8 @@ export interface SandboxStateQuery {
 export function sandboxStatesQuery(opts: SandboxStateQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["sandboxes-ng", "states", opts],
-    queryFn: () =>
-      apiGet<{ data: SandboxStateRow[] }>(`/sandboxes-ng${qs}`).then(
-        (r) => r.data,
-      ),
+    queryKey: ['sandboxes-ng', 'states', opts],
+    queryFn: () => apiGet<{ data: SandboxStateRow[] }>(`/sandboxes-ng${qs}`).then((r) => r.data),
   };
 }
 
@@ -47,25 +44,20 @@ export interface EventsQuery {
 export function eventsQuery(opts: EventsQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["sandboxes-ng", "events", opts],
+    queryKey: ['sandboxes-ng', 'events', opts],
     queryFn: () =>
-      apiGet<{ data: LifecycleEvent[] }>(`/sandboxes-ng/events${qs}`).then(
-        (r) => r.data,
-      ),
+      apiGet<{ data: LifecycleEvent[] }>(`/sandboxes-ng/events${qs}`).then((r) => r.data),
   };
 }
 
-export function eventsForSandboxQuery(
-  sandboxId: string,
-  opts: { limit?: number } = {},
-) {
+export function eventsForSandboxQuery(sandboxId: string, opts: { limit?: number } = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["sandboxes-ng", "events", sandboxId, opts],
+    queryKey: ['sandboxes-ng', 'events', sandboxId, opts],
     queryFn: () =>
-      apiGet<{ data: LifecycleEvent[] }>(
-        `/sandboxes-ng/events/${sandboxId}${qs}`,
-      ).then((r) => r.data),
+      apiGet<{ data: LifecycleEvent[] }>(`/sandboxes-ng/events/${sandboxId}${qs}`).then(
+        (r) => r.data
+      ),
     enabled: Boolean(sandboxId),
   } as const;
 }
@@ -83,16 +75,13 @@ export interface SnapshotQuery {
 export function snapshotsQuery(opts: SnapshotQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["sandboxes-ng", "snapshots", opts],
-    queryFn: () =>
-      apiGet<{ data: Snapshot[] }>(`/sandboxes-ng/snapshots${qs}`).then(
-        (r) => r.data,
-      ),
+    queryKey: ['sandboxes-ng', 'snapshots', opts],
+    queryFn: () => apiGet<{ data: Snapshot[] }>(`/sandboxes-ng/snapshots${qs}`).then((r) => r.data),
   };
 }
 
 export async function createSnapshot(snap: SnapshotCreate): Promise<Snapshot> {
-  return apiPost<Snapshot>("/sandboxes-ng/snapshots", snap);
+  return apiPost<Snapshot>('/sandboxes-ng/snapshots', snap);
 }
 
 // ── Port forwards ────────────────────────────────────────────────────────────
@@ -108,18 +97,13 @@ export interface PortQuery {
 export function portsQuery(opts: PortQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["sandboxes-ng", "ports", opts],
-    queryFn: () =>
-      apiGet<{ data: PortForward[] }>(`/sandboxes-ng/ports${qs}`).then(
-        (r) => r.data,
-      ),
+    queryKey: ['sandboxes-ng', 'ports', opts],
+    queryFn: () => apiGet<{ data: PortForward[] }>(`/sandboxes-ng/ports${qs}`).then((r) => r.data),
   };
 }
 
-export async function openPortForward(
-  body: PortForwardCreate,
-): Promise<PortForward> {
-  return apiPost<PortForward>("/sandboxes-ng/ports", body);
+export async function openPortForward(body: PortForwardCreate): Promise<PortForward> {
+  return apiPost<PortForward>('/sandboxes-ng/ports', body);
 }
 
 export async function closePortForward(id: string): Promise<PortForward> {
@@ -137,27 +121,23 @@ export interface AlertQuery {
 export function sandboxAlertsQuery(opts: AlertQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["sandboxes-ng", "alerts", opts],
+    queryKey: ['sandboxes-ng', 'alerts', opts],
     queryFn: () =>
-      apiGet<{ data: SandboxAlert[] }>(`/sandboxes-ng/alerts${qs}`).then(
-        (r) => r.data,
-      ),
+      apiGet<{ data: SandboxAlert[] }>(`/sandboxes-ng/alerts${qs}`).then((r) => r.data),
   };
 }
 
-export async function createSandboxAlert(
-  alert: SandboxAlertCreate,
-): Promise<SandboxAlert> {
-  return apiPost<SandboxAlert>("/sandboxes-ng/alerts", alert);
+export async function createSandboxAlert(alert: SandboxAlertCreate): Promise<SandboxAlert> {
+  return apiPost<SandboxAlert>('/sandboxes-ng/alerts', alert);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildQuery(opts: object): string {
   const entries = Object.entries(opts as Record<string, unknown>).filter(
-    ([, v]) => v !== undefined && v !== null && v !== "",
+    ([, v]) => v !== undefined && v !== null && v !== ''
   );
-  if (entries.length === 0) return "";
+  if (entries.length === 0) return '';
 
   const params = new URLSearchParams();
   for (const [key, value] of entries) {
@@ -173,4 +153,4 @@ export type {
   SandboxAlert,
   SandboxStateRow,
   Snapshot,
-} from "$lib/domain/sandboxes_ng/types.js";
+} from '$lib/domain/sandboxes_ng/types.js';

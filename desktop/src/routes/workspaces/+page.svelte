@@ -11,24 +11,22 @@ import {
   createQuery,
   useQueryClient,
 } from '@tanstack/svelte-query';
-import { goto } from '$app/navigation';
 import { FolderOpen } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
 import { deleteWorkspaceMutation, workspacesQuery } from '$lib/api/queries/workspaces.js';
-import TemplatePicker from '$lib/design/patterns/TemplatePicker.svelte';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import TemplatePicker from '$lib/design/patterns/TemplatePicker.svelte';
 import WorkspaceCard from '$lib/design/patterns/WorkspaceCard.svelte';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
 import type { Workspace } from '$lib/domain/workspaces/types.js';
 import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
-import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
-import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
 
 const queryClient = useQueryClient();
 
-const wsOptsStore = writable(
-  untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>)
-);
+const wsOptsStore = writable(untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>));
 
 const wsQ = createQuery<Workspace[]>(wsOptsStore);
 

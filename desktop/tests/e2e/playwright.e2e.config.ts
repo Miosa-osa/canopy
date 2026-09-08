@@ -8,32 +8,29 @@
  * Run:
  *   cd desktop && npx playwright test --config tests/e2e/playwright.e2e.config.ts --reporter=list
  */
-import { defineConfig } from "@playwright/test";
-import path from "path";
+import { defineConfig } from '@playwright/test';
+import path from 'path';
 
 export default defineConfig({
   // No webServer block — we use the already-running dev server
   testDir: path.join(import.meta.dirname),
-  testMatch: "*.spec.ts",
+  testMatch: '*.spec.ts',
   timeout: 60_000,
   retries: 0,
   workers: 1, // serial — screenshots and terminal tests are stateful
   use: {
-    baseURL: "http://localhost:5281",
+    baseURL: 'http://localhost:5281',
     headless: true,
     viewport: { width: 1280, height: 800 },
-    screenshot: "only-on-failure",
-    video: "off",
-    trace: "off",
+    screenshot: 'only-on-failure',
+    video: 'off',
+    trace: 'off',
   },
   projects: [
     {
-      name: "chromium",
-      use: { browserName: "chromium" },
+      name: 'chromium',
+      use: { browserName: 'chromium' },
     },
   ],
-  reporter: [
-    ["list"],
-    ["json", { outputFile: path.join(import.meta.dirname, "results.json") }],
-  ],
+  reporter: [['list'], ['json', { outputFile: path.join(import.meta.dirname, 'results.json') }]],
 });

@@ -6,18 +6,17 @@
  * createQuery() / createMutation() in component scripts.
  */
 
-import { apiDelete, apiGet, apiPost } from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPost } from '$lib/api/client.js';
 import type {
   AddFileBody,
   CreateBaseBody,
   IndexResult,
   KbAssignment,
-  KbChunk,
   KbChunkListResponse,
   KnowledgeBase,
   SearchBody,
   SearchResponse,
-} from "$lib/domain/knowledge/types.js";
+} from '$lib/domain/knowledge/types.js';
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
@@ -26,11 +25,10 @@ export function listBases(filters?: {
   archived?: boolean;
 }): Promise<KnowledgeBase[]> {
   const params = new URLSearchParams();
-  if (filters?.workspace) params.set("workspace", filters.workspace);
-  if (typeof filters?.archived === "boolean")
-    params.set("archived", String(filters.archived));
+  if (filters?.workspace) params.set('workspace', filters.workspace);
+  if (typeof filters?.archived === 'boolean') params.set('archived', String(filters.archived));
   const qs = params.toString();
-  return apiGet<KnowledgeBase[]>(`/knowledge-bases${qs ? `?${qs}` : ""}`);
+  return apiGet<KnowledgeBase[]>(`/knowledge-bases${qs ? `?${qs}` : ''}`);
 }
 
 export function getBase(slug: string): Promise<KnowledgeBase> {
@@ -38,41 +36,28 @@ export function getBase(slug: string): Promise<KnowledgeBase> {
 }
 
 export function createBase(body: CreateBaseBody): Promise<KnowledgeBase> {
-  return apiPost<KnowledgeBase>("/knowledge-bases", body);
+  return apiPost<KnowledgeBase>('/knowledge-bases', body);
 }
 
 export function archiveBase(slug: string): Promise<KnowledgeBase> {
   return apiDelete<KnowledgeBase>(`/knowledge-bases/${slug}`);
 }
 
-export function addFileToBase(
-  slug: string,
-  body: AddFileBody,
-): Promise<IndexResult> {
+export function addFileToBase(slug: string, body: AddFileBody): Promise<IndexResult> {
   return apiPost<IndexResult>(`/knowledge-bases/${slug}/files`, body);
 }
 
-export function listChunks(
-  slug: string,
-  limit = 50,
-  offset = 0,
-): Promise<KbChunkListResponse> {
+export function listChunks(slug: string, limit = 50, offset = 0): Promise<KbChunkListResponse> {
   return apiGet<KbChunkListResponse>(
-    `/knowledge-bases/${slug}/chunks?limit=${limit}&offset=${offset}`,
+    `/knowledge-bases/${slug}/chunks?limit=${limit}&offset=${offset}`
   );
 }
 
-export function searchBase(
-  slug: string,
-  body: SearchBody,
-): Promise<SearchResponse> {
+export function searchBase(slug: string, body: SearchBody): Promise<SearchResponse> {
   return apiPost<SearchResponse>(`/knowledge-bases/${slug}/search`, body);
 }
 
-export function assignAgent(
-  slug: string,
-  agentSlug: string,
-): Promise<KbAssignment> {
+export function assignAgent(slug: string, agentSlug: string): Promise<KbAssignment> {
   return apiPost<KbAssignment>(`/knowledge-bases/${slug}/assignments`, {
     agent_slug: agentSlug,
   });
@@ -97,12 +82,9 @@ export function listAssignments(slug: string): Promise<KbAssignment[]> {
 // ── TanStack Query option factories ─────────────────────────────────────────
 
 /** Query options for the KB list page with optional filters. */
-export function knowledgeBasesQuery(filters?: {
-  workspace?: string;
-  archived?: boolean;
-}) {
+export function knowledgeBasesQuery(filters?: { workspace?: string; archived?: boolean }) {
   return {
-    queryKey: ["knowledge-bases", filters ?? {}] as const,
+    queryKey: ['knowledge-bases', filters ?? {}] as const,
     queryFn: () => listBases(filters),
     staleTime: 30_000,
   };
@@ -111,7 +93,7 @@ export function knowledgeBasesQuery(filters?: {
 /** Query options for a single KB detail page. */
 export function knowledgeBaseQuery(slug: string) {
   return {
-    queryKey: ["knowledge-bases", slug] as const,
+    queryKey: ['knowledge-bases', slug] as const,
     queryFn: () => getBase(slug),
     staleTime: 30_000,
     enabled: Boolean(slug),
@@ -121,7 +103,7 @@ export function knowledgeBaseQuery(slug: string) {
 /** Query options for the chunk list (paginated). */
 export function kbChunksQuery(slug: string, limit = 50, offset = 0) {
   return {
-    queryKey: ["knowledge-bases", slug, "chunks", limit, offset] as const,
+    queryKey: ['knowledge-bases', slug, 'chunks', limit, offset] as const,
     queryFn: () => listChunks(slug, limit, offset),
     staleTime: 60_000,
     enabled: Boolean(slug),
@@ -131,7 +113,7 @@ export function kbChunksQuery(slug: string, limit = 50, offset = 0) {
 /** Mutation options to create a KB. */
 export function createBaseMutation() {
   return {
-    mutationKey: ["knowledge-bases", "create"] as const,
+    mutationKey: ['knowledge-bases', 'create'] as const,
     mutationFn: (body: CreateBaseBody) => createBase(body),
   };
 }
@@ -139,7 +121,7 @@ export function createBaseMutation() {
 /** Mutation options to archive (soft-delete) a KB. */
 export function archiveBaseMutation() {
   return {
-    mutationKey: ["knowledge-bases", "archive"] as const,
+    mutationKey: ['knowledge-bases', 'archive'] as const,
     mutationFn: (slug: string) => archiveBase(slug),
   };
 }
@@ -147,25 +129,23 @@ export function archiveBaseMutation() {
 /** Mutation options to add a file to a KB. */
 export function addFileMutation() {
   return {
-    mutationKey: ["knowledge-bases", "add-file"] as const,
-    mutationFn: ({ slug, body }: { slug: string; body: AddFileBody }) =>
-      addFileToBase(slug, body),
+    mutationKey: ['knowledge-bases', 'add-file'] as const,
+    mutationFn: ({ slug, body }: { slug: string; body: AddFileBody }) => addFileToBase(slug, body),
   };
 }
 
 /** Mutation options to search a KB. */
 export function searchMutation() {
   return {
-    mutationKey: ["knowledge-bases", "search"] as const,
-    mutationFn: ({ slug, body }: { slug: string; body: SearchBody }) =>
-      searchBase(slug, body),
+    mutationKey: ['knowledge-bases', 'search'] as const,
+    mutationFn: ({ slug, body }: { slug: string; body: SearchBody }) => searchBase(slug, body),
   };
 }
 
 /** Mutation options to assign an agent to a KB. */
 export function assignAgentMutation() {
   return {
-    mutationKey: ["knowledge-bases", "assign"] as const,
+    mutationKey: ['knowledge-bases', 'assign'] as const,
     mutationFn: ({ slug, agentSlug }: { slug: string; agentSlug: string }) =>
       assignAgent(slug, agentSlug),
   };
@@ -174,7 +154,7 @@ export function assignAgentMutation() {
 /** Mutation options to remove an agent from a KB. */
 export function unassignAgentMutation() {
   return {
-    mutationKey: ["knowledge-bases", "unassign"] as const,
+    mutationKey: ['knowledge-bases', 'unassign'] as const,
     mutationFn: ({ slug, agentSlug }: { slug: string; agentSlug: string }) =>
       unassignAgent(slug, agentSlug),
   };
@@ -183,7 +163,7 @@ export function unassignAgentMutation() {
 /** Mutation options to trigger a full KB rebuild. */
 export function rebuildIndexMutation() {
   return {
-    mutationKey: ["knowledge-bases", "rebuild"] as const,
+    mutationKey: ['knowledge-bases', 'rebuild'] as const,
     mutationFn: (slug: string) => rebuildIndex(slug),
   };
 }
@@ -191,7 +171,7 @@ export function rebuildIndexMutation() {
 /** Query options for chunk search results (query-based). */
 export function kbSearchQuery(slug: string, query: string, limit = 5) {
   return {
-    queryKey: ["knowledge-bases", slug, "search", query, limit] as const,
+    queryKey: ['knowledge-bases', slug, 'search', query, limit] as const,
     queryFn: () => searchBase(slug, { query, limit }),
     staleTime: 10_000,
     enabled: Boolean(slug) && Boolean(query),

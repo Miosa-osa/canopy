@@ -9,15 +9,15 @@
  */
 
 export type DriveKind =
-  | "folder"
-  | "workflow"
-  | "prompt"
-  | "notebook"
-  | "env_vars"
-  | "mcp_server"
-  | "rule";
+  | 'folder'
+  | 'workflow'
+  | 'prompt'
+  | 'notebook'
+  | 'env_vars'
+  | 'mcp_server'
+  | 'rule';
 
-export type DriveScope = "personal" | "team";
+export type DriveScope = 'personal' | 'team';
 
 // ── Body shapes per kind ─────────────────────────────────────────────────────
 
@@ -110,9 +110,9 @@ export interface DriveEntryUpdate {
 
 export interface DriveListQuery {
   scope?: DriveScope;
-  parentId?: string | "root";
+  parentId?: string | 'root';
   kind?: DriveKind;
-  archived?: "true" | "false" | "all";
+  archived?: 'true' | 'false' | 'all';
   limit?: number;
 }
 

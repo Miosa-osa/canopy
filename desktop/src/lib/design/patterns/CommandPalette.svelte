@@ -32,21 +32,105 @@ interface Command {
 
 const allCommands: Command[] = [
   // Navigate
-  { id: 'go-home', label: 'Go to Home', group: 'Navigate', shortcut: '⌘1', action: () => goto('/') },
-  { id: 'go-runtimes', label: 'Go to Runtimes', group: 'Navigate', shortcut: '⌘2', action: () => goto('/runtimes') },
-  { id: 'go-sessions', label: 'Go to Sessions', group: 'Navigate', shortcut: '⌘3', action: () => goto('/sessions') },
-  { id: 'go-agents', label: 'Go to Agents', group: 'Navigate', shortcut: '⌘4', action: () => goto('/agents') },
-  { id: 'go-workspaces', label: 'Go to Workspaces', group: 'Navigate', shortcut: '⌘5', action: () => goto('/workspaces') },
+  {
+    id: 'go-home',
+    label: 'Go to Home',
+    group: 'Navigate',
+    shortcut: '⌘1',
+    action: () => goto('/'),
+  },
+  {
+    id: 'go-runtimes',
+    label: 'Go to Runtimes',
+    group: 'Navigate',
+    shortcut: '⌘2',
+    action: () => goto('/runtimes'),
+  },
+  {
+    id: 'go-sessions',
+    label: 'Go to Sessions',
+    group: 'Navigate',
+    shortcut: '⌘3',
+    action: () => goto('/sessions'),
+  },
+  {
+    id: 'go-agents',
+    label: 'Go to Agents',
+    group: 'Navigate',
+    shortcut: '⌘4',
+    action: () => goto('/agents'),
+  },
+  {
+    id: 'go-workspaces',
+    label: 'Go to Workspaces',
+    group: 'Navigate',
+    shortcut: '⌘5',
+    action: () => goto('/workspaces'),
+  },
   // Actions
-  { id: 'new-session', label: 'New Session', group: 'Actions', shortcut: '⌘N', action: () => goto('/') },
-  { id: 'new-agent', label: 'New Agent', group: 'Actions', shortcut: '⌘⇧N', action: () => goto('/agents') },
-  { id: 'new-workspace', label: 'New Workspace', group: 'Actions', shortcut: '⌘⇧W', action: () => goto('/workspaces') },
-  { id: 'resume-last', label: 'Resume Last Session', group: 'Actions', action: () => goto('/sessions') },
-  { id: 'stop-all', label: 'Stop All Running Sessions', group: 'Actions', action: () => { /* stub */ } },
-  { id: 'running-only', label: 'Show Running Sessions Only', group: 'Actions', action: () => goto('/sessions?status=running') },
-  { id: 'toggle-theme', label: 'Toggle Dark / Light', group: 'Actions', shortcut: '⌘⇧D', action: () => ui.toggleTheme() },
-  { id: 'settings', label: 'Open Settings', group: 'Actions', shortcut: '⌘,', action: () => goto('/settings') },
-  { id: 'report-bug', label: 'Report Bug', group: 'Actions', action: () => { /* stub */ } },
+  {
+    id: 'new-session',
+    label: 'New Session',
+    group: 'Actions',
+    shortcut: '⌘N',
+    action: () => goto('/'),
+  },
+  {
+    id: 'new-agent',
+    label: 'New Agent',
+    group: 'Actions',
+    shortcut: '⌘⇧N',
+    action: () => goto('/agents'),
+  },
+  {
+    id: 'new-workspace',
+    label: 'New Workspace',
+    group: 'Actions',
+    shortcut: '⌘⇧W',
+    action: () => goto('/workspaces'),
+  },
+  {
+    id: 'resume-last',
+    label: 'Resume Last Session',
+    group: 'Actions',
+    action: () => goto('/sessions'),
+  },
+  {
+    id: 'stop-all',
+    label: 'Stop All Running Sessions',
+    group: 'Actions',
+    action: () => {
+      /* stub */
+    },
+  },
+  {
+    id: 'running-only',
+    label: 'Show Running Sessions Only',
+    group: 'Actions',
+    action: () => goto('/sessions?status=running'),
+  },
+  {
+    id: 'toggle-theme',
+    label: 'Toggle Dark / Light',
+    group: 'Actions',
+    shortcut: '⌘⇧D',
+    action: () => ui.toggleTheme(),
+  },
+  {
+    id: 'settings',
+    label: 'Open Settings',
+    group: 'Actions',
+    shortcut: '⌘,',
+    action: () => goto('/settings'),
+  },
+  {
+    id: 'report-bug',
+    label: 'Report Bug',
+    group: 'Actions',
+    action: () => {
+      /* stub */
+    },
+  },
 ];
 
 // ── Recency LRU ─────────────────────────────────────────────────────────────
@@ -70,7 +154,9 @@ function writeRecent(ids: string[]): void {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(RECENT_KEY, JSON.stringify(ids.slice(0, RECENT_MAX)));
     }
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 }
 
 function pushRecent(id: string): void {

@@ -1,228 +1,233 @@
 <script lang="ts">
-  /**
-   * FileViewer — read/edit files from a workspace.
-   * Three rendering modes: markdown (split view), code (mono + line numbers), binary fallback.
-   * Props: workspaceSlug, path.
-   * CSS prefix: fv- (FileViewer)
-   * LOC target: ≤ 350.
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { beforeNavigate } from '$app/navigation';
-  import { workspaceFileQuery, writeFileMutation } from '$lib/api/queries/workspaces.js';
-  import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
-  import type { FileReadResponse } from '$lib/domain/workspaces/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
-  import { renderMarkdown } from '$lib/utils/markdown.js';
+/**
+ * FileViewer — read/edit files from a workspace.
+ * Three rendering modes: markdown (split view), code (mono + line numbers), binary fallback.
+ * Props: workspaceSlug, path.
+ * CSS prefix: fv- (FileViewer)
+ * LOC target: ≤ 350.
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { beforeNavigate } from '$app/navigation';
+import { workspaceFileQuery, writeFileMutation } from '$lib/api/queries/workspaces.js';
+import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
+import type { FileReadResponse } from '$lib/domain/workspaces/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import { renderMarkdown } from '$lib/utils/markdown.js';
 
-  interface Props {
-    workspaceSlug: string;
-    path: string;
-  }
+interface Props {
+  workspaceSlug: string;
+  path: string;
+}
 
-  let { workspaceSlug, path }: Props = $props();
+let { workspaceSlug, path }: Props = $props();
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── Query (writable+untrack bridge for reactive props) ──────────────────────
+// ── Query (writable+untrack bridge for reactive props) ──────────────────────
 
-  const fileOptsStore = writable(
-    untrack(
-      () =>
-        workspaceFileQuery(
-          workspaceSlug,
-          path,
-        ) as CreateQueryOptions<FileReadResponse>,
-    ),
+const fileOptsStore = writable(
+  untrack(() => workspaceFileQuery(workspaceSlug, path) as CreateQueryOptions<FileReadResponse>)
+);
+
+$effect(() => {
+  fileOptsStore.set(
+    workspaceFileQuery(workspaceSlug, path) as CreateQueryOptions<FileReadResponse>
   );
+});
 
-  $effect(() => {
-    fileOptsStore.set(
-      workspaceFileQuery(workspaceSlug, path) as CreateQueryOptions<FileReadResponse>,
-    );
+const fileQ = createQuery<FileReadResponse>(fileOptsStore);
+
+// ── Mutation ────────────────────────────────────────────────────────────────
+
+// Capture slug at construction time — mutation factory doesn't need reactivity.
+const _slug = untrack(() => workspaceSlug);
+const writeMut = createMutation<FileReadResponse, Error, { path: string; contents: string }>(
+  writeFileMutation(_slug) as CreateMutationOptions<
+    FileReadResponse,
+    Error,
+    { path: string; contents: string }
+  >
+);
+
+// ── Edit state ──────────────────────────────────────────────────────────────
+
+let editMode = $state(false);
+let editedContents = $state('');
+
+// Sync editedContents when query data arrives (and whenever path changes)
+$effect(() => {
+  const data = $fileQ.data;
+  if (data) {
+    editedContents = untrack(() => editedContents) || data.contents;
+  }
+});
+
+// Reset edit state on path change
+$effect(() => {
+  // reactive on path
+  void path;
+  editMode = false;
+  editedContents = '';
+});
+
+const isDirty = $derived(
+  editedContents !== '' && $fileQ.data != null && editedContents !== $fileQ.data.contents
+);
+
+// ── File classification ─────────────────────────────────────────────────────
+
+const CODE_EXTS = new Set([
+  'ts',
+  'js',
+  'tsx',
+  'jsx',
+  'ex',
+  'exs',
+  'rs',
+  'go',
+  'py',
+  'json',
+  'yaml',
+  'yml',
+  'sh',
+  'svelte',
+  'css',
+]);
+
+const MARKDOWN_EXTS = new Set(['md', 'markdown']);
+
+function extOf(p: string): string {
+  const dot = p.lastIndexOf('.');
+  return dot === -1 ? '' : p.slice(dot + 1).toLowerCase();
+}
+
+type FileMode = 'markdown' | 'code' | 'binary';
+
+function classifyFile(p: string, contents: string): FileMode {
+  const ext = extOf(p);
+  if (MARKDOWN_EXTS.has(ext)) return 'markdown';
+  if (CODE_EXTS.has(ext)) return 'code';
+  // Heuristic: if file has no extension but looks textual, treat as code
+  if (ext === '' && !hasBinaryChars(contents)) return 'code';
+  if (CODE_EXTS.has(ext)) return 'code';
+  return 'binary';
+}
+
+function hasBinaryChars(text: string): boolean {
+  // Null bytes are the canonical binary signal
+  return text.includes('\x00');
+}
+
+const fileMode = $derived<FileMode>(
+  $fileQ.data ? classifyFile(path, $fileQ.data.contents) : 'code'
+);
+
+// ── Breadcrumb ──────────────────────────────────────────────────────────────
+
+const breadcrumbs = $derived(path.split('/').filter((s) => s.length > 0));
+
+// ── Formatted metadata ──────────────────────────────────────────────────────
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
+}
 
-  const fileQ = createQuery<FileReadResponse>(fileOptsStore);
+// ── Line numbers for code view ──────────────────────────────────────────────
 
-  // ── Mutation ────────────────────────────────────────────────────────────────
+const codeLines = $derived((editMode ? editedContents : ($fileQ.data?.contents ?? '')).split('\n'));
 
-  // Capture slug at construction time — mutation factory doesn't need reactivity.
-  const _slug = untrack(() => workspaceSlug);
-  const writeMut = createMutation<FileReadResponse, Error, { path: string; contents: string }>(
-    writeFileMutation(_slug) as CreateMutationOptions<
-      FileReadResponse,
-      Error,
-      { path: string; contents: string }
-    >,
-  );
+// ── Markdown preview ────────────────────────────────────────────────────────
 
-  // ── Edit state ──────────────────────────────────────────────────────────────
+const markdownHtml = $derived(
+  renderMarkdown(editMode ? editedContents : ($fileQ.data?.contents ?? ''))
+);
 
-  let editMode = $state(false);
-  let editedContents = $state('');
+// ── Save ────────────────────────────────────────────────────────────────────
 
-  // Sync editedContents when query data arrives (and whenever path changes)
-  $effect(() => {
-    const data = $fileQ.data;
-    if (data) {
-      editedContents = untrack(() => editedContents) || data.contents;
-    }
-  });
-
-  // Reset edit state on path change
-  $effect(() => {
-    // reactive on path
-    void path;
-    editMode = false;
-    editedContents = '';
-  });
-
-  const isDirty = $derived(
-    editedContents !== '' && $fileQ.data != null && editedContents !== $fileQ.data.contents,
-  );
-
-  // ── File classification ─────────────────────────────────────────────────────
-
-  const CODE_EXTS = new Set([
-    'ts', 'js', 'tsx', 'jsx', 'ex', 'exs', 'rs', 'go', 'py',
-    'json', 'yaml', 'yml', 'sh', 'svelte', 'css',
-  ]);
-
-  const MARKDOWN_EXTS = new Set(['md', 'markdown']);
-
-  function extOf(p: string): string {
-    const dot = p.lastIndexOf('.');
-    return dot === -1 ? '' : p.slice(dot + 1).toLowerCase();
-  }
-
-  type FileMode = 'markdown' | 'code' | 'binary';
-
-  function classifyFile(p: string, contents: string): FileMode {
-    const ext = extOf(p);
-    if (MARKDOWN_EXTS.has(ext)) return 'markdown';
-    if (CODE_EXTS.has(ext)) return 'code';
-    // Heuristic: if file has no extension but looks textual, treat as code
-    if (ext === '' && !hasBinaryChars(contents)) return 'code';
-    if (CODE_EXTS.has(ext)) return 'code';
-    return 'binary';
-  }
-
-  function hasBinaryChars(text: string): boolean {
-    // Null bytes are the canonical binary signal
-    return text.includes('\x00');
-  }
-
-  const fileMode = $derived<FileMode>(
-    $fileQ.data ? classifyFile(path, $fileQ.data.contents) : 'code',
-  );
-
-  // ── Breadcrumb ──────────────────────────────────────────────────────────────
-
-  const breadcrumbs = $derived(path.split('/').filter((s) => s.length > 0));
-
-  // ── Formatted metadata ──────────────────────────────────────────────────────
-
-  function formatSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  function formatDate(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-
-  // ── Line numbers for code view ──────────────────────────────────────────────
-
-  const codeLines = $derived(
-    (editMode ? editedContents : ($fileQ.data?.contents ?? '')).split('\n'),
-  );
-
-  // ── Markdown preview ────────────────────────────────────────────────────────
-
-  const markdownHtml = $derived(
-    renderMarkdown(editMode ? editedContents : ($fileQ.data?.contents ?? '')),
-  );
-
-  // ── Save ────────────────────────────────────────────────────────────────────
-
-  function save(): void {
-    if (!isDirty || $writeMut.isPending) return;
-    $writeMut.mutate(
-      { path, contents: editedContents },
-      {
-        onSuccess: () => {
-          toasts.success('Saved');
-          queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceSlug, 'file', path] });
-          queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceSlug, 'tree'] });
-          editMode = false;
-        },
-        onError: (err) => {
-          toasts.error(`Save failed: ${err.message}`);
-        },
+function save(): void {
+  if (!isDirty || $writeMut.isPending) return;
+  $writeMut.mutate(
+    { path, contents: editedContents },
+    {
+      onSuccess: () => {
+        toasts.success('Saved');
+        queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceSlug, 'file', path] });
+        queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceSlug, 'tree'] });
+        editMode = false;
       },
-    );
+      onError: (err) => {
+        toasts.error(`Save failed: ${err.message}`);
+      },
+    }
+  );
+}
+
+// ── Keyboard shortcut (⌘S / Ctrl+S) ─────────────────────────────────────────
+
+function handleKeydown(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    save();
   }
+}
 
-  // ── Keyboard shortcut (⌘S / Ctrl+S) ─────────────────────────────────────────
+// ── Unsaved-changes guard ───────────────────────────────────────────────────
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+let guardOpen = $state(false);
+let bypassGuard = $state(false);
+let pendingNavigation: (() => void) | null = null;
+
+beforeNavigate(({ cancel, to }) => {
+  if (isDirty && !bypassGuard) {
+    cancel();
+    pendingNavigation = () => {
+      bypassGuard = true;
+      if (to?.url) window.location.assign(to.url.href);
+    };
+    guardOpen = true;
+  }
+});
+
+// beforeunload for hard reload / window close
+$effect(() => {
+  function handleBeforeUnload(e: BeforeUnloadEvent): string | undefined {
+    if (isDirty) {
       e.preventDefault();
-      save();
+      return '';
     }
   }
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+});
 
-  // ── Unsaved-changes guard ───────────────────────────────────────────────────
+// ── Toggle edit mode ────────────────────────────────────────────────────────
 
-  let guardOpen = $state(false);
-  let bypassGuard = $state(false);
-  let pendingNavigation: (() => void) | null = null;
-
-  beforeNavigate(({ cancel, to }) => {
-    if (isDirty && !bypassGuard) {
-      cancel();
-      pendingNavigation = () => {
-        bypassGuard = true;
-        if (to?.url) window.location.assign(to.url.href);
-      };
-      guardOpen = true;
-    }
-  });
-
-  // beforeunload for hard reload / window close
-  $effect(() => {
-    function handleBeforeUnload(e: BeforeUnloadEvent): string | undefined {
-      if (isDirty) {
-        e.preventDefault();
-        return '';
-      }
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  });
-
-  // ── Toggle edit mode ────────────────────────────────────────────────────────
-
-  function toggleEdit(): void {
-    if (!editMode) {
-      editedContents = $fileQ.data?.contents ?? '';
-    }
-    editMode = !editMode;
+function toggleEdit(): void {
+  if (!editMode) {
+    editedContents = $fileQ.data?.contents ?? '';
   }
+  editMode = !editMode;
+}
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

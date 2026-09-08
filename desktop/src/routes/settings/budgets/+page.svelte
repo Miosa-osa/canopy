@@ -5,18 +5,18 @@
  */
 
 import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { agentsQuery } from '$lib/api/queries/agents.js';
 import {
   type Budget,
   type BudgetPeriod,
   type BudgetScopeType,
-  type CreateBudgetBody,
-  type UpdateBudgetBody,
   budgetsQuery,
+  type CreateBudgetBody,
   createBudgetMutation,
   deleteBudgetMutation,
+  type UpdateBudgetBody,
   updateBudgetMutation,
 } from '$lib/api/queries/budgets.js';
-import { agentsQuery } from '$lib/api/queries/agents.js';
 import { workspacesQuery } from '$lib/api/queries/workspaces.js';
 
 const qc = useQueryClient();
@@ -131,8 +131,14 @@ const toggleMut = createMutation({
 function handleSubmit(): void {
   formError = '';
   const limitVal = parseFloat(formLimitUsd);
-  if (!formName.trim()) { formError = 'Name is required.'; return; }
-  if (isNaN(limitVal) || limitVal <= 0) { formError = 'Limit must be a positive number.'; return; }
+  if (!formName.trim()) {
+    formError = 'Name is required.';
+    return;
+  }
+  if (isNaN(limitVal) || limitVal <= 0) {
+    formError = 'Limit must be a positive number.';
+    return;
+  }
   if (formScopeType !== 'global' && !formScopeId) {
     formError = `Select a ${formScopeType} for the scope.`;
     return;

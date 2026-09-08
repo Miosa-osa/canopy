@@ -1,52 +1,51 @@
 <script lang="ts">
-  /**
-   * BudgetAlertWidget — shows budgets that are >80% spent.
-   * CSS prefix: baw-
-   *
-   * Fetches /budgets on mount. Renders a red/amber card for any that exceed threshold.
-   * Clicking a card navigates to /settings (budget detail is not yet a separate route).
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { AlertTriangle } from 'lucide-svelte';
-  import { goto } from '$app/navigation';
-  import { apiGet } from '$lib/api/client.js';
+/**
+ * BudgetAlertWidget — shows budgets that are >80% spent.
+ * CSS prefix: baw-
+ *
+ * Fetches /budgets on mount. Renders a red/amber card for any that exceed threshold.
+ * Clicking a card navigates to /settings (budget detail is not yet a separate route).
+ */
+import { createQuery } from '@tanstack/svelte-query';
+import { AlertTriangle } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import { apiGet } from '$lib/api/client.js';
 
-  interface Budget {
-    id: string;
-    name: string;
-    limitUsd: string;
-    spentUsd?: string;
-    enabled: boolean;
-    scopeType?: string;
-  }
+interface Budget {
+  id: string;
+  name: string;
+  limitUsd: string;
+  spentUsd?: string;
+  enabled: boolean;
+  scopeType?: string;
+}
 
-  const ALERT_THRESHOLD = 0.8;
+const ALERT_THRESHOLD = 0.8;
 
-  const budgetsQ = createQuery<Budget[]>({
-    queryKey: ['budgets'],
-    queryFn: () =>
-      apiGet<{ data: Budget[] }>('/budgets').then((r) => r.data ?? []),
-    staleTime: 60_000,
-  });
+const budgetsQ = createQuery<Budget[]>({
+  queryKey: ['budgets'],
+  queryFn: () => apiGet<{ data: Budget[] }>('/budgets').then((r) => r.data ?? []),
+  staleTime: 60_000,
+});
 
-  const alertBudgets = $derived(
-    ($budgetsQ.data ?? []).filter((b) => {
-      if (!b.enabled) return false;
-      const limit = parseFloat(b.limitUsd);
-      const spent = parseFloat(b.spentUsd ?? '0');
-      return limit > 0 && spent / limit >= ALERT_THRESHOLD;
-    })
-  );
-
-  function pct(b: Budget): number {
+const alertBudgets = $derived(
+  ($budgetsQ.data ?? []).filter((b) => {
+    if (!b.enabled) return false;
     const limit = parseFloat(b.limitUsd);
     const spent = parseFloat(b.spentUsd ?? '0');
-    return limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
-  }
+    return limit > 0 && spent / limit >= ALERT_THRESHOLD;
+  })
+);
 
-  function severity(p: number): 'critical' | 'warn' {
-    return p >= 95 ? 'critical' : 'warn';
-  }
+function pct(b: Budget): number {
+  const limit = parseFloat(b.limitUsd);
+  const spent = parseFloat(b.spentUsd ?? '0');
+  return limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
+}
+
+function severity(p: number): 'critical' | 'warn' {
+  return p >= 95 ? 'critical' : 'warn';
+}
 </script>
 
 <div class="baw-widget">

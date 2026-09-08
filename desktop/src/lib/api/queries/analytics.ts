@@ -3,11 +3,10 @@
  * Endpoints under /api/v1/analytics/*.
  */
 
-import { apiGet, apiPost } from "$lib/api/client.js";
+import { apiGet, apiPost } from '$lib/api/client.js';
 import type {
   Alert,
   AlertCreate,
-  Breadcrumb,
   BreadcrumbList,
   CostBuckets,
   Granularity,
@@ -15,7 +14,7 @@ import type {
   InsightCreate,
   InsightSeverity,
   TelemetryEvent,
-} from "$lib/domain/analytics/types.js";
+} from '$lib/domain/analytics/types.js';
 
 // ── Telemetry ────────────────────────────────────────────────────────────────
 
@@ -34,11 +33,9 @@ export interface TelemetryQuery {
 export function telemetryQuery(opts: TelemetryQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["analytics", "telemetry", opts],
+    queryKey: ['analytics', 'telemetry', opts],
     queryFn: () =>
-      apiGet<{ data: TelemetryEvent[] }>(`/analytics/telemetry${qs}`).then(
-        (r) => r.data,
-      ),
+      apiGet<{ data: TelemetryEvent[] }>(`/analytics/telemetry${qs}`).then((r) => r.data),
   };
 }
 
@@ -56,7 +53,7 @@ export interface CostQuery {
 export function costQuery(opts: CostQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["analytics", "costs", opts],
+    queryKey: ['analytics', 'costs', opts],
     queryFn: () => apiGet<CostBuckets>(`/analytics/costs${qs}`),
   };
 }
@@ -72,11 +69,9 @@ export interface BreadcrumbQuery {
 export function breadcrumbQuery(runId: string, opts: BreadcrumbQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["analytics", "breadcrumbs", runId, opts],
+    queryKey: ['analytics', 'breadcrumbs', runId, opts],
     queryFn: () =>
-      apiGet<BreadcrumbList>(`/analytics/breadcrumbs/${runId}${qs}`).then(
-        (r) => r.data,
-      ),
+      apiGet<BreadcrumbList>(`/analytics/breadcrumbs/${runId}${qs}`).then((r) => r.data),
     enabled: Boolean(runId),
   } as const;
 }
@@ -94,22 +89,19 @@ export interface InsightQuery {
 export function insightsQuery(opts: InsightQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["analytics", "insights", opts],
-    queryFn: () =>
-      apiGet<{ data: Insight[] }>(`/analytics/insights${qs}`).then(
-        (r) => r.data,
-      ),
+    queryKey: ['analytics', 'insights', opts],
+    queryFn: () => apiGet<{ data: Insight[] }>(`/analytics/insights${qs}`).then((r) => r.data),
   };
 }
 
 export async function createInsight(insight: InsightCreate): Promise<Insight> {
-  return apiPost<Insight>("/analytics/insights", insight);
+  return apiPost<Insight>('/analytics/insights', insight);
 }
 
 export async function acknowledgeInsight(
   slug: string,
   by: string,
-  feedback?: "true_positive" | "false_positive",
+  feedback?: 'true_positive' | 'false_positive'
 ): Promise<Insight> {
   return apiPost<Insight>(`/analytics/insights/${slug}/ack`, { by, feedback });
 }
@@ -125,23 +117,22 @@ export interface AlertQuery {
 export function alertsQuery(opts: AlertQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["analytics", "alerts", opts],
-    queryFn: () =>
-      apiGet<{ data: Alert[] }>(`/analytics/alerts${qs}`).then((r) => r.data),
+    queryKey: ['analytics', 'alerts', opts],
+    queryFn: () => apiGet<{ data: Alert[] }>(`/analytics/alerts${qs}`).then((r) => r.data),
   };
 }
 
 export async function createAlert(alert: AlertCreate): Promise<Alert> {
-  return apiPost<Alert>("/analytics/alerts", alert);
+  return apiPost<Alert>('/analytics/alerts', alert);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildQuery(opts: object): string {
   const entries = Object.entries(opts as Record<string, unknown>).filter(
-    ([, v]) => v !== undefined && v !== null && v !== "",
+    ([, v]) => v !== undefined && v !== null && v !== ''
   );
-  if (entries.length === 0) return "";
+  if (entries.length === 0) return '';
 
   const params = new URLSearchParams();
   for (const [key, value] of entries) {
@@ -157,4 +148,4 @@ export type {
   CostBuckets,
   Insight,
   TelemetryEvent,
-} from "$lib/domain/analytics/types.js";
+} from '$lib/domain/analytics/types.js';

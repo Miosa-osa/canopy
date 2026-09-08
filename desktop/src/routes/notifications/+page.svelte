@@ -1,183 +1,183 @@
 <script lang="ts">
-  /**
-   * /notifications — Full notification list page.
-   * CSS prefix: nf- (NotificationsFull)
-   * LOC target: ≤ 300.
-   *
-   * Keyboard: j/k navigate · ↵ open/expand · d mark read · ⇧D delete · r refresh
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { Bell } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { goto } from '$app/navigation';
-  import {
-    deleteNotificationMutation,
-    markAllReadMutation,
-    markReadMutation,
-    notificationsQuery,
-    unreadCountQuery,
-  } from '$lib/api/queries/notifications.js';
-  import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import type { Notification } from '$lib/domain/notifications/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
-  import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
+/**
+ * /notifications — Full notification list page.
+ * CSS prefix: nf- (NotificationsFull)
+ * LOC target: ≤ 300.
+ *
+ * Keyboard: j/k navigate · ↵ open/expand · d mark read · ⇧D delete · r refresh
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { Bell } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import {
+  deleteNotificationMutation,
+  markAllReadMutation,
+  markReadMutation,
+  notificationsQuery,
+  unreadCountQuery,
+} from '$lib/api/queries/notifications.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Notification } from '$lib/domain/notifications/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── TanStack Query setup ──────────────────────────────────────────────────────
+// ── TanStack Query setup ──────────────────────────────────────────────────────
 
-  const listOptsStore = writable(
-    untrack(() => notificationsQuery() as CreateQueryOptions<Notification[]>),
-  );
-  const listQ = createQuery<Notification[]>(listOptsStore);
+const listOptsStore = writable(
+  untrack(() => notificationsQuery() as CreateQueryOptions<Notification[]>)
+);
+const listQ = createQuery<Notification[]>(listOptsStore);
 
-  const unreadCountOptsStore = writable(
-    untrack(() => unreadCountQuery() as CreateQueryOptions<{ count: number }>),
-  );
-  const unreadCountQ = createQuery<{ count: number }>(unreadCountOptsStore);
+const unreadCountOptsStore = writable(
+  untrack(() => unreadCountQuery() as CreateQueryOptions<{ count: number }>)
+);
+const unreadCountQ = createQuery<{ count: number }>(unreadCountOptsStore);
 
-  const markReadMut = createMutation(
-    writable(untrack(() => markReadMutation() as CreateMutationOptions<Notification, Error, string>)),
-  );
+const markReadMut = createMutation(
+  writable(untrack(() => markReadMutation() as CreateMutationOptions<Notification, Error, string>))
+);
 
-  const markAllReadMut = createMutation(
-    writable(
-      untrack(
-        () => markAllReadMutation() as CreateMutationOptions<{ count: number }, Error, void>,
-      ),
-    ),
-  );
+const markAllReadMut = createMutation(
+  writable(
+    untrack(() => markAllReadMutation() as CreateMutationOptions<{ count: number }, Error, void>)
+  )
+);
 
-  const deleteNotifMut = createMutation(
-    writable(untrack(() => deleteNotificationMutation() as CreateMutationOptions<void, Error, string>)),
-  );
+const deleteNotifMut = createMutation(
+  writable(
+    untrack(() => deleteNotificationMutation() as CreateMutationOptions<void, Error, string>)
+  )
+);
 
-  // ── Filter state ──────────────────────────────────────────────────────────────
+// ── Filter state ──────────────────────────────────────────────────────────────
 
-  type StatusFilter = 'all' | 'unread' | 'read';
-  type DateFilter = 'today' | 'week' | 'month' | 'all';
+type StatusFilter = 'all' | 'unread' | 'read';
+type DateFilter = 'today' | 'week' | 'month' | 'all';
 
-  let statusFilter = $state<StatusFilter>('all');
-  let typeFilter = $state<string>('all');
-  let dateFilter = $state<DateFilter>('all');
+let statusFilter = $state<StatusFilter>('all');
+let typeFilter = $state<string>('all');
+let dateFilter = $state<DateFilter>('all');
 
-  // ── Derived data ──────────────────────────────────────────────────────────────
+// ── Derived data ──────────────────────────────────────────────────────────────
 
-  const allNotifs = $derived(($listQ.data ?? []) as Notification[]);
-  const unreadCount = $derived(($unreadCountQ.data?.count ?? 0) as number);
+const allNotifs = $derived(($listQ.data ?? []) as Notification[]);
+const unreadCount = $derived(($unreadCountQ.data?.count ?? 0) as number);
 
-  // Derive distinct types from results for the type dropdown
-  const distinctTypes = $derived<string[]>([
-    'all',
-    ...Array.from(new Set(allNotifs.map((n) => n.type))).sort(),
-  ]);
+// Derive distinct types from results for the type dropdown
+const distinctTypes = $derived<string[]>([
+  'all',
+  ...Array.from(new Set(allNotifs.map((n) => n.type))).sort(),
+]);
 
-  function matchesDate(n: Notification): boolean {
-    if (dateFilter === 'all') return true;
-    const now = Date.now();
-    const ts = new Date(n.insertedAt).getTime();
-    const diff = now - ts;
-    if (dateFilter === 'today') return diff < 86_400_000;
-    if (dateFilter === 'week') return diff < 7 * 86_400_000;
-    if (dateFilter === 'month') return diff < 30 * 86_400_000;
-    return true;
-  }
+function matchesDate(n: Notification): boolean {
+  if (dateFilter === 'all') return true;
+  const now = Date.now();
+  const ts = new Date(n.insertedAt).getTime();
+  const diff = now - ts;
+  if (dateFilter === 'today') return diff < 86_400_000;
+  if (dateFilter === 'week') return diff < 7 * 86_400_000;
+  if (dateFilter === 'month') return diff < 30 * 86_400_000;
+  return true;
+}
 
-  const filtered = $derived(
-    allNotifs.filter((n) => {
-      if (statusFilter === 'unread' && n.readAt !== null) return false;
-      if (statusFilter === 'read' && n.readAt === null) return false;
-      if (typeFilter !== 'all' && n.type !== typeFilter) return false;
-      return matchesDate(n);
-    }),
-  );
+const filtered = $derived(
+  allNotifs.filter((n) => {
+    if (statusFilter === 'unread' && n.readAt !== null) return false;
+    if (statusFilter === 'read' && n.readAt === null) return false;
+    if (typeFilter !== 'all' && n.type !== typeFilter) return false;
+    return matchesDate(n);
+  })
+);
 
-  // ── Expanded row state ────────────────────────────────────────────────────────
+// ── Expanded row state ────────────────────────────────────────────────────────
 
-  let expandedId = $state<string | null>(null);
+let expandedId = $state<string | null>(null);
 
-  // ── Relative time ─────────────────────────────────────────────────────────────
+// ── Relative time ─────────────────────────────────────────────────────────────
 
-  function relativeTime(iso: string): string {
-    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
-  }
+function relativeTime(iso: string): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
-  // ── Interaction handlers ──────────────────────────────────────────────────────
+// ── Interaction handlers ──────────────────────────────────────────────────────
 
-  async function handleRowClick(n: Notification): Promise<void> {
-    if (n.linkPath) {
-      if (!n.readAt) await markRead(n.id);
-      void goto(n.linkPath);
-      return;
-    }
-    expandedId = expandedId === n.id ? null : n.id;
+async function handleRowClick(n: Notification): Promise<void> {
+  if (n.linkPath) {
     if (!n.readAt) await markRead(n.id);
+    void goto(n.linkPath);
+    return;
   }
+  expandedId = expandedId === n.id ? null : n.id;
+  if (!n.readAt) await markRead(n.id);
+}
 
-  async function markRead(id: string): Promise<void> {
-    await $markReadMut.mutateAsync(id);
+async function markRead(id: string): Promise<void> {
+  await $markReadMut.mutateAsync(id);
+  queryClient.invalidateQueries({ queryKey: ['notifications'] });
+}
+
+async function toggleRead(n: Notification): Promise<void> {
+  if (!n.readAt) {
+    await markRead(n.id);
+  }
+  // No unread mutation exposed in queries — mark read only direction
+}
+
+async function handleDelete(id: string): Promise<void> {
+  await $deleteNotifMut.mutateAsync(id);
+  queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  toasts.success('Notification deleted');
+  if (expandedId === id) expandedId = null;
+}
+
+async function handleMarkAllRead(): Promise<void> {
+  await $markAllReadMut.mutateAsync();
+  queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  toasts.success('All notifications marked as read');
+}
+
+// ── Keyboard navigation ───────────────────────────────────────────────────────
+
+const kb = useListKeyboard<Notification>({
+  items: () => filtered,
+  onSelect: (item) => void handleRowClick(item),
+  onRefresh: () => {
     queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  },
+});
+
+function handlePageKeydown(e: KeyboardEvent): void {
+  // d — mark focused item read
+  if (e.key === 'd' && !e.shiftKey && kb.selectedIndex >= 0) {
+    e.preventDefault();
+    const item = filtered[kb.selectedIndex];
+    if (item) void toggleRead(item);
+    return;
   }
-
-  async function toggleRead(n: Notification): Promise<void> {
-    if (!n.readAt) {
-      await markRead(n.id);
-    }
-    // No unread mutation exposed in queries — mark read only direction
+  // ⇧D — delete focused item
+  if (e.key === 'D' && e.shiftKey && kb.selectedIndex >= 0) {
+    e.preventDefault();
+    const item = filtered[kb.selectedIndex];
+    if (item) void handleDelete(item.id);
+    return;
   }
-
-  async function handleDelete(id: string): Promise<void> {
-    await $deleteNotifMut.mutateAsync(id);
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    toasts.success('Notification deleted');
-    if (expandedId === id) expandedId = null;
-  }
-
-  async function handleMarkAllRead(): Promise<void> {
-    await $markAllReadMut.mutateAsync();
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    toasts.success('All notifications marked as read');
-  }
-
-  // ── Keyboard navigation ───────────────────────────────────────────────────────
-
-  const kb = useListKeyboard<Notification>({
-    items: () => filtered,
-    onSelect: (item) => void handleRowClick(item),
-    onRefresh: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
-  });
-
-  function handlePageKeydown(e: KeyboardEvent): void {
-    // d — mark focused item read
-    if (e.key === 'd' && !e.shiftKey && kb.selectedIndex >= 0) {
-      e.preventDefault();
-      const item = filtered[kb.selectedIndex];
-      if (item) void toggleRead(item);
-      return;
-    }
-    // ⇧D — delete focused item
-    if (e.key === 'D' && e.shiftKey && kb.selectedIndex >= 0) {
-      e.preventDefault();
-      const item = filtered[kb.selectedIndex];
-      if (item) void handleDelete(item.id);
-      return;
-    }
-    kb.handleKeydown(e);
-  }
+  kb.handleKeydown(e);
+}
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

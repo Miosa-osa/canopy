@@ -3,8 +3,8 @@
  * All fields camelCase; client.ts unwraps {data:...} envelopes.
  */
 
-export type RoutineStatus = "active" | "paused" | "archived";
-export type RoutineCreates = "task" | "issue" | "goal";
+export type RoutineStatus = 'active' | 'paused' | 'archived';
+export type RoutineCreates = 'task' | 'issue' | 'goal';
 
 export interface Routine {
   id: string;

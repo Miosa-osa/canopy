@@ -1,132 +1,130 @@
 <script lang="ts">
-  /**
-   * SkillsPanel — agent ↔ skill assignment panel.
-   * Lists all skills grouped by kind, shows which are assigned to this agent,
-   * and calls the live assignment endpoints (POST/DELETE /agents/:slug/skills).
-   * CSS prefix: skp- (SkillsPanel)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import {
-    agentSkillsQuery,
-    assignSkillMutation,
-    unassignSkillMutation,
-  } from '$lib/api/queries/agent-skills.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
-  import type { Skill, AgentSkillAssignment } from '$lib/domain/skills/types.js';
+/**
+ * SkillsPanel — agent ↔ skill assignment panel.
+ * Lists all skills grouped by kind, shows which are assigned to this agent,
+ * and calls the live assignment endpoints (POST/DELETE /agents/:slug/skills).
+ * CSS prefix: skp- (SkillsPanel)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { writable } from 'svelte/store';
+import {
+  agentSkillsQuery,
+  assignSkillMutation,
+  unassignSkillMutation,
+} from '$lib/api/queries/agent-skills.js';
+import type { AgentSkillAssignment, Skill } from '$lib/domain/skills/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  interface Props {
-    agentSlug: string;
-    skills: Skill[];
-    isLoading: boolean;
-  }
+interface Props {
+  agentSlug: string;
+  skills: Skill[];
+  isLoading: boolean;
+}
 
-  let { agentSlug, skills, isLoading }: Props = $props();
+let { agentSlug, skills, isLoading }: Props = $props();
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── Live assignments query ────────────────────────────────────────────────
+// ── Live assignments query ────────────────────────────────────────────────
 
-  const assignmentsOptsStore = writable(
-    agentSkillsQuery(agentSlug) as CreateQueryOptions<AgentSkillAssignment[]>,
+const assignmentsOptsStore = writable(
+  agentSkillsQuery(agentSlug) as CreateQueryOptions<AgentSkillAssignment[]>
+);
+
+$effect(() => {
+  assignmentsOptsStore.set(
+    agentSkillsQuery(agentSlug) as CreateQueryOptions<AgentSkillAssignment[]>
   );
+});
 
-  $effect(() => {
-    assignmentsOptsStore.set(
-      agentSkillsQuery(agentSlug) as CreateQueryOptions<AgentSkillAssignment[]>,
-    );
-  });
+const assignmentsQ = createQuery<AgentSkillAssignment[]>(assignmentsOptsStore);
 
-  const assignmentsQ = createQuery<AgentSkillAssignment[]>(assignmentsOptsStore);
+const assignedSlugs = $derived(($assignmentsQ.data ?? []).map((a) => a.skill_slug));
 
-  const assignedSlugs = $derived(
-    ($assignmentsQ.data ?? []).map((a) => a.skill_slug),
-  );
+// ── Mutations ─────────────────────────────────────────────────────────────
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
-
-  const assignMut = createMutation<
+const assignMut = createMutation<
+  AgentSkillAssignment,
+  Error,
+  { agentSlug: string; skillSlug: string; priority?: number }
+>(
+  assignSkillMutation() as CreateMutationOptions<
     AgentSkillAssignment,
     Error,
     { agentSlug: string; skillSlug: string; priority?: number }
-  >(
-    assignSkillMutation() as CreateMutationOptions<
-      AgentSkillAssignment,
-      Error,
-      { agentSlug: string; skillSlug: string; priority?: number }
-    >,
-  );
+  >
+);
 
-  const unassignMut = createMutation<
+const unassignMut = createMutation<void, Error, { agentSlug: string; skillSlug: string }>(
+  unassignSkillMutation() as CreateMutationOptions<
     void,
     Error,
     { agentSlug: string; skillSlug: string }
-  >(
-    unassignSkillMutation() as CreateMutationOptions<
-      void,
-      Error,
-      { agentSlug: string; skillSlug: string }
-    >,
-  );
+  >
+);
 
-  function invalidateAssignments() {
-    queryClient.invalidateQueries({ queryKey: ['agents', agentSlug, 'skills'] });
-  }
+function invalidateAssignments() {
+  queryClient.invalidateQueries({ queryKey: ['agents', agentSlug, 'skills'] });
+}
 
-  function toggle(skillSlug: string) {
-    if (assignedSlugs.includes(skillSlug)) {
-      $unassignMut.mutate(
-        { agentSlug, skillSlug },
-        {
-          onSuccess: () => {
-            invalidateAssignments();
-            toasts.success('Skill removed.');
-          },
-          onError: (err) => toasts.error(err.message ?? 'Remove failed.'),
+function toggle(skillSlug: string) {
+  if (assignedSlugs.includes(skillSlug)) {
+    $unassignMut.mutate(
+      { agentSlug, skillSlug },
+      {
+        onSuccess: () => {
+          invalidateAssignments();
+          toasts.success('Skill removed.');
         },
-      );
-    } else {
-      $assignMut.mutate(
-        { agentSlug, skillSlug },
-        {
-          onSuccess: () => {
-            invalidateAssignments();
-            toasts.success('Skill assigned.');
-          },
-          onError: (err) => toasts.error(err.message ?? 'Assignment failed.'),
+        onError: (err) => toasts.error(err.message ?? 'Remove failed.'),
+      }
+    );
+  } else {
+    $assignMut.mutate(
+      { agentSlug, skillSlug },
+      {
+        onSuccess: () => {
+          invalidateAssignments();
+          toasts.success('Skill assigned.');
         },
-      );
-    }
+        onError: (err) => toasts.error(err.message ?? 'Assignment failed.'),
+      }
+    );
   }
+}
 
-  // ── Group by kind ─────────────────────────────────────────────────────────
+// ── Group by kind ─────────────────────────────────────────────────────────
 
-  const KIND_ORDER = ['prompt', 'workflow', 'reference'] as const;
+const KIND_ORDER = ['prompt', 'workflow', 'reference'] as const;
 
-  const byKind = $derived(
-    KIND_ORDER.reduce<Record<string, Skill[]>>((acc, k) => {
-      const group = skills.filter((s) => s.kind === k);
-      if (group.length > 0) acc[k] = group;
-      return acc;
-    }, {}),
-  );
+const byKind = $derived(
+  KIND_ORDER.reduce<Record<string, Skill[]>>((acc, k) => {
+    const group = skills.filter((s) => s.kind === k);
+    if (group.length > 0) acc[k] = group;
+    return acc;
+  }, {})
+);
 
-  function kindLabel(kind: string): string {
-    switch (kind) {
-      case 'prompt': return 'Prompts';
-      case 'workflow': return 'Workflows';
-      case 'reference': return 'Reference';
-      default: return kind;
-    }
+function kindLabel(kind: string): string {
+  switch (kind) {
+    case 'prompt':
+      return 'Prompts';
+    case 'workflow':
+      return 'Workflows';
+    case 'reference':
+      return 'Reference';
+    default:
+      return kind;
   }
+}
 
-  const isBusy = $derived($assignMut.isPending || $unassignMut.isPending);
+const isBusy = $derived($assignMut.isPending || $unassignMut.isPending);
 </script>
 
 <div class="skp-root">

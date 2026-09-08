@@ -20,44 +20,42 @@ import {
   createMutation,
   createQuery,
   useQueryClient,
-} from "@tanstack/svelte-query";
-import { FileText, FolderOpen, Search } from "lucide-svelte";
-import { untrack } from "svelte";
-import { writable } from "svelte/store";
-import { goto } from "$app/navigation";
+} from '@tanstack/svelte-query';
+import { FileText, FolderOpen, Search } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
 import {
   bodyJsonFromText,
   createDocumentMutation,
   documentsQuery,
   folderTreeQuery,
   searchDocumentsQuery,
-} from "$lib/api/queries/docs.js";
-import { workspacesQuery } from "$lib/api/queries/workspaces.js";
-import EmptyState from "$lib/design/patterns/EmptyState.svelte";
-import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
+} from '$lib/api/queries/docs.js';
+import { workspacesQuery } from '$lib/api/queries/workspaces.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
 import type {
   CreateDocumentBody,
   DocFilters,
   Document,
   FolderTreeNode,
-} from "$lib/domain/docs/types.js";
-import type { Workspace } from "$lib/domain/workspaces/types.js";
-import ViewPicker from "$lib/design/primitives/ViewPicker.svelte";
-import type { ViewState } from "$lib/design/primitives/ViewPicker.svelte";
-import { ui } from "$lib/stores/ui.svelte.js";
-import { toasts } from "$lib/stores/toasts.svelte.js";
+} from '$lib/domain/docs/types.js';
+import type { Workspace } from '$lib/domain/workspaces/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import { ui } from '$lib/stores/ui.svelte.js';
 
 const queryClient = useQueryClient();
 
 // ── Workspace selector ────────────────────────────────────────────────────────
 
-const wsOptsStore = writable(
-  untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>),
-);
+const wsOptsStore = writable(untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>));
 const wsQuery = createQuery<Workspace[]>(wsOptsStore);
 const workspaces = $derived(($wsQuery.data ?? []) as Workspace[]);
 
-let selectedWorkspace = $state(ui.currentWorkspaceSlug ?? "");
+let selectedWorkspace = $state(ui.currentWorkspaceSlug ?? '');
 
 $effect(() => {
   if (!selectedWorkspace && workspaces.length > 0) {
@@ -68,7 +66,7 @@ $effect(() => {
 // ── Folder tree ───────────────────────────────────────────────────────────────
 
 const treeOptsStore = writable(
-  untrack(() => folderTreeQuery(selectedWorkspace) as CreateQueryOptions<FolderTreeNode[]>),
+  untrack(() => folderTreeQuery(selectedWorkspace) as CreateQueryOptions<FolderTreeNode[]>)
 );
 $effect(() => {
   treeOptsStore.set(folderTreeQuery(selectedWorkspace) as CreateQueryOptions<FolderTreeNode[]>);
@@ -86,8 +84,8 @@ function toggleFolder(id: string): void {
 
 // ── Search ────────────────────────────────────────────────────────────────────
 
-let rawSearch = $state("");
-let searchDebounced = $state("");
+let rawSearch = $state('');
+let searchDebounced = $state('');
 // Plain let (not $state) — reading+writing a reactive timer inside $effect causes
 // effect_update_depth_exceeded because the effect re-runs on every write.
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -105,13 +103,12 @@ const isSearching = $derived(searchDebounced.trim().length > 0);
 
 const searchOptsStore = writable(
   untrack(
-    () =>
-      searchDocumentsQuery(selectedWorkspace, searchDebounced) as CreateQueryOptions<Document[]>,
-  ),
+    () => searchDocumentsQuery(selectedWorkspace, searchDebounced) as CreateQueryOptions<Document[]>
+  )
 );
 $effect(() => {
   searchOptsStore.set(
-    searchDocumentsQuery(selectedWorkspace, searchDebounced) as CreateQueryOptions<Document[]>,
+    searchDocumentsQuery(selectedWorkspace, searchDebounced) as CreateQueryOptions<Document[]>
   );
 });
 const searchQ = createQuery<Document[]>(searchOptsStore);
@@ -124,7 +121,7 @@ const filters = $derived<DocFilters>({
 });
 
 const docsOptsStore = writable(
-  untrack(() => documentsQuery(filters) as CreateQueryOptions<Document[]>),
+  untrack(() => documentsQuery(filters) as CreateQueryOptions<Document[]>)
 );
 $effect(() => {
   docsOptsStore.set(documentsQuery(filters) as CreateQueryOptions<Document[]>);
@@ -132,9 +129,7 @@ $effect(() => {
 const docsQ = createQuery<Document[]>(docsOptsStore);
 
 const docs = $derived(
-  isSearching
-    ? (($searchQ.data ?? []) as Document[])
-    : (($docsQ.data ?? []) as Document[]),
+  isSearching ? (($searchQ.data ?? []) as Document[]) : (($docsQ.data ?? []) as Document[])
 );
 const isLoading = $derived(isSearching ? $searchQ.isLoading : $docsQ.isLoading);
 const isError = $derived(isSearching ? $searchQ.isError : $docsQ.isError);
@@ -144,7 +139,7 @@ const isError = $derived(isSearching ? $searchQ.isError : $docsQ.isError);
 const createMut = createMutation<Document, Error, CreateDocumentBody>({
   ...createDocumentMutation(),
   onSuccess: (doc) => {
-    queryClient.invalidateQueries({ queryKey: ["docs"] });
+    queryClient.invalidateQueries({ queryKey: ['docs'] });
     goto(`/docs/${doc.id}`);
   },
   onError: (err) => {
@@ -156,14 +151,14 @@ let view = $state<ViewState>({ layout: 'list', density: 'comfortable', sort: 're
 
 function handleNewDoc(): void {
   if (!selectedWorkspace) {
-    toasts.error("Select a workspace first.");
+    toasts.error('Select a workspace first.');
     return;
   }
   $createMut.mutate({
     workspaceSlug: selectedWorkspace,
-    title: "Untitled",
-    bodyJson: bodyJsonFromText(""),
-    bodyText: "",
+    title: 'Untitled',
+    bodyJson: bodyJsonFromText(''),
+    bodyText: '',
     folderId: selectedFolderId ?? null,
     tags: [],
   });
@@ -172,7 +167,11 @@ function handleNewDoc(): void {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 </script>
 

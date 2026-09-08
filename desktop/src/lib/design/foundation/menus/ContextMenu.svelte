@@ -1,4 +1,6 @@
 <script lang="ts" module>
+  import type { Component } from "svelte";
+  import type { IconProps } from "lucide-svelte";
   /**
    * ContextMenu — position-anchored menu primitive.
    * CSS prefix: cnp-ctx-
@@ -30,7 +32,7 @@
     /** Invoked on click / Enter / Space. The menu auto-closes after run. */
     onSelect: () => void;
     /** Optional left-side icon (lucide or any svelte component). */
-    icon?: unknown;
+    icon?: Component<IconProps>;
     /** Visually distinguished + announced as destructive. */
     destructive?: boolean;
     /** Greyed out, not focusable. */

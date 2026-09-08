@@ -11,7 +11,7 @@
  * NO new fetcher is introduced — this file only declares contracts.
  */
 
-import type { ViewerType } from "$lib/domain/file-viewer/types.js";
+import type { ViewerType } from '$lib/domain/file-viewer/types.js';
 
 /**
  * The set of languages CodeEditorPane will syntax-highlight when CodeMirror
@@ -19,24 +19,24 @@ import type { ViewerType } from "$lib/domain/file-viewer/types.js";
  * highlighting (already present in the repo at ^4.0.2).
  */
 export type CodeLanguage =
-  | "javascript"
-  | "typescript"
-  | "tsx"
-  | "jsx"
-  | "elixir"
-  | "rust"
-  | "python"
-  | "json"
-  | "markdown"
-  | "svelte"
-  | "yaml"
-  | "go"
-  | "html"
-  | "css"
-  | "bash"
-  | "sql"
-  | "toml"
-  | "text";
+  | 'javascript'
+  | 'typescript'
+  | 'tsx'
+  | 'jsx'
+  | 'elixir'
+  | 'rust'
+  | 'python'
+  | 'json'
+  | 'markdown'
+  | 'svelte'
+  | 'yaml'
+  | 'go'
+  | 'html'
+  | 'css'
+  | 'bash'
+  | 'sql'
+  | 'toml'
+  | 'text';
 
 /** Pane configuration — at least one of {fileId, (workspaceSlug + path)} must be set. */
 export interface CodeEditorPaneConfig {
@@ -54,15 +54,15 @@ export interface CodeEditorPaneConfig {
  * PanePicker catalog.
  */
 export interface CodeEditorPaneManifest {
-  paneType: "code_editor";
-  label: "Code Editor";
+  paneType: 'code_editor';
+  label: 'Code Editor';
   /** Lucide icon name — caller imports the actual component. */
-  icon: "Code";
+  icon: 'Code';
   defaultConfig: CodeEditorPaneConfig;
   configSchema: {
-    fileId: { type: "string"; required: false };
-    workspaceSlug: { type: "string"; required: false };
-    path: { type: "string"; required: false };
+    fileId: { type: 'string'; required: false };
+    workspaceSlug: { type: 'string'; required: false };
+    path: { type: 'string'; required: false };
   };
 }
 
@@ -74,43 +74,43 @@ export const EDIT_SIZE_CAP_BYTES = 5 * 1024 * 1024;
  * CodeMirror lands) by the language-pack switcher in extensions.ts.
  */
 export function languageFromExtension(extension: string | null): CodeLanguage {
-  if (!extension) return "text";
+  if (!extension) return 'text';
   const ext = extension.toLowerCase();
   const map: Record<string, CodeLanguage> = {
-    ts: "typescript",
-    tsx: "tsx",
-    js: "javascript",
-    jsx: "jsx",
-    mjs: "javascript",
-    cjs: "javascript",
-    ex: "elixir",
-    exs: "elixir",
-    eex: "elixir",
-    rs: "rust",
-    py: "python",
-    json: "json",
-    md: "markdown",
-    mdx: "markdown",
-    svelte: "svelte",
-    yaml: "yaml",
-    yml: "yaml",
-    go: "go",
-    html: "html",
-    htm: "html",
-    css: "css",
-    scss: "css",
-    sh: "bash",
-    bash: "bash",
-    zsh: "bash",
-    sql: "sql",
-    toml: "toml",
+    ts: 'typescript',
+    tsx: 'tsx',
+    js: 'javascript',
+    jsx: 'jsx',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    ex: 'elixir',
+    exs: 'elixir',
+    eex: 'elixir',
+    rs: 'rust',
+    py: 'python',
+    json: 'json',
+    md: 'markdown',
+    mdx: 'markdown',
+    svelte: 'svelte',
+    yaml: 'yaml',
+    yml: 'yaml',
+    go: 'go',
+    html: 'html',
+    htm: 'html',
+    css: 'css',
+    scss: 'css',
+    sh: 'bash',
+    bash: 'bash',
+    zsh: 'bash',
+    sql: 'sql',
+    toml: 'toml',
   };
-  return map[ext] ?? "text";
+  return map[ext] ?? 'text';
 }
 
 /** Convenience for the FileViewer's detect-type bridge — code editor is only relevant for "code". */
 export function isCodeViewerType(viewer: ViewerType): boolean {
-  return viewer === "code" || viewer === "json" || viewer === "yaml";
+  return viewer === 'code' || viewer === 'json' || viewer === 'yaml';
 }
 
 /** Body for our save-content mutation — singular `content` matches the backend contract. */

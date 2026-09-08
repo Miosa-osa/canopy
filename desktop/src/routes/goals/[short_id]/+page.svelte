@@ -1,63 +1,60 @@
 <script lang="ts">
-  /** /goals/[short_id] — goal detail. */
-  import { createQuery, createMutation, useQueryClient } from "@tanstack/svelte-query";
-  import { page } from "$app/state";
-  import { goto } from "$app/navigation";
-  import { writable } from "svelte/store";
-  import { untrack } from "svelte";
-  import { Target, Trash2, Flag, Ban } from "lucide-svelte";
-  import {
-    goalQuery,
-    goalProgressMutation,
-    achieveGoalMutation,
-    cancelGoalMutation,
-    deleteGoalMutation,
-  } from "$lib/api/queries/goals.js";
-  import type { Goal } from "$lib/domain/goals/types.js";
+/** /goals/[short_id] — goal detail. */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Ban, Flag, Target, Trash2 } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import {
+  achieveGoalMutation,
+  cancelGoalMutation,
+  deleteGoalMutation,
+  goalProgressMutation,
+  goalQuery,
+} from '$lib/api/queries/goals.js';
+import type { Goal } from '$lib/domain/goals/types.js';
 
-  const queryClient = useQueryClient();
-  const shortId = $derived(page.params.short_id ?? "");
-  const optsStore = writable(untrack(() => goalQuery(shortId)));
-  $effect(() => {
-    optsStore.set(goalQuery(shortId));
+const queryClient = useQueryClient();
+const shortId = $derived(page.params.short_id ?? '');
+const optsStore = writable(untrack(() => goalQuery(shortId)));
+$effect(() => {
+  optsStore.set(goalQuery(shortId));
+});
+const goalQ = createQuery<Goal>(optsStore);
+const goal = $derived($goalQ.data as Goal | undefined);
+
+const progressMut = createMutation(goalProgressMutation());
+const achieveMut = createMutation(achieveGoalMutation());
+const cancelMut = createMutation(cancelGoalMutation());
+const deleteMut = createMutation(deleteGoalMutation());
+
+function invalidate(): void {
+  queryClient.invalidateQueries({ queryKey: ['goals'] });
+}
+
+function setProgress(pct: number): void {
+  $progressMut.mutate({ shortId, body: { progress: pct } }, { onSuccess: invalidate });
+}
+
+function achieve(): void {
+  $achieveMut.mutate(shortId, { onSuccess: invalidate });
+}
+
+function cancelGoal(): void {
+  if (!confirm('Cancel this goal?')) return;
+  $cancelMut.mutate(shortId, { onSuccess: invalidate });
+}
+
+function removeGoal(): void {
+  if (!confirm('Delete this goal? This cannot be undone.')) return;
+  $deleteMut.mutate(shortId, {
+    onSuccess: () => {
+      invalidate();
+      goto('/goals');
+    },
   });
-  const goalQ = createQuery<Goal>(optsStore);
-  const goal = $derived($goalQ.data as Goal | undefined);
-
-  const progressMut = createMutation(goalProgressMutation());
-  const achieveMut = createMutation(achieveGoalMutation());
-  const cancelMut = createMutation(cancelGoalMutation());
-  const deleteMut = createMutation(deleteGoalMutation());
-
-  function invalidate(): void {
-    queryClient.invalidateQueries({ queryKey: ["goals"] });
-  }
-
-  function setProgress(pct: number): void {
-    $progressMut.mutate(
-      { shortId, body: { progress: pct } },
-      { onSuccess: invalidate },
-    );
-  }
-
-  function achieve(): void {
-    $achieveMut.mutate(shortId, { onSuccess: invalidate });
-  }
-
-  function cancelGoal(): void {
-    if (!confirm("Cancel this goal?")) return;
-    $cancelMut.mutate(shortId, { onSuccess: invalidate });
-  }
-
-  function removeGoal(): void {
-    if (!confirm("Delete this goal? This cannot be undone.")) return;
-    $deleteMut.mutate(shortId, {
-      onSuccess: () => {
-        invalidate();
-        goto("/goals");
-      },
-    });
-  }
+}
 </script>
 
 <div class="gd-page">

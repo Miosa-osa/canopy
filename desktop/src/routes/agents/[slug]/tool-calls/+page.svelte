@@ -1,63 +1,67 @@
 <script lang="ts">
-  /**
-   * Agent tool-calls debug page — /agents/:slug/tool-calls
-   *
-   * Shows recent agent_tool_calls rows for this agent. Useful for verifying
-   * orchestration tool invocations, reviewing governance-pending calls, and
-   * debugging failed executions.
-   *
-   * Minimal page: read-only, auto-refreshes every 10 s.
-   * Backend: GET /api/v1/agents/:slug/tool-calls
-   */
+/**
+ * Agent tool-calls debug page — /agents/:slug/tool-calls
+ *
+ * Shows recent agent_tool_calls rows for this agent. Useful for verifying
+ * orchestration tool invocations, reviewing governance-pending calls, and
+ * debugging failed executions.
+ *
+ * Minimal page: read-only, auto-refreshes every 10 s.
+ * Backend: GET /api/v1/agents/:slug/tool-calls
+ */
 
-  import { createQuery } from '@tanstack/svelte-query';
-  import { page } from '$app/state';
-  import { API_BASE } from '$lib/api/client.js';
+import { createQuery } from '@tanstack/svelte-query';
+import { derived } from 'svelte/store';
+import { page } from '$app/state';
+import { page as pageStore } from '$app/stores';
+import { API_BASE } from '$lib/api/client.js';
 
-  const slug = $derived(page.params.slug);
+const slug = $derived(page.params.slug);
 
-  type ToolCall = {
-    id: string;
-    session_id: string;
-    agent_id: string;
-    tool_name: string;
-    params: Record<string, unknown>;
-    result: Record<string, unknown> | null;
-    status: 'ok' | 'error' | 'pending_review';
-    error: string | null;
-    review_id: string | null;
-    inserted_at: string;
-  };
+type ToolCall = {
+  id: string;
+  session_id: string;
+  agent_id: string;
+  tool_name: string;
+  params: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+  status: 'ok' | 'error' | 'pending_review';
+  error: string | null;
+  review_id: string | null;
+  inserted_at: string;
+};
 
-  const toolCallsQuery = createQuery<{ data: ToolCall[] }>({
-    queryKey: () => ['agent-tool-calls', slug],
+const toolCallsQuery = createQuery<{ data: ToolCall[] }>(
+  derived(pageStore, ($page) => ({
+    queryKey: ['agent-tool-calls', $page.params.slug],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/agents/${slug}/tool-calls?limit=50`);
+      const res = await fetch(`${API_BASE}/agents/${$page.params.slug}/tool-calls?limit=50`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
     refetchInterval: 10_000,
-  });
+  }))
+);
 
-  const STATUS_BADGE: Record<string, string> = {
-    ok: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    error: 'bg-red-500/15 text-red-400 border-red-500/30',
-    pending_review: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  };
+const STATUS_BADGE: Record<string, string> = {
+  ok: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  error: 'bg-red-500/15 text-red-400 border-red-500/30',
+  pending_review: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+};
 
-  function formatTs(ts: string): string {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(new Date(ts));
-  }
+function formatTs(ts: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(ts));
+}
 
-  function truncate(s: string, n = 60): string {
-    return s.length > n ? s.slice(0, n) + '…' : s;
-  }
+function truncate(s: string, n = 60): string {
+  return s.length > n ? s.slice(0, n) + '…' : s;
+}
 </script>
 
 <div class="p-6 space-y-6">

@@ -63,9 +63,7 @@ function collectVisible(node: FileTreeNode): FileTreeNode[] {
 
 // Derived flat array of all visible nodes (excludes root container itself)
 const visibleNodes = $derived(
-  $treeQ.data
-    ? $treeQ.data.children.flatMap((child) => collectVisible(child))
-    : []
+  $treeQ.data ? $treeQ.data.children.flatMap((child) => collectVisible(child)) : []
 );
 
 // ── Keyboard handler ──────────────────────────────────────────────────────────

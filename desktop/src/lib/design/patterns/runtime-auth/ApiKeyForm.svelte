@@ -13,15 +13,7 @@ interface Props {
   onTest: (key: string) => void;
 }
 
-let {
-  runtimeId,
-  isSaving,
-  isTesting,
-  saveError,
-  testResult,
-  onSave,
-  onTest,
-}: Props = $props();
+let { runtimeId, isSaving, isTesting, saveError, testResult, onSave, onTest }: Props = $props();
 
 let key = $state('');
 let revealed = $state(false);

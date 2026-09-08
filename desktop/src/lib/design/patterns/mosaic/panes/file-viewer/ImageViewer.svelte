@@ -1,89 +1,89 @@
 <script lang="ts">
-  /**
-   * ImageViewer — read-only image with zoom + pan.
-   * CSS prefix: ivw- (Image Viewer).
-   *
-   * Uses the existing /files/:id/content URL (or a passed blob URL). No new
-   * fetch logic — the parent dispatcher resolves the URL.
-   *
-   * Wheel = zoom (anchored at cursor). Drag = pan. "Fit" / "1:1" reset.
-   */
-  import { onMount } from "svelte";
+/**
+ * ImageViewer — read-only image with zoom + pan.
+ * CSS prefix: ivw- (Image Viewer).
+ *
+ * Uses the existing /files/:id/content URL (or a passed blob URL). No new
+ * fetch logic — the parent dispatcher resolves the URL.
+ *
+ * Wheel = zoom (anchored at cursor). Drag = pan. "Fit" / "1:1" reset.
+ */
+import { onMount } from 'svelte';
 
-  interface Props {
-    /** Direct URL or blob URL for the image. */
-    src: string;
-    /** Alt text for screen readers. */
-    alt: string;
+interface Props {
+  /** Direct URL or blob URL for the image. */
+  src: string;
+  /** Alt text for screen readers. */
+  alt: string;
+}
+
+let { src, alt }: Props = $props();
+
+let scale = $state(1);
+let originX = $state(0);
+let originY = $state(0);
+let dragging = $state(false);
+let dragStartX = 0;
+let dragStartY = 0;
+let panStartX = 0;
+let panStartY = 0;
+
+let wrapEl = $state<HTMLDivElement | null>(null);
+
+function onWheel(e: WheelEvent): void {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  const next = Math.min(Math.max(scale * factor, 0.1), 10);
+  // Anchor zoom at cursor position relative to wrap.
+  if (wrapEl) {
+    const rect = wrapEl.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const ratio = next / scale;
+    originX = cx - (cx - originX) * ratio;
+    originY = cy - (cy - originY) * ratio;
   }
+  scale = next;
+}
 
-  let { src, alt }: Props = $props();
+function onMouseDown(e: MouseEvent): void {
+  dragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  panStartX = originX;
+  panStartY = originY;
+}
 
-  let scale = $state(1);
-  let originX = $state(0);
-  let originY = $state(0);
-  let dragging = $state(false);
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let panStartX = 0;
-  let panStartY = 0;
+function onMouseMove(e: MouseEvent): void {
+  if (!dragging) return;
+  originX = panStartX + (e.clientX - dragStartX);
+  originY = panStartY + (e.clientY - dragStartY);
+}
 
-  let wrapEl = $state<HTMLDivElement | null>(null);
+function onMouseUp(): void {
+  dragging = false;
+}
 
-  function onWheel(e: WheelEvent): void {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-    const next = Math.min(Math.max(scale * factor, 0.1), 10);
-    // Anchor zoom at cursor position relative to wrap.
-    if (wrapEl) {
-      const rect = wrapEl.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      const ratio = next / scale;
-      originX = cx - (cx - originX) * ratio;
-      originY = cy - (cy - originY) * ratio;
-    }
-    scale = next;
-  }
+function fit(): void {
+  scale = 1;
+  originX = 0;
+  originY = 0;
+}
 
-  function onMouseDown(e: MouseEvent): void {
-    dragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    panStartX = originX;
-    panStartY = originY;
-  }
+function actualSize(): void {
+  scale = 1;
+  originX = 0;
+  originY = 0;
+}
 
-  function onMouseMove(e: MouseEvent): void {
-    if (!dragging) return;
-    originX = panStartX + (e.clientX - dragStartX);
-    originY = panStartY + (e.clientY - dragStartY);
-  }
-
-  function onMouseUp(): void {
-    dragging = false;
-  }
-
-  function fit(): void {
-    scale = 1;
-    originX = 0;
-    originY = 0;
-  }
-
-  function actualSize(): void {
-    scale = 1;
-    originX = 0;
-    originY = 0;
-  }
-
-  onMount(() => {
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  });
+onMount(() => {
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+  return () => {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+  };
+});
 </script>
 
 <div class="ivw-root">

@@ -1,57 +1,48 @@
 <script lang="ts">
-  /**
-   * /my-issues — Issues scoped to human assignees (developer view).
-   * No filter bar — already scoped. Dense list view only.
-   * CSS prefix: mi- (MyIssues)
-   * LOC target: ≤ 200.
-   */
-  import {
-    type CreateQueryOptions,
-    createQuery,
-  } from '@tanstack/svelte-query';
-  import { User } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { goto } from '$app/navigation';
-  import { issuesQuery } from '$lib/api/queries/issues.js';
-  import { ApiError } from '$lib/api/client.js';
-  import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import IssueStatusPill from '$lib/design/patterns/IssueStatusPill.svelte';
-  import IssuePriorityDot from '$lib/design/patterns/IssuePriorityDot.svelte';
-  import type { Issue, IssueFilters } from '$lib/domain/issues/types.js';
+/**
+ * /my-issues — Issues scoped to human assignees (developer view).
+ * No filter bar — already scoped. Dense list view only.
+ * CSS prefix: mi- (MyIssues)
+ * LOC target: ≤ 200.
+ */
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { User } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { ApiError } from '$lib/api/client.js';
+import { issuesQuery } from '$lib/api/queries/issues.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import IssuePriorityDot from '$lib/design/patterns/IssuePriorityDot.svelte';
+import IssueStatusPill from '$lib/design/patterns/IssueStatusPill.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Issue, IssueFilters } from '$lib/domain/issues/types.js';
 
-  // Scope to human assignees — v1 (no auth context yet)
-  const filters: IssueFilters = { assigneeType: 'human' };
+// Scope to human assignees — v1 (no auth context yet)
+const filters: IssueFilters = { assigneeType: 'human' };
 
-  const queryOptsStore = writable(
-    untrack(() => issuesQuery(filters) as CreateQueryOptions<Issue[]>),
-  );
+const queryOptsStore = writable(untrack(() => issuesQuery(filters) as CreateQueryOptions<Issue[]>));
 
-  const query = createQuery<Issue[]>(queryOptsStore);
+const query = createQuery<Issue[]>(queryOptsStore);
 
-  const issues = $derived(
-    (($query.data ?? []) as Issue[]).filter(
-      (i) => i.status !== 'closed',
-    ),
-  );
+const issues = $derived((($query.data ?? []) as Issue[]).filter((i) => i.status !== 'closed'));
 
-  const backendUnavailable = $derived(
-    $query.isError &&
-      ($query.error instanceof ApiError
-        ? $query.error.status === 404
-        : String(($query.error as Error)?.message ?? '').includes('404')),
-  );
+const backendUnavailable = $derived(
+  $query.isError &&
+    ($query.error instanceof ApiError
+      ? $query.error.status === 404
+      : String(($query.error as Error)?.message ?? '').includes('404'))
+);
 
-  function relativeTime(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  }
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 </script>
 
 <div class="mi-page">

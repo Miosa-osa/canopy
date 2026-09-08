@@ -1,139 +1,128 @@
 <script lang="ts">
-  /**
-   * Settings › Skills — Skill Curator runtime configuration.
-   *
-   * Three sections:
-   *  1. Atlas (Skill Curator agent) status card
-   *  2. Lockfile management — pinned skills with version + content hash
-   *  3. Unverified-source gating policy + registry connections
-   *
-   * Reads /api/v1/skill-curator/* endpoints. Does NOT modify the existing
-   * /skills route — that one stays as the catalog browse page.
-   */
-  import {
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { Lock, Plus, RefreshCw, ShieldCheck, ShieldOff } from "lucide-svelte";
-  import {
-    addSource,
-    lockfileQuery,
-    refreshSources,
-    sourcesQuery,
-    unlockSkill,
-    unverifiedQuery,
-    verifySkill,
-  } from "$lib/api/queries/skill_curator.js";
-  import type {
-    LockfileEntry,
-    RegistrySource,
-    UnverifiedPolicy,
-  } from "$lib/domain/skill_curator/types.js";
+/**
+ * Settings › Skills — Skill Curator runtime configuration.
+ *
+ * Three sections:
+ *  1. Atlas (Skill Curator agent) status card
+ *  2. Lockfile management — pinned skills with version + content hash
+ *  3. Unverified-source gating policy + registry connections
+ *
+ * Reads /api/v1/skill-curator/* endpoints. Does NOT modify the existing
+ * /skills route — that one stays as the catalog browse page.
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Lock, Plus, RefreshCw, ShieldCheck, ShieldOff } from 'lucide-svelte';
+import {
+  addSource,
+  lockfileQuery,
+  refreshSources,
+  sourcesQuery,
+  unlockSkill,
+  unverifiedQuery,
+  verifySkill,
+} from '$lib/api/queries/skill_curator.js';
+import type {
+  LockfileEntry,
+  RegistrySource,
+  UnverifiedPolicy,
+} from '$lib/domain/skill_curator/types.js';
 
-  const qc = useQueryClient();
+const qc = useQueryClient();
 
-  // ── Queries ────────────────────────────────────────────────────────────────
+// ── Queries ────────────────────────────────────────────────────────────────
 
-  const lockfileResult = createQuery(lockfileQuery());
-  const unverifiedResult = createQuery(unverifiedQuery(50));
-  const sourcesResult = createQuery(sourcesQuery());
+const lockfileResult = createQuery(lockfileQuery());
+const unverifiedResult = createQuery(unverifiedQuery(50));
+const sourcesResult = createQuery(sourcesQuery());
 
-  const lockfile = $derived<LockfileEntry[]>($lockfileResult.data ?? []);
-  const unverifiedSlugs = $derived<string[]>(
-    $unverifiedResult.data?.data ?? [],
-  );
-  const sources = $derived<RegistrySource[]>($sourcesResult.data ?? []);
+const lockfile = $derived<LockfileEntry[]>($lockfileResult.data ?? []);
+const unverifiedSlugs = $derived<string[]>($unverifiedResult.data?.data ?? []);
+const sources = $derived<RegistrySource[]>($sourcesResult.data ?? []);
 
-  // ── Policy state (local-only for v0.1) ─────────────────────────────────────
+// ── Policy state (local-only for v0.1) ─────────────────────────────────────
 
-  let unverifiedPolicy = $state<UnverifiedPolicy>("prompt");
-  let policyError = $state<string | null>(null);
+let unverifiedPolicy = $state<UnverifiedPolicy>('prompt');
+let policyError = $state<string | null>(null);
 
-  function setPolicy(p: UnverifiedPolicy) {
-    unverifiedPolicy = p;
-    policyError = null;
+function setPolicy(p: UnverifiedPolicy) {
+  unverifiedPolicy = p;
+  policyError = null;
+}
+
+// ── Add-source form ────────────────────────────────────────────────────────
+
+let addingSource = $state(false);
+let formName = $state('');
+let formUrl = $state('');
+let formKind = $state('generic');
+let formError = $state<string | null>(null);
+
+function resetSourceForm() {
+  formName = '';
+  formUrl = '';
+  formKind = 'generic';
+  formError = null;
+}
+
+const addSourceMut = createMutation({
+  mutationFn: () =>
+    addSource({
+      name: formName.trim(),
+      url: formUrl.trim(),
+      kind: formKind.trim() || undefined,
+    }),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['skill_curator', 'sources'] });
+    addingSource = false;
+    resetSourceForm();
+  },
+  onError: (err: Error) => {
+    formError = err.message;
+  },
+});
+
+function submitAddSource(e: Event) {
+  e.preventDefault();
+  formError = null;
+  if (!formName.trim() || !formUrl.trim()) {
+    formError = 'Name and URL are required.';
+    return;
   }
+  $addSourceMut.mutate();
+}
 
-  // ── Add-source form ────────────────────────────────────────────────────────
+// ── Refresh sources ────────────────────────────────────────────────────────
 
-  let addingSource = $state(false);
-  let formName = $state("");
-  let formUrl = $state("");
-  let formKind = $state("generic");
-  let formError = $state<string | null>(null);
+const refreshMut = createMutation({
+  mutationFn: () => refreshSources(),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['skill_curator', 'sources'] });
+  },
+});
 
-  function resetSourceForm() {
-    formName = "";
-    formUrl = "";
-    formKind = "generic";
-    formError = null;
-  }
+// ── Verify ─────────────────────────────────────────────────────────────────
 
-  const addSourceMut = createMutation({
-    mutationFn: () =>
-      addSource({
-        name: formName.trim(),
-        url: formUrl.trim(),
-        kind: formKind.trim() || undefined,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["skill_curator", "sources"] });
-      addingSource = false;
-      resetSourceForm();
-    },
-    onError: (err: Error) => {
-      formError = err.message;
-    },
-  });
+const verifyMut = createMutation({
+  mutationFn: (slug: string) => verifySkill(slug, 'user'),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['skill_curator', 'unverified'] });
+  },
+});
 
-  function submitAddSource(e: Event) {
-    e.preventDefault();
-    formError = null;
-    if (!formName.trim() || !formUrl.trim()) {
-      formError = "Name and URL are required.";
-      return;
-    }
-    $addSourceMut.mutate();
-  }
+// ── Unlock ─────────────────────────────────────────────────────────────────
 
-  // ── Refresh sources ────────────────────────────────────────────────────────
+const unlockMut = createMutation({
+  mutationFn: ({ workspaceSlug, skillSlug }: { workspaceSlug: string; skillSlug: string }) =>
+    unlockSkill(workspaceSlug, skillSlug),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['skill_curator', 'lockfile'] });
+  },
+});
 
-  const refreshMut = createMutation({
-    mutationFn: () => refreshSources(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["skill_curator", "sources"] });
-    },
-  });
-
-  // ── Verify ─────────────────────────────────────────────────────────────────
-
-  const verifyMut = createMutation({
-    mutationFn: (slug: string) => verifySkill(slug, "user"),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["skill_curator", "unverified"] });
-    },
-  });
-
-  // ── Unlock ─────────────────────────────────────────────────────────────────
-
-  const unlockMut = createMutation({
-    mutationFn: ({
-      workspaceSlug,
-      skillSlug,
-    }: {
-      workspaceSlug: string;
-      skillSlug: string;
-    }) => unlockSkill(workspaceSlug, skillSlug),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["skill_curator", "lockfile"] });
-    },
-  });
-
-  function shortHash(h: string | null): string {
-    if (!h) return "";
-    return h.length > 12 ? `${h.slice(0, 12)}…` : h;
-  }
+function shortHash(h: string | null): string {
+  if (!h) return '';
+  return h.length > 12 ? `${h.slice(0, 12)}…` : h;
+}
 </script>
 
 <div class="sk-page">

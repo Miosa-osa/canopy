@@ -4,13 +4,13 @@
  * createQuery() / createMutation() in component scripts.
  */
 
-import { apiDelete, apiGet } from "$lib/api/client.js";
-import type { Sandbox } from "$lib/domain/sandboxes/types.js";
+import { apiDelete, apiGet } from '$lib/api/client.js';
+import type { Sandbox } from '$lib/domain/sandboxes/types.js';
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
 export function listSandboxes(): Promise<{ data: Sandbox[] }> {
-  return apiGet<{ data: Sandbox[] }>("/sandboxes");
+  return apiGet<{ data: Sandbox[] }>('/sandboxes');
 }
 
 export function getSandbox(id: string): Promise<Sandbox> {
@@ -26,7 +26,7 @@ export function destroySandbox(id: string): Promise<void> {
 /** Query options for the full sandbox list. */
 export function sandboxesQuery() {
   return {
-    queryKey: ["sandboxes"] as const,
+    queryKey: ['sandboxes'] as const,
     queryFn: listSandboxes,
     staleTime: 15_000,
   };
@@ -35,7 +35,7 @@ export function sandboxesQuery() {
 /** Query options for a single sandbox. */
 export function sandboxQuery(id: string) {
   return {
-    queryKey: ["sandboxes", id] as const,
+    queryKey: ['sandboxes', id] as const,
     queryFn: () => getSandbox(id),
     staleTime: 15_000,
     enabled: Boolean(id),
@@ -45,7 +45,7 @@ export function sandboxQuery(id: string) {
 /** Mutation options to destroy a sandbox. The sandbox ID is passed at call-time. */
 export function deleteSandboxMutation() {
   return {
-    mutationKey: ["sandboxes", "delete"] as const,
+    mutationKey: ['sandboxes', 'delete'] as const,
     mutationFn: (id: string) => destroySandbox(id),
   };
 }

@@ -2,28 +2,20 @@
  * Runtime domain types matching the Elixir backend structs served at /api/v1/runtimes.
  */
 
-export type RuntimeStatus =
-  | "installed"
-  | "not_installed"
-  | "misconfigured"
-  | "error";
+export type RuntimeStatus = 'installed' | 'not_installed' | 'misconfigured' | 'error';
 
-export type RuntimeKind = "cli" | "api" | "local_model" | "mcp";
+export type RuntimeKind = 'cli' | 'api' | 'local_model' | 'mcp';
 
 export type RuntimeCapability =
-  | "heartbeat"
-  | "interactive"
-  | "task_queued"
-  | "mcp"
-  | "diff"
-  | "thinking";
+  | 'heartbeat'
+  | 'interactive'
+  | 'task_queued'
+  | 'mcp'
+  | 'diff'
+  | 'thinking';
 
 /** Auth method a runtime supports */
-export type AuthMethod =
-  | "subscription_detect"
-  | "cli_login"
-  | "api_key"
-  | "oauth_device";
+export type AuthMethod = 'subscription_detect' | 'cli_login' | 'api_key' | 'oauth_device';
 
 /** Shape of auth_profile from the backend runtime row */
 export interface AuthProfile {
@@ -72,7 +64,7 @@ export interface ProviderQuotaWindow {
 export interface ConfigFieldSchema {
   key: string;
   label: string;
-  type: "text" | "select" | "toggle" | "number";
+  type: 'text' | 'select' | 'toggle' | 'number';
   required?: boolean;
   placeholder?: string;
   options?: Array<{ value: string; label: string }>;
@@ -113,7 +105,7 @@ export interface RuntimeModel {
 
 /** Result of testEnvironment() */
 export interface EnvironmentCheckItem {
-  level: "info" | "warn" | "error";
+  level: 'info' | 'warn' | 'error';
   message: string;
 }
 

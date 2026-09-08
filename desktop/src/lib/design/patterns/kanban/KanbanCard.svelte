@@ -1,68 +1,69 @@
 <script lang="ts">
-  /**
-   * KanbanCard — single kanban card with inline edit and context menu.
-   * CSS prefix: kb- (shared with KanbanBoard).
-   */
-  import { goto } from '$app/navigation';
-  import { MoreHorizontal, Terminal, Trash2, Zap } from 'lucide-svelte';
-  import type { Task } from '$lib/domain/tasks/types.js';
+/**
+ * KanbanCard — single kanban card with inline edit and context menu.
+ * CSS prefix: kb- (shared with KanbanBoard).
+ */
 
-  interface Props {
-    task: Task;
-    isEditing: boolean;
-    editingTitle: string;
-    menuOpen: boolean;
-    onStartEdit: (task: Task) => void;
-    onCommitEdit: (task: Task) => void;
-    onCancelEdit: () => void;
-    onEditKeydown: (e: KeyboardEvent, task: Task) => void;
-    onEditTitleChange: (value: string) => void;
-    onToggleMenu: (id: string) => void;
-    onDelete: (task: Task) => void;
-    onDispatch: (task: Task) => void;
-  }
+import { MoreHorizontal, Terminal, Trash2, Zap } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import type { Task } from '$lib/domain/tasks/types.js';
 
-  let {
-    task,
-    isEditing,
-    editingTitle,
-    menuOpen,
-    onStartEdit,
-    onCommitEdit,
-    onCancelEdit,
-    onEditKeydown,
-    onEditTitleChange,
-    onToggleMenu,
-    onDelete,
-    onDispatch,
-  }: Props = $props();
+interface Props {
+  task: Task;
+  isEditing: boolean;
+  editingTitle: string;
+  menuOpen: boolean;
+  onStartEdit: (task: Task) => void;
+  onCommitEdit: (task: Task) => void;
+  onCancelEdit: () => void;
+  onEditKeydown: (e: KeyboardEvent, task: Task) => void;
+  onEditTitleChange: (value: string) => void;
+  onToggleMenu: (id: string) => void;
+  onDelete: (task: Task) => void;
+  onDispatch: (task: Task) => void;
+}
 
-  const PRIORITY_COLORS: Record<number, string> = {
-    0: 'var(--fg-subtle)',
-    1: 'var(--success)',
-    2: 'var(--priority)',
-    3: 'var(--destructive)',
-  };
+let {
+  task,
+  isEditing,
+  editingTitle,
+  menuOpen,
+  onStartEdit,
+  onCommitEdit,
+  onCancelEdit,
+  onEditKeydown,
+  onEditTitleChange,
+  onToggleMenu,
+  onDelete,
+  onDispatch,
+}: Props = $props();
 
-  function priorityColor(p: number): string {
-    return PRIORITY_COLORS[p] ?? PRIORITY_COLORS[0];
-  }
+const PRIORITY_COLORS: Record<number, string> = {
+  0: 'var(--fg-subtle)',
+  1: 'var(--success)',
+  2: 'var(--priority)',
+  3: 'var(--destructive)',
+};
 
-  function formatRelativeDue(iso: string | null): string | null {
-    if (!iso) return null;
-    const diff = new Date(iso).getTime() - Date.now();
-    const days = Math.ceil(diff / 86_400_000);
-    if (days < 0) return `${Math.abs(days)}d overdue`;
-    if (days === 0) return 'Today';
-    if (days === 1) return 'Tomorrow';
-    if (days < 7) return `${days}d`;
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
+function priorityColor(p: number): string {
+  return PRIORITY_COLORS[p] ?? PRIORITY_COLORS[0];
+}
 
-  function agentInitial(id: string | null): string {
-    if (!id) return '?';
-    return id.slice(0, 2).toUpperCase();
-  }
+function formatRelativeDue(iso: string | null): string | null {
+  if (!iso) return null;
+  const diff = new Date(iso).getTime() - Date.now();
+  const days = Math.ceil(diff / 86_400_000);
+  if (days < 0) return `${Math.abs(days)}d overdue`;
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  if (days < 7) return `${days}d`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function agentInitial(id: string | null): string {
+  if (!id) return '?';
+  return id.slice(0, 2).toUpperCase();
+}
 </script>
 
 <div class="kb-card-wrap">

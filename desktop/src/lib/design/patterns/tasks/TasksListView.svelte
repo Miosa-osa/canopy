@@ -1,63 +1,64 @@
 <script lang="ts">
-  /**
-   * TasksListView — table rendering for the tasks list view.
-   * CSS prefix: tl- (shared with /tasks page).
-   */
-  import { goto } from '$app/navigation';
-  import { ClipboardList } from 'lucide-svelte';
-  import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-  import type { Task, TaskStatus } from '$lib/domain/tasks/types.js';
+/**
+ * TasksListView — table rendering for the tasks list view.
+ * CSS prefix: tl- (shared with /tasks page).
+ */
 
-  interface Props {
-    tasks: Task[];
-    isLoading: boolean;
-    isError: boolean;
-    errorMessage: string;
-    statusChip: string;
-    searchText: string;
-    onRetry: () => void;
-    onNewTask: () => void;
+import { ClipboardList } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+import type { Task, TaskStatus } from '$lib/domain/tasks/types.js';
+
+interface Props {
+  tasks: Task[];
+  isLoading: boolean;
+  isError: boolean;
+  errorMessage: string;
+  statusChip: string;
+  searchText: string;
+  onRetry: () => void;
+  onNewTask: () => void;
+}
+
+let { tasks, isLoading, isError, errorMessage, statusChip, searchText, onRetry, onNewTask }: Props =
+  $props();
+
+function statusDotColor(s: TaskStatus): 'green' | 'amber' | 'grey' | 'red' {
+  switch (s) {
+    case 'in_progress':
+      return 'green';
+    case 'todo':
+      return 'amber';
+    case 'done':
+      return 'grey';
+    case 'cancelled':
+      return 'red';
   }
+}
 
-  let {
-    tasks,
-    isLoading,
-    isError,
-    errorMessage,
-    statusChip,
-    searchText,
-    onRetry,
-    onNewTask,
-  }: Props = $props();
-
-  function statusDotColor(s: TaskStatus): 'green' | 'amber' | 'grey' | 'red' {
-    switch (s) {
-      case 'in_progress': return 'green';
-      case 'todo': return 'amber';
-      case 'done': return 'grey';
-      case 'cancelled': return 'red';
-    }
+function statusLabel(s: TaskStatus): string {
+  switch (s) {
+    case 'in_progress':
+      return 'In Progress';
+    case 'todo':
+      return 'Todo';
+    case 'done':
+      return 'Done';
+    case 'cancelled':
+      return 'Cancelled';
   }
+}
 
-  function statusLabel(s: TaskStatus): string {
-    switch (s) {
-      case 'in_progress': return 'In Progress';
-      case 'todo': return 'Todo';
-      case 'done': return 'Done';
-      case 'cancelled': return 'Cancelled';
-    }
-  }
+function priorityDots(p: number): string {
+  return '●'.repeat(Math.max(0, Math.min(p, 3))) || '○';
+}
 
-  function priorityDots(p: number): string {
-    return '●'.repeat(Math.max(0, Math.min(p, 3))) || '○';
-  }
-
-  function formatDueAt(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
+function formatDueAt(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 </script>
 
 {#if isError}

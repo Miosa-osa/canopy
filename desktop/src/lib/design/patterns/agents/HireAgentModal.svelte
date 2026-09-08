@@ -1,127 +1,127 @@
 <script lang="ts">
-  /**
-   * HireAgentModal — configure and hire an agent from the library grid.
-   * Shows runtime picker, capability preset, and optional budget before calling
-   * POST /api/v1/agents/:slug/hire.
-   * CSS prefix: ham- (hire-agent-modal)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import { X } from 'lucide-svelte';
-  import { hireAgent } from '$lib/api/queries/agents.js';
-  import { runtimesQuery } from '$lib/api/queries/runtimes.js';
-  import {
-    CAPABILITY_PRESETS,
-    CAPABILITY_PRESET_META,
-    type Capability,
-    type CapabilityPreset,
-  } from '$lib/domain/agents/config.js';
-  import type { Agent } from '$lib/domain/agents/types.js';
-  import type { Runtime } from '$lib/domain/runtimes/types.js';
+/**
+ * HireAgentModal — configure and hire an agent from the library grid.
+ * Shows runtime picker, capability preset, and optional budget before calling
+ * POST /api/v1/agents/:slug/hire.
+ * CSS prefix: ham- (hire-agent-modal)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { X } from 'lucide-svelte';
+import { writable } from 'svelte/store';
+import { hireAgent } from '$lib/api/queries/agents.js';
+import { runtimesQuery } from '$lib/api/queries/runtimes.js';
+import {
+  CAPABILITY_PRESET_META,
+  CAPABILITY_PRESETS,
+  type Capability,
+  type CapabilityPreset,
+} from '$lib/domain/agents/config.js';
+import type { Agent } from '$lib/domain/agents/types.js';
+import type { Runtime } from '$lib/domain/runtimes/types.js';
 
-  // ── Engineering categories — default to "developer" preset ─────────────────
-  const ENGINEERING_CATEGORIES = new Set([
-    'engineering',
-    'technology',
-    'testing',
-    'game-development',
-    'spatial-computing',
-  ]);
+// ── Engineering categories — default to "developer" preset ─────────────────
+const ENGINEERING_CATEGORIES = new Set([
+  'engineering',
+  'technology',
+  'testing',
+  'game-development',
+  'spatial-computing',
+]);
 
-  interface Props {
-    agent: Agent;
-    open: boolean;
-    onClose: () => void;
-    onHired: () => void;
-  }
+interface Props {
+  agent: Agent;
+  open: boolean;
+  onClose: () => void;
+  onHired: () => void;
+}
 
-  let { agent, open, onClose, onHired }: Props = $props();
+let { agent, open, onClose, onHired }: Props = $props();
 
-  // ── Runtime query ──────────────────────────────────────────────────────────
-  const runtimesQ = createQuery<Runtime[]>(
-    writable(runtimesQuery() as CreateQueryOptions<Runtime[]>)
-  );
-  const runtimes = $derived(($runtimesQ.data ?? []) as Runtime[]);
+// ── Runtime query ──────────────────────────────────────────────────────────
+const runtimesQ = createQuery<Runtime[]>(
+  writable(runtimesQuery() as CreateQueryOptions<Runtime[]>)
+);
+const runtimes = $derived(($runtimesQ.data ?? []) as Runtime[]);
 
-  // ── Form state ─────────────────────────────────────────────────────────────
-  let selectedRuntime = $state<string>('');
-  let selectedPreset = $state<CapabilityPreset>('reviewer');
-  let budgetStr = $state<string>('');
+// ── Form state ─────────────────────────────────────────────────────────────
+let selectedRuntime = $state<string>('');
+let selectedPreset = $state<CapabilityPreset>('reviewer');
+let budgetStr = $state<string>('');
 
-  // Derive the default preset from the agent category
-  const defaultPreset = $derived<CapabilityPreset>(
-    ENGINEERING_CATEGORIES.has(agent.category) ? 'developer' : 'reviewer'
-  );
+// Derive the default preset from the agent category
+const defaultPreset = $derived<CapabilityPreset>(
+  ENGINEERING_CATEGORIES.has(agent.category) ? 'developer' : 'reviewer'
+);
 
-  // Re-init form state when the target agent changes
-  $effect(() => {
-    // Track agent identity to reset on change
-    const slug = agent.slug;
-    const defRuntime = agent.defaultRuntime;
-    const fallbackRuntime = runtimes[0]?.type ?? '';
-    void slug;
-    selectedRuntime = defRuntime ?? fallbackRuntime;
-    selectedPreset = defaultPreset;
-    budgetStr = '';
-    submitError = null;
-  });
+// Re-init form state when the target agent changes
+$effect(() => {
+  // Track agent identity to reset on change
+  const slug = agent.slug;
+  const defRuntime = agent.defaultRuntime;
+  const fallbackRuntime = runtimes[0]?.type ?? '';
+  void slug;
+  selectedRuntime = defRuntime ?? fallbackRuntime;
+  selectedPreset = defaultPreset;
+  budgetStr = '';
+  submitError = null;
+});
 
-  // ── Mutation (direct call — not TanStack mutation — so we can await cleanly)
-  let isPending = $state(false);
-  let submitError = $state<string | null>(null);
+// ── Mutation (direct call — not TanStack mutation — so we can await cleanly)
+let isPending = $state(false);
+let submitError = $state<string | null>(null);
 
-  async function handleSubmit(): Promise<void> {
-    if (isPending) return;
-    isPending = true;
-    submitError = null;
+async function handleSubmit(): Promise<void> {
+  if (isPending) return;
+  isPending = true;
+  submitError = null;
 
+  try {
+    const budget = budgetStr.trim() ? parseFloat(budgetStr) : undefined;
+    const body = {
+      defaultRuntime: selectedRuntime || undefined,
+      heartbeatCron: agent.heartbeatCron ?? undefined,
+      budget: budget && !isNaN(budget) ? budget : undefined,
+    };
+
+    await hireAgent(agent.slug, body);
+
+    // Persist capability preset to localStorage (matches detail page pattern)
+    const lsKey = `canopy:agent-config:${agent.slug}`;
+    const caps: Capability[] = [...CAPABILITY_PRESETS[selectedPreset]];
     try {
-      const budget = budgetStr.trim() ? parseFloat(budgetStr) : undefined;
-      const body = {
-        defaultRuntime: selectedRuntime || undefined,
-        heartbeatCron: agent.heartbeatCron ?? undefined,
-        budget: budget && !isNaN(budget) ? budget : undefined,
-      };
-
-      await hireAgent(agent.slug, body);
-
-      // Persist capability preset to localStorage (matches detail page pattern)
-      const lsKey = `canopy:agent-config:${agent.slug}`;
-      const caps: Capability[] = [...CAPABILITY_PRESETS[selectedPreset]];
-      try {
-        const existing = localStorage.getItem(lsKey);
-        const parsed = existing ? JSON.parse(existing) : {};
-        localStorage.setItem(lsKey, JSON.stringify({ ...parsed, capabilities: caps }));
-      } catch {
-        // localStorage unavailable — silent fail
-      }
-
-      onHired();
-    } catch (err) {
-      submitError = err instanceof Error ? err.message : 'Failed to hire agent.';
-    } finally {
-      isPending = false;
+      const existing = localStorage.getItem(lsKey);
+      const parsed = existing ? JSON.parse(existing) : {};
+      localStorage.setItem(lsKey, JSON.stringify({ ...parsed, capabilities: caps }));
+    } catch {
+      // localStorage unavailable — silent fail
     }
-  }
 
-  function handleBackdropClick(e: MouseEvent): void {
-    if ((e.target as HTMLElement).classList.contains('ham-backdrop')) onClose();
+    onHired();
+  } catch (err) {
+    submitError = err instanceof Error ? err.message : 'Failed to hire agent.';
+  } finally {
+    isPending = false;
   }
+}
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') onClose();
-  }
+function handleBackdropClick(e: MouseEvent): void {
+  if ((e.target as HTMLElement).classList.contains('ham-backdrop')) onClose();
+}
 
-  // ── Category badge label ───────────────────────────────────────────────────
-  function categoryLabel(cat: string): string {
-    return cat.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  }
+function handleKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') onClose();
+}
+
+// ── Category badge label ───────────────────────────────────────────────────
+function categoryLabel(cat: string): string {
+  return cat.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

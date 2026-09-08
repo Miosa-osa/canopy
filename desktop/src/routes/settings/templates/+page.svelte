@@ -1,120 +1,112 @@
 <script lang="ts">
-  /**
-   * Settings › Templates — Template Composer (Forge) configuration +
-   * publishing controls + default policies.
-   * Reads /api/v1/templates. Posts to create, publish, and fork endpoints.
-   */
-  import {
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { writable } from "svelte/store";
-  import { untrack } from "svelte";
-  import { BadgeCheck, LayoutTemplate, Plus, Send } from "lucide-svelte";
-  import {
-    createTemplate,
-    publishTemplate,
-    templatesQuery,
-  } from "$lib/api/queries/templates.js";
-  import type {
-    Template,
-    TemplateCreate,
-    TemplateKind,
-  } from "$lib/domain/templates/types.js";
+/**
+ * Settings › Templates — Template Composer (Forge) configuration +
+ * publishing controls + default policies.
+ * Reads /api/v1/templates. Posts to create, publish, and fork endpoints.
+ */
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { BadgeCheck, LayoutTemplate, Plus, Send } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { createTemplate, publishTemplate, templatesQuery } from '$lib/api/queries/templates.js';
+import type { Template, TemplateCreate, TemplateKind } from '$lib/domain/templates/types.js';
 
-  const qc = useQueryClient();
+const qc = useQueryClient();
 
-  // ── Templates query ────────────────────────────────────────────────────────
+// ── Templates query ────────────────────────────────────────────────────────
 
-  const queryStore = writable(
-    untrack(() => templatesQuery({ limit: 200 }) as CreateQueryOptions<Template[]>),
+const queryStore = writable(
+  untrack(() => templatesQuery({ limit: 200 }) as CreateQueryOptions<Template[]>)
+);
+const templatesQ = createQuery<Template[]>(queryStore);
+
+// ── Default policy state (persisted client-side for now) ──────────────────
+
+let defaultRequireVerified = $state(false);
+let defaultPublishGate = $state(true);
+let defaultRedactSecrets = $state(true);
+
+// ── Create form state ──────────────────────────────────────────────────────
+
+let creating = $state(false);
+let formSlug = $state('');
+let formName = $state('');
+let formKind = $state<TemplateKind>('workspace');
+let formDescription = $state('');
+let formTags = $state('');
+let formError = $state<string | null>(null);
+
+function resetForm() {
+  formSlug = '';
+  formName = '';
+  formKind = 'workspace';
+  formDescription = '';
+  formTags = '';
+  formError = null;
+}
+
+const createMut = createMutation({
+  mutationFn: (body: TemplateCreate) => createTemplate(body),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['templates'] });
+    creating = false;
+    resetForm();
+  },
+  onError: (err: Error) => {
+    formError = err.message;
+  },
+});
+
+function submitCreate(e: Event) {
+  e.preventDefault();
+  formError = null;
+  if (!formSlug.trim() || !formName.trim()) {
+    formError = 'Slug and name are required.';
+    return;
+  }
+  const tags = formTags
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  $createMut.mutate({
+    slug: formSlug.trim(),
+    name: formName.trim(),
+    kind: formKind,
+    description: formDescription.trim() || undefined,
+    tags: tags.length > 0 ? tags : undefined,
+  });
+}
+
+// ── Publish mutation ───────────────────────────────────────────────────────
+
+const publishMut = createMutation({
+  mutationFn: ({ slug, version }: { slug: string; version?: string }) =>
+    publishTemplate(slug, { version, authoredBy: 'user' }),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['templates'] });
+  },
+});
+
+function handlePublish(template: Template) {
+  const v = window.prompt(
+    `Publish ${template.name} as version (current: ${template.version}):`,
+    template.version
   );
-  const templatesQ = createQuery<Template[]>(queryStore);
+  if (!v) return;
+  $publishMut.mutate({ slug: template.slug, version: v });
+}
 
-  // ── Default policy state (persisted client-side for now) ──────────────────
+// ── Derived ────────────────────────────────────────────────────────────────
 
-  let defaultRequireVerified = $state(false);
-  let defaultPublishGate = $state(true);
-  let defaultRedactSecrets = $state(true);
-
-  // ── Create form state ──────────────────────────────────────────────────────
-
-  let creating = $state(false);
-  let formSlug = $state("");
-  let formName = $state("");
-  let formKind = $state<TemplateKind>("workspace");
-  let formDescription = $state("");
-  let formTags = $state("");
-  let formError = $state<string | null>(null);
-
-  function resetForm() {
-    formSlug = "";
-    formName = "";
-    formKind = "workspace";
-    formDescription = "";
-    formTags = "";
-    formError = null;
-  }
-
-  const createMut = createMutation({
-    mutationFn: (body: TemplateCreate) => createTemplate(body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["templates"] });
-      creating = false;
-      resetForm();
-    },
-    onError: (err: Error) => {
-      formError = err.message;
-    },
-  });
-
-  function submitCreate(e: Event) {
-    e.preventDefault();
-    formError = null;
-    if (!formSlug.trim() || !formName.trim()) {
-      formError = "Slug and name are required.";
-      return;
-    }
-    const tags = formTags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-
-    $createMut.mutate({
-      slug: formSlug.trim(),
-      name: formName.trim(),
-      kind: formKind,
-      description: formDescription.trim() || undefined,
-      tags: tags.length > 0 ? tags : undefined,
-    });
-  }
-
-  // ── Publish mutation ───────────────────────────────────────────────────────
-
-  const publishMut = createMutation({
-    mutationFn: ({ slug, version }: { slug: string; version?: string }) =>
-      publishTemplate(slug, { version, authoredBy: "user" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["templates"] });
-    },
-  });
-
-  function handlePublish(template: Template) {
-    const v = window.prompt(
-      `Publish ${template.name} as version (current: ${template.version}):`,
-      template.version,
-    );
-    if (!v) return;
-    $publishMut.mutate({ slug: template.slug, version: v });
-  }
-
-  // ── Derived ────────────────────────────────────────────────────────────────
-
-  const templates = $derived($templatesQ.data ?? []);
-  const verifiedCount = $derived(templates.filter((t) => t.verified).length);
-  const publishedCount = $derived(templates.filter((t) => t.published).length);
+const templates = $derived($templatesQ.data ?? []);
+const verifiedCount = $derived(templates.filter((t) => t.verified).length);
+const publishedCount = $derived(templates.filter((t) => t.published).length);
 </script>
 
 <div class="st-page">

@@ -1,18 +1,15 @@
 <script lang="ts" module>
-  /**
-   * Pure helpers — kept module-scoped so tests don't need a Svelte runtime.
-   */
-  import type { DirEntry } from '$lib/domain/workspaces/types.js';
+/**
+ * Pure helpers — kept module-scoped so tests don't need a Svelte runtime.
+ */
+import type { DirEntry } from '$lib/domain/workspaces/types.js';
 
-  /** Filter a directory listing by case-insensitive substring match. */
-  export function filterEntries(
-    entries: readonly DirEntry[],
-    query: string,
-  ): DirEntry[] {
-    const q = query.trim().toLowerCase();
-    if (!q) return [...entries];
-    return entries.filter((e) => e.name.toLowerCase().includes(q));
-  }
+/** Filter a directory listing by case-insensitive substring match. */
+export function filterEntries(entries: readonly DirEntry[], query: string): DirEntry[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...entries];
+  return entries.filter((e) => e.name.toLowerCase().includes(q));
+}
 </script>
 
 <script lang="ts">
@@ -39,7 +36,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import { writable } from 'svelte/store';
   import { directoryListingQuery } from '$lib/api/queries/file-tree.js';
-  import type { DirEntry } from '$lib/domain/workspaces/types.js';
+
   import FileTreeNode from '$lib/design/patterns/build/sections/FileTreeNode.svelte';
 
   interface Props {

@@ -1,128 +1,118 @@
 <script lang="ts">
-  /**
-   * /chat — Thread list: pinned-then-recent + "+ New thread" form.
-   * CSS prefix: cl- (ChatList)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { MessageSquare } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { goto } from '$app/navigation';
-  import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
-  import {
-    createThreadMutation,
-    threadsQuery,
-  } from '$lib/api/queries/chat.js';
-  import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import type { Agent } from '$lib/domain/agents/types.js';
-  import type {
-    CreateThreadBody,
-    CreateThreadResponse,
-    Thread,
-  } from '$lib/domain/chat/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * /chat — Thread list: pinned-then-recent + "+ New thread" form.
+ * CSS prefix: cl- (ChatList)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { MessageSquare } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
+import { createThreadMutation, threadsQuery } from '$lib/api/queries/chat.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Agent } from '$lib/domain/agents/types.js';
+import type { CreateThreadBody, CreateThreadResponse, Thread } from '$lib/domain/chat/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── Threads list ──────────────────────────────────────────────────────────────
+// ── Threads list ──────────────────────────────────────────────────────────────
 
-  const threadsOptsStore = writable(
-    untrack(() => threadsQuery() as CreateQueryOptions<Thread[]>),
-  );
-  const threadsQ = createQuery<Thread[]>(threadsOptsStore);
-  const allThreads = $derived(($threadsQ.data ?? []) as Thread[]);
+const threadsOptsStore = writable(untrack(() => threadsQuery() as CreateQueryOptions<Thread[]>));
+const threadsQ = createQuery<Thread[]>(threadsOptsStore);
+const allThreads = $derived(($threadsQ.data ?? []) as Thread[]);
 
-  const pinnedThreads = $derived(allThreads.filter((t) => t.pinned && !t.archivedAt));
-  const recentThreads = $derived(
-    allThreads.filter((t) => !t.pinned && !t.archivedAt)
-      .sort((a, b) => (b.lastMessageAt ?? b.updatedAt) > (a.lastMessageAt ?? a.updatedAt) ? 1 : -1),
-  );
+const pinnedThreads = $derived(allThreads.filter((t) => t.pinned && !t.archivedAt));
+const recentThreads = $derived(
+  allThreads
+    .filter((t) => !t.pinned && !t.archivedAt)
+    .sort((a, b) => ((b.lastMessageAt ?? b.updatedAt) > (a.lastMessageAt ?? a.updatedAt) ? 1 : -1))
+);
 
-  // ── Hired agents (for runtime/agent picker in new thread form) ────────────────
+// ── Hired agents (for runtime/agent picker in new thread form) ────────────────
 
-  const agentsOptsStore = writable(
-    untrack(() => hiredAgentsQuery() as CreateQueryOptions<Agent[]>),
-  );
-  const agentsQ = createQuery<Agent[]>(agentsOptsStore);
-  const hiredAgents = $derived(($agentsQ.data ?? []) as Agent[]);
+const agentsOptsStore = writable(untrack(() => hiredAgentsQuery() as CreateQueryOptions<Agent[]>));
+const agentsQ = createQuery<Agent[]>(agentsOptsStore);
+const hiredAgents = $derived(($agentsQ.data ?? []) as Agent[]);
 
-  // ── Create form ───────────────────────────────────────────────────────────────
+// ── Create form ───────────────────────────────────────────────────────────────
 
-  let createOpen = $state(false);
-  let newTitle = $state('');
-  let newAgent = $state('');
-  let newRuntime = $state('claude-code');
-  let newPrompt = $state('');
-  let createError = $state<string | null>(null);
+let createOpen = $state(false);
+let newTitle = $state('');
+let newAgent = $state('');
+let newRuntime = $state('claude-code');
+let newPrompt = $state('');
+let createError = $state<string | null>(null);
 
-  const RUNTIMES = [
-    { slug: 'claude-code', name: 'Claude Code' },
-    { slug: 'codex', name: 'Codex' },
-    { slug: 'gemini', name: 'Gemini' },
-  ];
+const RUNTIMES = [
+  { slug: 'claude-code', name: 'Claude Code' },
+  { slug: 'codex', name: 'Codex' },
+  { slug: 'gemini', name: 'Gemini' },
+];
 
-  const createMut = createMutation<CreateThreadResponse, Error, CreateThreadBody>(
-    createThreadMutation() as CreateMutationOptions<CreateThreadResponse, Error, CreateThreadBody>,
-  );
+const createMut = createMutation<CreateThreadResponse, Error, CreateThreadBody>(
+  createThreadMutation() as CreateMutationOptions<CreateThreadResponse, Error, CreateThreadBody>
+);
 
-  function openCreate(): void {
-    createOpen = true;
-    createError = null;
-  }
+function openCreate(): void {
+  createOpen = true;
+  createError = null;
+}
 
-  function closeCreate(): void {
-    createOpen = false;
-    newTitle = '';
-    newAgent = '';
-    newRuntime = 'claude-code';
-    newPrompt = '';
-    createError = null;
-  }
+function closeCreate(): void {
+  createOpen = false;
+  newTitle = '';
+  newAgent = '';
+  newRuntime = 'claude-code';
+  newPrompt = '';
+  createError = null;
+}
 
-  function submitCreate(e: SubmitEvent): void {
-    e.preventDefault();
-    createError = null;
+function submitCreate(e: SubmitEvent): void {
+  e.preventDefault();
+  createError = null;
 
-    const body: CreateThreadBody = {
-      runtimeType: newRuntime,
-    };
-    if (newTitle.trim()) body.title = newTitle.trim();
-    if (newAgent.trim()) body.agentSlug = newAgent.trim();
-    if (newPrompt.trim()) body.prompt = newPrompt.trim();
+  const body: CreateThreadBody = {
+    runtimeType: newRuntime,
+  };
+  if (newTitle.trim()) body.title = newTitle.trim();
+  if (newAgent.trim()) body.agentSlug = newAgent.trim();
+  if (newPrompt.trim()) body.prompt = newPrompt.trim();
 
-    $createMut.mutate(body, {
-      onSuccess: (res) => {
-        queryClient.invalidateQueries({ queryKey: ['chat'] });
-        toasts.success('Thread created');
-        closeCreate();
-        goto(`/chat/${res.thread.id}`);
-      },
-      onError: (err: Error) => {
-        createError = err.message ?? 'Create failed';
-      },
-    });
-  }
+  $createMut.mutate(body, {
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['chat'] });
+      toasts.success('Thread created');
+      closeCreate();
+      goto(`/chat/${res.thread.id}`);
+    },
+    onError: (err: Error) => {
+      createError = err.message ?? 'Create failed';
+    },
+  });
+}
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  function formatTime(iso: string | null): string {
-    if (!iso) return '';
-    const d = new Date(iso);
-    const diff = Date.now() - d.getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
+function formatTime(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 </script>
 
 <div class="cl-page">

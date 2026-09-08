@@ -18,10 +18,7 @@
  * build elsewhere.
  */
 
-import {
-  type CodeLanguage,
-  languageFromExtension,
-} from "$lib/domain/code-editor/types.js";
+import { type CodeLanguage, languageFromExtension } from '$lib/domain/code-editor/types.js';
 
 // ── Shiki language IDs (today's source of highlighting) ──────────────────────
 
@@ -32,28 +29,28 @@ import {
  * that infrastructure rather than introducing a parallel highlighter.
  */
 export const SHIKI_LANGUAGE_BY_CODE_LANGUAGE: Record<CodeLanguage, string> = {
-  javascript: "javascript",
-  typescript: "typescript",
-  tsx: "tsx",
-  jsx: "jsx",
-  elixir: "elixir",
-  rust: "rust",
-  python: "python",
-  json: "json",
-  markdown: "markdown",
-  svelte: "svelte",
-  yaml: "yaml",
-  go: "go",
-  html: "html",
-  css: "css",
-  bash: "bash",
-  sql: "sql",
-  toml: "toml",
-  text: "text",
+  javascript: 'javascript',
+  typescript: 'typescript',
+  tsx: 'tsx',
+  jsx: 'jsx',
+  elixir: 'elixir',
+  rust: 'rust',
+  python: 'python',
+  json: 'json',
+  markdown: 'markdown',
+  svelte: 'svelte',
+  yaml: 'yaml',
+  go: 'go',
+  html: 'html',
+  css: 'css',
+  bash: 'bash',
+  sql: 'sql',
+  toml: 'toml',
+  text: 'text',
 };
 
 /** Shiki theme used across the app. Match DiffViewer.svelte for visual consistency. */
-export const SHIKI_THEME = "github-dark-dimmed" as const;
+export const SHIKI_THEME = 'github-dark-dimmed' as const;
 
 /**
  * Resolve `extension → CodeLanguage → Shiki id` in one shot. Returns
@@ -70,23 +67,23 @@ export function shikiLanguageFromExtension(extension: string | null): string {
  * single createHighlighter() call in CodeEditorPane.svelte.
  */
 export const SHIKI_LANGUAGES_TO_PRELOAD: string[] = [
-  "javascript",
-  "typescript",
-  "tsx",
-  "jsx",
-  "elixir",
-  "rust",
-  "python",
-  "json",
-  "markdown",
-  "svelte",
-  "yaml",
-  "go",
-  "html",
-  "css",
-  "bash",
-  "sql",
-  "toml",
+  'javascript',
+  'typescript',
+  'tsx',
+  'jsx',
+  'elixir',
+  'rust',
+  'python',
+  'json',
+  'markdown',
+  'svelte',
+  'yaml',
+  'go',
+  'html',
+  'css',
+  'bash',
+  'sql',
+  'toml',
 ];
 
 // ── CodeMirror buildExtensions() — TODO until packages are installed ─────────
@@ -120,8 +117,8 @@ export interface BuildExtensionsOptions {
  */
 export function buildExtensions(_opts: BuildExtensionsOptions): unknown[] {
   throw new Error(
-    "CodeMirror extensions not available — install @codemirror/* packages " +
-      "(see wiring/code-editor-wiring.md) before calling buildExtensions(). " +
-      "The pane currently uses a textarea + Shiki fallback.",
+    'CodeMirror extensions not available — install @codemirror/* packages ' +
+      '(see wiring/code-editor-wiring.md) before calling buildExtensions(). ' +
+      'The pane currently uses a textarea + Shiki fallback.'
   );
 }

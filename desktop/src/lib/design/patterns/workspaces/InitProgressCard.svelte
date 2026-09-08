@@ -12,8 +12,8 @@
 import { onDestroy } from 'svelte';
 import { API_BASE } from '$lib/api/client.js';
 import { cancelInitJob } from '$lib/api/queries/workspaces.js';
-import { toasts } from '$lib/stores/toasts.svelte.js';
 import type { InitJob, InitJobStep } from '$lib/domain/workspaces/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
 interface Props {
   slug: string;
@@ -24,14 +24,7 @@ interface Props {
   onError?: (error: string) => void;
 }
 
-let {
-  slug,
-  jobId,
-  initialJob = null,
-  onDone,
-  onCancelled,
-  onError,
-}: Props = $props();
+let { slug, jobId, initialJob = null, onDone, onCancelled, onError }: Props = $props();
 
 // ── State — seeded from initialJob prop (snapshot at mount time) ───────────────
 let progressPct = $state(0);
@@ -148,7 +141,9 @@ const stepLabel: Record<string, string> = {
 };
 
 const displayStep = $derived(currentStep ? (stepLabel[currentStep] ?? currentStep) : 'Starting…');
-const isTerminal = $derived(status === 'succeeded' || status === 'failed' || status === 'cancelled');
+const isTerminal = $derived(
+  status === 'succeeded' || status === 'failed' || status === 'cancelled'
+);
 const outputLines = $derived(output.trim().split('\n').filter(Boolean));
 </script>
 

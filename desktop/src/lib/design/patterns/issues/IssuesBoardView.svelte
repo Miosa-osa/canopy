@@ -1,29 +1,29 @@
 <script lang="ts">
-  /**
-   * IssuesBoardView — 5-column inline kanban for the issues board view.
-   * CSS prefix: il- (shared with /issues page).
-   */
-  import { goto } from '$app/navigation';
-  import IssuePriorityDot from '$lib/design/patterns/IssuePriorityDot.svelte';
-  import type { Issue, IssueStatus } from '$lib/domain/issues/types.js';
+/**
+ * IssuesBoardView — 5-column inline kanban for the issues board view.
+ * CSS prefix: il- (shared with /issues page).
+ */
+import { goto } from '$app/navigation';
+import IssuePriorityDot from '$lib/design/patterns/IssuePriorityDot.svelte';
+import type { Issue, IssueStatus } from '$lib/domain/issues/types.js';
 
-  interface Props {
-    issues: Issue[];
-  }
+interface Props {
+  issues: Issue[];
+}
 
-  let { issues }: Props = $props();
+let { issues }: Props = $props();
 
-  const BOARD_COLS: { status: IssueStatus; label: string }[] = [
-    { status: 'backlog', label: 'Backlog' },
-    { status: 'open', label: 'Open' },
-    { status: 'in_progress', label: 'In Progress' },
-    { status: 'in_review', label: 'In Review' },
-    { status: 'closed', label: 'Closed' },
-  ];
+const BOARD_COLS: { status: IssueStatus; label: string }[] = [
+  { status: 'backlog', label: 'Backlog' },
+  { status: 'open', label: 'Open' },
+  { status: 'in_progress', label: 'In Progress' },
+  { status: 'in_review', label: 'In Review' },
+  { status: 'closed', label: 'Closed' },
+];
 
-  function issuesForStatus(s: IssueStatus): Issue[] {
-    return issues.filter((i) => i.status === s);
-  }
+function issuesForStatus(s: IssueStatus): Issue[] {
+  return issues.filter((i) => i.status === s);
+}
 </script>
 
 <div class="il-board">

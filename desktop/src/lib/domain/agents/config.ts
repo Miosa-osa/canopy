@@ -9,25 +9,25 @@
 
 /** Atomic capability strings — stored in config.capabilities[]. */
 export type Capability =
-  | "read_files"
-  | "write_files"
-  | "exec_shell"
-  | "network_access"
-  | "send_email"
-  | "create_prs"
-  | "merge_prs"
-  | "modify_infrastructure";
+  | 'read_files'
+  | 'write_files'
+  | 'exec_shell'
+  | 'network_access'
+  | 'send_email'
+  | 'create_prs'
+  | 'merge_prs'
+  | 'modify_infrastructure';
 
 /** Risk level per capability — drives UI warnings. */
-export const CAPABILITY_RISK: Record<Capability, "low" | "medium" | "high"> = {
-  read_files: "low",
-  write_files: "high",
-  exec_shell: "high",
-  network_access: "medium",
-  send_email: "medium",
-  create_prs: "low",
-  merge_prs: "medium",
-  modify_infrastructure: "high",
+export const CAPABILITY_RISK: Record<Capability, 'low' | 'medium' | 'high'> = {
+  read_files: 'low',
+  write_files: 'high',
+  exec_shell: 'high',
+  network_access: 'medium',
+  send_email: 'medium',
+  create_prs: 'low',
+  merge_prs: 'medium',
+  modify_infrastructure: 'high',
 };
 
 /** Human-readable labels + descriptions. */
@@ -36,65 +36,61 @@ export const CAPABILITY_META: Record<
   { label: string; description: string; risk_note?: string }
 > = {
   read_files: {
-    label: "Read files",
-    description: "Read files from the workspace filesystem.",
+    label: 'Read files',
+    description: 'Read files from the workspace filesystem.',
   },
   write_files: {
-    label: "Write files",
-    description: "Create or modify files in the workspace.",
-    risk_note: "Can overwrite or delete files. Enable only for trusted agents.",
+    label: 'Write files',
+    description: 'Create or modify files in the workspace.',
+    risk_note: 'Can overwrite or delete files. Enable only for trusted agents.',
   },
   exec_shell: {
-    label: "Execute shell commands",
-    description: "Run arbitrary shell commands inside the agent sandbox.",
-    risk_note:
-      "Grants full command execution. Highest-risk capability — restrict carefully.",
+    label: 'Execute shell commands',
+    description: 'Run arbitrary shell commands inside the agent sandbox.',
+    risk_note: 'Grants full command execution. Highest-risk capability — restrict carefully.',
   },
   network_access: {
-    label: "Network access",
-    description: "Make outbound HTTP/TCP requests from the agent process.",
-    risk_note: "Agent can exfiltrate data or call external APIs.",
+    label: 'Network access',
+    description: 'Make outbound HTTP/TCP requests from the agent process.',
+    risk_note: 'Agent can exfiltrate data or call external APIs.',
   },
   send_email: {
-    label: "Send email",
-    description: "Send emails via configured mail integration.",
-    risk_note: "Agent can send emails on your behalf.",
+    label: 'Send email',
+    description: 'Send emails via configured mail integration.',
+    risk_note: 'Agent can send emails on your behalf.',
   },
   create_prs: {
-    label: "Create pull requests",
-    description: "Open new pull requests in connected Git repos.",
+    label: 'Create pull requests',
+    description: 'Open new pull requests in connected Git repos.',
   },
   merge_prs: {
-    label: "Merge pull requests",
-    description:
-      "Merge open pull requests (requires review bypass in repo settings).",
-    risk_note: "Agent can merge code without human review.",
+    label: 'Merge pull requests',
+    description: 'Merge open pull requests (requires review bypass in repo settings).',
+    risk_note: 'Agent can merge code without human review.',
   },
   modify_infrastructure: {
-    label: "Modify infrastructure",
-    description:
-      "Apply infrastructure-as-code changes (Terraform, k8s manifests, etc.).",
-    risk_note:
-      "Can alter production systems. Enable only for dedicated infra agents.",
+    label: 'Modify infrastructure',
+    description: 'Apply infrastructure-as-code changes (Terraform, k8s manifests, etc.).',
+    risk_note: 'Can alter production systems. Enable only for dedicated infra agents.',
   },
 };
 
 /** Preset bundles that map a role to a sensible capability set. */
-export type CapabilityPreset = "observer" | "reviewer" | "developer" | "admin";
+export type CapabilityPreset = 'observer' | 'reviewer' | 'developer' | 'admin';
 
 export const CAPABILITY_PRESETS: Record<CapabilityPreset, Capability[]> = {
   observer: [],
-  reviewer: ["read_files", "create_prs"],
-  developer: ["read_files", "write_files", "exec_shell"],
+  reviewer: ['read_files', 'create_prs'],
+  developer: ['read_files', 'write_files', 'exec_shell'],
   admin: [
-    "read_files",
-    "write_files",
-    "exec_shell",
-    "network_access",
-    "send_email",
-    "create_prs",
-    "merge_prs",
-    "modify_infrastructure",
+    'read_files',
+    'write_files',
+    'exec_shell',
+    'network_access',
+    'send_email',
+    'create_prs',
+    'merge_prs',
+    'modify_infrastructure',
   ],
 };
 
@@ -103,15 +99,15 @@ export const CAPABILITY_PRESET_META: Record<
   { label: string; description: string }
 > = {
   observer: {
-    label: "Observer",
-    description: "No permissions — read-only agent.",
+    label: 'Observer',
+    description: 'No permissions — read-only agent.',
   },
-  reviewer: { label: "Code reviewer", description: "Read files + open PRs." },
+  reviewer: { label: 'Code reviewer', description: 'Read files + open PRs.' },
   developer: {
-    label: "Developer",
-    description: "Read, write, and execute shell.",
+    label: 'Developer',
+    description: 'Read, write, and execute shell.',
   },
-  admin: { label: "Admin", description: "Full permissions. Use sparingly." },
+  admin: { label: 'Admin', description: 'Full permissions. Use sparingly.' },
 };
 
 // ── Guardrails ────────────────────────────────────────────────────────────────
