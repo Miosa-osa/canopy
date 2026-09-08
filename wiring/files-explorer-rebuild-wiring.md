@@ -1,3 +1,7 @@
+> HISTORICAL EVIDENCE: This document records an earlier plan or assessment.
+> It does not establish current product scope, runtime readiness, or write authority.
+> Resolve current ownership through the repository root `agent-authority.json`.
+
 # Files Explorer Rebuild — Wiring
 
 **Status:** Frontend rebuild delivered. Backend untouched (existing

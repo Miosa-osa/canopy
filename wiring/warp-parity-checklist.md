@@ -1,3 +1,7 @@
+> HISTORICAL EVIDENCE: This document records an earlier plan or assessment.
+> It does not establish current product scope, runtime readiness, or write authority.
+> Resolve current ownership through the repository root `agent-authority.json`.
+
 # Warp Parity Verification Checklist — 2026-04-30
 
 > Verification pass against actual source files. Every claim backed by file:line evidence.

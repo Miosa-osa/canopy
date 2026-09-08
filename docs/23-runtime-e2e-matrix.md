@@ -1,3 +1,7 @@
+> HISTORICAL EVIDENCE: This document records an earlier plan or assessment.
+> It does not establish current product scope, runtime readiness, or write authority.
+> Resolve current ownership through the repository root `agent-authority.json`.
+
 # Runtime E2E Matrix — April 20 2026
 
 Test run: `POST /api/v1/runtimes/detect` (server_detect) → `GET /runtimes/:type/auth/status` → `POST /api/v1/sessions {interactive: true}` → WS channel join `terminal:session:<id>` → 4s output wait.

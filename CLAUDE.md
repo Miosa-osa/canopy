@@ -21,15 +21,18 @@ exist but are hidden from the sidebar. Do not remove them — they can be re-ena
 
 ## Authoritative Docs (read first, always)
 
-All architecture and design decisions live in `docs/`. They are canonical.
-Code follows docs, not the other way around.
+`agent-authority.json` declares document status, ownership, and precedence.
+Run `python3 scripts/agent_control_plane.py` before acting on repository architecture.
+A failed check blocks dependent implementation until the authority defect is resolved.
+The current contracts below outrank historical plans and completion reports.
+Historical material remains evidence of its date, not proof of current implementation.
 
 | Doc | What it governs |
 |-----|----------------|
-| `docs/01-foundation.md` | Platform architecture, tech stack, build order |
-| `docs/02-frontend-design.md` | Design system, screens, component patterns |
-| `docs/03-steal-synthesis.md` | Competitor lifts with explicit LIFT/ADAPT/REJECT decisions |
-| `docs/04-platform-breakdown.md` | Full feature inventory with source provenance |
+| `docs/current-product-contract.md` | Current product scope and implementation evidence |
+| `docs/24-workspace-engine.md` | Workspace Engine execution boundary |
+| `docs/25-review-queue.md` | Canopy operational review queue |
+| `docs/agent-control-plane.md` | Authority validation and permission review |
 
 ## First Action — Every Session
 
@@ -60,7 +63,8 @@ Do not modify files outside your ownership without explicit instruction.
 4. **No secrets in code.** Credentials go in macOS Keychain (via Tauri plugin-keyring) or CI secrets. Never in files.
 5. **No `any` in TypeScript.** Strict mode is enforced. Use `unknown` + type guards.
 6. **OpenAPI first.** Backend controllers have OpenAPISpex schemas before they ship. TS types are generated, not hand-written.
-7. **Attribution.** Every pattern lifted from a competitor must be traceable to `docs/03-steal-synthesis.md` and acknowledged in `NOTICE.md`.
+7. **Attribution.** Every pattern lifted from a competitor must be traceable to its original source in `NOTICE.md`.
+Historical competitor reports under `wiring/` provide supporting evidence; they do not authorize new dependencies or functionality.
 
 ## Stack Quick Reference
 
@@ -85,9 +89,10 @@ make clean       # wipe all build artifacts
 
 ## CI
 
-All three jobs in `.github/workflows/ci.yml` are required for PR merge:
+Application jobs in `.github/workflows/ci.yml` are required for PR merge:
 - `backend-test` — ExUnit with PostgreSQL service
 - `desktop-test` — Vitest + svelte-check + Biome
 - `rust-test` — cargo test + clippy + rustfmt
 
-Green CI is the definition of "done."
+The `agent-control-plane-integrity` job is also required.
+Passing structural checks does not prove runtime behavior; run the relevant application regressions.

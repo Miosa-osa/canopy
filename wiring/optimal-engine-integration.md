@@ -1,3 +1,8 @@
+> SUPERSEDED: This historical proposal is not an executable integration contract.
+> Current authority: [Workspace OptimalEngine](../docs/24-workspace-engine.md).
+> Machine classification: `agent-authority.json`, `superseded_by: workspace-engine`.
+> The proposed in-process dependency and module mapping below are not claims of shipped behavior.
+
 # Optimal Engine → Canopy Integration Plan
 
 ## Engine Overview

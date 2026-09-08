@@ -1,8 +1,9 @@
 # Canopy v2 — Documentation Index
 
-Authoritative source of truth for Canopy v2.
-Read these before touching any code. They supersede informal notes or
-comments in the codebase.
+This index includes current contracts, historical reports, and reference material.
+Classification and precedence are declared in `../agent-authority.json`.
+Start with [the current product contract](./current-product-contract.md).
+Completion counts below describe dated runs and do not prove the current build passes.
 
 ## Documents
 
@@ -44,9 +45,9 @@ criteria results, issues found + resolutions, deferrals with targets,
 assumptions.
 
 ### [08-week1-plan.md](./08-week1-plan.md)
-**Week 1 Execution Plan — Live**
+**Historical Week 1 Execution Plan**
 
-Live plan for Week 1: parallelization map, adapter-seeding logic, SessionsController
+Historical plan for Week 1: parallelization map, adapter-seeding logic, SessionsController
 + SSE endpoint shape, CodexLocal/GeminiLocal follow-on strategy, agent frontmatter
 mapping table, day-by-day track ownership.
 
