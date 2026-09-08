@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "repository": "Miosa-osa/canopy",
+  "bootstrap_anchor": {
+    "revision": "b2a43080e29b40e1328c4c396e44cbfa354d6939",
+    "validator_sha256": "c67832174df5a21f5e55851787a05d5b4f40e7489ba4eb5aa59900c4264dcdec",
+    "status": "proposed; requires independent owner review before installation"
+  },
+  "records": [
+    {
+      "id": "known-good",
+      "fixture_root": "evidence/control-plane/fixtures/known-good",
+      "expected_exit": 0,
+      "causal_lesson": "A validator that rejects every input can appear safe but blocks a valid operating contract.",
+      "red_team_record": {
+        "strongest_for": "A validator that rejects every input can appear safe but blocks a valid operating contract. The exact fixture was replayed against the preserved base and candidate validators.",
+        "strongest_against": "Synthetic structural replay does not prove semantic instruction correctness, authenticated human review, or a live Engine security boundary.",
+        "assumptions_to_break": "Candidate success output, candidate-owned tests, or deleted historical evidence must not become their own authority.",
+        "constraints": "Disposable synthetic files only; no private report text, live database writes, privileged pull-request execution, or external immutability claim.",
+        "verdict": "positive-control-passed by local coding-agent replay; independent initial owner review remains pending.",
+        "revisit_condition": "Changes to boot authority, evaluator, ownership, evidence, or required paths"
+      },
+      "observed_failure": "A positive control distinguishes valid authority from an always-fail replacement.",
+      "retained_reason": "Retain exact known-good/bad inputs and expected outcomes; append a superseding record instead of deleting or rewriting this incident.",
+      "review_status": "pending-independent-bootstrap-review",
+      "revisit": {
+        "trigger": "Changes to boot authority, evaluator, ownership, evidence, or required paths",
+        "required_evidence": "Trusted-base replay report plus candidate application regressions for runtime claims",
+        "remaining_boundary": "No arbitrary prose interpretation, untrusted Python sandbox, or live-process attestation"
+      },
+      "sha256": {
+        "evidence/control-plane/fixtures/known-good/CLAUDE.md": "516ba1b3e4782a0740485df2f5e5cad13d3375adf6317aaa8e76d96e4daa3754",
+        "evidence/control-plane/fixtures/known-good/docs/current-product-contract.md": "71d42e82f900acd37658fbf33b82d78097b9b141263becf2e9e600ab97711d32",
+        "evidence/control-plane/fixtures/known-good/docs/24-workspace-engine.md": "ec118def3b19521f858f5c4743a59dc9d43e568f23b6bfe0e1442bd4932b7817",
+        "evidence/control-plane/fixtures/known-good/wiring/optimal-engine-integration.md": "b553301303a6672e517f71c3de5696599a58ce9b94e5627ad073c38cb9a29bdb",
+        "evidence/control-plane/fixtures/known-good/backend/workspace_engine.ex": "4a9b91cb5c02210475b043a18116a0e0bf387a3d661c6c2498df66948d4a0233",
+        "evidence/control-plane/fixtures/known-good/agent-authority.json": "c1750d6bc9d754f3e3362bf0ccb54ed1475ddf48964442831e078aeac114bdba"
+      },
+      "red_team_verdict": {
+        "date": "2026-09-08",
+        "status": "positive-control-passed",
+        "trusted_revision": "b2a43080e29b40e1328c4c396e44cbfa354d6939",
+        "trusted_validator_sha256": "c67832174df5a21f5e55851787a05d5b4f40e7489ba4eb5aa59900c4264dcdec",
+        "trusted_observed_exit": 0,
+        "candidate_observed_exit": 0,
+        "reviewer": "Local coding-agent replay; independent bootstrap owner review pending",
+        "scope": "Exact synthetic structural fixture, not external security certification"
+      }
+    },
+    {
+      "id": "missing-boot-contract",
+      "fixture_root": "evidence/control-plane/fixtures/missing-boot-contract",
+      "expected_exit": 1,
+      "causal_lesson": "Mandatory authoritative paths were absent from the Canopy boot chain.",
+      "red_team_record": {
+        "strongest_for": "Mandatory authoritative paths were absent from the Canopy boot chain. The exact fixture was replayed against the preserved base and candidate validators.",
+        "strongest_against": "Synthetic structural replay does not prove semantic instruction correctness, authenticated human review, or a live Engine security boundary.",
+        "assumptions_to_break": "Candidate success output, candidate-owned tests, or deleted historical evidence must not become their own authority.",
+        "constraints": "Disposable synthetic files only; no private report text, live database writes, privileged pull-request execution, or external immutability claim.",
+        "verdict": "negative-control-rejected by local coding-agent replay; independent initial owner review remains pending.",
+        "revisit_condition": "Changes to boot authority, evaluator, ownership, evidence, or required paths"
+      },
+      "observed_failure": "A green application build did not detect missing mandatory documents.",
+      "retained_reason": "Retain exact known-good/bad inputs and expected outcomes; append a superseding record instead of deleting or rewriting this incident.",
+      "review_status": "pending-independent-bootstrap-review",
+      "revisit": {
+        "trigger": "Changes to boot authority, evaluator, ownership, evidence, or required paths",
+        "required_evidence": "Trusted-base replay report plus candidate application regressions for runtime claims",
+        "remaining_boundary": "No arbitrary prose interpretation, untrusted Python sandbox, or live-process attestation"
+      },
+      "sha256": {
+        "evidence/control-plane/fixtures/missing-boot-contract/CLAUDE.md": "516ba1b3e4782a0740485df2f5e5cad13d3375adf6317aaa8e76d96e4daa3754",
+        "evidence/control-plane/fixtures/missing-boot-contract/docs/24-workspace-engine.md": "ec118def3b19521f858f5c4743a59dc9d43e568f23b6bfe0e1442bd4932b7817",
+        "evidence/control-plane/fixtures/missing-boot-contract/wiring/optimal-engine-integration.md": "b553301303a6672e517f71c3de5696599a58ce9b94e5627ad073c38cb9a29bdb",
+        "evidence/control-plane/fixtures/missing-boot-contract/backend/workspace_engine.ex": "4a9b91cb5c02210475b043a18116a0e0bf387a3d661c6c2498df66948d4a0233",
+        "evidence/control-plane/fixtures/missing-boot-contract/agent-authority.json": "c1750d6bc9d754f3e3362bf0ccb54ed1475ddf48964442831e078aeac114bdba",
+        "evidence/control-plane/fixtures/missing-boot-contract/permissive-checker.py": "16316191fbc1c6994f55438955278b59d1f0b34dc271eafc63d4bf344528a832",
+        "evidence/control-plane/fixtures/missing-boot-contract/all-success-tests.py": "bb791ce241c65765a1d8c6435642a5edfd46e8ee29874ee986377426a6bd12f9",
+        "evidence/control-plane/fixtures/missing-boot-contract/reproduction.json": "ac21431f44608fec1a0f7d456b9e1d148ea0bc838d635a01216797f05a6d30b1"
+      },
+      "red_team_verdict": {
+        "date": "2026-09-08",
+        "status": "negative-control-rejected",
+        "trusted_revision": "b2a43080e29b40e1328c4c396e44cbfa354d6939",
+        "trusted_validator_sha256": "c67832174df5a21f5e55851787a05d5b4f40e7489ba4eb5aa59900c4264dcdec",
+        "trusted_observed_exit": 1,
+        "candidate_observed_exit": 1,
+        "reviewer": "Local coding-agent replay; independent bootstrap owner review pending",
+        "scope": "Exact synthetic structural fixture, not external security certification"
+      }
+    },
+    {
+      "id": "competing-product-authority",
+      "fixture_root": "evidence/control-plane/fixtures/competing-product-authority",
+      "expected_exit": 1,
+      "causal_lesson": "Two active documents must not own the same declared scoped product concept.",
+      "red_team_record": {
+        "strongest_for": "Two active documents must not own the same declared scoped product concept. The exact fixture was replayed against the preserved base and candidate validators.",
+        "strongest_against": "Synthetic structural replay does not prove semantic instruction correctness, authenticated human review, or a live Engine security boundary.",
+        "assumptions_to_break": "Candidate success output, candidate-owned tests, or deleted historical evidence must not become their own authority.",
+        "constraints": "Disposable synthetic files only; no private report text, live database writes, privileged pull-request execution, or external immutability claim.",
+        "verdict": "negative-control-rejected by local coding-agent replay; independent initial owner review remains pending.",
+        "revisit_condition": "Changes to boot authority, evaluator, ownership, evidence, or required paths"
+      },
+      "observed_failure": "Distinct file names hid competing authority until declared ownership was checked.",
+      "retained_reason": "Retain exact known-good/bad inputs and expected outcomes; append a superseding record instead of deleting or rewriting this incident.",
+      "review_status": "pending-independent-bootstrap-review",
+      "revisit": {
+        "trigger": "Changes to boot authority, evaluator, ownership, evidence, or required paths",
+        "required_evidence": "Trusted-base replay report plus candidate application regressions for runtime claims",
+        "remaining_boundary": "No arbitrary prose interpretation, untrusted Python sandbox, or live-process attestation"
+      },
+      "sha256": {
+        "evidence/control-plane/fixtures/competing-product-authority/CLAUDE.md": "516ba1b3e4782a0740485df2f5e5cad13d3375adf6317aaa8e76d96e4daa3754",
+        "evidence/control-plane/fixtures/competing-product-authority/docs/current-product-contract.md": "71d42e82f900acd37658fbf33b82d78097b9b141263becf2e9e600ab97711d32",
+        "evidence/control-plane/fixtures/competing-product-authority/docs/24-workspace-engine.md": "ec118def3b19521f858f5c4743a59dc9d43e568f23b6bfe0e1442bd4932b7817",
+        "evidence/control-plane/fixtures/competing-product-authority/wiring/optimal-engine-integration.md": "b553301303a6672e517f71c3de5696599a58ce9b94e5627ad073c38cb9a29bdb",
+        "evidence/control-plane/fixtures/competing-product-authority/backend/workspace_engine.ex": "4a9b91cb5c02210475b043a18116a0e0bf387a3d661c6c2498df66948d4a0233",
+        "evidence/control-plane/fixtures/competing-product-authority/agent-authority.json": "7852361bc0d79458352988fd9e17ca70c017c09c43593d90fe8fa5ef25da5961"
+      },
+      "red_team_verdict": {
+        "date": "2026-09-08",
+        "status": "negative-control-rejected",
+        "trusted_revision": "b2a43080e29b40e1328c4c396e44cbfa354d6939",
+        "trusted_validator_sha256": "c67832174df5a21f5e55851787a05d5b4f40e7489ba4eb5aa59900c4264dcdec",
+        "trusted_observed_exit": 1,
+        "candidate_observed_exit": 1,
+        "reviewer": "Local coding-agent replay; independent bootstrap owner review pending",
+        "scope": "Exact synthetic structural fixture, not external security certification"
+      }
+    },
+    {
+      "id": "retired-wiring-required",
+      "fixture_root": "evidence/control-plane/fixtures/retired-wiring-required",
+      "expected_exit": 1,
+      "causal_lesson": "Historical integration plans must not regain required boot authority.",
+      "red_team_record": {
+        "strongest_for": "Historical integration plans must not regain required boot authority. The exact fixture was replayed against the preserved base and candidate validators.",
+        "strongest_against": "Synthetic structural replay does not prove semantic instruction correctness, authenticated human review, or a live Engine security boundary.",
+        "assumptions_to_break": "Candidate success output, candidate-owned tests, or deleted historical evidence must not become their own authority.",
+        "constraints": "Disposable synthetic files only; no private report text, live database writes, privileged pull-request execution, or external immutability claim.",
+        "verdict": "negative-control-rejected by local coding-agent replay; independent initial owner review remains pending.",
+        "revisit_condition": "Changes to boot authority, evaluator, ownership, evidence, or required paths"
+      },
+      "observed_failure": "Older Engine wiring coexisted with the current workspace contract.",
+      "retained_reason": "Retain exact known-good/bad inputs and expected outcomes; append a superseding record instead of deleting or rewriting this incident.",
+      "review_status": "pending-independent-bootstrap-review",
+      "revisit": {
+        "trigger": "Changes to boot authority, evaluator, ownership, evidence, or required paths",
+        "required_evidence": "Trusted-base replay report plus candidate application regressions for runtime claims",
+        "remaining_boundary": "No arbitrary prose interpretation, untrusted Python sandbox, or live-process attestation"
+      },
+      "sha256": {
+        "evidence/control-plane/fixtures/retired-wiring-required/CLAUDE.md": "516ba1b3e4782a0740485df2f5e5cad13d3375adf6317aaa8e76d96e4daa3754",
+        "evidence/control-plane/fixtures/retired-wiring-required/docs/current-product-contract.md": "71d42e82f900acd37658fbf33b82d78097b9b141263becf2e9e600ab97711d32",
+        "evidence/control-plane/fixtures/retired-wiring-required/docs/24-workspace-engine.md": "ec118def3b19521f858f5c4743a59dc9d43e568f23b6bfe0e1442bd4932b7817",
+        "evidence/control-plane/fixtures/retired-wiring-required/wiring/optimal-engine-integration.md": "b553301303a6672e517f71c3de5696599a58ce9b94e5627ad073c38cb9a29bdb",
+        "evidence/control-plane/fixtures/retired-wiring-required/backend/workspace_engine.ex": "4a9b91cb5c02210475b043a18116a0e0bf387a3d661c6c2498df66948d4a0233",
+        "evidence/control-plane/fixtures/retired-wiring-required/agent-authority.json": "1ec7a22bfdb93cf072774cb8a44239c501155049626fe57866da046491fed0d6"
+      },
+      "red_team_verdict": {
+        "date": "2026-09-08",
+        "status": "negative-control-rejected",
+        "trusted_revision": "b2a43080e29b40e1328c4c396e44cbfa354d6939",
+        "trusted_validator_sha256": "c67832174df5a21f5e55851787a05d5b4f40e7489ba4eb5aa59900c4264dcdec",
+        "trusted_observed_exit": 1,
+        "candidate_observed_exit": 1,
+        "reviewer": "Local coding-agent replay; independent bootstrap owner review pending",
+        "scope": "Exact synthetic structural fixture, not external security certification"
+      }
+    },
+    {
+      "id": "missing-runtime-boundary-file",
+      "fixture_root": "evidence/control-plane/fixtures/missing-runtime-boundary-file",
+      "expected_exit": 1,
+      "causal_lesson": "Preserve required implementation path existence independently of a passing summary.",
+      "red_team_record": {
+        "strongest_for": "Preserve required implementation path existence independently of a passing summary. The exact fixture was replayed against the preserved base and candidate validators.",
+        "strongest_against": "Synthetic structural replay does not prove semantic instruction correctness, authenticated human review, or a live Engine security boundary.",
+        "assumptions_to_break": "Candidate success output, candidate-owned tests, or deleted historical evidence must not become their own authority.",
+        "constraints": "Disposable synthetic files only; no private report text, live database writes, privileged pull-request execution, or external immutability claim.",
+        "verdict": "negative-control-rejected by local coding-agent replay; independent initial owner review remains pending.",
+        "revisit_condition": "Changes to boot authority, evaluator, ownership, evidence, or required paths"
+      },
+      "observed_failure": "A deleted workspace boundary module path must fail structural preflight; function semantics remain application-test responsibility.",
+      "retained_reason": "Retain exact known-good/bad inputs and expected outcomes; append a superseding record instead of deleting or rewriting this incident.",
+      "review_status": "pending-independent-bootstrap-review",
+      "revisit": {
+        "trigger": "Changes to boot authority, evaluator, ownership, evidence, or required paths",
+        "required_evidence": "Trusted-base replay report plus candidate application regressions for runtime claims",
+        "remaining_boundary": "No arbitrary prose interpretation, untrusted Python sandbox, or live-process attestation"
+      },
+      "sha256": {
+        "evidence/control-plane/fixtures/missing-runtime-boundary-file/CLAUDE.md": "516ba1b3e4782a0740485df2f5e5cad13d3375adf6317aaa8e76d96e4daa3754",
+        "evidence/control-plane/fixtures/missing-runtime-boundary-file/docs/current-product-contract.md": "71d42e82f900acd37658fbf33b82d78097b9b141263becf2e9e600ab97711d32",
+        "evidence/control-plane/fixtures/missing-runtime-boundary-file/docs/24-workspace-engine.md": "ec118def3b19521f858f5c4743a59dc9d43e568f23b6bfe0e1442bd4932b7817",
+        "evidence/control-plane/fixtures/missing-runtime-boundary-file/wiring/optimal-engine-integration.md": "b553301303a6672e517f71c3de5696599a58ce9b94e5627ad073c38cb9a29bdb",
+        "evidence/control-plane/fixtures/missing-runtime-boundary-file/agent-authority.json": "c1750d6bc9d754f3e3362bf0ccb54ed1475ddf48964442831e078aeac114bdba"
+      },
+      "red_team_verdict": {
+        "date": "2026-09-08",
+        "status": "negative-control-rejected",
+        "trusted_revision": "b2a43080e29b40e1328c4c396e44cbfa354d6939",
+        "trusted_validator_sha256": "c67832174df5a21f5e55851787a05d5b4f40e7489ba4eb5aa59900c4264dcdec",
+        "trusted_observed_exit": 1,
+        "candidate_observed_exit": 1,
+        "reviewer": "Local coding-agent replay; independent bootstrap owner review pending",
+        "scope": "Exact synthetic structural fixture, not external security certification"
+      }
+    },
+    {
+      "id": "empty-permission-policy",
+      "fixture_root": "evidence/control-plane/fixtures/empty-permission-policy",
+      "expected_exit": 1,
+      "causal_lesson": "Permission baseline must be explicit; text still does not implement authorization.",
+      "red_team_record": {
+        "strongest_for": "Permission baseline must be explicit; text still does not implement authorization. The exact fixture was replayed against the preserved base and candidate validators.",
+        "strongest_against": "Synthetic structural replay does not prove semantic instruction correctness, authenticated human review, or a live Engine security boundary.",
+        "assumptions_to_break": "Candidate success output, candidate-owned tests, or deleted historical evidence must not become their own authority.",
+        "constraints": "Disposable synthetic files only; no private report text, live database writes, privileged pull-request execution, or external immutability claim.",
+        "verdict": "negative-control-rejected by local coding-agent replay; independent initial owner review remains pending.",
+        "revisit_condition": "Changes to boot authority, evaluator, ownership, evidence, or required paths"
+      },
+      "observed_failure": "An absent policy declaration must not silently inherit assumed write authority.",
+      "retained_reason": "Retain exact known-good/bad inputs and expected outcomes; append a superseding record instead of deleting or rewriting this incident.",
+      "review_status": "pending-independent-bootstrap-review",
+      "revisit": {
+        "trigger": "Changes to boot authority, evaluator, ownership, evidence, or required paths",
+        "required_evidence": "Trusted-base replay report plus candidate application regressions for runtime claims",
+        "remaining_boundary": "No arbitrary prose interpretation, untrusted Python sandbox, or live-process attestation"
+      },
+      "sha256": {
+        "evidence/control-plane/fixtures/empty-permission-policy/CLAUDE.md": "516ba1b3e4782a0740485df2f5e5cad13d3375adf6317aaa8e76d96e4daa3754",
+        "evidence/control-plane/fixtures/empty-permission-policy/docs/current-product-contract.md": "71d42e82f900acd37658fbf33b82d78097b9b141263becf2e9e600ab97711d32",
+        "evidence/control-plane/fixtures/empty-permission-policy/docs/24-workspace-engine.md": "ec118def3b19521f858f5c4743a59dc9d43e568f23b6bfe0e1442bd4932b7817",
+        "evidence/control-plane/fixtures/empty-permission-policy/wiring/optimal-engine-integration.md": "b553301303a6672e517f71c3de5696599a58ce9b94e5627ad073c38cb9a29bdb",
+        "evidence/control-plane/fixtures/empty-permission-policy/backend/workspace_engine.ex": "4a9b91cb5c02210475b043a18116a0e0bf387a3d661c6c2498df66948d4a0233",
+        "evidence/control-plane/fixtures/empty-permission-policy/agent-authority.json": "cb040e13ae18be3c9c7fec7b9ef8f02c0ffb3ff8555a62ae30085e12bef33036"
+      },
+      "red_team_verdict": {
+        "date": "2026-09-08",
+        "status": "negative-control-rejected",
+        "trusted_revision": "b2a43080e29b40e1328c4c396e44cbfa354d6939",
+        "trusted_validator_sha256": "c67832174df5a21f5e55851787a05d5b4f40e7489ba4eb5aa59900c4264dcdec",
+        "trusted_observed_exit": 1,
+        "candidate_observed_exit": 1,
+        "reviewer": "Local coding-agent replay; independent bootstrap owner review pending",
+        "scope": "Exact synthetic structural fixture, not external security certification"
+      }
+    }
+  ]
+}

@@ -129,3 +129,58 @@ The repaired September 8 product baseline was merged as `b2a4308`.
 Local frontend verification included 1,302 tests across 73 files with no backend running; Rust verification included 11 tests, clippy, and rustfmt.
 These are dated measurements, not a promise that future changes pass.
 The document/command follow-up must obtain its own CI results and independent review before merge.
+
+## Preserved evaluator and incident evidence
+
+The [durable ledger](../evidence/control-plane/ledger.json) retains exact known-good and known-bad synthetic fixture trees, hashes, causal explanations, recorded red-team scope, and revisit triggers.
+The initial fixtures preserve the Canopy missing-boot, conflicting-owner, retired-wiring, required-path, and explicit-permission incidents without copying private report content.
+A passing summary does not replace these inputs or their negative outcomes.
+Previously accepted records must remain byte-for-byte equivalent; corrections append a record with `supersedes` while retaining the prior record and fixture.
+This preserves causal history rather than silently replacing a failed episode with a current passing assertion.
+
+The [trusted comparison harness](../scripts/trusted_control_plane.py) evaluates a candidate with the base revision's validator, regression suite, and retained evidence.
+It also applies those retained tests to the candidate validator, so replacing both candidate tests and evaluator with success stubs is rejected.
+CI records both revisions, evaluator hashes, individual observed outcomes, and the aggregate verdict in a downloadable JSON artifact.
+The CLI requires clean exact Git roots and verifies tracked file bytes against their Git blobs, including files hidden by Git index flags.
+The expected trusted SHA must match the preserved checkout.
+It evaluates trusted policy before candidate code, then checks that evaluator, tests, and ledger inputs remained unchanged after child execution.
+
+For the first installation, the protected base contains a validator and regression tests but no durable ledger.
+Explicit `--bootstrap-ledger` proposes the initial ledger and marks it pending independent bootstrap review; it never skips the prior validator or prior tests.
+Independent code-owner review must approve that initial policy before merging it into the trusted branch.
+After installation, missing or rewritten prior evidence fails closed and bootstrap cannot override an existing ledger.
+An initial green replay is compatibility evidence, not self-approval of the proposed trust policy.
+
+The workflow uses ordinary unprivileged pull-request jobs, read-only repository permissions, and checkouts without persisted Git credentials.
+It does not run untrusted code in a privileged pull-request-target context.
+The Python harness alone is a regression guard and does not sandbox arbitrary malicious Python.
+The CI container wrapper must provide read-only mounts and disable networking before any candidate code runs on the host.
+Neither mechanism creates a signed external archive or immutable storage outside GitHub administration.
+The base commit and live branch-owner requirements remain the trust boundary; administrators able to change repository rules are not cryptographically constrained by these files.
+The ledger and report do not attest a remote Engine process or prove every natural-language authority interpretation.
+
+Canopy's operational review API and MCP handlers accept a caller-supplied reviewer identifier inside the trusted operator boundary described in [the review contract](25-review-queue.md).
+They do not authenticate a human-versus-agent distinction.
+Canopy owns application/session/workspace/operational state; Engine owns knowledge, memory, Claims, and Facts.
+
+
+## Fresh-agent behavioral retest
+
+The [fresh-agent runner](../scripts/fresh_agent_review.py) exercises separate read-only cases for clean authority, historical poisoning, documentation permission poisoning, and a missing current contract.
+Use a separately reviewed runner and a clean committed candidate checkout:
+
+```bash
+python3 /trusted/path/scripts/fresh_agent_review.py --repository canopy --candidate-root /clean/committed/repo --output-dir /private/new-dir
+```
+
+The output retains candidate identity, tool transcripts, prompts, structured answers, hashes, and per-case verdicts.
+A plausible answer alone does not pass: scoring requires source evidence and a completed validator trace.
+CI runs the deterministic [runner regressions](../scripts/tests/test_fresh_agent_review.py); actual model execution is explicit and does not expose model credentials to pull-request CI.
+The runner and its scoring require independent review.
+These cases do not prove an authenticated human approval boundary, attest a running Engine process, or establish universal prompt-injection resistance.
+
+CI runs the baseline comparison before any candidate code executes on the host runner.
+The evaluator container has read-only source mounts, no network, no added capabilities, bounded resources, and no mounted host credentials or Docker socket.
+Only its temporary fixtures and report output are writable.
+Direct local Python invocation is not a sandbox for malicious candidate code.
+The initial evaluator installation and workflow changes still require independent code-owner review.

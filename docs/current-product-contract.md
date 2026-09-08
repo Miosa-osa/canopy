@@ -38,3 +38,10 @@ Competitor reports provide provenance, not permission to expand capabilities.
 
 Implementation claims require a named code path and a reproducible test against the checkout being shipped.
 The [control-plane evidence](agent-control-plane.md) records the September 8 checks, coverage floor, and unresolved independent-red-team acceptance criteria.
+
+## State ownership
+
+Canopy owns application, workspace, terminal session, and operational review state.
+Optimal Engine owns knowledge, memory, Claims, and Facts.
+The local Canopy review API and MCP handlers operate inside a trusted operator boundary and accept a caller-supplied reviewer identifier.
+Their approval status does not prove independent human review and does not confer Engine Fact-creation authority.

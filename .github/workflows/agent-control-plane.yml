@@ -14,12 +14,48 @@ jobs:
   agent-control-plane-integrity:
     name: agent-control-plane-integrity
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: candidate
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out candidate without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          path: candidate
+          persist-credentials: false
+      - name: Check out previously trusted commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+          path: trusted
+          persist-credentials: false
+      - name: Evaluate inside a container with read-only source mounts
+        env:
+          TRUSTED_EVENT_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runner=../trusted/scripts/run_trusted_control_plane.sh
+          if [[ ! -f "$runner" ]]; then
+            # Initial installation is proposed policy requiring independent owner review.
+            # The existing base validator and tests still run unchanged.
+            runner=scripts/run_trusted_control_plane.sh
+          fi
+          bash "$runner" ../trusted . "$TRUSTED_EVENT_SHA" ../control-plane-artifacts
+      - name: Retain trusted verdict before running candidate code on the host
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trusted-control-plane-evidence
+          path: control-plane-artifacts/trusted-control-plane.json
+          if-no-files-found: error
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate authority graph
+      - name: Validate candidate authority
         run: python3 scripts/agent_control_plane.py
-      - name: Adversarial authority regressions
-        run: python3 -m unittest discover -s scripts/tests -p 'test_agent_control_plane.py'
+      - name: Authority and trusted-harness regressions
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*control_plane.py'
+      - name: Fresh-agent evaluator regressions
+        run: python3 -m unittest discover -s scripts/tests -p 'test_fresh_agent_review.py'

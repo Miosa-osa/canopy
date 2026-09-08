@@ -40,3 +40,17 @@ The scanner keeps paths relative to the containing document and does not treat b
 Canopy compatibility now rejects hidden Git index flags and ignored executable source/configuration inputs while retaining normal ignored dependency/build directories.
 The checks remain preflight validation within a trusted local operating-system boundary, not process or dependency attestation.
 All nested Markdown guides now match CODEOWNERS, including the registered desktop guide, so documentation authority changes retain mandatory owner review.
+
+## Preserved control-plane evidence, 2026-09-08
+
+Added six exact synthetic fixture trees and an append-only incident ledger with expected outcomes, content hashes, causal lessons, local red-team scope, and revisit triggers.
+The trusted comparison uses a separate protected base checkout rather than treating candidate evaluator/tests as their own authority.
+The initial ledger remains proposed policy until independent owner review; explicit bootstrap still runs the prior base evaluator and regression suite.
+Subsequent changes must retain prior records and fixtures, appending supersession instead of deleting history.
+The ordinary pull-request workflow records evaluator identity and replay outcomes without privileged untrusted-code execution or an external immutability claim.
+Clarified that Canopy reviews are trusted-operator operational state, not authenticated proof of independent human approval or Engine Fact authority.
+
+The trusted comparison CLI now requires exact clean Git roots, checks enforcement inputs against Git blobs despite hidden index flags, and verifies expected trusted SHA.
+It runs the trusted validator before candidate execution and detects post-child enforcement or ledger mutation.
+A separate CI container wrapper supplies execution isolation; the Python harness alone is not an OS sandbox.
+The fresh-agent command is documented separately from deterministic scoring tests and does not claim that Canopy operational approval authenticates human identity.

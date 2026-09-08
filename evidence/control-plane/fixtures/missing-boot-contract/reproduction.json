@@ -1,0 +1,14 @@
+{
+  "date": "2026-09-08",
+  "synthetic": true,
+  "candidate_only": {
+    "permissive_checker_exit": 0,
+    "replacement_tests_exit": 0,
+    "authority_check_after_ledger_deletion_exit": 0
+  },
+  "required_retest": {
+    "permissive_candidate": "reject via trusted negative expectations",
+    "deleted_ledger": "reject missing retained evidence"
+  },
+  "causal_lesson": "Candidate-owned success output does not establish conformance; run retained baseline expectations and retain their exact input evidence."
+}
