@@ -3,7 +3,7 @@
  * Endpoints under /api/v1/schedule/*.
  */
 
-import { apiDelete, apiGet, apiPatch, apiPost } from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPatch, apiPost } from '$lib/api/client.js';
 import type {
   Alert,
   AlertCategory,
@@ -18,7 +18,7 @@ import type {
   Spec,
   SpecCreate,
   SpecStatus,
-} from "$lib/domain/schedule/types.js";
+} from '$lib/domain/schedule/types.js';
 
 // ── Specs ────────────────────────────────────────────────────────────────────
 
@@ -32,28 +32,24 @@ export interface SpecQuery {
 export function specsQuery(opts: SpecQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["schedule", "specs", opts],
-    queryFn: () =>
-      apiGet<{ data: Spec[] }>(`/schedule/specs${qs}`).then((r) => r.data),
+    queryKey: ['schedule', 'specs', opts],
+    queryFn: () => apiGet<{ data: Spec[] }>(`/schedule/specs${qs}`).then((r) => r.data),
   };
 }
 
 export function specQuery(slug: string) {
   return {
-    queryKey: ["schedule", "spec", slug],
+    queryKey: ['schedule', 'spec', slug],
     queryFn: () => apiGet<Spec>(`/schedule/specs/${slug}`),
     enabled: Boolean(slug),
   } as const;
 }
 
 export async function createSpec(spec: SpecCreate): Promise<Spec> {
-  return apiPost<Spec>("/schedule/specs", spec);
+  return apiPost<Spec>('/schedule/specs', spec);
 }
 
-export async function updateSpec(
-  slug: string,
-  patch: Partial<SpecCreate>,
-): Promise<Spec> {
+export async function updateSpec(slug: string, patch: Partial<SpecCreate>): Promise<Spec> {
   return apiPatch<Spec>(`/schedule/specs/${slug}`, patch);
 }
 
@@ -85,9 +81,8 @@ export interface RunQuery {
 export function runsQuery(opts: RunQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["schedule", "runs", opts],
-    queryFn: () =>
-      apiGet<{ data: Run[] }>(`/schedule/runs${qs}`).then((r) => r.data),
+    queryKey: ['schedule', 'runs', opts],
+    queryFn: () => apiGet<{ data: Run[] }>(`/schedule/runs${qs}`).then((r) => r.data),
   };
 }
 
@@ -103,7 +98,7 @@ export interface RunAggregateQuery {
 export function runAggregateQuery(opts: RunAggregateQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["schedule", "runs", "aggregate", opts],
+    queryKey: ['schedule', 'runs', 'aggregate', opts],
     queryFn: () => apiGet<RunBuckets>(`/schedule/runs/aggregate${qs}`),
   };
 }
@@ -119,11 +114,8 @@ export interface OverlapQuery {
 export function overlapsQuery(opts: OverlapQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["schedule", "overlaps", opts],
-    queryFn: () =>
-      apiGet<{ data: Overlap[] }>(`/schedule/overlaps${qs}`).then(
-        (r) => r.data,
-      ),
+    queryKey: ['schedule', 'overlaps', opts],
+    queryFn: () => apiGet<{ data: Overlap[] }>(`/schedule/overlaps${qs}`).then((r) => r.data),
   };
 }
 
@@ -140,29 +132,22 @@ export interface AlertQuery {
 export function alertsQuery(opts: AlertQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["schedule", "alerts", opts],
-    queryFn: () =>
-      apiGet<{ data: Alert[] }>(`/schedule/alerts${qs}`).then((r) => r.data),
+    queryKey: ['schedule', 'alerts', opts],
+    queryFn: () => apiGet<{ data: Alert[] }>(`/schedule/alerts${qs}`).then((r) => r.data),
   };
 }
 
 export async function openAlert(alert: AlertCreate): Promise<Alert> {
-  return apiPost<Alert>("/schedule/alerts", alert);
+  return apiPost<Alert>('/schedule/alerts', alert);
 }
 
-export async function closeAlert(
-  slug: string,
-  resolutionNote?: string,
-): Promise<Alert> {
+export async function closeAlert(slug: string, resolutionNote?: string): Promise<Alert> {
   return apiPost<Alert>(`/schedule/alerts/${slug}/close`, {
     resolution_note: resolutionNote,
   });
 }
 
-export async function acknowledgeAlert(
-  slug: string,
-  by: string,
-): Promise<Alert> {
+export async function acknowledgeAlert(slug: string, by: string): Promise<Alert> {
   return apiPost<Alert>(`/schedule/alerts/${slug}/ack`, { by });
 }
 
@@ -170,9 +155,9 @@ export async function acknowledgeAlert(
 
 function buildQuery(opts: object): string {
   const entries = Object.entries(opts as Record<string, unknown>).filter(
-    ([, v]) => v !== undefined && v !== null && v !== "",
+    ([, v]) => v !== undefined && v !== null && v !== ''
   );
-  if (entries.length === 0) return "";
+  if (entries.length === 0) return '';
 
   const params = new URLSearchParams();
   for (const [key, value] of entries) {
@@ -188,4 +173,4 @@ export type {
   Run,
   RunBuckets,
   Spec,
-} from "$lib/domain/schedule/types.js";
+} from '$lib/domain/schedule/types.js';

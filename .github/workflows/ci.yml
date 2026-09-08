@@ -14,11 +14,15 @@ jobs:
   # ─── Backend: Elixir + Phoenix ───────────────────────────────────────────────
   backend-test:
     name: Backend (ExUnit)
+    env:
+      PGUSER: canopy
+      PGPASSWORD: canopy
+      PGHOST: localhost
     runs-on: ubuntu-latest
 
     services:
       postgres:
-        image: postgres:14-alpine
+        image: pgvector/pgvector:0.8.6-pg14-trixie
         env:
           POSTGRES_USER: canopy
           POSTGRES_PASSWORD: canopy
@@ -39,6 +43,9 @@ jobs:
         with:
           elixir-version: "1.19.5"
           otp-version: "28.0"
+
+      - name: Install runtime search dependency
+        run: sudo apt-get update && sudo apt-get install --yes ripgrep
 
       - name: Cache mix deps
         uses: actions/cache@v4
@@ -95,31 +102,33 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: pnpm
-          cache-dependency-path: canopy/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: canopy
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
       - name: Type-check (svelte-check)
-        working-directory: canopy/desktop
+        working-directory: desktop
         run: pnpm check
 
       - name: Lint (Biome)
-        working-directory: canopy/desktop
+        working-directory: desktop
         run: pnpm biome check .
 
       - name: Run unit tests
-        working-directory: canopy/desktop
-        run: pnpm test --run
+        working-directory: desktop
+        run: pnpm test
+
+      - name: Build desktop SPA
+        working-directory: desktop
+        run: pnpm build
 
   # ─── Rust sidecar ────────────────────────────────────────────────────────────
   rust-test:
@@ -141,8 +150,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            canopy/src-tauri/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('canopy/src-tauri/Cargo.lock') }}
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -152,13 +161,13 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Check formatting
-        working-directory: canopy/src-tauri
+        working-directory: src-tauri
         run: cargo fmt --check
 
       - name: Clippy
-        working-directory: canopy/src-tauri
+        working-directory: src-tauri
         run: cargo clippy -- -D warnings
 
       - name: Run tests
-        working-directory: canopy/src-tauri
+        working-directory: src-tauri
         run: cargo test

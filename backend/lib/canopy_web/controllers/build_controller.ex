@@ -308,9 +308,15 @@ defmodule CanopyWeb.BuildController do
   # ---------------------------------------------------------------------------
 
   operation :commands,
-    summary: "List slash commands aggregated across builtin / runtimes / drive / templates / skills",
+    summary:
+      "List slash commands aggregated across builtin / runtimes / drive / templates / skills",
     parameters: [
-      q: [in: :query, type: :string, required: false, description: "Substring filter on name+description"],
+      q: [
+        in: :query,
+        type: :string,
+        required: false,
+        description: "Substring filter on name+description"
+      ],
       limit: [in: :query, type: :integer, required: false]
     ],
     responses: [ok: {"Command list", "application/json", BuildSchema.CommandList}]
@@ -355,8 +361,7 @@ defmodule CanopyWeb.BuildController do
     if Regex.match?(@slug_regex, str) do
       :ok
     else
-      {:error,
-       "invalid slug: must be lowercase alphanumeric, dashes, underscores; max 128 chars"}
+      {:error, "invalid slug: must be lowercase alphanumeric, dashes, underscores; max 128 chars"}
     end
   end
 

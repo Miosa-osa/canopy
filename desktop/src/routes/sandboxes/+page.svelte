@@ -8,19 +8,16 @@
  * Refreshes every 15 s (staleTime) via TanStack Query. Manual refresh
  * available via the header button.
  */
-import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
-import { writable } from "svelte/store";
-import { untrack } from "svelte";
-import { goto } from "$app/navigation";
-import { Server } from "lucide-svelte";
-import {
-  sandboxesQuery,
-  deleteSandboxMutation,
-} from "$lib/api/queries/sandboxes.js";
-import EmptyState from "$lib/design/patterns/EmptyState.svelte";
-import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
-import StatusDot from "$lib/design/patterns/StatusDot.svelte";
-import type { Sandbox, SandboxStatus } from "$lib/domain/sandboxes/types.js";
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Server } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { deleteSandboxMutation, sandboxesQuery } from '$lib/api/queries/sandboxes.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+import type { Sandbox, SandboxStatus } from '$lib/domain/sandboxes/types.js';
 
 const queryClient = useQueryClient();
 
@@ -33,9 +30,7 @@ const sandboxes = $derived(
 
 let destroyingId = $state<string | null>(null);
 
-const destroyMutation = createMutation(
-  writable(untrack(() => deleteSandboxMutation()))
-);
+const destroyMutation = createMutation(writable(untrack(() => deleteSandboxMutation())));
 
 async function handleDestroy(sandbox: Sandbox): Promise<void> {
   if (destroyingId) return;
@@ -43,7 +38,7 @@ async function handleDestroy(sandbox: Sandbox): Promise<void> {
   try {
     await $destroyMutation.mutateAsync(sandbox.sandbox_id, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["sandboxes"] });
+        queryClient.invalidateQueries({ queryKey: ['sandboxes'] });
       },
     });
   } finally {
@@ -51,24 +46,24 @@ async function handleDestroy(sandbox: Sandbox): Promise<void> {
   }
 }
 
-function dotColor(status: SandboxStatus): "green" | "amber" | "red" | "grey" {
+function dotColor(status: SandboxStatus): 'green' | 'amber' | 'red' | 'grey' {
   switch (status) {
-    case "ready":
-      return "green";
-    case "provisioning":
-    case "pending":
-      return "amber";
-    case "failed":
-      return "red";
+    case 'ready':
+      return 'green';
+    case 'provisioning':
+    case 'pending':
+      return 'amber';
+    case 'failed':
+      return 'red';
     default:
-      return "grey";
+      return 'grey';
   }
 }
 
 function formatRelative(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso) return '—';
   const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000) return "just now";
+  if (diff < 60_000) return 'just now';
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   return `${Math.floor(diff / 86_400_000)}d ago`;

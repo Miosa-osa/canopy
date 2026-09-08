@@ -1,32 +1,25 @@
 <script lang="ts">
-  /**
-   * KnowledgeBasesPanel — list KBs with Assign/Unassign per KB.
-   * Uses existing assignAgent / unassignAgent endpoints via knowledge.ts.
-   * CSS prefix: kbp- (KnowledgeBasesPanel)
-   */
-  import type { KnowledgeBase } from '$lib/domain/knowledge/types.js';
+/**
+ * KnowledgeBasesPanel — list KBs with Assign/Unassign per KB.
+ * Uses existing assignAgent / unassignAgent endpoints via knowledge.ts.
+ * CSS prefix: kbp- (KnowledgeBasesPanel)
+ */
+import type { KnowledgeBase } from '$lib/domain/knowledge/types.js';
 
-  interface Props {
-    agentSlug: string;
-    bases: KnowledgeBase[];
-    isLoading: boolean;
-    assignedSlugs: string[];
-    onAssign: (kbSlug: string) => void;
-    onUnassign: (kbSlug: string) => void;
-    isPending: boolean;
-  }
+interface Props {
+  agentSlug: string;
+  bases: KnowledgeBase[];
+  isLoading: boolean;
+  assignedSlugs: string[];
+  onAssign: (kbSlug: string) => void;
+  onUnassign: (kbSlug: string) => void;
+  isPending: boolean;
+}
 
-  let {
-    agentSlug,
-    bases,
-    isLoading,
-    assignedSlugs,
-    onAssign,
-    onUnassign,
-    isPending,
-  }: Props = $props();
+let { agentSlug, bases, isLoading, assignedSlugs, onAssign, onUnassign, isPending }: Props =
+  $props();
 
-  // agentSlug is the display context identifier — referenced in the template aria-label below
+// agentSlug is the display context identifier — referenced in the template aria-label below
 </script>
 
 <div class="kbp-root" aria-label="Knowledge bases for agent {agentSlug}">

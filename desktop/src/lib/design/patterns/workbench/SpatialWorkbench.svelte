@@ -1,675 +1,794 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import {
-    Bot,
-    Crosshair,
-    GitPullRequest,
-    Grid2X2,
-    Hand,
-    LayoutPanelTop,
-    Maximize,
-    MousePointer2,
-    PanelsTopLeft,
-    Minus,
-    Plus,
-    RotateCcw,
-    Settings2,
-    Terminal,
-  } from 'lucide-svelte';
-  import WorkbenchTile, {
-    type WorkbenchTileKind,
-    type WorkbenchTileModel,
-  } from './WorkbenchTile.svelte';
-  import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
-  import { defaultConfig } from '$lib/stores/sidebar-config.svelte.js';
+import {
+  Bot,
+  Crosshair,
+  GitPullRequest,
+  Grid2X2,
+  Hand,
+  LayoutPanelTop,
+  Maximize,
+  Minus,
+  MousePointer2,
+  PanelsTopLeft,
+  Plus,
+  RotateCcw,
+  Settings2,
+  Terminal,
+} from 'lucide-svelte';
+import { onMount } from 'svelte';
+import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
+import { defaultConfig } from '$lib/stores/sidebar-config.svelte.js';
+import WorkbenchTile, {
+  type WorkbenchTileKind,
+  type WorkbenchTileModel,
+} from './WorkbenchTile.svelte';
 
-  const STORAGE_KEY = 'canopy.workbench.spatial.v1';
-  const WORKBENCHES_KEY = 'canopy.workbench.canvases.v1';
-  const SETTINGS_KEY = 'canopy.workbench.settings.v1';
-  const MIN_SCALE = 0.18;
-  const MAX_SCALE = 2.2;
-  const MAX_STORED_BYTES = 600_000;
-  const MAX_TILES = 80;
-  const WORLD_LIMIT = 20_000;
-  const MAX_BACKGROUND_SOURCE_BYTES = 12 * 1024 * 1024;
-  const MAX_BACKGROUND_DATA_URL_BYTES = 2_800_000;
-  const MAX_BACKGROUND_DIMENSION = 2600;
+const STORAGE_KEY = 'canopy.workbench.spatial.v1';
+const WORKBENCHES_KEY = 'canopy.workbench.canvases.v1';
+const SETTINGS_KEY = 'canopy.workbench.settings.v1';
+const MIN_SCALE = 0.18;
+const MAX_SCALE = 2.2;
+const MAX_STORED_BYTES = 600_000;
+const MAX_TILES = 80;
+const WORLD_LIMIT = 20_000;
+const MAX_BACKGROUND_SOURCE_BYTES = 12 * 1024 * 1024;
+const MAX_BACKGROUND_DATA_URL_BYTES = 2_800_000;
+const MAX_BACKGROUND_DIMENSION = 2600;
 
-  const MODULES = defaultConfig.groups.flatMap((group) =>
-    group.items
-      .filter((item) => item.path !== '/workbench' && !item.comingSoon)
-      .map((item) => ({
-        label: item.label,
-        route: item.path,
-        subtitle: `${group.label.toLowerCase()} module`,
-      })),
-  );
+const MODULES = defaultConfig.groups.flatMap((group) =>
+  group.items
+    .filter((item) => item.path !== '/workbench' && !item.comingSoon)
+    .map((item) => ({
+      label: item.label,
+      route: item.path,
+      subtitle: `${group.label.toLowerCase()} module`,
+    }))
+);
 
-  interface CanvasState {
-    x: number;
-    y: number;
-    scale: number;
-    tiles: WorkbenchTileModel[];
-  }
+interface CanvasState {
+  x: number;
+  y: number;
+  scale: number;
+  tiles: WorkbenchTileModel[];
+}
 
-  interface WorkbenchCanvas {
-    id: string;
-    name: string;
-    state: CanvasState;
-  }
+interface WorkbenchCanvas {
+  id: string;
+  name: string;
+  state: CanvasState;
+}
 
-  interface WorkbenchSettings {
-    background: 'dots' | 'grid' | 'paper' | 'lines' | 'cross' | 'clean' | 'custom';
-    backgroundColor: string;
-    backgroundImage: string;
-    backgroundImageOpacity: number;
-    backgroundImageScale: number;
-    backgroundScale: number;
-    density: 'comfortable' | 'compact';
-    tool: 'select' | 'pan';
-    snap: boolean;
-    showMinimap: boolean;
-    terminalRuntime: string;
-    terminalCwd: string;
-  }
+interface WorkbenchSettings {
+  background: 'dots' | 'grid' | 'paper' | 'lines' | 'cross' | 'clean' | 'custom';
+  backgroundColor: string;
+  backgroundImage: string;
+  backgroundImageOpacity: number;
+  backgroundImageScale: number;
+  backgroundScale: number;
+  density: 'comfortable' | 'compact';
+  tool: 'select' | 'pan';
+  snap: boolean;
+  showMinimap: boolean;
+  terminalRuntime: string;
+  terminalCwd: string;
+}
 
-  const defaultTiles: WorkbenchTileModel[] = [
-    { id: 'terminal-main', kind: 'terminal', title: 'Desktop Terminal', subtitle: 'local shell surface', x: 40, y: 40, w: 760, h: 460, z: 1 },
-    { id: 'agent-team', kind: 'agent', title: 'Agent Team', subtitle: 'parallel workers and sub-agents', x: 840, y: 40, w: 680, h: 460, z: 2 },
-    { id: 'git-review', kind: 'git', title: 'Git Review', subtitle: 'staged, unstaged, inline diff', x: 40, y: 540, w: 680, h: 440, z: 3 },
-    { id: 'mission', kind: 'mission', title: 'Mission Control', subtitle: 'milestones, gates, wrap-up', x: 760, y: 540, w: 560, h: 380, z: 4 },
-    { id: 'tmux-layout', kind: 'tmux', title: 'Tmux Layout', subtitle: 'split canvas template', x: 1360, y: 540, w: 760, h: 480, z: 5, panes: [] },
-  ];
+const defaultTiles: WorkbenchTileModel[] = [
+  {
+    id: 'terminal-main',
+    kind: 'terminal',
+    title: 'Desktop Terminal',
+    subtitle: 'local shell surface',
+    x: 40,
+    y: 40,
+    w: 760,
+    h: 460,
+    z: 1,
+  },
+  {
+    id: 'agent-team',
+    kind: 'agent',
+    title: 'Agent Team',
+    subtitle: 'parallel workers and sub-agents',
+    x: 840,
+    y: 40,
+    w: 680,
+    h: 460,
+    z: 2,
+  },
+  {
+    id: 'git-review',
+    kind: 'git',
+    title: 'Git Review',
+    subtitle: 'staged, unstaged, inline diff',
+    x: 40,
+    y: 540,
+    w: 680,
+    h: 440,
+    z: 3,
+  },
+  {
+    id: 'mission',
+    kind: 'mission',
+    title: 'Mission Control',
+    subtitle: 'milestones, gates, wrap-up',
+    x: 760,
+    y: 540,
+    w: 560,
+    h: 380,
+    z: 4,
+  },
+  {
+    id: 'tmux-layout',
+    kind: 'tmux',
+    title: 'Tmux Layout',
+    subtitle: 'split canvas template',
+    x: 1360,
+    y: 540,
+    w: 760,
+    h: 480,
+    z: 5,
+    panes: [],
+  },
+];
 
-  function cloneState(value: CanvasState): CanvasState {
-    return {
-      x: value.x,
-      y: value.y,
-      scale: value.scale,
-      tiles: value.tiles.map((tile) => ({
-        ...tile,
-        restore: tile.restore ? { ...tile.restore } : undefined,
-        panes: tile.panes?.map((pane) => ({ ...pane })),
-      })),
-    };
-  }
+function cloneState(value: CanvasState): CanvasState {
+  return {
+    x: value.x,
+    y: value.y,
+    scale: value.scale,
+    tiles: value.tiles.map((tile) => ({
+      ...tile,
+      restore: tile.restore ? { ...tile.restore } : undefined,
+      panes: tile.panes?.map((pane) => ({ ...pane })),
+    })),
+  };
+}
 
-  const initialState: CanvasState = { x: 72, y: 56, scale: 1, tiles: defaultTiles.map((tile) => ({ ...tile })) };
-  let viewportEl: HTMLDivElement | null = $state(null);
-  let canvasState: CanvasState = $state(initialState);
-  let canvases: WorkbenchCanvas[] = $state([
-    { id: 'main', name: 'Main', state: cloneState(initialState) },
-  ]);
-  let activeCanvasId = $state('main');
-  let selectedId: string = $state('terminal-main');
-  let panStart: { pointerId: number; px: number; py: number; x: number; y: number } | null = $state(null);
-  let modulePickerOpen = $state(false);
-  let settingsOpen = $state(false);
-  let backgroundError = $state('');
-  let spacePanning = $state(false);
-  let saveTimer: number | null = null;
-  let settings: WorkbenchSettings = $state({
-    background: 'dots',
-    backgroundColor: '',
-    backgroundImage: '',
-    backgroundImageOpacity: 0.28,
-    backgroundImageScale: 100,
-    backgroundScale: 100,
-    density: 'comfortable',
-    tool: 'select',
-    snap: true,
-    showMinimap: true,
-    terminalRuntime: 'claude-local',
-    terminalCwd: '',
-  });
-  const activeWorkspaceSlug = $derived(activeWorkspace.slug ?? 'default');
-  const activeRootPath = $derived(activeWorkspace.rootPath ?? '~');
-  const panMode = $derived(settings.tool === 'pan' || spacePanning);
+const initialState: CanvasState = {
+  x: 72,
+  y: 56,
+  scale: 1,
+  tiles: defaultTiles.map((tile) => ({ ...tile })),
+};
+let viewportEl: HTMLDivElement | null = $state(null);
+let canvasState: CanvasState = $state(initialState);
+let canvases: WorkbenchCanvas[] = $state([
+  { id: 'main', name: 'Main', state: cloneState(initialState) },
+]);
+let activeCanvasId = $state('main');
+let selectedId: string = $state('terminal-main');
+let panStart: { pointerId: number; px: number; py: number; x: number; y: number } | null =
+  $state(null);
+let modulePickerOpen = $state(false);
+let settingsOpen = $state(false);
+let backgroundError = $state('');
+let spacePanning = $state(false);
+let saveTimer: number | null = null;
+let settings: WorkbenchSettings = $state({
+  background: 'dots',
+  backgroundColor: '',
+  backgroundImage: '',
+  backgroundImageOpacity: 0.28,
+  backgroundImageScale: 100,
+  backgroundScale: 100,
+  density: 'comfortable',
+  tool: 'select',
+  snap: true,
+  showMinimap: true,
+  terminalRuntime: 'claude-local',
+  terminalCwd: '',
+});
+const activeWorkspaceSlug = $derived(activeWorkspace.slug ?? 'default');
+const activeRootPath = $derived(activeWorkspace.rootPath ?? '~');
+const panMode = $derived(settings.tool === 'pan' || spacePanning);
 
-  function loadState(): void {
-    try {
-      const rawCanvases = localStorage.getItem(WORKBENCHES_KEY);
-      const rawSettings = localStorage.getItem(SETTINGS_KEY);
-      if (rawSettings) settings = sanitizeSettings(JSON.parse(rawSettings) as Partial<WorkbenchSettings>);
-      if (rawCanvases) {
-        if (rawCanvases.length > MAX_STORED_BYTES) {
-          clearStoredWorkbenchState();
-          return;
-        }
-        const parsed = JSON.parse(rawCanvases) as { activeId?: string; canvases?: WorkbenchCanvas[] };
-        const valid = (parsed.canvases ?? []).filter((canvas) => canvas.id && canvas.name && canvas.state?.tiles);
-        if (valid.length > 0) {
-          canvases = valid.map((canvas) => ({ ...canvas, state: sanitizeState(canvas.state) }));
-          activeCanvasId = parsed.activeId && valid.some((canvas) => canvas.id === parsed.activeId)
-            ? parsed.activeId
-            : valid[0].id;
-          canvasState = cloneState(canvases.find((canvas) => canvas.id === activeCanvasId)!.state);
-          return;
-        }
-      }
-
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      if (raw.length > MAX_STORED_BYTES) {
+function loadState(): void {
+  try {
+    const rawCanvases = localStorage.getItem(WORKBENCHES_KEY);
+    const rawSettings = localStorage.getItem(SETTINGS_KEY);
+    if (rawSettings)
+      settings = sanitizeSettings(JSON.parse(rawSettings) as Partial<WorkbenchSettings>);
+    if (rawCanvases) {
+      if (rawCanvases.length > MAX_STORED_BYTES) {
         clearStoredWorkbenchState();
         return;
       }
-      canvasState = sanitizeState(JSON.parse(raw) as Partial<CanvasState>);
-      canvases = [{ id: 'main', name: 'Main', state: cloneState(canvasState) }];
-    } catch {
-      clearStoredWorkbenchState();
-    }
-  }
-
-  function clearStoredWorkbenchState(): void {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(WORKBENCHES_KEY);
-    } catch {
-      /* localStorage unavailable */
-    }
-    canvasState = cloneState(initialState);
-    canvases = [{ id: 'main', name: 'Main', state: cloneState(initialState) }];
-    activeCanvasId = 'main';
-    selectedId = 'terminal-main';
-  }
-
-  function saveState(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(canvasState));
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-      canvases = canvases.map((canvas) =>
-        canvas.id === activeCanvasId ? { ...canvas, state: cloneState(canvasState) } : canvas,
+      const parsed = JSON.parse(rawCanvases) as { activeId?: string; canvases?: WorkbenchCanvas[] };
+      const valid = (parsed.canvases ?? []).filter(
+        (canvas) => canvas.id && canvas.name && canvas.state?.tiles
       );
-      localStorage.setItem(WORKBENCHES_KEY, JSON.stringify({ activeId: activeCanvasId, canvases }));
-    } catch {
-      /* localStorage unavailable */
+      if (valid.length > 0) {
+        canvases = valid.map((canvas) => ({ ...canvas, state: sanitizeState(canvas.state) }));
+        activeCanvasId =
+          parsed.activeId && valid.some((canvas) => canvas.id === parsed.activeId)
+            ? parsed.activeId
+            : valid[0].id;
+        canvasState = cloneState(canvases.find((canvas) => canvas.id === activeCanvasId)!.state);
+        return;
+      }
     }
-  }
 
-  function scheduleSave(): void {
-    if (saveTimer !== null) window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(() => {
-      saveTimer = null;
-      saveState();
-    }, 180);
-  }
-
-  function sanitizeState(raw: Partial<CanvasState>): CanvasState {
-    if (Array.isArray(raw.tiles) && raw.tiles.some(isUnrecoverableTile)) {
-      return cloneState(initialState);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    if (raw.length > MAX_STORED_BYTES) {
+      clearStoredWorkbenchState();
+      return;
     }
-    const tiles = Array.isArray(raw.tiles)
-      ? raw.tiles.filter(isTile).slice(0, MAX_TILES).map(sanitizeTile)
-      : defaultTiles.map((tile) => ({ ...tile }));
-    return {
-      x: clampNumber(raw.x, -WORLD_LIMIT, WORLD_LIMIT, 72),
-      y: clampNumber(raw.y, -WORLD_LIMIT, WORLD_LIMIT, 56),
-      scale: clampScale(typeof raw.scale === 'number' ? raw.scale : 1),
-      tiles,
-    };
+    canvasState = sanitizeState(JSON.parse(raw) as Partial<CanvasState>);
+    canvases = [{ id: 'main', name: 'Main', state: cloneState(canvasState) }];
+  } catch {
+    clearStoredWorkbenchState();
   }
+}
 
-  function sanitizeTile(tile: WorkbenchTileModel): WorkbenchTileModel {
-    const minSize = defaultSizeFor(tile.kind, tile.route);
-    return {
-      ...tile,
-      x: clampNumber(tile.x, -WORLD_LIMIT, WORLD_LIMIT, 0),
-      y: clampNumber(tile.y, -WORLD_LIMIT, WORLD_LIMIT, 0),
-      w: clampNumber(tile.w, 260, 2400, Math.min(minSize.w, 900)),
-      h: clampNumber(tile.h, 180, 1600, Math.min(minSize.h, 700)),
-      z: clampNumber(tile.z, 0, 10_000, 0),
-      restore: tile.restore
-        ? {
-            x: clampNumber(tile.restore.x, -WORLD_LIMIT, WORLD_LIMIT, 0),
-            y: clampNumber(tile.restore.y, -WORLD_LIMIT, WORLD_LIMIT, 0),
-            w: clampNumber(tile.restore.w, 260, 2400, minSize.w),
-            h: clampNumber(tile.restore.h, 180, 1600, minSize.h),
-          }
-        : undefined,
-      panes: tile.panes?.slice(0, 24).map((pane) => ({ ...pane })),
-    };
+function clearStoredWorkbenchState(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(WORKBENCHES_KEY);
+  } catch {
+    /* localStorage unavailable */
   }
+  canvasState = cloneState(initialState);
+  canvases = [{ id: 'main', name: 'Main', state: cloneState(initialState) }];
+  activeCanvasId = 'main';
+  selectedId = 'terminal-main';
+}
 
-  function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
-    return typeof value === 'number' && Number.isFinite(value)
-      ? Math.min(max, Math.max(min, value))
-      : fallback;
-  }
-
-  function sanitizeSettings(raw: Partial<WorkbenchSettings>): WorkbenchSettings {
-    const background = ['dots', 'grid', 'paper', 'lines', 'cross', 'clean', 'custom'].includes(String(raw.background))
-      ? raw.background as WorkbenchSettings['background']
-      : 'dots';
-    return {
-      background,
-      backgroundColor: typeof raw.backgroundColor === 'string' ? raw.backgroundColor : '',
-      backgroundImage: typeof raw.backgroundImage === 'string' && raw.backgroundImage.length < MAX_BACKGROUND_DATA_URL_BYTES ? raw.backgroundImage : '',
-      backgroundImageOpacity: clampNumber(raw.backgroundImageOpacity, 0.05, 0.9, 0.28),
-      backgroundImageScale: clampNumber(raw.backgroundImageScale, 25, 300, 100),
-      backgroundScale: clampNumber(raw.backgroundScale, 40, 240, 100),
-      density: raw.density === 'compact' ? 'compact' : 'comfortable',
-      tool: raw.tool === 'pan' ? 'pan' : 'select',
-      snap: typeof raw.snap === 'boolean' ? raw.snap : true,
-      showMinimap: typeof raw.showMinimap === 'boolean' ? raw.showMinimap : true,
-      terminalRuntime: typeof raw.terminalRuntime === 'string' && raw.terminalRuntime ? raw.terminalRuntime : 'claude-local',
-      terminalCwd: typeof raw.terminalCwd === 'string' ? raw.terminalCwd : '',
-    };
-  }
-
-  function isTile(value: unknown): value is WorkbenchTileModel {
-    const tile = value as WorkbenchTileModel;
-    return !!tile && typeof tile.id === 'string' && typeof tile.x === 'number' && typeof tile.y === 'number';
-  }
-
-  function isUnrecoverableTile(value: unknown): boolean {
-    const tile = value as Partial<WorkbenchTileModel>;
-    return !tile
-      || typeof tile.id !== 'string'
-      || typeof tile.x !== 'number'
-      || typeof tile.y !== 'number'
-      || typeof tile.w !== 'number'
-      || typeof tile.h !== 'number'
-      || !Number.isFinite(tile.x)
-      || !Number.isFinite(tile.y)
-      || !Number.isFinite(tile.w)
-      || !Number.isFinite(tile.h)
-      || Math.abs(tile.x) > WORLD_LIMIT
-      || Math.abs(tile.y) > WORLD_LIMIT
-      || tile.w > 4000
-      || tile.h > 3000
-      || tile.w < 100
-      || tile.h < 100;
-  }
-
-  function clampScale(value: number): number {
-    return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
-  }
-
-  function setScale(next: number, anchor?: { x: number; y: number }): void {
-    const previous = canvasState.scale;
-    const scale = clampScale(next);
-    if (anchor && previous !== scale) {
-      const worldX = (anchor.x - canvasState.x) / previous;
-      const worldY = (anchor.y - canvasState.y) / previous;
-      canvasState.x = Math.round(anchor.x - worldX * scale);
-      canvasState.y = Math.round(anchor.y - worldY * scale);
-    }
-    canvasState.scale = scale;
-    scheduleSave();
-  }
-
-  function resetCanvas(): void {
-    canvasState = { x: 72, y: 56, scale: 1, tiles: defaultTiles.map((tile) => ({ ...tile })) };
-    selectedId = 'terminal-main';
-    saveState();
-  }
-
-  function renameWorkbench(name: string): void {
-    const nextName = name.trim() || 'Untitled workbench';
+function saveState(): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(canvasState));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     canvases = canvases.map((canvas) =>
-      canvas.id === activeCanvasId ? { ...canvas, name: nextName } : canvas,
+      canvas.id === activeCanvasId ? { ...canvas, state: cloneState(canvasState) } : canvas
     );
-    saveState();
+    localStorage.setItem(WORKBENCHES_KEY, JSON.stringify({ activeId: activeCanvasId, canvases }));
+  } catch {
+    /* localStorage unavailable */
   }
+}
 
-  function activeCanvasName(): string {
-    return canvases.find((canvas) => canvas.id === activeCanvasId)?.name ?? 'Workbench';
+function scheduleSave(): void {
+  if (saveTimer !== null) window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    saveTimer = null;
+    saveState();
+  }, 180);
+}
+
+function sanitizeState(raw: Partial<CanvasState>): CanvasState {
+  if (Array.isArray(raw.tiles) && raw.tiles.some(isUnrecoverableTile)) {
+    return cloneState(initialState);
   }
+  const tiles = Array.isArray(raw.tiles)
+    ? raw.tiles.filter(isTile).slice(0, MAX_TILES).map(sanitizeTile)
+    : defaultTiles.map((tile) => ({ ...tile }));
+  return {
+    x: clampNumber(raw.x, -WORLD_LIMIT, WORLD_LIMIT, 72),
+    y: clampNumber(raw.y, -WORLD_LIMIT, WORLD_LIMIT, 56),
+    scale: clampScale(typeof raw.scale === 'number' ? raw.scale : 1),
+    tiles,
+  };
+}
 
-  function createWorkbench(): void {
-    saveState();
-    const id = `workbench-${Math.random().toString(36).slice(2, 8)}`;
-    const next: WorkbenchCanvas = {
-      id,
-      name: `Workbench ${canvases.length + 1}`,
-      state: { x: 72, y: 56, scale: 1, tiles: [] },
-    };
-    canvases = [...canvases, next];
-    activeCanvasId = id;
-    canvasState = cloneState(next.state);
-    selectedId = '';
-    saveState();
+function sanitizeTile(tile: WorkbenchTileModel): WorkbenchTileModel {
+  const minSize = defaultSizeFor(tile.kind, tile.route);
+  return {
+    ...tile,
+    x: clampNumber(tile.x, -WORLD_LIMIT, WORLD_LIMIT, 0),
+    y: clampNumber(tile.y, -WORLD_LIMIT, WORLD_LIMIT, 0),
+    w: clampNumber(tile.w, 260, 2400, Math.min(minSize.w, 900)),
+    h: clampNumber(tile.h, 180, 1600, Math.min(minSize.h, 700)),
+    z: clampNumber(tile.z, 0, 10_000, 0),
+    restore: tile.restore
+      ? {
+          x: clampNumber(tile.restore.x, -WORLD_LIMIT, WORLD_LIMIT, 0),
+          y: clampNumber(tile.restore.y, -WORLD_LIMIT, WORLD_LIMIT, 0),
+          w: clampNumber(tile.restore.w, 260, 2400, minSize.w),
+          h: clampNumber(tile.restore.h, 180, 1600, minSize.h),
+        }
+      : undefined,
+    panes: tile.panes?.slice(0, 24).map((pane) => ({ ...pane })),
+  };
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, value))
+    : fallback;
+}
+
+function sanitizeSettings(raw: Partial<WorkbenchSettings>): WorkbenchSettings {
+  const background = ['dots', 'grid', 'paper', 'lines', 'cross', 'clean', 'custom'].includes(
+    String(raw.background)
+  )
+    ? (raw.background as WorkbenchSettings['background'])
+    : 'dots';
+  return {
+    background,
+    backgroundColor: typeof raw.backgroundColor === 'string' ? raw.backgroundColor : '',
+    backgroundImage:
+      typeof raw.backgroundImage === 'string' &&
+      raw.backgroundImage.length < MAX_BACKGROUND_DATA_URL_BYTES
+        ? raw.backgroundImage
+        : '',
+    backgroundImageOpacity: clampNumber(raw.backgroundImageOpacity, 0.05, 0.9, 0.28),
+    backgroundImageScale: clampNumber(raw.backgroundImageScale, 25, 300, 100),
+    backgroundScale: clampNumber(raw.backgroundScale, 40, 240, 100),
+    density: raw.density === 'compact' ? 'compact' : 'comfortable',
+    tool: raw.tool === 'pan' ? 'pan' : 'select',
+    snap: typeof raw.snap === 'boolean' ? raw.snap : true,
+    showMinimap: typeof raw.showMinimap === 'boolean' ? raw.showMinimap : true,
+    terminalRuntime:
+      typeof raw.terminalRuntime === 'string' && raw.terminalRuntime
+        ? raw.terminalRuntime
+        : 'claude-local',
+    terminalCwd: typeof raw.terminalCwd === 'string' ? raw.terminalCwd : '',
+  };
+}
+
+function isTile(value: unknown): value is WorkbenchTileModel {
+  const tile = value as WorkbenchTileModel;
+  return (
+    !!tile &&
+    typeof tile.id === 'string' &&
+    typeof tile.x === 'number' &&
+    typeof tile.y === 'number'
+  );
+}
+
+function isUnrecoverableTile(value: unknown): boolean {
+  const tile = value as Partial<WorkbenchTileModel>;
+  return (
+    !tile ||
+    typeof tile.id !== 'string' ||
+    typeof tile.x !== 'number' ||
+    typeof tile.y !== 'number' ||
+    typeof tile.w !== 'number' ||
+    typeof tile.h !== 'number' ||
+    !Number.isFinite(tile.x) ||
+    !Number.isFinite(tile.y) ||
+    !Number.isFinite(tile.w) ||
+    !Number.isFinite(tile.h) ||
+    Math.abs(tile.x) > WORLD_LIMIT ||
+    Math.abs(tile.y) > WORLD_LIMIT ||
+    tile.w > 4000 ||
+    tile.h > 3000 ||
+    tile.w < 100 ||
+    tile.h < 100
+  );
+}
+
+function clampScale(value: number): number {
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value));
+}
+
+function setScale(next: number, anchor?: { x: number; y: number }): void {
+  const previous = canvasState.scale;
+  const scale = clampScale(next);
+  if (anchor && previous !== scale) {
+    const worldX = (anchor.x - canvasState.x) / previous;
+    const worldY = (anchor.y - canvasState.y) / previous;
+    canvasState.x = Math.round(anchor.x - worldX * scale);
+    canvasState.y = Math.round(anchor.y - worldY * scale);
   }
+  canvasState.scale = scale;
+  scheduleSave();
+}
 
-  function switchWorkbench(id: string): void {
-    if (id === activeCanvasId) return;
-    saveState();
-    const next = canvases.find((canvas) => canvas.id === id);
-    if (!next) return;
-    activeCanvasId = id;
-    canvasState = cloneState(next.state);
-    selectedId = next.state.tiles[0]?.id ?? '';
-    saveState();
-  }
+function resetCanvas(): void {
+  canvasState = { x: 72, y: 56, scale: 1, tiles: defaultTiles.map((tile) => ({ ...tile })) };
+  selectedId = 'terminal-main';
+  saveState();
+}
 
-  function focusCanvas(): void {
-    canvasState.x = 72;
-    canvasState.y = 56;
-    canvasState.scale = 1;
-    saveState();
-  }
+function renameWorkbench(name: string): void {
+  const nextName = name.trim() || 'Untitled workbench';
+  canvases = canvases.map((canvas) =>
+    canvas.id === activeCanvasId ? { ...canvas, name: nextName } : canvas
+  );
+  saveState();
+}
 
-  function resetView(): void {
-    canvasState.x = 72;
-    canvasState.y = 56;
-    canvasState.scale = 1;
-    saveState();
-  }
+function activeCanvasName(): string {
+  return canvases.find((canvas) => canvas.id === activeCanvasId)?.name ?? 'Workbench';
+}
 
-  function addTile(kind: WorkbenchTileKind, patch: Partial<WorkbenchTileModel> = {}): void {
-    const id = `${kind}-${Math.random().toString(36).slice(2, 8)}`;
-    const title =
-      kind === 'terminal' ? 'Terminal' :
-      kind === 'agent' ? 'Agent Console' :
-      kind === 'git' ? 'Git Review' :
-      kind === 'files' ? 'Files' :
-      kind === 'mission' ? 'Mission' :
-      kind === 'module' ? 'Module' :
-      'Tmux Layout';
-    const sessionId = kind === 'git'
+function createWorkbench(): void {
+  saveState();
+  const id = `workbench-${Math.random().toString(36).slice(2, 8)}`;
+  const next: WorkbenchCanvas = {
+    id,
+    name: `Workbench ${canvases.length + 1}`,
+    state: { x: 72, y: 56, scale: 1, tiles: [] },
+  };
+  canvases = [...canvases, next];
+  activeCanvasId = id;
+  canvasState = cloneState(next.state);
+  selectedId = '';
+  saveState();
+}
+
+function switchWorkbench(id: string): void {
+  if (id === activeCanvasId) return;
+  saveState();
+  const next = canvases.find((canvas) => canvas.id === id);
+  if (!next) return;
+  activeCanvasId = id;
+  canvasState = cloneState(next.state);
+  selectedId = next.state.tiles[0]?.id ?? '';
+  saveState();
+}
+
+function focusCanvas(): void {
+  canvasState.x = 72;
+  canvasState.y = 56;
+  canvasState.scale = 1;
+  saveState();
+}
+
+function resetView(): void {
+  canvasState.x = 72;
+  canvasState.y = 56;
+  canvasState.scale = 1;
+  saveState();
+}
+
+function addTile(kind: WorkbenchTileKind, patch: Partial<WorkbenchTileModel> = {}): void {
+  const id = `${kind}-${Math.random().toString(36).slice(2, 8)}`;
+  const title =
+    kind === 'terminal'
+      ? 'Terminal'
+      : kind === 'agent'
+        ? 'Agent Console'
+        : kind === 'git'
+          ? 'Git Review'
+          : kind === 'files'
+            ? 'Files'
+            : kind === 'mission'
+              ? 'Mission'
+              : kind === 'module'
+                ? 'Module'
+                : 'Tmux Layout';
+  const sessionId =
+    kind === 'git'
       ? canvasState.tiles.find((tile) => tile.kind === 'terminal' && tile.sessionId)?.sessionId
       : undefined;
-    const size = defaultSizeFor(kind, patch.route);
-    canvasState.tiles = [
-      ...canvasState.tiles,
-      {
-        id,
-        kind,
-        title,
-        subtitle: kind === 'terminal' ? 'new shell tile' : 'canvas module',
-        x: snapValue(Math.round((80 - canvasState.x) / canvasState.scale)),
-        y: snapValue(Math.round((70 - canvasState.y) / canvasState.scale)),
-        w: size.w,
-        h: size.h,
-        z: nextZ(),
-        panes: kind === 'tmux' ? [] : undefined,
-        sessionId,
-        ...patch,
-      },
-    ];
-    selectedId = id;
-    saveState();
-  }
-
-  function patchTile(id: string, patch: Partial<WorkbenchTileModel>): void {
-    canvasState.tiles = canvasState.tiles.map((tile) => tile.id === id ? { ...tile, ...patch } : tile);
-    saveState();
-  }
-
-  function selectTile(id: string): void {
-    selectedId = id;
-    canvasState.tiles = canvasState.tiles.map((tile) => tile.id === id ? { ...tile, z: nextZ() } : tile);
-    saveState();
-  }
-
-  function moveTile(id: string, x: number, y: number): void {
-    canvasState.tiles = canvasState.tiles.map((tile) => tile.id === id ? { ...tile, x: snapValue(x), y: snapValue(y) } : tile);
-    scheduleSave();
-  }
-
-  function resizeTile(id: string, x: number, y: number, w: number, h: number): void {
-    canvasState.tiles = canvasState.tiles.map((tile) =>
-      tile.id === id
-        ? { ...tile, x: snapValue(x), y: snapValue(y), w: snapValue(w), h: snapValue(h), restore: undefined }
-        : tile,
-    );
-    scheduleSave();
-  }
-
-  function toggleMaximizeTile(id: string): void {
-    const rect = viewportEl?.getBoundingClientRect();
-    const visibleW = rect ? Math.max(420, rect.width - 56) : 1180;
-    const visibleH = rect ? Math.max(300, rect.height - 56) : 760;
-    const worldX = Math.round((28 - canvasState.x) / canvasState.scale);
-    const worldY = Math.round((28 - canvasState.y) / canvasState.scale);
-    canvasState.tiles = canvasState.tiles.map((tile) => {
-      if (tile.id !== id) return tile;
-      if (tile.restore) {
-        return { ...tile, ...tile.restore, restore: undefined, z: nextZ() };
-      }
-      return {
-        ...tile,
-        restore: { x: tile.x, y: tile.y, w: tile.w, h: tile.h },
-        x: snapValue(worldX),
-        y: snapValue(worldY),
-        w: snapValue(Math.round(visibleW / canvasState.scale)),
-        h: snapValue(Math.round(visibleH / canvasState.scale)),
-        z: nextZ(),
-      };
-    });
-    selectedId = id;
-    saveState();
-  }
-
-  function removeTile(id: string): void {
-    canvasState.tiles = canvasState.tiles.filter((tile) => tile.id !== id);
-    if (selectedId === id) selectedId = canvasState.tiles[0]?.id ?? '';
-    saveState();
-  }
-
-  function addModuleTile(mod: (typeof MODULES)[number]): void {
-    const size = defaultSizeFor('module', mod.route);
-    addTile('module', {
-      title: mod.label,
-      subtitle: mod.subtitle,
-      route: mod.route,
+  const size = defaultSizeFor(kind, patch.route);
+  canvasState.tiles = [
+    ...canvasState.tiles,
+    {
+      id,
+      kind,
+      title,
+      subtitle: kind === 'terminal' ? 'new shell tile' : 'canvas module',
+      x: snapValue(Math.round((80 - canvasState.x) / canvasState.scale)),
+      y: snapValue(Math.round((70 - canvasState.y) / canvasState.scale)),
       w: size.w,
       h: size.h,
-    });
-    modulePickerOpen = false;
-  }
+      z: nextZ(),
+      panes: kind === 'tmux' ? [] : undefined,
+      sessionId,
+      ...patch,
+    },
+  ];
+  selectedId = id;
+  saveState();
+}
 
-  function defaultSizeFor(kind: WorkbenchTileKind, route?: string): { w: number; h: number } {
-    if (kind === 'terminal') return { w: 760, h: 460 };
-    if (kind === 'agent') return { w: 720, h: 520 };
-    if (kind === 'git') return { w: 720, h: 520 };
-    if (kind === 'tmux') return { w: 860, h: 560 };
-    if (kind === 'files') return { w: 760, h: 500 };
-    if (kind === 'mission') return { w: 720, h: 460 };
-    if (route === '/sessions' || route === '/agents' || route === '/runtimes') return { w: 680, h: 460 };
-    if (route === '/files' || route === '/docs' || route === '/workspaces') return { w: 760, h: 520 };
-    return { w: 680, h: 440 };
-  }
-
-  function snapValue(value: number): number {
-    return settings.snap ? Math.round(value / 10) * 10 : value;
-  }
-
-  function nextZ(): number {
-    return Math.max(0, ...canvasState.tiles.map((tile) => tile.z ?? 0)) + 1;
-  }
-
-  function patchSettings(patch: Partial<WorkbenchSettings>): void {
-    settings = { ...settings, ...patch };
-    saveState();
-  }
-
-  async function handleBackgroundFile(event: Event): Promise<void> {
-    backgroundError = '';
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      backgroundError = 'Choose an image file.';
-      return;
-    }
-    if (file.size > MAX_BACKGROUND_SOURCE_BYTES) {
-      backgroundError = 'Use an image under 12 MB.';
-      return;
-    }
-    try {
-      const result = await compressBackgroundImage(file);
-      if (!result) {
-        backgroundError = 'Could not prepare that image.';
-        return;
-      }
-      if (result.length > MAX_BACKGROUND_DATA_URL_BYTES) {
-        backgroundError = 'That image is still too large after compression.';
-        return;
-      }
-      patchSettings({ background: 'custom', backgroundImage: result });
-    } catch {
-      backgroundError = 'Could not read that image.';
-    }
-  }
-
-  async function compressBackgroundImage(file: File): Promise<string> {
-    const dataUrl = await readFileAsDataUrl(file);
-    if (file.type === 'image/gif' && dataUrl.length <= MAX_BACKGROUND_DATA_URL_BYTES) {
-      return dataUrl;
-    }
-    const image = await loadImage(dataUrl);
-    const scale = Math.min(1, MAX_BACKGROUND_DIMENSION / Math.max(image.naturalWidth, image.naturalHeight));
-    const width = Math.max(1, Math.round(image.naturalWidth * scale));
-    const height = Math.max(1, Math.round(image.naturalHeight * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext('2d');
-    if (!context) return dataUrl;
-    context.drawImage(image, 0, 0, width, height);
-    for (const quality of [0.86, 0.74, 0.62, 0.5]) {
-      const encoded = canvas.toDataURL('image/jpeg', quality);
-      if (encoded.length <= MAX_BACKGROUND_DATA_URL_BYTES) return encoded;
-    }
-    return canvas.toDataURL('image/jpeg', 0.42);
-  }
-
-  function readFileAsDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error('image load failed'));
-      image.src = src;
-    });
-  }
-
-  const linkedSessionId = $derived(
-    canvasState.tiles.find((tile) => tile.kind === 'terminal' && tile.sessionId)?.sessionId ?? null,
+function patchTile(id: string, patch: Partial<WorkbenchTileModel>): void {
+  canvasState.tiles = canvasState.tiles.map((tile) =>
+    tile.id === id ? { ...tile, ...patch } : tile
   );
+  saveState();
+}
 
-  function beginPan(event: PointerEvent): void {
-    if (event.button !== 0 && event.button !== 1) return;
-    const target = event.target as HTMLElement | null;
-    if (!target || (!panMode && target.closest('.wbt-tile')) || target.closest('.sw-toolbar, .sw-minimap')) return;
-    event.preventDefault();
-    viewportEl?.setPointerCapture(event.pointerId);
-    panStart = { pointerId: event.pointerId, px: event.clientX, py: event.clientY, x: canvasState.x, y: canvasState.y };
-  }
+function selectTile(id: string): void {
+  selectedId = id;
+  canvasState.tiles = canvasState.tiles.map((tile) =>
+    tile.id === id ? { ...tile, z: nextZ() } : tile
+  );
+  saveState();
+}
 
-  function movePan(event: PointerEvent): void {
-    if (!panStart || event.pointerId !== panStart.pointerId) return;
-    canvasState.x = Math.round(panStart.x + event.clientX - panStart.px);
-    canvasState.y = Math.round(panStart.y + event.clientY - panStart.py);
-    scheduleSave();
-  }
+function moveTile(id: string, x: number, y: number): void {
+  canvasState.tiles = canvasState.tiles.map((tile) =>
+    tile.id === id ? { ...tile, x: snapValue(x), y: snapValue(y) } : tile
+  );
+  scheduleSave();
+}
 
-  function endPan(event: PointerEvent): void {
-    if (!panStart || event.pointerId !== panStart.pointerId) return;
-    viewportEl?.releasePointerCapture(event.pointerId);
-    panStart = null;
-    saveState();
-  }
+function resizeTile(id: string, x: number, y: number, w: number, h: number): void {
+  canvasState.tiles = canvasState.tiles.map((tile) =>
+    tile.id === id
+      ? {
+          ...tile,
+          x: snapValue(x),
+          y: snapValue(y),
+          w: snapValue(w),
+          h: snapValue(h),
+          restore: undefined,
+        }
+      : tile
+  );
+  scheduleSave();
+}
 
-  function beginNativePan(event: PointerEvent): void {
-    if (!viewportEl || (event.button !== 0 && event.button !== 1)) return;
-    const target = event.target as HTMLElement | null;
-    if (!target || target.closest('.sw-toolbar, .sw-minimap')) return;
-    const overTile = Boolean(target.closest('.wbt-tile'));
-    const shouldPan = panMode || event.button === 1 || !overTile;
-    if (!shouldPan) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-    viewportEl.setPointerCapture(event.pointerId);
-    panStart = { pointerId: event.pointerId, px: event.clientX, py: event.clientY, x: canvasState.x, y: canvasState.y };
-  }
-
-  function handleWheel(event: WheelEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.metaKey || event.ctrlKey) {
-      const rect = viewportEl?.getBoundingClientRect();
-      setScale(canvasState.scale + (event.deltaY > 0 ? -0.08 : 0.08), rect
-        ? { x: event.clientX - rect.left, y: event.clientY - rect.top }
-        : undefined);
-      return;
+function toggleMaximizeTile(id: string): void {
+  const rect = viewportEl?.getBoundingClientRect();
+  const visibleW = rect ? Math.max(420, rect.width - 56) : 1180;
+  const visibleH = rect ? Math.max(300, rect.height - 56) : 760;
+  const worldX = Math.round((28 - canvasState.x) / canvasState.scale);
+  const worldY = Math.round((28 - canvasState.y) / canvasState.scale);
+  canvasState.tiles = canvasState.tiles.map((tile) => {
+    if (tile.id !== id) return tile;
+    if (tile.restore) {
+      return { ...tile, ...tile.restore, restore: undefined, z: nextZ() };
     }
-    canvasState.x = Math.round(canvasState.x - (event.shiftKey ? event.deltaY : event.deltaX));
-    canvasState.y = Math.round(canvasState.y - (event.shiftKey ? 0 : event.deltaY));
-    scheduleSave();
-  }
-
-  function fitAllTiles(): void {
-    const rect = viewportEl?.getBoundingClientRect();
-    if (!rect || canvasState.tiles.length === 0) {
-      focusCanvas();
-      return;
-    }
-    const padding = 72;
-    const minX = Math.min(...canvasState.tiles.map((tile) => tile.x));
-    const minY = Math.min(...canvasState.tiles.map((tile) => tile.y));
-    const maxX = Math.max(...canvasState.tiles.map((tile) => tile.x + tile.w));
-    const maxY = Math.max(...canvasState.tiles.map((tile) => tile.y + tile.h));
-    const contentW = Math.max(1, maxX - minX);
-    const contentH = Math.max(1, maxY - minY);
-    const nextScale = clampScale(Math.min(
-      (rect.width - padding * 2) / contentW,
-      (rect.height - padding * 2) / contentH,
-      1,
-    ));
-    canvasState.scale = nextScale;
-    canvasState.x = Math.round((rect.width - contentW * nextScale) / 2 - minX * nextScale);
-    canvasState.y = Math.round((rect.height - contentH * nextScale) / 2 - minY * nextScale);
-    saveState();
-  }
-
-  function viewLooksRecoverable(): boolean {
-    return Number.isFinite(canvasState.x)
-      && Number.isFinite(canvasState.y)
-      && Number.isFinite(canvasState.scale)
-      && Math.abs(canvasState.x) < WORLD_LIMIT
-      && Math.abs(canvasState.y) < WORLD_LIMIT
-      && canvasState.scale >= MIN_SCALE
-      && canvasState.scale <= MAX_SCALE;
-  }
-
-  onMount(() => {
-    loadState();
-    if (!viewLooksRecoverable()) resetView();
-    saveState();
-  });
-
-  $effect(() => {
-    if (!viewportEl) return;
-    const currentViewport = viewportEl;
-    const pointerDown = (event: PointerEvent) => beginNativePan(event);
-    const pointerMove = (event: PointerEvent) => movePan(event);
-    const pointerUp = (event: PointerEvent) => endPan(event);
-    const wheel = (event: WheelEvent) => handleWheel(event);
-    currentViewport.addEventListener('pointerdown', pointerDown, { capture: true });
-    currentViewport.addEventListener('wheel', wheel, { capture: true, passive: false });
-    window.addEventListener('pointermove', pointerMove, { capture: true });
-    window.addEventListener('pointerup', pointerUp, { capture: true });
-    window.addEventListener('pointercancel', pointerUp, { capture: true });
-    return () => {
-      currentViewport.removeEventListener('pointerdown', pointerDown, { capture: true });
-      currentViewport.removeEventListener('wheel', wheel, { capture: true });
-      window.removeEventListener('pointermove', pointerMove, { capture: true });
-      window.removeEventListener('pointerup', pointerUp, { capture: true });
-      window.removeEventListener('pointercancel', pointerUp, { capture: true });
+    return {
+      ...tile,
+      restore: { x: tile.x, y: tile.y, w: tile.w, h: tile.h },
+      x: snapValue(worldX),
+      y: snapValue(worldY),
+      w: snapValue(Math.round(visibleW / canvasState.scale)),
+      h: snapValue(Math.round(visibleH / canvasState.scale)),
+      z: nextZ(),
     };
   });
+  selectedId = id;
+  saveState();
+}
+
+function removeTile(id: string): void {
+  canvasState.tiles = canvasState.tiles.filter((tile) => tile.id !== id);
+  if (selectedId === id) selectedId = canvasState.tiles[0]?.id ?? '';
+  saveState();
+}
+
+function addModuleTile(mod: (typeof MODULES)[number]): void {
+  const size = defaultSizeFor('module', mod.route);
+  addTile('module', {
+    title: mod.label,
+    subtitle: mod.subtitle,
+    route: mod.route,
+    w: size.w,
+    h: size.h,
+  });
+  modulePickerOpen = false;
+}
+
+function defaultSizeFor(kind: WorkbenchTileKind, route?: string): { w: number; h: number } {
+  if (kind === 'terminal') return { w: 760, h: 460 };
+  if (kind === 'agent') return { w: 720, h: 520 };
+  if (kind === 'git') return { w: 720, h: 520 };
+  if (kind === 'tmux') return { w: 860, h: 560 };
+  if (kind === 'files') return { w: 760, h: 500 };
+  if (kind === 'mission') return { w: 720, h: 460 };
+  if (route === '/sessions' || route === '/agents' || route === '/runtimes')
+    return { w: 680, h: 460 };
+  if (route === '/files' || route === '/docs' || route === '/workspaces') return { w: 760, h: 520 };
+  return { w: 680, h: 440 };
+}
+
+function snapValue(value: number): number {
+  return settings.snap ? Math.round(value / 10) * 10 : value;
+}
+
+function nextZ(): number {
+  return Math.max(0, ...canvasState.tiles.map((tile) => tile.z ?? 0)) + 1;
+}
+
+function patchSettings(patch: Partial<WorkbenchSettings>): void {
+  settings = { ...settings, ...patch };
+  saveState();
+}
+
+async function handleBackgroundFile(event: Event): Promise<void> {
+  backgroundError = '';
+  const input = event.currentTarget as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    backgroundError = 'Choose an image file.';
+    return;
+  }
+  if (file.size > MAX_BACKGROUND_SOURCE_BYTES) {
+    backgroundError = 'Use an image under 12 MB.';
+    return;
+  }
+  try {
+    const result = await compressBackgroundImage(file);
+    if (!result) {
+      backgroundError = 'Could not prepare that image.';
+      return;
+    }
+    if (result.length > MAX_BACKGROUND_DATA_URL_BYTES) {
+      backgroundError = 'That image is still too large after compression.';
+      return;
+    }
+    patchSettings({ background: 'custom', backgroundImage: result });
+  } catch {
+    backgroundError = 'Could not read that image.';
+  }
+}
+
+async function compressBackgroundImage(file: File): Promise<string> {
+  const dataUrl = await readFileAsDataUrl(file);
+  if (file.type === 'image/gif' && dataUrl.length <= MAX_BACKGROUND_DATA_URL_BYTES) {
+    return dataUrl;
+  }
+  const image = await loadImage(dataUrl);
+  const scale = Math.min(
+    1,
+    MAX_BACKGROUND_DIMENSION / Math.max(image.naturalWidth, image.naturalHeight)
+  );
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return dataUrl;
+  context.drawImage(image, 0, 0, width, height);
+  for (const quality of [0.86, 0.74, 0.62, 0.5]) {
+    const encoded = canvas.toDataURL('image/jpeg', quality);
+    if (encoded.length <= MAX_BACKGROUND_DATA_URL_BYTES) return encoded;
+  }
+  return canvas.toDataURL('image/jpeg', 0.42);
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('image load failed'));
+    image.src = src;
+  });
+}
+
+const linkedSessionId = $derived(
+  canvasState.tiles.find((tile) => tile.kind === 'terminal' && tile.sessionId)?.sessionId ?? null
+);
+
+function beginPan(event: PointerEvent): void {
+  if (event.button !== 0 && event.button !== 1) return;
+  const target = event.target as HTMLElement | null;
+  if (
+    !target ||
+    (!panMode && target.closest('.wbt-tile')) ||
+    target.closest('.sw-toolbar, .sw-minimap')
+  )
+    return;
+  event.preventDefault();
+  viewportEl?.setPointerCapture(event.pointerId);
+  panStart = {
+    pointerId: event.pointerId,
+    px: event.clientX,
+    py: event.clientY,
+    x: canvasState.x,
+    y: canvasState.y,
+  };
+}
+
+function movePan(event: PointerEvent): void {
+  if (!panStart || event.pointerId !== panStart.pointerId) return;
+  canvasState.x = Math.round(panStart.x + event.clientX - panStart.px);
+  canvasState.y = Math.round(panStart.y + event.clientY - panStart.py);
+  scheduleSave();
+}
+
+function endPan(event: PointerEvent): void {
+  if (!panStart || event.pointerId !== panStart.pointerId) return;
+  viewportEl?.releasePointerCapture(event.pointerId);
+  panStart = null;
+  saveState();
+}
+
+function beginNativePan(event: PointerEvent): void {
+  if (!viewportEl || (event.button !== 0 && event.button !== 1)) return;
+  const target = event.target as HTMLElement | null;
+  if (!target || target.closest('.sw-toolbar, .sw-minimap')) return;
+  const overTile = Boolean(target.closest('.wbt-tile'));
+  const shouldPan = panMode || event.button === 1 || !overTile;
+  if (!shouldPan) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+  viewportEl.setPointerCapture(event.pointerId);
+  panStart = {
+    pointerId: event.pointerId,
+    px: event.clientX,
+    py: event.clientY,
+    x: canvasState.x,
+    y: canvasState.y,
+  };
+}
+
+function handleWheel(event: WheelEvent): void {
+  event.preventDefault();
+  event.stopPropagation();
+  if (event.metaKey || event.ctrlKey) {
+    const rect = viewportEl?.getBoundingClientRect();
+    setScale(
+      canvasState.scale + (event.deltaY > 0 ? -0.08 : 0.08),
+      rect ? { x: event.clientX - rect.left, y: event.clientY - rect.top } : undefined
+    );
+    return;
+  }
+  canvasState.x = Math.round(canvasState.x - (event.shiftKey ? event.deltaY : event.deltaX));
+  canvasState.y = Math.round(canvasState.y - (event.shiftKey ? 0 : event.deltaY));
+  scheduleSave();
+}
+
+function fitAllTiles(): void {
+  const rect = viewportEl?.getBoundingClientRect();
+  if (!rect || canvasState.tiles.length === 0) {
+    focusCanvas();
+    return;
+  }
+  const padding = 72;
+  const minX = Math.min(...canvasState.tiles.map((tile) => tile.x));
+  const minY = Math.min(...canvasState.tiles.map((tile) => tile.y));
+  const maxX = Math.max(...canvasState.tiles.map((tile) => tile.x + tile.w));
+  const maxY = Math.max(...canvasState.tiles.map((tile) => tile.y + tile.h));
+  const contentW = Math.max(1, maxX - minX);
+  const contentH = Math.max(1, maxY - minY);
+  const nextScale = clampScale(
+    Math.min((rect.width - padding * 2) / contentW, (rect.height - padding * 2) / contentH, 1)
+  );
+  canvasState.scale = nextScale;
+  canvasState.x = Math.round((rect.width - contentW * nextScale) / 2 - minX * nextScale);
+  canvasState.y = Math.round((rect.height - contentH * nextScale) / 2 - minY * nextScale);
+  saveState();
+}
+
+function viewLooksRecoverable(): boolean {
+  return (
+    Number.isFinite(canvasState.x) &&
+    Number.isFinite(canvasState.y) &&
+    Number.isFinite(canvasState.scale) &&
+    Math.abs(canvasState.x) < WORLD_LIMIT &&
+    Math.abs(canvasState.y) < WORLD_LIMIT &&
+    canvasState.scale >= MIN_SCALE &&
+    canvasState.scale <= MAX_SCALE
+  );
+}
+
+onMount(() => {
+  loadState();
+  if (!viewLooksRecoverable()) resetView();
+  saveState();
+});
+
+$effect(() => {
+  if (!viewportEl) return;
+  const currentViewport = viewportEl;
+  const pointerDown = (event: PointerEvent) => beginNativePan(event);
+  const pointerMove = (event: PointerEvent) => movePan(event);
+  const pointerUp = (event: PointerEvent) => endPan(event);
+  const wheel = (event: WheelEvent) => handleWheel(event);
+  currentViewport.addEventListener('pointerdown', pointerDown, { capture: true });
+  currentViewport.addEventListener('wheel', wheel, { capture: true, passive: false });
+  window.addEventListener('pointermove', pointerMove, { capture: true });
+  window.addEventListener('pointerup', pointerUp, { capture: true });
+  window.addEventListener('pointercancel', pointerUp, { capture: true });
+  return () => {
+    currentViewport.removeEventListener('pointerdown', pointerDown, { capture: true });
+    currentViewport.removeEventListener('wheel', wheel, { capture: true });
+    window.removeEventListener('pointermove', pointerMove, { capture: true });
+    window.removeEventListener('pointerup', pointerUp, { capture: true });
+    window.removeEventListener('pointercancel', pointerUp, { capture: true });
+  };
+});
 </script>
 
 <svelte:window

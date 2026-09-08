@@ -6,6 +6,7 @@ defmodule CanopyWeb.Schemas.BuildSchema do
   defmodule Layout do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -32,6 +33,7 @@ defmodule CanopyWeb.Schemas.BuildSchema do
   defmodule LayoutList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -43,6 +45,7 @@ defmodule CanopyWeb.Schemas.BuildSchema do
   defmodule LayoutCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -64,6 +67,7 @@ defmodule CanopyWeb.Schemas.BuildSchema do
   defmodule LayoutUpdate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -80,6 +84,7 @@ defmodule CanopyWeb.Schemas.BuildSchema do
   defmodule SuggestionResult do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -106,6 +111,7 @@ defmodule CanopyWeb.Schemas.BuildSchema do
   defmodule SetDefaultRequest do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -118,6 +124,7 @@ defmodule CanopyWeb.Schemas.BuildSchema do
   defmodule Command do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -148,6 +155,7 @@ defmodule CanopyWeb.Schemas.BuildSchema do
   defmodule CommandList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{

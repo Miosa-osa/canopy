@@ -64,6 +64,7 @@ defmodule CanopyWeb.WorkspaceEngineController do
   defp render_engine_error(conn, reason) do
     {status, error} =
       case reason do
+        {:engine_incompatible, _} -> {:unprocessable_entity, "engine_incompatible"}
         :engine_not_found -> {:not_found, "engine_not_found"}
         :mix_project_not_found -> {:unprocessable_entity, "mix_project_not_found"}
         :manifest_not_found -> {:unprocessable_entity, "manifest_not_found"}

@@ -1,108 +1,108 @@
 <script lang="ts">
-  /**
-   * CsvTableViewer — sortable HTML table for CSV / TSV.
-   * CSS prefix: ctv- (Csv Table Viewer).
-   *
-   * Lightweight RFC-4180-ish parser inline (handles quoted fields, escaped
-   * quotes, embedded delimiters). NO new library dependency.
-   *
-   * Sort-by-column toggles between asc / desc / off.
-   * First row is treated as header by default; toggle via the "Header row"
-   * checkbox if your data has no header.
-   */
+/**
+ * CsvTableViewer — sortable HTML table for CSV / TSV.
+ * CSS prefix: ctv- (Csv Table Viewer).
+ *
+ * Lightweight RFC-4180-ish parser inline (handles quoted fields, escaped
+ * quotes, embedded delimiters). NO new library dependency.
+ *
+ * Sort-by-column toggles between asc / desc / off.
+ * First row is treated as header by default; toggle via the "Header row"
+ * checkbox if your data has no header.
+ */
 
-  interface Props {
-    /** Raw CSV/TSV source. */
-    content: string;
-    /** Column delimiter. Defaults to "," — pass "\t" for TSV. */
-    delimiter?: string;
-  }
+interface Props {
+  /** Raw CSV/TSV source. */
+  content: string;
+  /** Column delimiter. Defaults to "," — pass "\t" for TSV. */
+  delimiter?: string;
+}
 
-  let { content, delimiter = "," }: Props = $props();
+let { content, delimiter = ',' }: Props = $props();
 
-  // ── Parser ──────────────────────────────────────────────────────────────────
+// ── Parser ──────────────────────────────────────────────────────────────────
 
-  /** Parse a delimiter-separated string into rows of strings. */
-  function parseDsv(src: string, delim: string): string[][] {
-    const rows: string[][] = [];
-    let row: string[] = [];
-    let field = "";
-    let inQuotes = false;
-    for (let i = 0; i < src.length; i++) {
-      const ch = src[i];
-      if (inQuotes) {
-        if (ch === '"' && src[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else if (ch === '"') {
-          inQuotes = false;
-        } else {
-          field += ch;
-        }
+/** Parse a delimiter-separated string into rows of strings. */
+function parseDsv(src: string, delim: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inQuotes) {
+      if (ch === '"' && src[i + 1] === '"') {
+        field += '"';
+        i++;
       } else if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === delim) {
-        row.push(field);
-        field = "";
-      } else if (ch === "\n") {
-        row.push(field);
-        rows.push(row);
-        row = [];
-        field = "";
-      } else if (ch === "\r") {
-        // skip — handled by \n
+        inQuotes = false;
       } else {
         field += ch;
       }
-    }
-    if (field.length > 0 || row.length > 0) {
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === delim) {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n') {
       row.push(field);
       rows.push(row);
-    }
-    return rows;
-  }
-
-  const rows = $derived(parseDsv(content, delimiter));
-
-  // ── Header toggle + sort state ──────────────────────────────────────────────
-
-  let firstRowIsHeader = $state(true);
-  let sortCol = $state<number | null>(null);
-  let sortDir = $state<"asc" | "desc">("asc");
-
-  const header = $derived(firstRowIsHeader && rows.length > 0 ? rows[0] : null);
-  const dataRows = $derived(firstRowIsHeader ? rows.slice(1) : rows);
-
-  /** Sorted view of dataRows. Stable when sortCol is null. */
-  const sortedRows = $derived.by(() => {
-    if (sortCol === null) return dataRows;
-    const col = sortCol;
-    const dir = sortDir === "asc" ? 1 : -1;
-    return [...dataRows].sort((a, b) => {
-      const av = a[col] ?? "";
-      const bv = b[col] ?? "";
-      // Numeric compare when both look like numbers.
-      const an = Number(av);
-      const bn = Number(bv);
-      if (!Number.isNaN(an) && !Number.isNaN(bn) && av !== "" && bv !== "") {
-        return (an - bn) * dir;
-      }
-      return av.localeCompare(bv) * dir;
-    });
-  });
-
-  function handleSort(col: number): void {
-    if (sortCol === col) {
-      sortDir = sortDir === "asc" ? "desc" : "asc";
+      row = [];
+      field = '';
+    } else if (ch === '\r') {
+      // skip — handled by \n
     } else {
-      sortCol = col;
-      sortDir = "asc";
+      field += ch;
     }
   }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
 
-  // Cap displayed rows for perf — at this point a virtualised view would be
-  // the right call; flag it for the next iteration if it bites us.
-  const ROW_CAP = 1000;
+const rows = $derived(parseDsv(content, delimiter));
+
+// ── Header toggle + sort state ──────────────────────────────────────────────
+
+let firstRowIsHeader = $state(true);
+let sortCol = $state<number | null>(null);
+let sortDir = $state<'asc' | 'desc'>('asc');
+
+const header = $derived(firstRowIsHeader && rows.length > 0 ? rows[0] : null);
+const dataRows = $derived(firstRowIsHeader ? rows.slice(1) : rows);
+
+/** Sorted view of dataRows. Stable when sortCol is null. */
+const sortedRows = $derived.by(() => {
+  if (sortCol === null) return dataRows;
+  const col = sortCol;
+  const dir = sortDir === 'asc' ? 1 : -1;
+  return [...dataRows].sort((a, b) => {
+    const av = a[col] ?? '';
+    const bv = b[col] ?? '';
+    // Numeric compare when both look like numbers.
+    const an = Number(av);
+    const bn = Number(bv);
+    if (!Number.isNaN(an) && !Number.isNaN(bn) && av !== '' && bv !== '') {
+      return (an - bn) * dir;
+    }
+    return av.localeCompare(bv) * dir;
+  });
+});
+
+function handleSort(col: number): void {
+  if (sortCol === col) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortCol = col;
+    sortDir = 'asc';
+  }
+}
+
+// Cap displayed rows for perf — at this point a virtualised view would be
+// the right call; flag it for the next iteration if it bites us.
+const ROW_CAP = 1000;
 </script>
 
 <div class="ctv-root" role="region" aria-label="Tabular preview">

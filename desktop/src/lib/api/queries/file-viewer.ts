@@ -14,10 +14,10 @@
  * dispatcher and keep the responsibility-per-file rule intact.
  */
 
-import { API_BASE } from "$lib/api/client.js";
-import { fileQuery as filesFileQuery } from "$lib/api/queries/files.js";
-import { workspaceFileQuery as wsFileQuery } from "$lib/api/queries/workspaces.js";
-import type { FileViewerPaneConfig } from "$lib/domain/file-viewer/types.js";
+import { API_BASE } from '$lib/api/client.js';
+import { fileQuery as filesFileQuery } from '$lib/api/queries/files.js';
+import { workspaceFileQuery as wsFileQuery } from '$lib/api/queries/workspaces.js';
+import type { FileViewerPaneConfig } from '$lib/domain/file-viewer/types.js';
 
 /** Build the binary content URL for a file row. Used by image / video / audio / pdf viewers. */
 export function fileContentUrl(fileId: string): string {
@@ -45,7 +45,7 @@ export function isResolvable(cfg: FileViewerPaneConfig): boolean {
   if (
     cfg.workspaceSlug &&
     cfg.workspaceSlug.length > 0 &&
-    typeof cfg.path === "string" &&
+    typeof cfg.path === 'string' &&
     cfg.path.length > 0
   ) {
     return true;
@@ -58,12 +58,9 @@ export function isResolvable(cfg: FileViewerPaneConfig): boolean {
  * viewers when the pane is addressed by fileId rather than (slug,path). Uses
  * fetch directly so callers can pass an AbortSignal.
  */
-export async function fetchFileText(
-  fileId: string,
-  signal?: AbortSignal,
-): Promise<string> {
+export async function fetchFileText(fileId: string, signal?: AbortSignal): Promise<string> {
   const res = await fetch(fileContentUrl(fileId), {
-    credentials: "include",
+    credentials: 'include',
     signal,
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -78,10 +75,10 @@ export async function fetchFileText(
 export async function fetchFileBytes(
   fileId: string,
   byteCap: number,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<Uint8Array> {
   const res = await fetch(fileContentUrl(fileId), {
-    credentials: "include",
+    credentials: 'include',
     signal,
     headers: { Range: `bytes=0-${Math.max(0, byteCap - 1)}` },
   });

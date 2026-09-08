@@ -18,13 +18,7 @@ interface Props {
   onNewSession: () => void;
 }
 
-let {
-  sessions,
-  activeSessionId,
-  isLoading,
-  onSelect,
-  onNewSession,
-}: Props = $props();
+let { sessions, activeSessionId, isLoading, onSelect, onNewSession }: Props = $props();
 
 /** Format ISO timestamp to relative time, e.g. "3m ago". */
 function relativeTime(iso: string | null): string {
@@ -37,10 +31,7 @@ function relativeTime(iso: string | null): string {
 }
 
 const statusColor = (s: string): 'green' | 'amber' | 'grey' | 'red' =>
-  s === 'running' ? 'green'
-  : s === 'paused' ? 'amber'
-  : s === 'error' ? 'red'
-  : 'grey';
+  s === 'running' ? 'green' : s === 'paused' ? 'amber' : s === 'error' ? 'red' : 'grey';
 </script>
 
 <div class="rsl-root">

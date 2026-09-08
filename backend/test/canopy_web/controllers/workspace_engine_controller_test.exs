@@ -44,6 +44,8 @@ defmodule CanopyWeb.WorkspaceEngineControllerTest do
         args:
           - --json
     """)
+
+    Canopy.EngineFixture.pin!(workspace.root_path)
   end
 
   defp fake_mix! do
@@ -132,5 +134,19 @@ defmodule CanopyWeb.WorkspaceEngineControllerTest do
       })
 
     assert %{"error" => "command_not_allowed"} = json_response(conn, 422)
+  end
+
+  test "POST refuses an unpinned checkout before executing a task", %{conn: conn} do
+    workspace = insert_workspace()
+    write_engine!(workspace)
+    fake_mix!()
+
+    Canopy.EngineFixture.git!(
+      Path.join(workspace.root_path, "engine"),
+      ["remote", "set-url", "origin", "https://github.com/attacker/OptimalEngine.git"]
+    )
+
+    conn = post(conn, "/api/v1/workspaces/#{workspace.slug}/engine/run", %{"command" => "impact"})
+    assert %{"error" => "engine_incompatible"} = json_response(conn, 422)
   end
 end

@@ -1,28 +1,29 @@
 <script lang="ts">
-  /**
-   * AgentToolsList — read-only list of tools this agent can dispatch.
-   * Filtered by capabilities where logical (exec_shell → shell tools, etc.).
-   * CSS prefix: atl- (AgentToolsList)
-   */
-  import type { Tool } from '$lib/domain/tools/types.js';
-  import type { Capability } from '$lib/domain/agents/config.js';
+/**
+ * AgentToolsList — read-only list of tools this agent can dispatch.
+ * Filtered by capabilities where logical (exec_shell → shell tools, etc.).
+ * CSS prefix: atl- (AgentToolsList)
+ */
 
-  interface Props {
-    tools: Tool[];
-    isLoading: boolean;
-    capabilities: Capability[];
-  }
+import type { Capability } from '$lib/domain/agents/config.js';
+import type { Tool } from '$lib/domain/tools/types.js';
 
-  let { tools, isLoading, capabilities }: Props = $props();
+interface Props {
+  tools: Tool[];
+  isLoading: boolean;
+  capabilities: Capability[];
+}
 
-  // Simple relevance filter: if no exec_shell capability, dim shell-related tools
-  const shellToolKeywords = ['exec', 'shell', 'bash', 'run', 'command', 'terminal'];
-  const hasExec = $derived(capabilities.includes('exec_shell'));
+let { tools, isLoading, capabilities }: Props = $props();
 
-  function isShellTool(t: Tool): boolean {
-    const name = t.name.toLowerCase();
-    return shellToolKeywords.some((kw) => name.includes(kw));
-  }
+// Simple relevance filter: if no exec_shell capability, dim shell-related tools
+const shellToolKeywords = ['exec', 'shell', 'bash', 'run', 'command', 'terminal'];
+const hasExec = $derived(capabilities.includes('exec_shell'));
+
+function isShellTool(t: Tool): boolean {
+  const name = t.name.toLowerCase();
+  return shellToolKeywords.some((kw) => name.includes(kw));
+}
 </script>
 
 <div class="atl-root">

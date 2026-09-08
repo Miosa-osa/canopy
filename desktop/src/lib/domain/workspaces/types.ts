@@ -21,7 +21,7 @@ export type WorkspaceDetail = Workspace;
 
 /** A starter template offered at create time. */
 export interface WorkspaceTemplate {
-  slug: "blank" | "sales-engine" | "dev-shop" | "content-factory";
+  slug: 'blank' | 'sales-engine' | 'dev-shop' | 'content-factory';
   name: string;
   description: string;
   files: string[];
@@ -34,23 +34,18 @@ export interface CreateWorkspaceBody {
   rootPath: string;
   description?: string | null;
   /** Maps to backend `template_slug` — if set, materialises starter files on disk. */
-  templateSlug?: WorkspaceTemplate["slug"] | null;
+  templateSlug?: WorkspaceTemplate['slug'] | null;
 }
 
 // ── Init jobs ───────────────────────────────────────────────────────────────
 
-export type InitJobStatus =
-  | "pending"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+export type InitJobStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 export type InitJobStep =
-  | "detect_base_branch"
-  | "ensure_clone"
-  | "create_initial_worktree"
-  | "run_setup_script"
-  | "done";
+  | 'detect_base_branch'
+  | 'ensure_clone'
+  | 'create_initial_worktree'
+  | 'run_setup_script'
+  | 'done';
 
 export interface InitJob {
   id: string;

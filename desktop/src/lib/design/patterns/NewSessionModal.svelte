@@ -12,13 +12,18 @@
  * CSS prefix: nsm-
  */
 
-import { type CreateQueryOptions, createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
 import { X } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
-import { createWorkspace } from '$lib/api/queries/workspaces.js';
 import { createSession, listRuntimes, listWorkspaces } from '$lib/api/queries/sessions-modal.js';
+import { createWorkspace } from '$lib/api/queries/workspaces.js';
 import type { Runtime } from '$lib/domain/runtimes/types.js';
 import type { Workspace } from '$lib/domain/workspaces/types.js';
 
@@ -34,12 +39,15 @@ const queryClient = useQueryClient();
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 const runtimeOptsStore = writable(
-  untrack(() => ({
-    queryKey: ['runtimes'] as const,
-    queryFn: listRuntimes,
-    staleTime: 30_000,
-    enabled: open,
-  }) as CreateQueryOptions<Runtime[]>)
+  untrack(
+    () =>
+      ({
+        queryKey: ['runtimes'] as const,
+        queryFn: listRuntimes,
+        staleTime: 30_000,
+        enabled: open,
+      }) as CreateQueryOptions<Runtime[]>
+  )
 );
 
 $effect(() => {
@@ -54,12 +62,15 @@ $effect(() => {
 const runtimesQuery = createQuery<Runtime[]>(runtimeOptsStore);
 
 const workspaceOptsStore = writable(
-  untrack(() => ({
-    queryKey: ['workspaces', {}] as const,
-    queryFn: () => listWorkspaces(),
-    staleTime: 30_000,
-    enabled: open,
-  }) as CreateQueryOptions<Workspace[]>)
+  untrack(
+    () =>
+      ({
+        queryKey: ['workspaces', {}] as const,
+        queryFn: () => listWorkspaces(),
+        staleTime: 30_000,
+        enabled: open,
+      }) as CreateQueryOptions<Workspace[]>
+  )
 );
 
 $effect(() => {

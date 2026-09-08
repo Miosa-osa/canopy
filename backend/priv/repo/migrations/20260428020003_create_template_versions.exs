@@ -4,6 +4,7 @@ defmodule Canopy.Repo.Migrations.CreateTemplateVersions do
   def change do
     create table(:template_versions, primary_key: false) do
       add :id, :binary_id, primary_key: true, null: false
+
       add :template_id, references(:templates, type: :binary_id, on_delete: :delete_all),
         null: false
 

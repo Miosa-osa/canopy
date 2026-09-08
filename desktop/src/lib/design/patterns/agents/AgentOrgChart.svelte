@@ -1,57 +1,58 @@
 <script lang="ts">
-  /**
-   * AgentOrgChart — tree/grid of agent cards grouped by category/department.
-   * Agents with no category default to "General".
-   * CSS prefix: aoc-
-   */
-  import { goto } from '$app/navigation';
-  import { Bot } from 'lucide-svelte';
-  import type { Agent } from '$lib/domain/agents/types.js';
+/**
+ * AgentOrgChart — tree/grid of agent cards grouped by category/department.
+ * Agents with no category default to "General".
+ * CSS prefix: aoc-
+ */
 
-  interface Props {
-    agents: Agent[];
+import { Bot } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import type { Agent } from '$lib/domain/agents/types.js';
+
+interface Props {
+  agents: Agent[];
+}
+
+let { agents }: Props = $props();
+
+/** Derive departments from agent.category — capitalize and de-hyphenate. */
+function deptLabel(cat: string): string {
+  return cat.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Group agents by category. */
+const departments = $derived.by(() => {
+  const map = new Map<string, Agent[]>();
+  for (const agent of agents) {
+    const key = agent.category ?? 'general';
+    const bucket = map.get(key) ?? [];
+    bucket.push(agent);
+    map.set(key, bucket);
   }
-
-  let { agents }: Props = $props();
-
-  /** Derive departments from agent.category — capitalize and de-hyphenate. */
-  function deptLabel(cat: string): string {
-    return cat.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
-  /** Group agents by category. */
-  const departments = $derived.by(() => {
-    const map = new Map<string, Agent[]>();
-    for (const agent of agents) {
-      const key = agent.category ?? 'general';
-      const bucket = map.get(key) ?? [];
-      bucket.push(agent);
-      map.set(key, bucket);
-    }
-    // Sort depts alphabetically; put 'general' last
-    return [...map.entries()].sort(([a], [b]) => {
-      if (a === 'general') return 1;
-      if (b === 'general') return -1;
-      return a.localeCompare(b);
-    });
+  // Sort depts alphabetically; put 'general' last
+  return [...map.entries()].sort(([a], [b]) => {
+    if (a === 'general') return 1;
+    if (b === 'general') return -1;
+    return a.localeCompare(b);
   });
+});
 
-  function statusLabel(agent: Agent): string {
-    if (agent.runCount > 0 && agent.hired) return 'running';
-    if (agent.hired) return 'hired';
-    return 'idle';
-  }
+function statusLabel(agent: Agent): string {
+  if (agent.runCount > 0 && agent.hired) return 'running';
+  if (agent.hired) return 'hired';
+  return 'idle';
+}
 
-  function handleCardClick(slug: string): void {
+function handleCardClick(slug: string): void {
+  void goto(`/agents/${slug}`);
+}
+
+function handleCardKeydown(e: KeyboardEvent, slug: string): void {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
     void goto(`/agents/${slug}`);
   }
-
-  function handleCardKeydown(e: KeyboardEvent, slug: string): void {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      void goto(`/agents/${slug}`);
-    }
-  }
+}
 </script>
 
 <div class="aoc-root">

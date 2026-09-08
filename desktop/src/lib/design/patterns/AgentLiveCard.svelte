@@ -14,19 +14,18 @@
  * LOC target: ≤ 250.
  */
 
-import { onDestroy } from 'svelte';
-import { goto } from '$app/navigation';
-import { createQuery } from '@tanstack/svelte-query';
-import { writable } from 'svelte/store';
-import { untrack } from 'svelte';
-import { formatDistanceToNow } from 'date-fns';
 import type { CreateQueryOptions } from '@tanstack/svelte-query';
-import type { Agent } from '$lib/domain/agents/types.js';
-import type { Session, TranscriptEntry } from '$lib/domain/sessions/types.js';
+import { createQuery } from '@tanstack/svelte-query';
+import { formatDistanceToNow } from 'date-fns';
+import { onDestroy, untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
 import { sessionsQuery } from '$lib/api/queries/sessions.js';
 import { subscribeToSession } from '$lib/api/realtime.js';
-import StatusDot from './StatusDot.svelte';
+import type { Agent } from '$lib/domain/agents/types.js';
+import type { Session, TranscriptEntry } from '$lib/domain/sessions/types.js';
 import ActorAvatar from './ActorAvatar.svelte';
+import StatusDot from './StatusDot.svelte';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -41,14 +40,19 @@ let { agent, compact = false, full = false }: Props = $props();
 // ── Running-session query ─────────────────────────────────────────────────────
 
 const qOptsStore = writable(
-  untrack(() =>
-    sessionsQuery({ agentSlug: agent.slug, status: 'running', limit: 1 }) as CreateQueryOptions<Session[]>
+  untrack(
+    () =>
+      sessionsQuery({ agentSlug: agent.slug, status: 'running', limit: 1 }) as CreateQueryOptions<
+        Session[]
+      >
   )
 );
 
 $effect(() => {
   qOptsStore.set(
-    sessionsQuery({ agentSlug: agent.slug, status: 'running', limit: 1 }) as CreateQueryOptions<Session[]>
+    sessionsQuery({ agentSlug: agent.slug, status: 'running', limit: 1 }) as CreateQueryOptions<
+      Session[]
+    >
   );
 });
 
@@ -127,12 +131,17 @@ const visualState = $derived.by<VisualState>(() => {
   if (sessionStatus === 'completed') return 'completed';
   if (!runningSession || !lastEntry) return 'idle';
   switch (lastEntry.kind) {
-    case 'thinking': return 'thinking';
-    case 'tool_call': return 'tool_call';
-    case 'assistant': return 'assistant';
+    case 'thinking':
+      return 'thinking';
+    case 'tool_call':
+      return 'tool_call';
+    case 'assistant':
+      return 'assistant';
     case 'system':
-    case 'stderr': return 'error';
-    default: return 'assistant';
+    case 'stderr':
+      return 'error';
+    default:
+      return 'assistant';
   }
 });
 
@@ -141,9 +150,12 @@ const dotColor = $derived.by<'green' | 'amber' | 'red' | 'grey'>(() => {
     case 'thinking':
     case 'tool_call':
     case 'assistant':
-    case 'completed': return 'green';
-    case 'error': return 'red';
-    default: return 'grey';
+    case 'completed':
+      return 'green';
+    case 'error':
+      return 'red';
+    default:
+      return 'grey';
   }
 });
 
@@ -156,14 +168,21 @@ const statusLabel = $derived.by<string>(() => {
         : null;
       return ago ? `Last run: ${ago}` : 'Never run';
     }
-    case 'thinking': return 'Thinking\u2026';
+    case 'thinking':
+      return 'Thinking\u2026';
     case 'tool_call':
-      return lastEntry && lastEntry.kind === 'tool_call' ? `Using: ${lastEntry.toolName}` : 'Using tool\u2026';
-    case 'assistant': return 'Responding\u2026';
-    case 'error': return lastEntry && lastEntry.kind === 'system' ? `Error: ${lastEntry.text}` : 'Error';
+      return lastEntry && lastEntry.kind === 'tool_call'
+        ? `Using: ${lastEntry.toolName}`
+        : 'Using tool\u2026';
+    case 'assistant':
+      return 'Responding\u2026';
+    case 'error':
+      return lastEntry && lastEntry.kind === 'system' ? `Error: ${lastEntry.text}` : 'Error';
     case 'completed': {
       if (completedAt && runningSession?.startedAt) {
-        const durSec = Math.round((completedAt - new Date(runningSession.startedAt).getTime()) / 1000);
+        const durSec = Math.round(
+          (completedAt - new Date(runningSession.startedAt).getTime()) / 1000
+        );
         return `Completed ${durSec}s`;
       }
       return 'Completed';
@@ -174,12 +193,18 @@ const statusLabel = $derived.by<string>(() => {
 const previewText = $derived.by<string | null>(() => {
   if (!lastEntry) return null;
   switch (lastEntry.kind) {
-    case 'thinking': return lastEntry.text;
-    case 'assistant': return lastEntry.text;
-    case 'tool_call': return JSON.stringify(lastEntry.args).slice(0, 80);
-    case 'system': return lastEntry.text;
-    case 'stderr': return lastEntry.text;
-    default: return null;
+    case 'thinking':
+      return lastEntry.text;
+    case 'assistant':
+      return lastEntry.text;
+    case 'tool_call':
+      return JSON.stringify(lastEntry.args).slice(0, 80);
+    case 'system':
+      return lastEntry.text;
+    case 'stderr':
+      return lastEntry.text;
+    default:
+      return null;
   }
 });
 

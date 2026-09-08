@@ -1,0 +1,16 @@
+# Control-plane changes require explicit owner review under branch protection.
+/backend/mix.exs @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/*.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/skills/ @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/AGENTS.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/CLAUDE.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/BOOT.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/SYSTEM.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/CONTEXT.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/OPINIONS.md @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/agent-authority.json @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/engine-contract.json @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/docs/ @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/wiring/ @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/scripts/ @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2
+/.github/ @robertohluna @jmanhype @MichaelFractal @seanchatmangpt @PAMF2

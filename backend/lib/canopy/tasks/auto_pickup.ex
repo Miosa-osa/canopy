@@ -125,9 +125,7 @@ defmodule Canopy.Tasks.AutoPickup do
         end
 
       {:error, :already_claimed} ->
-        Logger.debug(
-          "[Tasks.AutoPickup] race lost — task=#{task.short_id} already claimed"
-        )
+        Logger.debug("[Tasks.AutoPickup] race lost — task=#{task.short_id} already claimed")
 
         :skipped
 

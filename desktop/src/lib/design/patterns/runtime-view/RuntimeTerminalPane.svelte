@@ -1,33 +1,33 @@
 <script lang="ts">
-  /**
-   * RuntimeTerminalPane — the terminal pane content:
-   * unauthenticated overlay, spawning overlay, error overlay, or live terminal.
-   * CSS prefix: rtv- (shared with runtimes/[type]/+page).
-   */
-  import { goto } from '$app/navigation';
-  import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
+/**
+ * RuntimeTerminalPane — the terminal pane content:
+ * unauthenticated overlay, spawning overlay, error overlay, or live terminal.
+ * CSS prefix: rtv- (shared with runtimes/[type]/+page).
+ */
+import { goto } from '$app/navigation';
+import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
 
-  interface Props {
-    runtimeType: string;
-    runtimeName: string;
-    isAuthenticated: boolean;
-    isSpawning: boolean;
-    isLoading: boolean;
-    sessionId: string | null;
-    spawnError: string | null;
-    onRetry: () => void;
-  }
+interface Props {
+  runtimeType: string;
+  runtimeName: string;
+  isAuthenticated: boolean;
+  isSpawning: boolean;
+  isLoading: boolean;
+  sessionId: string | null;
+  spawnError: string | null;
+  onRetry: () => void;
+}
 
-  let {
-    runtimeType,
-    runtimeName,
-    isAuthenticated,
-    isSpawning,
-    isLoading,
-    sessionId,
-    spawnError,
-    onRetry,
-  }: Props = $props();
+let {
+  runtimeType,
+  runtimeName,
+  isAuthenticated,
+  isSpawning,
+  isLoading,
+  sessionId,
+  spawnError,
+  onRetry,
+}: Props = $props();
 </script>
 
 {#if !isAuthenticated && runtimeName}

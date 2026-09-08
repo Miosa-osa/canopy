@@ -1,122 +1,123 @@
 <script lang="ts">
-  /**
-   * Settings › Keyboard Shortcuts — editable keybindings grid.
-   * Groups bindings by category, inline chord capture, conflict detection.
-   * CSS prefix: kbd-
-   */
+/**
+ * Settings › Keyboard Shortcuts — editable keybindings grid.
+ * Groups bindings by category, inline chord capture, conflict detection.
+ * CSS prefix: kbd-
+ */
 
-  import { keybindings, captureChord, chordToDisplayTokens } from "$lib/stores/keybindings.svelte.js";
-  import type { KeyBinding } from "$lib/stores/keybindings.svelte.js";
+import type { KeyBinding } from '$lib/stores/keybindings.svelte.js';
+import { captureChord, chordToDisplayTokens, keybindings } from '$lib/stores/keybindings.svelte.js';
 
-  // ── Search ────────────────────────────────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────────────────────
 
-  let searchQuery = $state("");
+let searchQuery = $state('');
 
-  const filteredBindings = $derived(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return keybindings.bindings;
-    return keybindings.bindings.filter(
-      (b) =>
-        b.label.toLowerCase().includes(q) ||
-        (b.custom ?? b.defaultChord).toLowerCase().includes(q) ||
-        b.category.toLowerCase().includes(q),
-    );
-  });
-
-  // ── Categories (ordered, deduped from filtered set) ───────────────────────────
-
-  const categories = $derived(() => {
-    const seen = new Set<string>();
-    const order: string[] = [];
-    for (const b of filteredBindings()) {
-      if (!seen.has(b.category)) { seen.add(b.category); order.push(b.category); }
-    }
-    return order;
-  });
-
-  function bindingsForCategory(cat: string): KeyBinding[] {
-    return filteredBindings().filter((b) => b.category === cat);
-  }
-
-  // ── Collapsed state per category ─────────────────────────────────────────────
-
-  let collapsed = $state<Record<string, boolean>>({});
-
-  function toggleCollapse(cat: string): void {
-    collapsed[cat] = !collapsed[cat];
-  }
-
-  // ── Edit / capture state ──────────────────────────────────────────────────────
-
-  let editingId = $state<string | null>(null);
-  let capturedChord = $state<string | null>(null);
-
-  function startEdit(id: string): void {
-    editingId = id;
-    capturedChord = null;
-  }
-
-  function cancelEdit(): void {
-    editingId = null;
-    capturedChord = null;
-  }
-
-  function confirmEdit(): void {
-    if (editingId && capturedChord) {
-      keybindings.setChord(editingId, capturedChord);
-    }
-    editingId = null;
-    capturedChord = null;
-  }
-
-  function handleWindowKeydown(e: KeyboardEvent): void {
-    if (!editingId) return;
-
-    if (e.key === "Escape") {
-      e.preventDefault();
-      cancelEdit();
-      return;
-    }
-
-    if (e.key === "Enter" && capturedChord) {
-      e.preventDefault();
-      confirmEdit();
-      return;
-    }
-
-    const chord = captureChord(e);
-    if (chord) {
-      e.preventDefault();
-      capturedChord = chord;
-    }
-  }
-
-  // Conflict: binding that already uses the captured chord (excluding current)
-  const conflict = $derived(
-    editingId && capturedChord
-      ? keybindings.hasConflict(capturedChord, editingId)
-      : null,
+const filteredBindings = $derived(() => {
+  const q = searchQuery.trim().toLowerCase();
+  if (!q) return keybindings.bindings;
+  return keybindings.bindings.filter(
+    (b) =>
+      b.label.toLowerCase().includes(q) ||
+      (b.custom ?? b.defaultChord).toLowerCase().includes(q) ||
+      b.category.toLowerCase().includes(q)
   );
+});
 
-  // ── Reset all ─────────────────────────────────────────────────────────────────
+// ── Categories (ordered, deduped from filtered set) ───────────────────────────
 
-  function resetAll(): void {
-    keybindings.resetAll();
-    editingId = null;
-    capturedChord = null;
+const categories = $derived(() => {
+  const seen = new Set<string>();
+  const order: string[] = [];
+  for (const b of filteredBindings()) {
+    if (!seen.has(b.category)) {
+      seen.add(b.category);
+      order.push(b.category);
+    }
+  }
+  return order;
+});
+
+function bindingsForCategory(cat: string): KeyBinding[] {
+  return filteredBindings().filter((b) => b.category === cat);
+}
+
+// ── Collapsed state per category ─────────────────────────────────────────────
+
+let collapsed = $state<Record<string, boolean>>({});
+
+function toggleCollapse(cat: string): void {
+  collapsed[cat] = !collapsed[cat];
+}
+
+// ── Edit / capture state ──────────────────────────────────────────────────────
+
+let editingId = $state<string | null>(null);
+let capturedChord = $state<string | null>(null);
+
+function startEdit(id: string): void {
+  editingId = id;
+  capturedChord = null;
+}
+
+function cancelEdit(): void {
+  editingId = null;
+  capturedChord = null;
+}
+
+function confirmEdit(): void {
+  if (editingId && capturedChord) {
+    keybindings.setChord(editingId, capturedChord);
+  }
+  editingId = null;
+  capturedChord = null;
+}
+
+function handleWindowKeydown(e: KeyboardEvent): void {
+  if (!editingId) return;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelEdit();
+    return;
   }
 
-  // ── Display helpers ───────────────────────────────────────────────────────────
-
-  function hasCustom(b: KeyBinding): boolean {
-    return b.custom !== undefined;
+  if (e.key === 'Enter' && capturedChord) {
+    e.preventDefault();
+    confirmEdit();
+    return;
   }
 
-  function displayChord(b: KeyBinding): string {
-    return b.custom ?? b.defaultChord;
+  const chord = captureChord(e);
+  if (chord) {
+    e.preventDefault();
+    capturedChord = chord;
   }
+}
 
-  const customCount = $derived(keybindings.bindings.filter((b) => b.custom !== undefined).length);
+// Conflict: binding that already uses the captured chord (excluding current)
+const conflict = $derived(
+  editingId && capturedChord ? keybindings.hasConflict(capturedChord, editingId) : null
+);
+
+// ── Reset all ─────────────────────────────────────────────────────────────────
+
+function resetAll(): void {
+  keybindings.resetAll();
+  editingId = null;
+  capturedChord = null;
+}
+
+// ── Display helpers ───────────────────────────────────────────────────────────
+
+function hasCustom(b: KeyBinding): boolean {
+  return b.custom !== undefined;
+}
+
+function displayChord(b: KeyBinding): string {
+  return b.custom ?? b.defaultChord;
+}
+
+const customCount = $derived(keybindings.bindings.filter((b) => b.custom !== undefined).length);
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />

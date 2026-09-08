@@ -41,22 +41,22 @@ export interface RuntimeAdapterModelList {
 // ── Roles ────────────────────────────────────────────────────────────────
 
 export type ModelRoleName =
-  | "chat"
-  | "autocomplete"
-  | "edit"
-  | "apply"
-  | "embed"
-  | "rerank"
-  | "summarize";
+  | 'chat'
+  | 'autocomplete'
+  | 'edit'
+  | 'apply'
+  | 'embed'
+  | 'rerank'
+  | 'summarize';
 
 export const MODEL_ROLES: ModelRoleName[] = [
-  "chat",
-  "autocomplete",
-  "edit",
-  "apply",
-  "embed",
-  "rerank",
-  "summarize",
+  'chat',
+  'autocomplete',
+  'edit',
+  'apply',
+  'embed',
+  'rerank',
+  'summarize',
 ];
 
 export interface ModelRoleAssignment {
@@ -156,18 +156,11 @@ export interface SwapResult {
 
 // ── Settings policy (client-only state — persisted via runtime config) ───
 
-export type RuntimeSelectionPolicy =
-  | "manual"
-  | "auto-cheapest"
-  | "auto-fastest"
-  | "auto-balanced";
+export type RuntimeSelectionPolicy = 'manual' | 'auto-cheapest' | 'auto-fastest' | 'auto-balanced';
 
-export type CheckpointRetention = "session" | "7-days" | "30-days" | "forever";
+export type CheckpointRetention = 'session' | '7-days' | '30-days' | 'forever';
 
-export type HotSwapRule =
-  | "always-confirm"
-  | "auto-on-error"
-  | "auto-to-local-only";
+export type HotSwapRule = 'always-confirm' | 'auto-on-error' | 'auto-to-local-only';
 
 export interface RuntimeAdapterSettings {
   selectionPolicy: RuntimeSelectionPolicy;

@@ -4,31 +4,24 @@
  * CSS prefix: n/a (store only)
  */
 
-import type { TaskStatus } from "$lib/domain/tasks/types.js";
+import type { TaskStatus } from '$lib/domain/tasks/types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type TransitionVerb =
-  | "start"
-  | "build"
-  | "pause"
-  | "resume"
-  | "stop"
-  | "done"
-  | "noop";
+export type TransitionVerb = 'start' | 'build' | 'pause' | 'resume' | 'stop' | 'done' | 'noop';
 
 /** Infer the default verb from a status when none is explicitly set. */
 export function inferVerb(status: TaskStatus): TransitionVerb {
   switch (status) {
-    case "in_progress":
-      return "start";
-    case "done":
-      return "done";
-    case "cancelled":
-      return "stop";
-    case "todo":
+    case 'in_progress':
+      return 'start';
+    case 'done':
+      return 'done';
+    case 'cancelled':
+      return 'stop';
+    case 'todo':
     default:
-      return "noop";
+      return 'noop';
   }
 }
 
@@ -41,10 +34,10 @@ export interface ColumnConfig {
 }
 
 export type BoardScope =
-  | { type: "workspace"; slug: string }
-  | { type: "agent"; agentId: string }
-  | { type: "assignee_type"; value: "agent" | "human" }
-  | { type: "label"; label: string };
+  | { type: 'workspace'; slug: string }
+  | { type: 'agent'; agentId: string }
+  | { type: 'assignee_type'; value: 'agent' | 'human' }
+  | { type: 'label'; label: string };
 
 export interface BoardConfig {
   id: string;
@@ -56,14 +49,14 @@ export interface BoardConfig {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const LS_KEY = "canopy.kanban.boards";
-const LS_ACTIVE_KEY = "canopy.kanban.active";
+const LS_KEY = 'canopy.kanban.boards';
+const LS_ACTIVE_KEY = 'canopy.kanban.active';
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
-  { status: "todo", label: "Todo", wipLimit: 999 },
-  { status: "in_progress", label: "In Progress", wipLimit: 5 },
-  { status: "done", label: "Done", wipLimit: 999 },
-  { status: "cancelled", label: "Cancelled", wipLimit: 999 },
+  { status: 'todo', label: 'Todo', wipLimit: 999 },
+  { status: 'in_progress', label: 'In Progress', wipLimit: 5 },
+  { status: 'done', label: 'Done', wipLimit: 999 },
+  { status: 'cancelled', label: 'Cancelled', wipLimit: 999 },
 ];
 
 function makeId(): string {
@@ -78,7 +71,7 @@ function now(): string {
 
 class KanbanBoardsStore {
   boards = $state<BoardConfig[]>([]);
-  activeBoardId = $state<string>("");
+  activeBoardId = $state<string>('');
 
   constructor() {
     this._load();
@@ -96,22 +89,22 @@ class KanbanBoardsStore {
     return [
       {
         id: makeId(),
-        name: "All tasks",
-        scope: { type: "workspace", slug: "default" },
+        name: 'All tasks',
+        scope: { type: 'workspace', slug: 'default' },
         columns: [...DEFAULT_COLUMNS],
         createdAt: now(),
       },
       {
         id: makeId(),
-        name: "Agent tasks",
-        scope: { type: "assignee_type", value: "agent" },
+        name: 'Agent tasks',
+        scope: { type: 'assignee_type', value: 'agent' },
         columns: [...DEFAULT_COLUMNS],
         createdAt: now(),
       },
       {
         id: makeId(),
-        name: "Human-assigned",
-        scope: { type: "assignee_type", value: "human" },
+        name: 'Human-assigned',
+        scope: { type: 'assignee_type', value: 'human' },
         columns: [...DEFAULT_COLUMNS],
         createdAt: now(),
       },
@@ -123,7 +116,7 @@ class KanbanBoardsStore {
   createBoard(
     name: string,
     scope: BoardScope,
-    columns: ColumnConfig[] = [...DEFAULT_COLUMNS],
+    columns: ColumnConfig[] = [...DEFAULT_COLUMNS]
   ): BoardConfig {
     const board: BoardConfig = {
       id: makeId(),
@@ -141,7 +134,7 @@ class KanbanBoardsStore {
   deleteBoard(id: string): void {
     this.boards = this.boards.filter((b) => b.id !== id);
     if (this.activeBoardId === id) {
-      this.activeBoardId = this.boards[0]?.id ?? "";
+      this.activeBoardId = this.boards[0]?.id ?? '';
     }
     this._save();
   }
@@ -169,7 +162,7 @@ class KanbanBoardsStore {
   // ── Persistence ───────────────────────────────────────────────────────────────
 
   private _load(): void {
-    if (typeof localStorage === "undefined") return;
+    if (typeof localStorage === 'undefined') return;
     try {
       const raw = localStorage.getItem(LS_KEY);
       const activeRaw = localStorage.getItem(LS_ACTIVE_KEY);
@@ -178,32 +171,30 @@ class KanbanBoardsStore {
       if (
         Array.isArray(parsed) &&
         parsed.length > 0 &&
-        typeof (parsed[0] as Record<string, unknown>).id === "string"
+        typeof (parsed[0] as Record<string, unknown>).id === 'string'
       ) {
         this.boards = parsed as BoardConfig[];
-        const activeId = typeof activeRaw === "string" ? activeRaw : "";
+        const activeId = typeof activeRaw === 'string' ? activeRaw : '';
         this.activeBoardId =
-          this.boards.find((b) => b.id === activeId)?.id ??
-          this.boards[0]?.id ??
-          "";
+          this.boards.find((b) => b.id === activeId)?.id ?? this.boards[0]?.id ?? '';
       } else {
         // First run or stale JSON — seed defaults
         const seeds = this.defaultBoards();
         this.boards = seeds;
-        this.activeBoardId = seeds[0]?.id ?? "";
+        this.activeBoardId = seeds[0]?.id ?? '';
         this._save();
       }
     } catch {
       // Corrupt JSON — reset gracefully
       const seeds = this.defaultBoards();
       this.boards = seeds;
-      this.activeBoardId = seeds[0]?.id ?? "";
+      this.activeBoardId = seeds[0]?.id ?? '';
       this._save();
     }
   }
 
   private _save(): void {
-    if (typeof localStorage === "undefined") return;
+    if (typeof localStorage === 'undefined') return;
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(this.boards));
       localStorage.setItem(LS_ACTIVE_KEY, this.activeBoardId);

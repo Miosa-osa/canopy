@@ -1,63 +1,61 @@
 <script lang="ts">
-  /**
-   * CompactionIndicator — context-window usage bar.
-   *
-   * Derives usage from session token fields (inputTokens + outputTokens vs a
-   * fixed 200 K-token context window). Shows a thin colored bar at the top of
-   * the conversation pane and, at ≥80 %, a "Compact now" button that sends
-   * the /compact slash command to the session.
-   *
-   * Thresholds:
-   *   <60 %  → hidden
-   *   60–79 % → gray bar (informational)
-   *   80–94 % → yellow bar + "Compact now" CTA
-   *   ≥95 %  → red bar + "Compact now" CTA
-   *
-   * CSS prefix: ci-
-   */
+/**
+ * CompactionIndicator — context-window usage bar.
+ *
+ * Derives usage from session token fields (inputTokens + outputTokens vs a
+ * fixed 200 K-token context window). Shows a thin colored bar at the top of
+ * the conversation pane and, at ≥80 %, a "Compact now" button that sends
+ * the /compact slash command to the session.
+ *
+ * Thresholds:
+ *   <60 %  → hidden
+ *   60–79 % → gray bar (informational)
+ *   80–94 % → yellow bar + "Compact now" CTA
+ *   ≥95 %  → red bar + "Compact now" CTA
+ *
+ * CSS prefix: ci-
+ */
 
-  import { createMutation } from '@tanstack/svelte-query';
-  import { sendSessionMessage } from '$lib/api/queries/sessions.js';
-  import type { Session } from '$lib/domain/sessions/types.js';
+import { createMutation } from '@tanstack/svelte-query';
+import { sendSessionMessage } from '$lib/api/queries/sessions.js';
+import type { Session } from '$lib/domain/sessions/types.js';
 
-  interface Props {
-    session: Session;
-  }
+interface Props {
+  session: Session;
+}
 
-  let { session }: Props = $props();
+let { session }: Props = $props();
 
-  /** Hard-coded context window — override when the backend surfaces it. */
-  const CONTEXT_WINDOW = 200_000;
+/** Hard-coded context window — override when the backend surfaces it. */
+const CONTEXT_WINDOW = 200_000;
 
-  const usedTokens = $derived(
-    (session.inputTokens ?? 0) +
-    (session.outputTokens ?? 0) +
-    (session.cacheReadTokens ?? 0),
-  );
+const usedTokens = $derived(
+  (session.inputTokens ?? 0) + (session.outputTokens ?? 0) + (session.cacheReadTokens ?? 0)
+);
 
-  const pct = $derived(Math.min(100, (usedTokens / CONTEXT_WINDOW) * 100));
+const pct = $derived(Math.min(100, (usedTokens / CONTEXT_WINDOW) * 100));
 
-  type Level = 'hidden' | 'info' | 'warn' | 'critical';
+type Level = 'hidden' | 'info' | 'warn' | 'critical';
 
-  const level = $derived<Level>(
-    pct >= 95 ? 'critical' : pct >= 80 ? 'warn' : pct >= 60 ? 'info' : 'hidden',
-  );
+const level = $derived<Level>(
+  pct >= 95 ? 'critical' : pct >= 80 ? 'warn' : pct >= 60 ? 'info' : 'hidden'
+);
 
-  const label = $derived(
-    level === 'warn'
-      ? 'Context 80% full — older messages will be summarized'
-      : level === 'critical'
-        ? 'Context nearly full — compaction needed'
-        : `Context ${Math.round(pct)}% full`,
-  );
+const label = $derived(
+  level === 'warn'
+    ? 'Context 80% full — older messages will be summarized'
+    : level === 'critical'
+      ? 'Context nearly full — compaction needed'
+      : `Context ${Math.round(pct)}% full`
+);
 
-  const compact = createMutation({
-    mutationFn: () => sendSessionMessage(session.id, '/compact'),
-  });
+const compact = createMutation({
+  mutationFn: () => sendSessionMessage(session.id, '/compact'),
+});
 
-  function handleCompact() {
-    $compact.mutate();
-  }
+function handleCompact() {
+  $compact.mutate();
+}
 </script>
 
 {#if level !== 'hidden'}

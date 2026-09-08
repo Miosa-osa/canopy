@@ -5,7 +5,7 @@
  * tracked invocation. Every mutation carrying X-Run-Id is attributed to a run.
  */
 
-import { apiGet, apiPost, apiPatch } from "$lib/api/client.js";
+import { apiGet, apiPost } from '$lib/api/client.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,13 +32,7 @@ export interface Run {
   updatedAt: string;
 }
 
-export type RunStatus =
-  | "queued"
-  | "running"
-  | "paused"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+export type RunStatus = 'queued' | 'running' | 'paused' | 'succeeded' | 'failed' | 'cancelled';
 
 export interface RunUsage {
   tokensIn?: number;
@@ -51,19 +45,19 @@ export interface RunUsage {
 export interface RunLogLine {
   seq: number;
   at: string | null;
-  kind: "stdout" | "stderr" | "event" | "tool_call" | "tool_result";
+  kind: 'stdout' | 'stderr' | 'event' | 'tool_call' | 'tool_result';
   data: string;
 }
 
 export type TranscriptBlockKind =
-  | "stdout"
-  | "stderr"
-  | "tool_call"
-  | "tool_result"
-  | "thinking"
-  | "user_prompt"
-  | "permission_request"
-  | "exit";
+  | 'stdout'
+  | 'stderr'
+  | 'tool_call'
+  | 'tool_result'
+  | 'thinking'
+  | 'user_prompt'
+  | 'permission_request'
+  | 'exit';
 
 export interface TranscriptBlock {
   kind: TranscriptBlockKind;
@@ -98,18 +92,15 @@ export interface RunFilters {
 
 // ── Raw API calls ─────────────────────────────────────────────────────────────
 
-export function listRuns(
-  filters?: RunFilters,
-): Promise<{ data: Run[]; count: number }> {
+export function listRuns(filters?: RunFilters): Promise<{ data: Run[]; count: number }> {
   const params = new URLSearchParams();
-  if (filters?.sessionId) params.set("session_id", filters.sessionId);
-  if (filters?.workspaceSlug)
-    params.set("workspace_slug", filters.workspaceSlug);
-  if (filters?.agentSlug) params.set("agent_slug", filters.agentSlug);
-  if (filters?.status) params.set("status", filters.status);
-  if (filters?.limit !== undefined) params.set("limit", String(filters.limit));
+  if (filters?.sessionId) params.set('session_id', filters.sessionId);
+  if (filters?.workspaceSlug) params.set('workspace_slug', filters.workspaceSlug);
+  if (filters?.agentSlug) params.set('agent_slug', filters.agentSlug);
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.limit !== undefined) params.set('limit', String(filters.limit));
   const qs = params.toString();
-  return apiGet<{ data: Run[]; count: number }>(`/runs${qs ? `?${qs}` : ""}`);
+  return apiGet<{ data: Run[]; count: number }>(`/runs${qs ? `?${qs}` : ''}`);
 }
 
 export function getRun(id: string): Promise<{ data: Run }> {
@@ -117,25 +108,21 @@ export function getRun(id: string): Promise<{ data: Run }> {
 }
 
 export function createRun(attrs: Partial<Run>): Promise<{ data: Run }> {
-  return apiPost<{ data: Run }>("/runs", attrs);
+  return apiPost<{ data: Run }>('/runs', attrs);
 }
 
 export function finishRun(
   id: string,
   payload: {
-    status: "succeeded" | "failed" | "cancelled";
+    status: 'succeeded' | 'failed' | 'cancelled';
     usageJson?: RunUsage;
     error?: string;
-  },
+  }
 ): Promise<{ data: Run }> {
   return apiPost<{ data: Run }>(`/runs/${id}/finish`, payload);
 }
 
-export function getRunLog(
-  id: string,
-  offset = 0,
-  limit = 200,
-): Promise<RunLogPage> {
+export function getRunLog(id: string, offset = 0, limit = 200): Promise<RunLogPage> {
   return apiGet<RunLogPage>(`/runs/${id}/log?offset=${offset}&limit=${limit}`);
 }
 
@@ -143,7 +130,7 @@ export function getRunLog(
 
 export function runsQuery(filters?: RunFilters) {
   return {
-    queryKey: ["runs", filters ?? {}],
+    queryKey: ['runs', filters ?? {}],
     queryFn: () => listRuns(filters).then((r) => r.data),
     staleTime: 10_000,
   };
@@ -151,21 +138,17 @@ export function runsQuery(filters?: RunFilters) {
 
 export function runQuery(id: string) {
   return {
-    queryKey: ["runs", id],
+    queryKey: ['runs', id],
     queryFn: () => getRun(id).then((r) => r.data),
     staleTime: 5_000,
     enabled: !!id,
   };
 }
 
-export function listRunsForSession(
-  sessionId: string,
-  opts?: { limit?: number },
-) {
+export function listRunsForSession(sessionId: string, opts?: { limit?: number }) {
   return {
-    queryKey: ["runs", "session", sessionId],
-    queryFn: () =>
-      listRuns({ sessionId, limit: opts?.limit ?? 20 }).then((r) => r.data),
+    queryKey: ['runs', 'session', sessionId],
+    queryFn: () => listRuns({ sessionId, limit: opts?.limit ?? 20 }).then((r) => r.data),
     staleTime: 10_000,
     enabled: !!sessionId,
   };
@@ -173,7 +156,7 @@ export function listRunsForSession(
 
 export function runLogQuery(runId: string, offset = 0) {
   return {
-    queryKey: ["runs", runId, "log", offset],
+    queryKey: ['runs', runId, 'log', offset],
     queryFn: () => getRunLog(runId, offset),
     staleTime: 5_000,
     enabled: !!runId,
@@ -186,7 +169,7 @@ export function getRunTranscript(runId: string): Promise<TranscriptResponse> {
 
 export function transcriptQuery(runId: string) {
   return {
-    queryKey: ["runs", runId, "transcript"],
+    queryKey: ['runs', runId, 'transcript'],
     queryFn: () => getRunTranscript(runId),
     staleTime: 30_000,
     enabled: !!runId,

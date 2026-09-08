@@ -1,88 +1,88 @@
 <script lang="ts">
-  /**
-   * Settings › Runtime Adapter — runtime selection policies, default model
-   * per role, checkpoint retention, hot-swap rules.
-   *
-   * This page is *additive* to /settings/runtimes (which is the raw runtime
-   * registry / preflight UI). This page operates the *agent* layer on top of
-   * that registry — policies, role bindings, retention, swap behaviour.
-   */
-  import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
-  import { Plug, Plus, RotateCcw } from "lucide-svelte";
-  import { assignRole, rolesQuery } from "$lib/api/queries/runtime_adapter.js";
-  import {
-    MODEL_ROLES,
-    type CheckpointRetention,
-    type HotSwapRule,
-    type ModelRoleName,
-    type RoleAssignmentCreate,
-    type RuntimeSelectionPolicy,
-  } from "$lib/domain/runtime_adapter/types.js";
+/**
+ * Settings › Runtime Adapter — runtime selection policies, default model
+ * per role, checkpoint retention, hot-swap rules.
+ *
+ * This page is *additive* to /settings/runtimes (which is the raw runtime
+ * registry / preflight UI). This page operates the *agent* layer on top of
+ * that registry — policies, role bindings, retention, swap behaviour.
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Plug, Plus, RotateCcw } from 'lucide-svelte';
+import { assignRole, rolesQuery } from '$lib/api/queries/runtime_adapter.js';
+import {
+  type CheckpointRetention,
+  type HotSwapRule,
+  MODEL_ROLES,
+  type ModelRoleName,
+  type RoleAssignmentCreate,
+  type RuntimeSelectionPolicy,
+} from '$lib/domain/runtime_adapter/types.js';
 
-  const qc = useQueryClient();
-  const rolesResult = createQuery(rolesQuery());
+const qc = useQueryClient();
+const rolesResult = createQuery(rolesQuery());
 
-  // ── Local-state policy form (persisted via runtime config in v0.2) ───────
+// ── Local-state policy form (persisted via runtime config in v0.2) ───────
 
-  let selectionPolicy = $state<RuntimeSelectionPolicy>("auto-balanced");
-  let checkpointRetention = $state<CheckpointRetention>("30-days");
-  let hotSwapRule = $state<HotSwapRule>("always-confirm");
+let selectionPolicy = $state<RuntimeSelectionPolicy>('auto-balanced');
+let checkpointRetention = $state<CheckpointRetention>('30-days');
+let hotSwapRule = $state<HotSwapRule>('always-confirm');
 
-  // ── Role assignment form ─────────────────────────────────────────────────
+// ── Role assignment form ─────────────────────────────────────────────────
 
-  let creating = $state(false);
-  let formRuntime = $state("");
-  let formModel = $state("");
-  let formRole = $state<ModelRoleName>("chat");
-  let formDefault = $state(true);
-  let formError = $state<string | null>(null);
+let creating = $state(false);
+let formRuntime = $state('');
+let formModel = $state('');
+let formRole = $state<ModelRoleName>('chat');
+let formDefault = $state(true);
+let formError = $state<string | null>(null);
 
-  function resetForm() {
-    formRuntime = "";
-    formModel = "";
-    formRole = "chat";
-    formDefault = true;
-    formError = null;
+function resetForm() {
+  formRuntime = '';
+  formModel = '';
+  formRole = 'chat';
+  formDefault = true;
+  formError = null;
+}
+
+const assignMut = createMutation({
+  mutationFn: (body: RoleAssignmentCreate) => assignRole(body),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['runtime-adapter', 'roles'] });
+    creating = false;
+    resetForm();
+  },
+  onError: (err: Error) => {
+    formError = err.message;
+  },
+});
+
+function submitAssign(e: Event) {
+  e.preventDefault();
+  formError = null;
+  if (!formRuntime.trim() || !formModel.trim()) {
+    formError = 'Runtime and model are required.';
+    return;
   }
-
-  const assignMut = createMutation({
-    mutationFn: (body: RoleAssignmentCreate) => assignRole(body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["runtime-adapter", "roles"] });
-      creating = false;
-      resetForm();
-    },
-    onError: (err: Error) => {
-      formError = err.message;
-    },
+  $assignMut.mutate({
+    runtime: formRuntime.trim(),
+    model: formModel.trim(),
+    role: formRole,
+    defaultForRole: formDefault,
   });
+}
 
-  function submitAssign(e: Event) {
-    e.preventDefault();
-    formError = null;
-    if (!formRuntime.trim() || !formModel.trim()) {
-      formError = "Runtime and model are required.";
-      return;
-    }
-    $assignMut.mutate({
-      runtime: formRuntime.trim(),
-      model: formModel.trim(),
-      role: formRole,
-      defaultForRole: formDefault,
-    });
-  }
+const roles = $derived($rolesResult.data ?? []);
 
-  const roles = $derived($rolesResult.data ?? []);
-
-  // Per-role defaults computed from the assignment list
-  const defaultsByRole = $derived(
-    Object.fromEntries(
-      MODEL_ROLES.map((role) => [
-        role,
-        roles.find((r) => r.role === role && r.defaultForRole) ?? null,
-      ]),
-    ) as Record<ModelRoleName, (typeof roles)[number] | null>,
-  );
+// Per-role defaults computed from the assignment list
+const defaultsByRole = $derived(
+  Object.fromEntries(
+    MODEL_ROLES.map((role) => [
+      role,
+      roles.find((r) => r.role === role && r.defaultForRole) ?? null,
+    ])
+  ) as Record<ModelRoleName, (typeof roles)[number] | null>
+);
 </script>
 
 <div class="ra-page">

@@ -4,8 +4,9 @@
  * Pick 4-6 starter agents to hire. Uses hireAgent API.
  * CSS prefix: obw-
  */
-import { hireAgent } from '$lib/api/queries/agents.js';
-import { Workflow, Search, Shield, Wrench, PenTool, BarChart3, Bot, Check } from 'lucide-svelte';
+
+import { BarChart3, Bot, Check, PenTool, Search, Shield, Workflow, Wrench } from 'lucide-svelte';
+import { hireStarterAgents } from './setup-actions.js';
 
 interface Props {
   onNext: () => void;
@@ -24,16 +25,53 @@ interface AgentCard {
 }
 
 const RECOMMENDED: AgentCard[] = [
-  { slug: 'conductor', name: 'Conductor', icon: Workflow, category: 'Orchestration', description: 'Orchestrates multi-agent workflows end-to-end' },
-  { slug: 'iris', name: 'Iris', icon: Search, category: 'Research', description: 'Research and knowledge synthesis' },
-  { slug: 'vault', name: 'Vault', icon: Shield, category: 'Security', description: 'Secure credential and secret management' },
-  { slug: 'forge', name: 'Forge', icon: Wrench, category: 'Engineering', description: 'Code generation and engineering tasks' },
-  { slug: 'copy-doctor', name: 'Copy Doctor', icon: PenTool, category: 'Content', description: 'Copywriting, editing, and content polish' },
-  { slug: 'data-analyst', name: 'Data Analyst', icon: BarChart3, category: 'Analytics', description: 'Data analysis, charts, and reporting' },
+  {
+    slug: 'conductor',
+    name: 'Conductor',
+    icon: Workflow,
+    category: 'Orchestration',
+    description: 'Orchestrates multi-agent workflows end-to-end',
+  },
+  {
+    slug: 'iris',
+    name: 'Iris',
+    icon: Search,
+    category: 'Research',
+    description: 'Research and knowledge synthesis',
+  },
+  {
+    slug: 'vault',
+    name: 'Vault',
+    icon: Shield,
+    category: 'Security',
+    description: 'Secure credential and secret management',
+  },
+  {
+    slug: 'forge',
+    name: 'Forge',
+    icon: Wrench,
+    category: 'Engineering',
+    description: 'Code generation and engineering tasks',
+  },
+  {
+    slug: 'copy-doctor',
+    name: 'Copy Doctor',
+    icon: PenTool,
+    category: 'Content',
+    description: 'Copywriting, editing, and content polish',
+  },
+  {
+    slug: 'data-analyst',
+    name: 'Data Analyst',
+    icon: BarChart3,
+    category: 'Analytics',
+    description: 'Data analysis, charts, and reporting',
+  },
 ];
 
 const hired = $state(new Set<string>());
 let isHiring = $state(false);
+let hireError = $state<string | null>(null);
 
 function toggle(slug: string): void {
   if (hired.has(slug)) {
@@ -49,8 +87,14 @@ async function handleNext(): Promise<void> {
     return;
   }
   isHiring = true;
+  hireError = null;
   try {
-    await Promise.allSettled([...hired].map((slug) => hireAgent(slug)));
+    const result = await hireStarterAgents([...hired]);
+    for (const slug of result.hired) hired.delete(slug);
+    if (result.failed.length > 0) {
+      hireError = `Could not hire: ${result.failed.join(', ')}. Retry or skip this step.`;
+      return;
+    }
   } finally {
     isHiring = false;
   }
@@ -98,6 +142,10 @@ async function handleNext(): Promise<void> {
       </li>
     {/each}
   </ul>
+
+  {#if hireError}
+    <p role="alert">{hireError}</p>
+  {/if}
 
   <div class="obw-nav">
     <button class="obw-btn-ghost" onclick={onBack} disabled={isHiring}>← Back</button>

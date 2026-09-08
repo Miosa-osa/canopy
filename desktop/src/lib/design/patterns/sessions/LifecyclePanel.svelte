@@ -7,8 +7,8 @@
  */
 
 import { createQuery } from '@tanstack/svelte-query';
-import { writable } from 'svelte/store';
 import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
 import { apiGet } from '$lib/api/client.js';
 
 interface HookEvent {

@@ -1,35 +1,35 @@
 <script lang="ts">
-  /**
-   * ConversationIntroCard — empty-state intro shown above the composer
-   * when an Agent Conversation pane has no messages yet.
-   *
-   * Title + subtitle + a list of keyboard shortcuts the user can run
-   * right now. When the input starts with `/` the parent pane swaps the
-   * card out for the existing SlashCommands palette — this card itself
-   * is purely informational.
-   *
-   * CSS prefix: cic-
-   */
-  import { Bot } from 'lucide-svelte';
+/**
+ * ConversationIntroCard — empty-state intro shown above the composer
+ * when an Agent Conversation pane has no messages yet.
+ *
+ * Title + subtitle + a list of keyboard shortcuts the user can run
+ * right now. When the input starts with `/` the parent pane swaps the
+ * card out for the existing SlashCommands palette — this card itself
+ * is purely informational.
+ *
+ * CSS prefix: cic-
+ */
+import { Bot } from 'lucide-svelte';
 
-  interface Props {
-    /** Working directory shown in the subtitle. */
-    cwd?: string;
-  }
+interface Props {
+  /** Working directory shown in the subtitle. */
+  cwd?: string;
+}
 
-  let { cwd = '~' }: Props = $props();
+let { cwd = '~' }: Props = $props();
 
-  interface Shortcut {
-    keys: string;
-    label: string;
-  }
+interface Shortcut {
+  keys: string;
+  label: string;
+}
 
-  const shortcuts: Shortcut[] = [
-    { keys: '⌘↵', label: 'start a new agent conversation' },
-    { keys: '⌥⌘↵', label: 'start a new cloud conversation' },
-    { keys: '/model', label: 'switch model' },
-    { keys: 'esc', label: 'go back to terminal' },
-  ];
+const shortcuts: Shortcut[] = [
+  { keys: '⌘↵', label: 'start a new agent conversation' },
+  { keys: '⌥⌘↵', label: 'start a new cloud conversation' },
+  { keys: '/model', label: 'switch model' },
+  { keys: 'esc', label: 'go back to terminal' },
+];
 </script>
 
 <div class="cic-card" role="region" aria-label="New conversation">

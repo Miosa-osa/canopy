@@ -1,28 +1,28 @@
 <script lang="ts">
-  /**
-   * TasksFilterBar — status chip filter + search input for the tasks page.
-   * CSS prefix: tl- (shared with /tasks page).
-   */
-  import type { TaskStatus } from '$lib/domain/tasks/types.js';
+/**
+ * TasksFilterBar — status chip filter + search input for the tasks page.
+ * CSS prefix: tl- (shared with /tasks page).
+ */
+import type { TaskStatus } from '$lib/domain/tasks/types.js';
 
-  type StatusChip = 'all' | TaskStatus;
+type StatusChip = 'all' | TaskStatus;
 
-  interface Props {
-    statusChip: StatusChip;
-    searchText: string;
-    onStatusChange: (chip: StatusChip) => void;
-    onSearchChange: (text: string) => void;
-  }
+interface Props {
+  statusChip: StatusChip;
+  searchText: string;
+  onStatusChange: (chip: StatusChip) => void;
+  onSearchChange: (text: string) => void;
+}
 
-  let { statusChip, searchText, onStatusChange, onSearchChange }: Props = $props();
+let { statusChip, searchText, onStatusChange, onSearchChange }: Props = $props();
 
-  const STATUS_CHIPS: { value: StatusChip; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'todo', label: 'Todo' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'done', label: 'Done' },
-    { value: 'cancelled', label: 'Cancelled' },
-  ];
+const STATUS_CHIPS: { value: StatusChip; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'todo', label: 'Todo' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'done', label: 'Done' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 </script>
 
 <div class="tl-filters" role="search" aria-label="Filter tasks">

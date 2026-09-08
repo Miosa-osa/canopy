@@ -1,57 +1,50 @@
 <script lang="ts">
-  /**
-   * FilesWorkspacePicker — left-pane workspace list for the /files project
-   * explorer. CSS prefix: fwp- (Files Workspace Picker).
-   *
-   * Lists every workspace from `workspacesQuery()`, highlights the active one,
-   * and routes to /workspaces?new=true for the "+ New workspace" CTA. Calls
-   * `activeWorkspace.setActive(slug)` on click — also mirrors to
-   * `ui.setCurrentWorkspace` for legacy components that still read `ui`.
-   *
-   * LOC target: ≤ 200.
-   */
-  import {
-    type CreateQueryOptions,
-    createQuery,
-  } from "@tanstack/svelte-query";
-  import { FolderOpen, Plus } from "lucide-svelte";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import { goto } from "$app/navigation";
+/**
+ * FilesWorkspacePicker — left-pane workspace list for the /files project
+ * explorer. CSS prefix: fwp- (Files Workspace Picker).
+ *
+ * Lists every workspace from `workspacesQuery()`, highlights the active one,
+ * and routes to /workspaces?new=true for the "+ New workspace" CTA. Calls
+ * `activeWorkspace.setActive(slug)` on click — also mirrors to
+ * `ui.setCurrentWorkspace` for legacy components that still read `ui`.
+ *
+ * LOC target: ≤ 200.
+ */
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { FolderOpen, Plus } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
 
-  import { workspacesQuery } from "$lib/api/queries/workspaces.js";
-  import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
-  import type { Workspace } from "$lib/domain/workspaces/types.js";
-  import { activeWorkspace } from "$lib/stores/active-workspace.svelte.js";
-  import { ui } from "$lib/stores/ui.svelte.js";
+import { workspacesQuery } from '$lib/api/queries/workspaces.js';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Workspace } from '$lib/domain/workspaces/types.js';
+import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
+import { ui } from '$lib/stores/ui.svelte.js';
 
-  // ── Workspace list query ───────────────────────────────────────────────────
-  const optsStore = writable(
-    untrack(
-      () => workspacesQuery() as CreateQueryOptions<Workspace[]>,
-    ),
-  );
-  const workspacesQ = createQuery<Workspace[]>(optsStore);
-  const workspaces = $derived(($workspacesQ.data ?? []) as Workspace[]);
+// ── Workspace list query ───────────────────────────────────────────────────
+const optsStore = writable(untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>));
+const workspacesQ = createQuery<Workspace[]>(optsStore);
+const workspaces = $derived(($workspacesQ.data ?? []) as Workspace[]);
 
-  // Sync the pool into the activeWorkspace store on every fresh fetch so
-  // `setActive()` can validate the slug.
-  $effect(() => {
-    if (workspaces.length > 0) activeWorkspace.syncPool(workspaces);
-  });
+// Sync the pool into the activeWorkspace store on every fresh fetch so
+// `setActive()` can validate the slug.
+$effect(() => {
+  if (workspaces.length > 0) activeWorkspace.syncPool(workspaces);
+});
 
-  const activeSlug = $derived(activeWorkspace.slug);
+const activeSlug = $derived(activeWorkspace.slug);
 
-  function pickWorkspace(slug: string): void {
-    if (activeWorkspace.setActive(slug)) {
-      // Mirror to legacy ui store (WorkspaceSwitcher, file uploader, etc.).
-      ui.setCurrentWorkspace(slug);
-    }
+function pickWorkspace(slug: string): void {
+  if (activeWorkspace.setActive(slug)) {
+    // Mirror to legacy ui store (WorkspaceSwitcher, file uploader, etc.).
+    ui.setCurrentWorkspace(slug);
   }
+}
 
-  function newWorkspace(): void {
-    goto("/workspaces?new=true");
-  }
+function newWorkspace(): void {
+  goto('/workspaces?new=true');
+}
 </script>
 
 <aside class="fwp" aria-label="Workspaces">

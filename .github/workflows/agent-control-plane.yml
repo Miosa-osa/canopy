@@ -1,0 +1,25 @@
+name: Agent control plane
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent-control-plane-integrity:
+    name: agent-control-plane-integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate authority graph
+        run: python3 scripts/agent_control_plane.py
+      - name: Adversarial authority regressions
+        run: python3 -m unittest discover -s scripts/tests -p 'test_agent_control_plane.py'

@@ -5,12 +5,7 @@
  */
 
 /** Valid issue statuses — linear-style developer workflow. */
-export type IssueStatus =
-  | "backlog"
-  | "open"
-  | "in_progress"
-  | "in_review"
-  | "closed";
+export type IssueStatus = 'backlog' | 'open' | 'in_progress' | 'in_review' | 'closed';
 
 /**
  * Priority level 0–3.
@@ -19,7 +14,7 @@ export type IssueStatus =
 export type IssuePriority = 0 | 1 | 2 | 3;
 
 /** Assignee type. */
-export type IssueAssigneeType = "agent" | "human";
+export type IssueAssigneeType = 'agent' | 'human';
 
 /** Label — optional colour for rendering chips. */
 export interface IssueLabel {

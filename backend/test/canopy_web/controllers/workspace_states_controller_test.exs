@@ -61,6 +61,7 @@ defmodule CanopyWeb.WorkspaceStatesControllerTest do
       {:ok, _} = States.put(ws.slug, "mosaic.layout", %{"split" => "vertical"})
 
       conn = get(conn, ~p"/api/v1/workspaces/#{ws.slug}/state/mosaic.layout")
+
       assert %{"key" => "mosaic.layout", "value" => %{"split" => "vertical"}} =
                json_response(conn, 200)
     end

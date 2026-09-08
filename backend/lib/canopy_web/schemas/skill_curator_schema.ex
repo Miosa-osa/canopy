@@ -6,6 +6,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule LockfileEntry do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -29,6 +30,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule LockfileList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -40,6 +42,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule LockfileCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -58,6 +61,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule SkillVersion do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -77,6 +81,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule VersionList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -89,6 +94,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule VersionDiff do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -103,6 +109,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule Verification do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -117,6 +124,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule VerifyRequest do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -129,6 +137,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule UnverifiedList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -141,6 +150,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule RegistrySource do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -155,6 +165,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule RegistrySources do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -166,6 +177,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule RegistrySourceCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -180,6 +192,7 @@ defmodule CanopyWeb.Schemas.SkillCuratorSchema do
   defmodule RefreshResult do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{

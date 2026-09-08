@@ -1,143 +1,166 @@
 <script lang="ts">
-  /**
-   * /goals — Goal list with status filter tabs and card grid.
-   * Fetches GET /api/v1/goals — shows defensive banner on 404.
-   * New Goal opens inline modal.
-   * CSS prefix: gl- (goals list)
-   */
-  import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
-  import { goto } from "$app/navigation";
-  import { writable } from "svelte/store";
-  import { untrack } from "svelte";
-  import { Target, Plus, X } from "lucide-svelte";
-  import {
-    goalsQuery,
-    createGoalMutation,
-  } from "$lib/api/queries/goals.js";
-  import EmptyState from "$lib/design/patterns/EmptyState.svelte";
-  import type { Goal, GoalStatus, GoalPriority } from "$lib/domain/goals/types.js";
-  import type { CreateGoalBody } from "$lib/domain/goals/types.js";
+/**
+ * /goals — Goal list with status filter tabs and card grid.
+ * Fetches GET /api/v1/goals — shows defensive banner on 404.
+ * New Goal opens inline modal.
+ * CSS prefix: gl- (goals list)
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Plus, Target, X } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { createGoalMutation, goalsQuery } from '$lib/api/queries/goals.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import type { CreateGoalBody, Goal, GoalPriority, GoalStatus } from '$lib/domain/goals/types.js';
 
-  // ── Query ──────────────────────────────────────────────────────────────────
+// ── Query ──────────────────────────────────────────────────────────────────
 
-  const queryClient = useQueryClient();
-  const optsStore = writable(untrack(() => goalsQuery()));
-  const goalsQ = createQuery<Goal[]>(optsStore);
-  const goals = $derived(($goalsQ.data ?? []) as Goal[]);
+const queryClient = useQueryClient();
+const optsStore = writable(untrack(() => goalsQuery()));
+const goalsQ = createQuery<Goal[]>(optsStore);
+const goals = $derived(($goalsQ.data ?? []) as Goal[]);
 
-  const backendUnavailable = $derived(
-    $goalsQ.isError &&
-      String(($goalsQ.error as Error)?.message ?? "").includes("404"),
-  );
+const backendUnavailable = $derived(
+  $goalsQ.isError && String(($goalsQ.error as Error)?.message ?? '').includes('404')
+);
 
-  // ── Seed data (shown when backend unavailable) ─────────────────────────────
+// ── Seed data (shown when backend unavailable) ─────────────────────────────
 
-  const SEED_GOALS: Goal[] = [
-    {
-      id: "seed-1", shortId: "G-001", workspaceSlug: null,
-      title: "Ship Canopy v1.0", description: "Full public release with all core modules functional.",
-      successCriteria: null, status: "active", priority: "critical",
-      progress: 65, ownerType: null, ownerId: null,
-      targetDate: "2026-06-30", achievedAt: null, cancelledAt: null,
-      insertedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: "seed-2", shortId: "G-002", workspaceSlug: null,
-      title: "100% test coverage on core modules", description: "Achieve full coverage across agent, session, and drive modules.",
-      successCriteria: null, status: "active", priority: "high",
-      progress: 42, ownerType: null, ownerId: null,
-      targetDate: "2026-07-15", achievedAt: null, cancelledAt: null,
-      insertedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: "seed-3", shortId: "G-003", workspaceSlug: null,
-      title: "Onboard 5 team members", description: "Get the full engineering team productive in the workspace.",
-      successCriteria: null, status: "active", priority: "medium",
-      progress: 80, ownerType: null, ownerId: null,
-      targetDate: "2026-05-31", achievedAt: null, cancelledAt: null,
-      insertedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-  ];
+const SEED_GOALS: Goal[] = [
+  {
+    id: 'seed-1',
+    shortId: 'G-001',
+    workspaceSlug: null,
+    title: 'Ship Canopy v1.0',
+    description: 'Full public release with all core modules functional.',
+    successCriteria: null,
+    status: 'active',
+    priority: 'critical',
+    progress: 65,
+    ownerType: null,
+    ownerId: null,
+    targetDate: '2026-06-30',
+    achievedAt: null,
+    cancelledAt: null,
+    insertedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'seed-2',
+    shortId: 'G-002',
+    workspaceSlug: null,
+    title: '100% test coverage on core modules',
+    description: 'Achieve full coverage across agent, session, and drive modules.',
+    successCriteria: null,
+    status: 'active',
+    priority: 'high',
+    progress: 42,
+    ownerType: null,
+    ownerId: null,
+    targetDate: '2026-07-15',
+    achievedAt: null,
+    cancelledAt: null,
+    insertedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'seed-3',
+    shortId: 'G-003',
+    workspaceSlug: null,
+    title: 'Onboard 5 team members',
+    description: 'Get the full engineering team productive in the workspace.',
+    successCriteria: null,
+    status: 'active',
+    priority: 'medium',
+    progress: 80,
+    ownerType: null,
+    ownerId: null,
+    targetDate: '2026-05-31',
+    achievedAt: null,
+    cancelledAt: null,
+    insertedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
-  // ── Status filter ──────────────────────────────────────────────────────────
+// ── Status filter ──────────────────────────────────────────────────────────
 
-  type FilterTab = "all" | GoalStatus;
-  let activeFilter = $state<FilterTab>("all");
+type FilterTab = 'all' | GoalStatus;
+let activeFilter = $state<FilterTab>('all');
 
-  const STATUS_TABS: { value: FilterTab; label: string }[] = [
-    { value: "all", label: "All" },
-    { value: "proposed", label: "Proposed" },
-    { value: "active", label: "Active" },
-    { value: "blocked", label: "Blocked" },
-    { value: "achieved", label: "Achieved" },
-  ];
+const STATUS_TABS: { value: FilterTab; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'proposed', label: 'Proposed' },
+  { value: 'active', label: 'Active' },
+  { value: 'blocked', label: 'Blocked' },
+  { value: 'achieved', label: 'Achieved' },
+];
 
-  const displayGoals = $derived(backendUnavailable ? SEED_GOALS : goals);
+const displayGoals = $derived(backendUnavailable ? SEED_GOALS : goals);
 
-  const filtered = $derived(
-    activeFilter === "all"
-      ? displayGoals
-      : displayGoals.filter((g) => g.status === activeFilter),
-  );
+const filtered = $derived(
+  activeFilter === 'all' ? displayGoals : displayGoals.filter((g) => g.status === activeFilter)
+);
 
-  // ── Priority helpers ───────────────────────────────────────────────────────
+// ── Priority helpers ───────────────────────────────────────────────────────
 
-  const PRIORITY_DOT: Record<GoalPriority, string> = {
-    low: "var(--fg-subtle)",
-    medium: "var(--fg-muted)",
-    high: "var(--cnp-accent, var(--fg))",
-    critical: "#ef4444",
-  };
+const PRIORITY_DOT: Record<GoalPriority, string> = {
+  low: 'var(--fg-subtle)',
+  medium: 'var(--fg-muted)',
+  high: 'var(--cnp-accent, var(--fg))',
+  critical: '#ef4444',
+};
 
-  function priorityLabel(p: GoalPriority): string {
-    // Guard: p may be null/undefined at runtime if the API returns unexpected data.
-    if (typeof p !== 'string' || p.length === 0) return '?';
-    return p.charAt(0).toUpperCase() + p.slice(1);
+function priorityLabel(p: GoalPriority): string {
+  // Guard: p may be null/undefined at runtime if the API returns unexpected data.
+  if (typeof p !== 'string' || p.length === 0) return '?';
+  return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
+function progressArc(pct: number): string {
+  const r = 14;
+  const circ = 2 * Math.PI * r;
+  const dash = (pct / 100) * circ;
+  return `stroke-dasharray: ${dash} ${circ}`;
+}
+
+// ── New Goal modal ─────────────────────────────────────────────────────────
+
+let modalOpen = $state(false);
+let draft = $state<CreateGoalBody>({
+  title: '',
+  description: '',
+  priority: 'medium',
+  targetDate: '',
+});
+let createError = $state<string | null>(null);
+
+const createMut = createMutation(createGoalMutation());
+
+async function submitGoal() {
+  if (!draft.title.trim()) return;
+  createError = null;
+  try {
+    const body: CreateGoalBody = {
+      title: draft.title.trim(),
+      priority: draft.priority,
+    };
+    if (draft.description?.trim()) body.description = draft.description.trim();
+    if (draft.targetDate?.trim()) body.targetDate = draft.targetDate.trim();
+    await $createMut.mutateAsync(body);
+    await queryClient.invalidateQueries({ queryKey: ['goals'] });
+    modalOpen = false;
+    draft = { title: '', description: '', priority: 'medium', targetDate: '' };
+  } catch (err) {
+    createError = err instanceof Error ? err.message : 'Failed to create goal';
   }
+}
 
-  function progressArc(pct: number): string {
-    const r = 14;
-    const circ = 2 * Math.PI * r;
-    const dash = (pct / 100) * circ;
-    return `stroke-dasharray: ${dash} ${circ}`;
-  }
-
-  // ── New Goal modal ─────────────────────────────────────────────────────────
-
-  let modalOpen = $state(false);
-  let draft = $state<CreateGoalBody>({
-    title: "",
-    description: "",
-    priority: "medium",
-    targetDate: "",
-  });
-  let createError = $state<string | null>(null);
-
-  const createMut = createMutation(createGoalMutation());
-
-  async function submitGoal() {
-    if (!draft.title.trim()) return;
-    createError = null;
-    try {
-      const body: CreateGoalBody = {
-        title: draft.title.trim(),
-        priority: draft.priority,
-      };
-      if (draft.description?.trim()) body.description = draft.description.trim();
-      if (draft.targetDate?.trim()) body.targetDate = draft.targetDate.trim();
-      await $createMut.mutateAsync(body);
-      await queryClient.invalidateQueries({ queryKey: ["goals"] });
-      modalOpen = false;
-      draft = { title: "", description: "", priority: "medium", targetDate: "" };
-    } catch (err) {
-      createError = err instanceof Error ? err.message : "Failed to create goal";
-    }
-  }
-
-  function openModal() {
-    createError = null;
-    modalOpen = true;
-  }
+function openModal() {
+  createError = null;
+  modalOpen = true;
+}
 </script>
 
 <div class="gl-page">

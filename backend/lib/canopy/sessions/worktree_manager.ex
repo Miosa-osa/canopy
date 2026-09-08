@@ -97,7 +97,13 @@ defmodule Canopy.Sessions.WorktreeManager do
           {0, 0}
         end
 
-      %{base | has_changes: changes_count > 0, changes_count: changes_count, ahead: ahead, behind: behind}
+      %{
+        base
+        | has_changes: changes_count > 0,
+          changes_count: changes_count,
+          ahead: ahead,
+          behind: behind
+      }
     else
       base
     end
@@ -260,7 +266,9 @@ defmodule Canopy.Sessions.WorktreeManager do
 
   @spec apply_patch_reverse(String.t(), String.t()) :: :ok | {:error, term()}
   defp apply_patch_reverse(worktree_dir, patch) do
-    tmp = Path.join(System.tmp_dir!(), "canopy-discard-#{System.unique_integer([:positive])}.patch")
+    tmp =
+      Path.join(System.tmp_dir!(), "canopy-discard-#{System.unique_integer([:positive])}.patch")
+
     File.write!(tmp, patch)
 
     try do
@@ -415,7 +423,9 @@ defmodule Canopy.Sessions.WorktreeManager do
   Lists all registered Canopy worktrees (admin/debug).
   Scans the worktree base dir and reports existence + branch per session_id dir.
   """
-  @spec list_all() :: [%{session_id: String.t(), path: String.t(), branch: String.t() | nil, exists: boolean()}]
+  @spec list_all() :: [
+          %{session_id: String.t(), path: String.t(), branch: String.t() | nil, exists: boolean()}
+        ]
   def list_all do
     base = worktree_base()
 

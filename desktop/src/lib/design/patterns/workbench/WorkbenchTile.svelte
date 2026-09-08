@@ -1,333 +1,365 @@
 <script lang="ts">
-  import {
-    Bot,
-    Braces,
-    FileText,
-    GitPullRequest,
-    GripHorizontal,
-    Maximize2,
-    Minimize2,
-    Network,
-    Terminal,
-    X,
-  } from 'lucide-svelte';
-  import { goto } from '$app/navigation';
-  import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
-  import AgentConversationPane from '$lib/design/patterns/mosaic/panes/AgentConversationPane.svelte';
-  import ChangesPanel from '$lib/design/patterns/diff/ChangesPanel.svelte';
-  import GitChangesPanel from '$lib/design/patterns/review/GitChangesPanel.svelte';
-  import WorkbenchModuleRenderer from './WorkbenchModuleRenderer.svelte';
-  import FileTree from '$lib/design/foundation/file-tree/FileTree.svelte';
-  import { createSession } from '$lib/api/queries/sessions.js';
+import {
+  Bot,
+  Braces,
+  FileText,
+  GitPullRequest,
+  GripHorizontal,
+  Maximize2,
+  Minimize2,
+  Network,
+  Terminal,
+  X,
+} from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import { createSession } from '$lib/api/queries/sessions.js';
+import FileTree from '$lib/design/foundation/file-tree/FileTree.svelte';
+import ChangesPanel from '$lib/design/patterns/diff/ChangesPanel.svelte';
+import AgentConversationPane from '$lib/design/patterns/mosaic/panes/AgentConversationPane.svelte';
+import GitChangesPanel from '$lib/design/patterns/review/GitChangesPanel.svelte';
+import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
+import WorkbenchModuleRenderer from './WorkbenchModuleRenderer.svelte';
 
-  export type WorkbenchTileKind =
-    | 'terminal'
-    | 'agent'
-    | 'git'
-    | 'files'
-    | 'mission'
-    | 'tmux'
-    | 'module';
+export type WorkbenchTileKind =
+  | 'terminal'
+  | 'agent'
+  | 'git'
+  | 'files'
+  | 'mission'
+  | 'tmux'
+  | 'module';
 
-  export interface WorkbenchTileModel {
-    id: string;
-    kind: WorkbenchTileKind;
-    title: string;
-    subtitle: string;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    z?: number;
-    restore?: { x: number; y: number; w: number; h: number };
-    sessionId?: string;
-    error?: string;
-    route?: string;
-    panes?: WorkbenchPaneModel[];
+export interface WorkbenchTileModel {
+  id: string;
+  kind: WorkbenchTileKind;
+  title: string;
+  subtitle: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z?: number;
+  restore?: { x: number; y: number; w: number; h: number };
+  sessionId?: string;
+  error?: string;
+  route?: string;
+  panes?: WorkbenchPaneModel[];
+}
+
+export type WorkbenchPaneKind = 'terminal' | 'agent' | 'git' | 'files';
+
+export interface WorkbenchPaneModel {
+  id: string;
+  kind: WorkbenchPaneKind;
+  title: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  sessionId?: string;
+  error?: string;
+}
+
+interface Props {
+  tile: WorkbenchTileModel;
+  selected: boolean;
+  scale: number;
+  workspaceSlug: string;
+  rootPath: string;
+  runtimeType: string;
+  linkedSessionId: string | null;
+  onSelect: (id: string) => void;
+  onMove: (id: string, x: number, y: number) => void;
+  onResize: (id: string, x: number, y: number, w: number, h: number) => void;
+  onRemove: (id: string) => void;
+  onToggleMaximize: (id: string) => void;
+  onPatch: (id: string, patch: Partial<WorkbenchTileModel>) => void;
+  onAddTile: (kind: WorkbenchTileKind, patch?: Partial<WorkbenchTileModel>) => void;
+}
+
+let {
+  tile,
+  selected,
+  scale,
+  workspaceSlug,
+  rootPath,
+  runtimeType,
+  linkedSessionId,
+  onSelect,
+  onMove,
+  onResize,
+  onRemove,
+  onToggleMaximize,
+  onPatch,
+  onAddTile,
+}: Props = $props();
+
+let dragStart = $state<{ px: number; py: number; x: number; y: number } | null>(null);
+let resizeStart = $state<{
+  px: number;
+  py: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  direction: ResizeDirection;
+} | null>(null);
+let starting = $state(false);
+let startingPaneId = $state('');
+let paneDragStart = $state<{ id: string; px: number; py: number; x: number; y: number } | null>(
+  null
+);
+let paneResizeStart = $state<{ id: string; px: number; py: number; w: number; h: number } | null>(
+  null
+);
+type ResizeDirection = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
+function iconFor(kind: WorkbenchTileKind): typeof Terminal {
+  if (kind === 'agent') return Bot;
+  if (kind === 'git') return GitPullRequest;
+  if (kind === 'files') return FileText;
+  if (kind === 'mission') return Network;
+  if (kind === 'tmux') return Braces;
+  if (kind === 'module') return Braces;
+  return Terminal;
+}
+
+function beginDrag(event: PointerEvent): void {
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  dragStart = { px: event.clientX, py: event.clientY, x: tile.x, y: tile.y };
+  onSelect(tile.id);
+}
+
+function moveDrag(event: PointerEvent): void {
+  if (!dragStart) return;
+  const dx = (event.clientX - dragStart.px) / scale;
+  const dy = (event.clientY - dragStart.py) / scale;
+  onMove(tile.id, Math.round(dragStart.x + dx), Math.round(dragStart.y + dy));
+}
+
+function endDrag(event: PointerEvent): void {
+  if (!dragStart) return;
+  try {
+    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+  } catch {
+    // Pointer may have ended on window after a fast drag.
   }
+  dragStart = null;
+}
 
-  export type WorkbenchPaneKind = 'terminal' | 'agent' | 'git' | 'files';
+function beginResize(event: PointerEvent, direction: ResizeDirection): void {
+  event.preventDefault();
+  event.stopPropagation();
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  resizeStart = {
+    px: event.clientX,
+    py: event.clientY,
+    x: tile.x,
+    y: tile.y,
+    w: tile.w,
+    h: tile.h,
+    direction,
+  };
+  onSelect(tile.id);
+}
 
-  export interface WorkbenchPaneModel {
-    id: string;
-    kind: WorkbenchPaneKind;
-    title: string;
-    x?: number;
-    y?: number;
-    w?: number;
-    h?: number;
-    sessionId?: string;
-    error?: string;
+function moveResize(event: PointerEvent): void {
+  if (!resizeStart) return;
+  const dw = (event.clientX - resizeStart.px) / scale;
+  const dh = (event.clientY - resizeStart.py) / scale;
+  const minW = 260;
+  const minH = 180;
+  let nextX = resizeStart.x;
+  let nextY = resizeStart.y;
+  let nextW = resizeStart.w;
+  let nextH = resizeStart.h;
+  if (resizeStart.direction.includes('e')) nextW = Math.max(minW, resizeStart.w + dw);
+  if (resizeStart.direction.includes('s')) nextH = Math.max(minH, resizeStart.h + dh);
+  if (resizeStart.direction.includes('w')) {
+    nextW = Math.max(minW, resizeStart.w - dw);
+    nextX = resizeStart.x + (resizeStart.w - nextW);
   }
-
-  interface Props {
-    tile: WorkbenchTileModel;
-    selected: boolean;
-    scale: number;
-    workspaceSlug: string;
-    rootPath: string;
-    runtimeType: string;
-    linkedSessionId: string | null;
-    onSelect: (id: string) => void;
-    onMove: (id: string, x: number, y: number) => void;
-    onResize: (id: string, x: number, y: number, w: number, h: number) => void;
-    onRemove: (id: string) => void;
-    onToggleMaximize: (id: string) => void;
-    onPatch: (id: string, patch: Partial<WorkbenchTileModel>) => void;
-    onAddTile: (kind: WorkbenchTileKind, patch?: Partial<WorkbenchTileModel>) => void;
+  if (resizeStart.direction.includes('n')) {
+    nextH = Math.max(minH, resizeStart.h - dh);
+    nextY = resizeStart.y + (resizeStart.h - nextH);
   }
+  onResize(tile.id, Math.round(nextX), Math.round(nextY), Math.round(nextW), Math.round(nextH));
+}
 
-  let {
-    tile,
-    selected,
-    scale,
-    workspaceSlug,
-    rootPath,
-    runtimeType,
-    linkedSessionId,
-    onSelect,
-    onMove,
-    onResize,
-    onRemove,
-    onToggleMaximize,
-    onPatch,
-    onAddTile,
-  }: Props = $props();
-
-  let dragStart = $state<{ px: number; py: number; x: number; y: number } | null>(null);
-  let resizeStart = $state<{
-    px: number;
-    py: number;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    direction: ResizeDirection;
-  } | null>(null);
-  let starting = $state(false);
-  let startingPaneId = $state('');
-  let paneDragStart = $state<{ id: string; px: number; py: number; x: number; y: number } | null>(null);
-  let paneResizeStart = $state<{ id: string; px: number; py: number; w: number; h: number } | null>(null);
-  type ResizeDirection = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
-
-  function iconFor(kind: WorkbenchTileKind): typeof Terminal {
-    if (kind === 'agent') return Bot;
-    if (kind === 'git') return GitPullRequest;
-    if (kind === 'files') return FileText;
-    if (kind === 'mission') return Network;
-    if (kind === 'tmux') return Braces;
-    if (kind === 'module') return Braces;
-    return Terminal;
+function endResize(event: PointerEvent): void {
+  if (!resizeStart) return;
+  try {
+    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+  } catch {
+    // Pointer may have ended on window after a fast resize.
   }
+  resizeStart = null;
+}
 
-  function beginDrag(event: PointerEvent): void {
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    dragStart = { px: event.clientX, py: event.clientY, x: tile.x, y: tile.y };
-    onSelect(tile.id);
-  }
+const Icon = $derived(iconFor(tile.kind));
+const effectiveSessionId = $derived(tile.sessionId ?? linkedSessionId);
 
-  function moveDrag(event: PointerEvent): void {
-    if (!dragStart) return;
-    const dx = (event.clientX - dragStart.px) / scale;
-    const dy = (event.clientY - dragStart.py) / scale;
-    onMove(tile.id, Math.round(dragStart.x + dx), Math.round(dragStart.y + dy));
-  }
-
-  function endDrag(event: PointerEvent): void {
-    if (!dragStart) return;
-    try {
-      (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
-    } catch {
-      // Pointer may have ended on window after a fast drag.
-    }
-    dragStart = null;
-  }
-
-  function beginResize(event: PointerEvent, direction: ResizeDirection): void {
-    event.preventDefault();
-    event.stopPropagation();
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    resizeStart = { px: event.clientX, py: event.clientY, x: tile.x, y: tile.y, w: tile.w, h: tile.h, direction };
-    onSelect(tile.id);
-  }
-
-  function moveResize(event: PointerEvent): void {
-    if (!resizeStart) return;
-    const dw = (event.clientX - resizeStart.px) / scale;
-    const dh = (event.clientY - resizeStart.py) / scale;
-    const minW = 260;
-    const minH = 180;
-    let nextX = resizeStart.x;
-    let nextY = resizeStart.y;
-    let nextW = resizeStart.w;
-    let nextH = resizeStart.h;
-    if (resizeStart.direction.includes('e')) nextW = Math.max(minW, resizeStart.w + dw);
-    if (resizeStart.direction.includes('s')) nextH = Math.max(minH, resizeStart.h + dh);
-    if (resizeStart.direction.includes('w')) {
-      nextW = Math.max(minW, resizeStart.w - dw);
-      nextX = resizeStart.x + (resizeStart.w - nextW);
-    }
-    if (resizeStart.direction.includes('n')) {
-      nextH = Math.max(minH, resizeStart.h - dh);
-      nextY = resizeStart.y + (resizeStart.h - nextH);
-    }
-    onResize(tile.id, Math.round(nextX), Math.round(nextY), Math.round(nextW), Math.round(nextH));
-  }
-
-  function endResize(event: PointerEvent): void {
-    if (!resizeStart) return;
-    try {
-      (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
-    } catch {
-      // Pointer may have ended on window after a fast resize.
-    }
-    resizeStart = null;
-  }
-
-  const Icon = $derived(iconFor(tile.kind));
-  const effectiveSessionId = $derived(tile.sessionId ?? linkedSessionId);
-
-  async function startTerminal(): Promise<void> {
-    if (starting || tile.sessionId) return;
-    starting = true;
-    onPatch(tile.id, { error: undefined });
-    try {
-      const session = await createSession({
-        runtimeType,
-        workspaceSlug,
-        cwd: rootPath,
-        prompt: '',
-        kind: 'terminal',
-        interactive: true,
-      });
-      const sessionId = (session as unknown as { sessionId?: string; id?: string }).sessionId
-        ?? (session as unknown as { id?: string }).id;
-      if (!sessionId) throw new Error('Session created without an id');
-      onPatch(tile.id, {
-        sessionId,
-        subtitle: `session ${sessionId.slice(0, 8)}`,
-      });
-    } catch (err) {
-      onPatch(tile.id, {
-        error: err instanceof Error ? err.message : 'Failed to start terminal',
-      });
-    } finally {
-      starting = false;
-    }
-  }
-
-  function openSession(): void {
-    if (tile.sessionId) void goto(`/sessions/${tile.sessionId}`);
-  }
-
-  function addPane(kind: WorkbenchPaneKind): void {
-    const panes = tile.panes ?? [];
-    const index = panes.length;
+async function startTerminal(): Promise<void> {
+  if (starting || tile.sessionId) return;
+  starting = true;
+  onPatch(tile.id, { error: undefined });
+  try {
+    const session = await createSession({
+      runtimeType,
+      workspaceSlug,
+      cwd: rootPath,
+      prompt: '',
+      kind: 'terminal',
+      interactive: true,
+    });
+    const sessionId =
+      (session as unknown as { sessionId?: string; id?: string }).sessionId ??
+      (session as unknown as { id?: string }).id;
+    if (!sessionId) throw new Error('Session created without an id');
     onPatch(tile.id, {
-      panes: [
-        ...panes,
-        {
-          id: `${kind}-${Math.random().toString(36).slice(2, 8)}`,
-          kind,
-          title: kind === 'terminal' ? 'Terminal' : kind === 'agent' ? 'Agent' : kind === 'git' ? 'Git' : 'Files',
-          x: 18 + (index % 3) * 270,
-          y: 52 + Math.floor(index / 3) * 220,
-          w: 250,
-          h: 190,
-        },
-      ],
+      sessionId,
+      subtitle: `session ${sessionId.slice(0, 8)}`,
     });
-  }
-
-  function patchPane(paneId: string, patch: Partial<WorkbenchPaneModel>): void {
+  } catch (err) {
     onPatch(tile.id, {
-      panes: (tile.panes ?? []).map((pane) => pane.id === paneId ? { ...pane, ...patch } : pane),
+      error: err instanceof Error ? err.message : 'Failed to start terminal',
     });
+  } finally {
+    starting = false;
   }
+}
 
-  function removePane(paneId: string): void {
-    onPatch(tile.id, {
-      panes: (tile.panes ?? []).filter((pane) => pane.id !== paneId),
+function openSession(): void {
+  if (tile.sessionId) void goto(`/sessions/${tile.sessionId}`);
+}
+
+function addPane(kind: WorkbenchPaneKind): void {
+  const panes = tile.panes ?? [];
+  const index = panes.length;
+  onPatch(tile.id, {
+    panes: [
+      ...panes,
+      {
+        id: `${kind}-${Math.random().toString(36).slice(2, 8)}`,
+        kind,
+        title:
+          kind === 'terminal'
+            ? 'Terminal'
+            : kind === 'agent'
+              ? 'Agent'
+              : kind === 'git'
+                ? 'Git'
+                : 'Files',
+        x: 18 + (index % 3) * 270,
+        y: 52 + Math.floor(index / 3) * 220,
+        w: 250,
+        h: 190,
+      },
+    ],
+  });
+}
+
+function patchPane(paneId: string, patch: Partial<WorkbenchPaneModel>): void {
+  onPatch(tile.id, {
+    panes: (tile.panes ?? []).map((pane) => (pane.id === paneId ? { ...pane, ...patch } : pane)),
+  });
+}
+
+function removePane(paneId: string): void {
+  onPatch(tile.id, {
+    panes: (tile.panes ?? []).filter((pane) => pane.id !== paneId),
+  });
+}
+
+async function startPaneTerminal(pane: WorkbenchPaneModel): Promise<void> {
+  if (startingPaneId || pane.sessionId) return;
+  startingPaneId = pane.id;
+  patchPane(pane.id, { error: undefined });
+  try {
+    const session = await createSession({
+      runtimeType,
+      workspaceSlug,
+      cwd: rootPath,
+      prompt: '',
+      kind: 'terminal',
+      interactive: true,
     });
+    const sessionId =
+      (session as unknown as { sessionId?: string; id?: string }).sessionId ??
+      (session as unknown as { id?: string }).id;
+    if (!sessionId) throw new Error('Session created without an id');
+    patchPane(pane.id, { sessionId, title: `Terminal ${sessionId.slice(0, 6)}` });
+  } catch (err) {
+    patchPane(pane.id, { error: err instanceof Error ? err.message : 'Failed to start terminal' });
+  } finally {
+    startingPaneId = '';
   }
+}
 
-  async function startPaneTerminal(pane: WorkbenchPaneModel): Promise<void> {
-    if (startingPaneId || pane.sessionId) return;
-    startingPaneId = pane.id;
-    patchPane(pane.id, { error: undefined });
-    try {
-      const session = await createSession({
-        runtimeType,
-        workspaceSlug,
-        cwd: rootPath,
-        prompt: '',
-        kind: 'terminal',
-        interactive: true,
-      });
-      const sessionId = (session as unknown as { sessionId?: string; id?: string }).sessionId
-        ?? (session as unknown as { id?: string }).id;
-      if (!sessionId) throw new Error('Session created without an id');
-      patchPane(pane.id, { sessionId, title: `Terminal ${sessionId.slice(0, 6)}` });
-    } catch (err) {
-      patchPane(pane.id, { error: err instanceof Error ? err.message : 'Failed to start terminal' });
-    } finally {
-      startingPaneId = '';
-    }
+function beginPaneDrag(event: PointerEvent, pane: WorkbenchPaneModel): void {
+  event.stopPropagation();
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  paneDragStart = {
+    id: pane.id,
+    px: event.clientX,
+    py: event.clientY,
+    x: pane.x ?? 0,
+    y: pane.y ?? 0,
+  };
+}
+
+function movePaneDrag(event: PointerEvent): void {
+  if (!paneDragStart) return;
+  const dx = (event.clientX - paneDragStart.px) / scale;
+  const dy = (event.clientY - paneDragStart.py) / scale;
+  patchPane(paneDragStart.id, {
+    x: Math.max(0, Math.round(paneDragStart.x + dx)),
+    y: Math.max(0, Math.round(paneDragStart.y + dy)),
+  });
+}
+
+function endPaneDrag(event: PointerEvent): void {
+  if (!paneDragStart) return;
+  try {
+    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+  } catch {
+    // Pointer may have ended on window after a fast nested pane drag.
   }
+  paneDragStart = null;
+}
 
-  function beginPaneDrag(event: PointerEvent, pane: WorkbenchPaneModel): void {
-    event.stopPropagation();
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    paneDragStart = { id: pane.id, px: event.clientX, py: event.clientY, x: pane.x ?? 0, y: pane.y ?? 0 };
+function beginPaneResize(event: PointerEvent, pane: WorkbenchPaneModel): void {
+  event.preventDefault();
+  event.stopPropagation();
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  paneResizeStart = {
+    id: pane.id,
+    px: event.clientX,
+    py: event.clientY,
+    w: pane.w ?? 250,
+    h: pane.h ?? 190,
+  };
+}
+
+function movePaneResize(event: PointerEvent): void {
+  if (!paneResizeStart) return;
+  const dw = (event.clientX - paneResizeStart.px) / scale;
+  const dh = (event.clientY - paneResizeStart.py) / scale;
+  patchPane(paneResizeStart.id, {
+    w: Math.max(180, Math.round(paneResizeStart.w + dw)),
+    h: Math.max(130, Math.round(paneResizeStart.h + dh)),
+  });
+}
+
+function endPaneResize(event: PointerEvent): void {
+  if (!paneResizeStart) return;
+  try {
+    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+  } catch {
+    // Pointer may have ended on window after a fast nested pane resize.
   }
-
-  function movePaneDrag(event: PointerEvent): void {
-    if (!paneDragStart) return;
-    const dx = (event.clientX - paneDragStart.px) / scale;
-    const dy = (event.clientY - paneDragStart.py) / scale;
-    patchPane(paneDragStart.id, {
-      x: Math.max(0, Math.round(paneDragStart.x + dx)),
-      y: Math.max(0, Math.round(paneDragStart.y + dy)),
-    });
-  }
-
-  function endPaneDrag(event: PointerEvent): void {
-    if (!paneDragStart) return;
-    try {
-      (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
-    } catch {
-      // Pointer may have ended on window after a fast nested pane drag.
-    }
-    paneDragStart = null;
-  }
-
-  function beginPaneResize(event: PointerEvent, pane: WorkbenchPaneModel): void {
-    event.preventDefault();
-    event.stopPropagation();
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-    paneResizeStart = { id: pane.id, px: event.clientX, py: event.clientY, w: pane.w ?? 250, h: pane.h ?? 190 };
-  }
-
-  function movePaneResize(event: PointerEvent): void {
-    if (!paneResizeStart) return;
-    const dw = (event.clientX - paneResizeStart.px) / scale;
-    const dh = (event.clientY - paneResizeStart.py) / scale;
-    patchPane(paneResizeStart.id, {
-      w: Math.max(180, Math.round(paneResizeStart.w + dw)),
-      h: Math.max(130, Math.round(paneResizeStart.h + dh)),
-    });
-  }
-
-  function endPaneResize(event: PointerEvent): void {
-    if (!paneResizeStart) return;
-    try {
-      (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
-    } catch {
-      // Pointer may have ended on window after a fast nested pane resize.
-    }
-    paneResizeStart = null;
-  }
-
+  paneResizeStart = null;
+}
 </script>
 
 <svelte:window

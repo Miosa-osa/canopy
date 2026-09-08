@@ -8,8 +8,8 @@
 import { dndzone } from 'svelte-dnd-action';
 import type { Agent } from '$lib/domain/agents/types.js';
 import type { Session } from '$lib/domain/sessions/types.js';
-import type { AgentLane } from './types.js';
 import AgentControlCard from './AgentControlCard.svelte';
+import type { AgentLane } from './types.js';
 
 interface DndItem {
   id: string; // agent.slug

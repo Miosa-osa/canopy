@@ -1,198 +1,204 @@
 <script lang="ts">
-  /**
-   * HistoryPane — cross-session block history with search + filter.
-   * CSS prefix: hp-
-   * LOC target: ≤ 250.
-   *
-   * Data flow:
-   *   1. On mount: fetch 5 most recent sessions via sessionsQuery (limit=5).
-   *   2. For each session: fetch blocks via listBlocks (limit=50).
-   *   3. Merge all blocks into a single list, sorted by insertedAt desc.
-   *   4. Search + filter applied client-side on the merged list.
-   *   5. Click a result → openPane(agent_conversation, sessionId).
-   */
+/**
+ * HistoryPane — cross-session block history with search + filter.
+ * CSS prefix: hp-
+ * LOC target: ≤ 250.
+ *
+ * Data flow:
+ *   1. On mount: fetch 5 most recent sessions via sessionsQuery (limit=5).
+ *   2. For each session: fetch blocks via listBlocks (limit=50).
+ *   3. Merge all blocks into a single list, sorted by insertedAt desc.
+ *   4. Search + filter applied client-side on the merged list.
+ *   5. Click a result → openPane(agent_conversation, sessionId).
+ */
 
-  import { onMount } from 'svelte';
-  import { mosaicLayout, type Pane } from '$lib/stores/mosaic-layout.svelte.js';
-  import { listSessions } from '$lib/api/queries/sessions.js';
-  import { listBlocks } from '$lib/api/queries/blocks.js';
-  import type { Block, BlockKind } from '$lib/domain/blocks/types.js';
-  import type { Session } from '$lib/domain/sessions/types.js';
+import { onMount } from 'svelte';
+import { listBlocks } from '$lib/api/queries/blocks.js';
+import { listSessions } from '$lib/api/queries/sessions.js';
+import type { Block, BlockKind } from '$lib/domain/blocks/types.js';
+import type { Session } from '$lib/domain/sessions/types.js';
+import { mosaicLayout, type Pane } from '$lib/stores/mosaic-layout.svelte.js';
 
-  interface Props {
-    workspaceSlug?: string;
+interface Props {
+  workspaceSlug?: string;
+}
+
+let { workspaceSlug = 'default' }: Props = $props();
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+type BlockKindFilter = 'all' | BlockKind;
+
+interface EnrichedBlock {
+  block: Block;
+  sessionTitle: string;
+  sessionId: string;
+}
+
+let allBlocks = $state<EnrichedBlock[]>([]);
+let loading = $state(true);
+let error = $state<string | null>(null);
+let rawQuery = $state('');
+let searchQuery = $state('');
+let activeFilter = $state<BlockKindFilter>('all');
+
+// Frecency: clicks per block id, stored in localStorage
+function loadClicks(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem('hp-frecency') ?? '{}');
+  } catch {
+    return {};
   }
-
-  let { workspaceSlug = 'default' }: Props = $props();
-
-  // ── State ────────────────────────────────────────────────────────────────────
-
-  type BlockKindFilter = 'all' | BlockKind;
-
-  interface EnrichedBlock {
-    block: Block;
-    sessionTitle: string;
-    sessionId: string;
+}
+function saveClick(blockId: string): void {
+  const map = loadClicks();
+  map[blockId] = (map[blockId] ?? 0) + 1;
+  try {
+    localStorage.setItem('hp-frecency', JSON.stringify(map));
+  } catch {
+    /* ignore */
   }
+}
 
-  let allBlocks = $state<EnrichedBlock[]>([]);
-  let loading = $state(true);
-  let error = $state<string | null>(null);
-  let rawQuery = $state('');
-  let searchQuery = $state('');
-  let activeFilter = $state<BlockKindFilter>('all');
+// ── Debounce search input ────────────────────────────────────────────────────
 
-  // Frecency: clicks per block id, stored in localStorage
-  function loadClicks(): Record<string, number> {
-    try {
-      return JSON.parse(localStorage.getItem('hp-frecency') ?? '{}');
-    } catch {
-      return {};
-    }
-  }
-  function saveClick(blockId: string): void {
-    const map = loadClicks();
-    map[blockId] = (map[blockId] ?? 0) + 1;
-    try { localStorage.setItem('hp-frecency', JSON.stringify(map)); } catch { /* ignore */ }
-  }
+let debounceTimer: ReturnType<typeof setTimeout>;
+function handleQueryInput(e: Event): void {
+  clearTimeout(debounceTimer);
+  const val = (e.target as HTMLInputElement).value;
+  rawQuery = val;
+  debounceTimer = setTimeout(() => {
+    searchQuery = val.trim().toLowerCase();
+  }, 300);
+}
 
-  // ── Debounce search input ────────────────────────────────────────────────────
+// ── Fetch on mount ───────────────────────────────────────────────────────────
 
-  let debounceTimer: ReturnType<typeof setTimeout>;
-  function handleQueryInput(e: Event): void {
-    clearTimeout(debounceTimer);
-    const val = (e.target as HTMLInputElement).value;
-    rawQuery = val;
-    debounceTimer = setTimeout(() => { searchQuery = val.trim().toLowerCase(); }, 300);
-  }
+onMount(() => {
+  loadHistory();
+});
 
-  // ── Fetch on mount ───────────────────────────────────────────────────────────
-
-  onMount(() => {
-    loadHistory();
-  });
-
-  async function loadHistory(): Promise<void> {
-    loading = true;
-    error = null;
-    try {
-      const sessions: Session[] = await listSessions({ workspaceSlug, limit: 5 });
-      const results = await Promise.allSettled(
-        sessions.map(async (s) => {
-          const list = await listBlocks(s.id, { limit: 50 });
-          return list.data.map((b): EnrichedBlock => ({
+async function loadHistory(): Promise<void> {
+  loading = true;
+  error = null;
+  try {
+    const sessions: Session[] = await listSessions({ workspaceSlug, limit: 5 });
+    const results = await Promise.allSettled(
+      sessions.map(async (s) => {
+        const list = await listBlocks(s.id, { limit: 50 });
+        return list.data.map(
+          (b): EnrichedBlock => ({
             block: b,
             sessionId: s.id,
             sessionTitle: (s as { title?: string }).title || `Session ${s.id.slice(0, 6)}`,
-          }));
-        }),
-      );
-      const merged: EnrichedBlock[] = [];
-      for (const r of results) {
-        if (r.status === 'fulfilled') merged.push(...r.value);
-      }
-      // Sort by insertedAt desc
-      merged.sort((a, b) => b.block.insertedAt.localeCompare(a.block.insertedAt));
-      allBlocks = merged;
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load history';
-    } finally {
-      loading = false;
+          })
+        );
+      })
+    );
+    const merged: EnrichedBlock[] = [];
+    for (const r of results) {
+      if (r.status === 'fulfilled') merged.push(...r.value);
     }
+    // Sort by insertedAt desc
+    merged.sort((a, b) => b.block.insertedAt.localeCompare(a.block.insertedAt));
+    allBlocks = merged;
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Failed to load history';
+  } finally {
+    loading = false;
+  }
+}
+
+// ── Filtered + searched list ─────────────────────────────────────────────────
+
+const filtered = $derived.by<EnrichedBlock[]>(() => {
+  const clicks = loadClicks();
+  let list = allBlocks;
+
+  if (activeFilter !== 'all') {
+    list = list.filter((e) => e.block.kind === activeFilter);
   }
 
-  // ── Filtered + searched list ─────────────────────────────────────────────────
-
-  const filtered = $derived.by<EnrichedBlock[]>(() => {
-    const clicks = loadClicks();
-    let list = allBlocks;
-
-    if (activeFilter !== 'all') {
-      list = list.filter((e) => e.block.kind === activeFilter);
-    }
-
-    if (searchQuery) {
-      list = list.filter((e) => {
-        const text = [
-          e.block.inputText ?? '',
-          e.block.outputText ?? '',
-          e.sessionTitle,
-        ].join(' ').toLowerCase();
-        return text.includes(searchQuery);
-      });
-    }
-
-    // Frecency sort when no explicit search
-    if (!searchQuery) {
-      const now = Date.now();
-      list = [...list].sort((a, b) => {
-        const ca = clicks[a.block.id] ?? 0;
-        const cb = clicks[b.block.id] ?? 0;
-        const ra = now - new Date(a.block.insertedAt).getTime();
-        const rb = now - new Date(b.block.insertedAt).getTime();
-        // frecency = clicks * (1 / age_hours), higher is better
-        const fa = ca / Math.max(ra / 3_600_000, 0.001);
-        const fb = cb / Math.max(rb / 3_600_000, 0.001);
-        return fb - fa;
-      });
-    }
-
-    return list;
-  });
-
-  // ── Actions ──────────────────────────────────────────────────────────────────
-
-  function openSession(sessionId: string): void {
-    const pane: Pane = {
-      id: Math.random().toString(36).slice(2, 9),
-      kind: 'agent_conversation',
-      ref: sessionId,
-      title: 'Session',
-      config: { sessionId },
-    };
-    mosaicLayout.openPane(pane);
+  if (searchQuery) {
+    list = list.filter((e) => {
+      const text = [e.block.inputText ?? '', e.block.outputText ?? '', e.sessionTitle]
+        .join(' ')
+        .toLowerCase();
+      return text.includes(searchQuery);
+    });
   }
 
-  function handleResultClick(entry: EnrichedBlock): void {
-    saveClick(entry.block.id);
-    openSession(entry.sessionId);
+  // Frecency sort when no explicit search
+  if (!searchQuery) {
+    const now = Date.now();
+    list = [...list].sort((a, b) => {
+      const ca = clicks[a.block.id] ?? 0;
+      const cb = clicks[b.block.id] ?? 0;
+      const ra = now - new Date(a.block.insertedAt).getTime();
+      const rb = now - new Date(b.block.insertedAt).getTime();
+      // frecency = clicks * (1 / age_hours), higher is better
+      const fa = ca / Math.max(ra / 3_600_000, 0.001);
+      const fb = cb / Math.max(rb / 3_600_000, 0.001);
+      return fb - fa;
+    });
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  return list;
+});
 
-  function relativeTime(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  }
+// ── Actions ──────────────────────────────────────────────────────────────────
 
-  function blockPreview(block: Block): string {
-    const raw = block.inputText ?? block.outputText ?? '';
-    return raw.length > 120 ? raw.slice(0, 120) + '…' : raw;
-  }
-
-  const KIND_LABELS: Record<BlockKind, string> = {
-    command: 'CMD',
-    agent_message: 'MSG',
-    tool_call: 'TOOL',
-    tool_result: 'RES',
-    approval: 'APPR',
-    diff: 'DIFF',
-    system_event: 'SYS',
-    error: 'ERR',
+function openSession(sessionId: string): void {
+  const pane: Pane = {
+    id: Math.random().toString(36).slice(2, 9),
+    kind: 'agent_conversation',
+    ref: sessionId,
+    title: 'Session',
+    config: { sessionId },
   };
+  mosaicLayout.openPane(pane);
+}
 
-  const FILTERS: Array<{ id: BlockKindFilter; label: string }> = [
-    { id: 'all', label: 'All' },
-    { id: 'command', label: 'Commands' },
-    { id: 'agent_message', label: 'Agent Messages' },
-    { id: 'tool_call', label: 'Tool Calls' },
-    { id: 'error', label: 'Errors' },
-  ];
+function handleResultClick(entry: EnrichedBlock): void {
+  saveClick(entry.block.id);
+  openSession(entry.sessionId);
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function blockPreview(block: Block): string {
+  const raw = block.inputText ?? block.outputText ?? '';
+  return raw.length > 120 ? raw.slice(0, 120) + '…' : raw;
+}
+
+const KIND_LABELS: Record<BlockKind, string> = {
+  command: 'CMD',
+  agent_message: 'MSG',
+  tool_call: 'TOOL',
+  tool_result: 'RES',
+  approval: 'APPR',
+  diff: 'DIFF',
+  system_event: 'SYS',
+  error: 'ERR',
+};
+
+const FILTERS: Array<{ id: BlockKindFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'command', label: 'Commands' },
+  { id: 'agent_message', label: 'Agent Messages' },
+  { id: 'tool_call', label: 'Tool Calls' },
+  { id: 'error', label: 'Errors' },
+];
 </script>
 
 <div class="hp-root">

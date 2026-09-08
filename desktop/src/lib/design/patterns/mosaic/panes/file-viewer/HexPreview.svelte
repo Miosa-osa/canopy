@@ -1,44 +1,45 @@
 <script lang="ts">
-  /**
-   * HexPreview — fallback for binary / unknown files.
-   * CSS prefix: hxp- (Hex Preview).
-   *
-   * Shows offset (8 hex digits), 16 bytes per row in hex, and an ASCII gutter.
-   * Renders only the first HEX_PREVIEW_BYTES (4 KiB) — full disassembly is
-   * out of scope for a preview pane.
-   */
-  import type { FileRecord } from "$lib/domain/files/types.js";
-  import { HEX_PREVIEW_BYTES } from "$lib/domain/file-viewer/types.js";
-  import { formatBytes } from "$lib/api/queries/files.js";
+/**
+ * HexPreview — fallback for binary / unknown files.
+ * CSS prefix: hxp- (Hex Preview).
+ *
+ * Shows offset (8 hex digits), 16 bytes per row in hex, and an ASCII gutter.
+ * Renders only the first HEX_PREVIEW_BYTES (4 KiB) — full disassembly is
+ * out of scope for a preview pane.
+ */
 
-  interface Props {
-    /** File metadata for the header strip. May be null when only addressed by path. */
-    file: FileRecord | null;
-    /** Raw bytes (already capped to HEX_PREVIEW_BYTES upstream). */
-    bytes: Uint8Array | null;
+import { formatBytes } from '$lib/api/queries/files.js';
+import { HEX_PREVIEW_BYTES } from '$lib/domain/file-viewer/types.js';
+import type { FileRecord } from '$lib/domain/files/types.js';
+
+interface Props {
+  /** File metadata for the header strip. May be null when only addressed by path. */
+  file: FileRecord | null;
+  /** Raw bytes (already capped to HEX_PREVIEW_BYTES upstream). */
+  bytes: Uint8Array | null;
+}
+
+let { file, bytes }: Props = $props();
+
+const ROW = 16;
+
+/** Build the hex + ascii rows for rendering. */
+const rows = $derived.by(() => {
+  if (!bytes) return [] as { offset: string; hex: string; ascii: string }[];
+  const out: { offset: string; hex: string; ascii: string }[] = [];
+  for (let i = 0; i < bytes.length; i += ROW) {
+    const slice = bytes.slice(i, i + ROW);
+    const offset = i.toString(16).padStart(8, '0');
+    const hex = Array.from(slice)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join(' ');
+    const ascii = Array.from(slice)
+      .map((b) => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : '.'))
+      .join('');
+    out.push({ offset, hex, ascii });
   }
-
-  let { file, bytes }: Props = $props();
-
-  const ROW = 16;
-
-  /** Build the hex + ascii rows for rendering. */
-  const rows = $derived.by(() => {
-    if (!bytes) return [] as { offset: string; hex: string; ascii: string }[];
-    const out: { offset: string; hex: string; ascii: string }[] = [];
-    for (let i = 0; i < bytes.length; i += ROW) {
-      const slice = bytes.slice(i, i + ROW);
-      const offset = i.toString(16).padStart(8, "0");
-      const hex = Array.from(slice)
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join(" ");
-      const ascii = Array.from(slice)
-        .map((b) => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : "."))
-        .join("");
-      out.push({ offset, hex, ascii });
-    }
-    return out;
-  });
+  return out;
+});
 </script>
 
 <div class="hxp-root" aria-label="Hex preview">

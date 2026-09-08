@@ -1,68 +1,68 @@
 <script lang="ts">
-  /**
-   * ToolCallBlock — kind='tool_call' (and 'tool_result') renderer.
-   *
-   * Shows the tool name + a one-line args summary collapsed by default;
-   * expands to the full JSON payload on click. For `tool_result`, shows
-   * the result content instead of args.
-   *
-   * Thin component — receives the Block prop, owns only local UI state
-   * (open/closed). Args / metadata read from `block.metadata`.
-   *
-   * CSS prefix: tcblk-
-   */
+/**
+ * ToolCallBlock — kind='tool_call' (and 'tool_result') renderer.
+ *
+ * Shows the tool name + a one-line args summary collapsed by default;
+ * expands to the full JSON payload on click. For `tool_result`, shows
+ * the result content instead of args.
+ *
+ * Thin component — receives the Block prop, owns only local UI state
+ * (open/closed). Args / metadata read from `block.metadata`.
+ *
+ * CSS prefix: tcblk-
+ */
 
-  import { ChevronRight } from 'lucide-svelte';
-  import type { Block } from '$lib/domain/blocks/types.js';
+import { ChevronRight } from 'lucide-svelte';
+import type { Block } from '$lib/domain/blocks/types.js';
 
-  interface Props {
-    block: Block;
+interface Props {
+  block: Block;
+}
+
+let { block }: Props = $props();
+let open = $state(false);
+
+/** Strip MCP namespace prefix: mcp__ns__tool_name → tool_name. */
+function cleanToolName(name: string): string {
+  const m = name.match(/^mcp__[^_]+__(.+)$/);
+  return m ? m[1] : name;
+}
+
+const toolName = $derived(
+  typeof block.metadata?.tool_name === 'string'
+    ? cleanToolName(block.metadata.tool_name as string)
+    : block.kind === 'tool_result'
+      ? 'result'
+      : 'tool'
+);
+
+const args = $derived(block.metadata?.args ?? null);
+
+const argsPreview = $derived(buildPreview(args));
+const fullJson = $derived(stringify(args ?? block.metadata ?? {}));
+
+function buildPreview(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value.length > 80 ? `${value.slice(0, 80)}…` : value;
+  try {
+    const json = JSON.stringify(value);
+    return json.length > 80 ? `${json.slice(0, 80)}…` : json;
+  } catch {
+    return '';
   }
+}
 
-  let { block }: Props = $props();
-  let open = $state(false);
-
-  /** Strip MCP namespace prefix: mcp__ns__tool_name → tool_name. */
-  function cleanToolName(name: string): string {
-    const m = name.match(/^mcp__[^_]+__(.+)$/);
-    return m ? m[1] : name;
+function stringify(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
   }
+}
 
-  const toolName = $derived(
-    typeof block.metadata?.tool_name === 'string'
-      ? cleanToolName(block.metadata.tool_name as string)
-      : block.kind === 'tool_result'
-        ? 'result'
-        : 'tool',
-  );
-
-  const args = $derived(block.metadata?.args ?? null);
-
-  const argsPreview = $derived(buildPreview(args));
-  const fullJson = $derived(stringify(args ?? block.metadata ?? {}));
-
-  function buildPreview(value: unknown): string {
-    if (value == null) return '';
-    if (typeof value === 'string') return value.length > 80 ? `${value.slice(0, 80)}…` : value;
-    try {
-      const json = JSON.stringify(value);
-      return json.length > 80 ? `${json.slice(0, 80)}…` : json;
-    } catch {
-      return '';
-    }
-  }
-
-  function stringify(value: unknown): string {
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch {
-      return String(value);
-    }
-  }
-
-  function toggle() {
-    open = !open;
-  }
+function toggle() {
+  open = !open;
+}
 </script>
 
 <div class="tcblk-root">

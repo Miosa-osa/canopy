@@ -1,551 +1,540 @@
 <script lang="ts">
-  /**
-   * TiptapEditor — rich-text editor for Docs.
-   * CSS prefix: te- (TiptapEditor)
-   *
-   * Extensions: StarterKit (minus CodeBlock) + CodeBlockLowlight + Typography
-   *   + Link + Image + Placeholder + Table/TableRow/TableCell/TableHeader
-   *   + Mention (@ trigger for entities) + Mention (/ trigger for slash commands)
-   *
-   * Bubble menu: manual ProseMirror-selection-driven floating toolbar (no external dep).
-   * Slash menu: suggestion plugin wired to "/" char, inlined.
-   */
+/**
+ * TiptapEditor — rich-text editor for Docs.
+ * CSS prefix: te- (TiptapEditor)
+ *
+ * Extensions: StarterKit (minus CodeBlock) + CodeBlockLowlight + Typography
+ *   + Link + Image + Placeholder + Table/TableRow/TableCell/TableHeader
+ *   + Mention (@ trigger for entities) + Mention (/ trigger for slash commands)
+ *
+ * Bubble menu: manual ProseMirror-selection-driven floating toolbar (no external dep).
+ * Slash menu: suggestion plugin wired to "/" char, inlined.
+ */
 
-  import { onMount, onDestroy } from 'svelte';
-  import { Editor } from '@tiptap/core';
-  import StarterKit from '@tiptap/starter-kit';
-  import Typography from '@tiptap/extension-typography';
-  import Link from '@tiptap/extension-link';
-  import Image from '@tiptap/extension-image';
-  import Placeholder from '@tiptap/extension-placeholder';
-  import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
-  import { Mention } from '@tiptap/extension-mention';
-  import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-  import { createLowlight, common } from 'lowlight';
-  import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
-  import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
-  import { workspacesQuery } from '$lib/api/queries/workspaces.js';
-  import { tasksQuery } from '$lib/api/queries/tasks.js';
-  import { channelsQuery } from '$lib/api/queries/channels.js';
-  import type { Agent } from '$lib/domain/agents/types.js';
-  import type { Workspace } from '$lib/domain/workspaces/types.js';
-  import type { Task } from '$lib/domain/tasks/types.js';
-  import type { Channel } from '$lib/domain/channels/types.js';
-  import type { ProseMirrorDoc } from '$lib/domain/docs/types.js';
-  import { buildMentionResults, type MentionItem, type MentionCategory } from '$lib/utils/mention-suggestions.js';
-  import StatusDot from './StatusDot.svelte';
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { Editor } from '@tiptap/core';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import { Mention } from '@tiptap/extension-mention';
+import Placeholder from '@tiptap/extension-placeholder';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import Typography from '@tiptap/extension-typography';
+import StarterKit from '@tiptap/starter-kit';
+import { common, createLowlight } from 'lowlight';
+import { onDestroy, onMount } from 'svelte';
+import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
+import { channelsQuery } from '$lib/api/queries/channels.js';
+import { tasksQuery } from '$lib/api/queries/tasks.js';
+import { workspacesQuery } from '$lib/api/queries/workspaces.js';
+import type { Agent } from '$lib/domain/agents/types.js';
+import type { Channel } from '$lib/domain/channels/types.js';
+import type { ProseMirrorDoc } from '$lib/domain/docs/types.js';
+import type { Task } from '$lib/domain/tasks/types.js';
+import type { Workspace } from '$lib/domain/workspaces/types.js';
+import {
+  buildMentionResults,
+  type MentionCategory,
+  type MentionItem,
+} from '$lib/utils/mention-suggestions.js';
+import StatusDot from './StatusDot.svelte';
 
-  // ── Props ─────────────────────────────────────────────────────────────────────
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-  interface Props {
-    initialJson?: ProseMirrorDoc | null;
-    editable?: boolean;
-    placeholder?: string;
-    onChange?: (json: ProseMirrorDoc, text: string) => void;
-    onSubmit?: () => void;
-  }
+interface Props {
+  initialJson?: ProseMirrorDoc | null;
+  editable?: boolean;
+  placeholder?: string;
+  onChange?: (json: ProseMirrorDoc, text: string) => void;
+  onSubmit?: () => void;
+}
 
-  let {
-    initialJson = null,
-    editable = true,
-    placeholder = 'Write your doc…',
-    onChange,
-    onSubmit,
-  }: Props = $props();
+let {
+  initialJson = null,
+  editable = true,
+  placeholder = 'Write your doc…',
+  onChange,
+  onSubmit,
+}: Props = $props();
 
-  // ── Lowlight ──────────────────────────────────────────────────────────────────
+// ── Lowlight ──────────────────────────────────────────────────────────────────
 
-  const lowlight = createLowlight(common);
+const lowlight = createLowlight(common);
 
-  // ── Data queries ──────────────────────────────────────────────────────────────
+// ── Data queries ──────────────────────────────────────────────────────────────
 
-  const agentsQ = createQuery<Agent[]>(hiredAgentsQuery() as CreateQueryOptions<Agent[]>);
-  const workspacesQ = createQuery<Workspace[]>(workspacesQuery() as CreateQueryOptions<Workspace[]>);
-  const openTasksQ = createQuery<Task[]>(tasksQuery({ status: 'todo' }) as CreateQueryOptions<Task[]>);
-  const inProgressQ = createQuery<Task[]>(tasksQuery({ status: 'in_progress' }) as CreateQueryOptions<Task[]>);
-  const channelsQ = createQuery<Channel[]>(channelsQuery() as CreateQueryOptions<Channel[]>);
+const agentsQ = createQuery<Agent[]>(hiredAgentsQuery() as CreateQueryOptions<Agent[]>);
+const workspacesQ = createQuery<Workspace[]>(workspacesQuery() as CreateQueryOptions<Workspace[]>);
+const openTasksQ = createQuery<Task[]>(
+  tasksQuery({ status: 'todo' }) as CreateQueryOptions<Task[]>
+);
+const inProgressQ = createQuery<Task[]>(
+  tasksQuery({ status: 'in_progress' }) as CreateQueryOptions<Task[]>
+);
+const channelsQ = createQuery<Channel[]>(channelsQuery() as CreateQueryOptions<Channel[]>);
 
-  const allAgents = $derived(($agentsQ.data ?? []) as Agent[]);
-  const allWorkspaces = $derived(($workspacesQ.data ?? []) as Workspace[]);
-  const allTasks = $derived([...($openTasksQ.data ?? []), ...($inProgressQ.data ?? [])] as Task[]);
-  const allChannels = $derived(($channelsQ.data ?? []) as Channel[]);
+const allAgents = $derived(($agentsQ.data ?? []) as Agent[]);
+const allWorkspaces = $derived(($workspacesQ.data ?? []) as Workspace[]);
+const allTasks = $derived([...($openTasksQ.data ?? []), ...($inProgressQ.data ?? [])] as Task[]);
+const allChannels = $derived(($channelsQ.data ?? []) as Channel[]);
 
-  // ── Slash command definitions ──────────────────────────────────────────────────
+// ── Slash command definitions ──────────────────────────────────────────────────
 
-  interface SlashCommand {
-    id: string;
-    label: string;
-    description: string;
-    action: (ed: Editor) => void;
-  }
+interface SlashCommand {
+  id: string;
+  label: string;
+  description: string;
+  action: (ed: Editor) => void;
+}
 
-  const SLASH_COMMANDS: SlashCommand[] = [
-    {
-      id: 'h1',
-      label: 'Heading 1',
-      description: 'Large section heading',
-      action: (ed) => ed.chain().focus().toggleHeading({ level: 1 }).run(),
+const SLASH_COMMANDS: SlashCommand[] = [
+  {
+    id: 'h1',
+    label: 'Heading 1',
+    description: 'Large section heading',
+    action: (ed) => ed.chain().focus().toggleHeading({ level: 1 }).run(),
+  },
+  {
+    id: 'h2',
+    label: 'Heading 2',
+    description: 'Medium section heading',
+    action: (ed) => ed.chain().focus().toggleHeading({ level: 2 }).run(),
+  },
+  {
+    id: 'h3',
+    label: 'Heading 3',
+    description: 'Small section heading',
+    action: (ed) => ed.chain().focus().toggleHeading({ level: 3 }).run(),
+  },
+  {
+    id: 'bullet',
+    label: 'Bullet list',
+    description: 'Unordered list',
+    action: (ed) => ed.chain().focus().toggleBulletList().run(),
+  },
+  {
+    id: 'numbered',
+    label: 'Numbered list',
+    description: 'Ordered list',
+    action: (ed) => ed.chain().focus().toggleOrderedList().run(),
+  },
+  {
+    id: 'code',
+    label: 'Code block',
+    description: 'Syntax-highlighted code',
+    action: (ed) => ed.chain().focus().toggleCodeBlock().run(),
+  },
+  {
+    id: 'quote',
+    label: 'Blockquote',
+    description: 'Indented quote block',
+    action: (ed) => ed.chain().focus().toggleBlockquote().run(),
+  },
+  {
+    id: 'table',
+    label: 'Table',
+    description: 'Insert 3×3 table',
+    action: (ed) => ed.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+  },
+  {
+    id: 'divider',
+    label: 'Divider',
+    description: 'Horizontal rule',
+    action: (ed) => ed.chain().focus().setHorizontalRule().run(),
+  },
+  {
+    id: 'image',
+    label: 'Image from URL',
+    description: 'Embed an image by URL',
+    action: (ed) => {
+      const url = window.prompt('Image URL');
+      if (url) ed.chain().focus().setImage({ src: url }).run();
     },
-    {
-      id: 'h2',
-      label: 'Heading 2',
-      description: 'Medium section heading',
-      action: (ed) => ed.chain().focus().toggleHeading({ level: 2 }).run(),
+  },
+  {
+    id: 'link',
+    label: 'Link',
+    description: 'Add a hyperlink',
+    action: (ed) => {
+      const url = window.prompt('Link URL');
+      if (url) ed.chain().focus().setLink({ href: url }).run();
     },
-    {
-      id: 'h3',
-      label: 'Heading 3',
-      description: 'Small section heading',
-      action: (ed) => ed.chain().focus().toggleHeading({ level: 3 }).run(),
+  },
+];
+
+// ── Mention/slash dropdown state ──────────────────────────────────────────────
+
+// @mention state
+let mentionItems = $state<MentionItem[]>([]);
+let mentionActiveIdx = $state(0);
+let mentionProps = $state<{
+  query: string;
+  command: (props: { id: string; label: string }) => void;
+} | null>(null);
+let mentionX = $state(0);
+let mentionY = $state(0);
+let mentionOpen = $derived(mentionProps !== null && mentionItems.length > 0);
+
+// Slash command state
+let slashItems = $state<SlashCommand[]>([]);
+let slashActiveIdx = $state(0);
+let slashProps = $state<{
+  query: string;
+  command: (props: { id: string; label: string }) => void;
+} | null>(null);
+let slashX = $state(0);
+let slashY = $state(0);
+let slashOpen = $derived(slashProps !== null && slashItems.length > 0);
+
+// ── Bubble menu state ─────────────────────────────────────────────────────────
+
+let bubbleVisible = $state(false);
+let bubbleX = $state(0);
+let bubbleY = $state(0);
+let bubbleFormats = $state({
+  bold: false,
+  italic: false,
+  strike: false,
+  code: false,
+  link: false,
+});
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+
+let editorEl = $state<HTMLDivElement | null>(null);
+let editor = $state<Editor | null>(null);
+
+// ── Suggestion renderer factory ───────────────────────────────────────────────
+
+function positionFromClientRect(rect: DOMRect): { x: number; y: number } {
+  return { x: rect.left, y: rect.bottom + 6 };
+}
+
+function makeMentionRenderer() {
+  return () => ({
+    onStart(props: {
+      query: string;
+      command: (p: { id: string; label: string }) => void;
+      clientRect?: (() => DOMRect | null) | null;
+    }) {
+      const q = props.query ?? '';
+      mentionItems = buildMentionResults(q, allAgents, allWorkspaces, allTasks, allChannels);
+      mentionActiveIdx = 0;
+      mentionProps = { query: q, command: props.command };
+      const rect = props.clientRect?.();
+      if (rect) ({ x: mentionX, y: mentionY } = positionFromClientRect(rect));
     },
-    {
-      id: 'bullet',
-      label: 'Bullet list',
-      description: 'Unordered list',
-      action: (ed) => ed.chain().focus().toggleBulletList().run(),
+    onUpdate(props: {
+      query: string;
+      command: (p: { id: string; label: string }) => void;
+      clientRect?: (() => DOMRect | null) | null;
+    }) {
+      const q = props.query ?? '';
+      mentionItems = buildMentionResults(q, allAgents, allWorkspaces, allTasks, allChannels);
+      mentionActiveIdx = 0;
+      mentionProps = { query: q, command: props.command };
+      const rect = props.clientRect?.();
+      if (rect) ({ x: mentionX, y: mentionY } = positionFromClientRect(rect));
     },
-    {
-      id: 'numbered',
-      label: 'Numbered list',
-      description: 'Ordered list',
-      action: (ed) => ed.chain().focus().toggleOrderedList().run(),
+    onExit() {
+      mentionProps = null;
+      mentionItems = [];
     },
-    {
-      id: 'code',
-      label: 'Code block',
-      description: 'Syntax-highlighted code',
-      action: (ed) => ed.chain().focus().toggleCodeBlock().run(),
-    },
-    {
-      id: 'quote',
-      label: 'Blockquote',
-      description: 'Indented quote block',
-      action: (ed) => ed.chain().focus().toggleBlockquote().run(),
-    },
-    {
-      id: 'table',
-      label: 'Table',
-      description: 'Insert 3×3 table',
-      action: (ed) =>
-        ed
-          .chain()
-          .focus()
-          .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-          .run(),
-    },
-    {
-      id: 'divider',
-      label: 'Divider',
-      description: 'Horizontal rule',
-      action: (ed) => ed.chain().focus().setHorizontalRule().run(),
-    },
-    {
-      id: 'image',
-      label: 'Image from URL',
-      description: 'Embed an image by URL',
-      action: (ed) => {
-        const url = window.prompt('Image URL');
-        if (url) ed.chain().focus().setImage({ src: url }).run();
-      },
-    },
-    {
-      id: 'link',
-      label: 'Link',
-      description: 'Add a hyperlink',
-      action: (ed) => {
-        const url = window.prompt('Link URL');
-        if (url) ed.chain().focus().setLink({ href: url }).run();
-      },
-    },
-  ];
-
-  // ── Mention/slash dropdown state ──────────────────────────────────────────────
-
-  // @mention state
-  let mentionItems = $state<MentionItem[]>([]);
-  let mentionActiveIdx = $state(0);
-  let mentionProps = $state<{
-    query: string;
-    command: (props: { id: string; label: string }) => void;
-  } | null>(null);
-  let mentionX = $state(0);
-  let mentionY = $state(0);
-  let mentionOpen = $derived(mentionProps !== null && mentionItems.length > 0);
-
-  // Slash command state
-  let slashItems = $state<SlashCommand[]>([]);
-  let slashActiveIdx = $state(0);
-  let slashProps = $state<{
-    query: string;
-    command: (props: { id: string; label: string }) => void;
-  } | null>(null);
-  let slashX = $state(0);
-  let slashY = $state(0);
-  let slashOpen = $derived(slashProps !== null && slashItems.length > 0);
-
-  // ── Bubble menu state ─────────────────────────────────────────────────────────
-
-  let bubbleVisible = $state(false);
-  let bubbleX = $state(0);
-  let bubbleY = $state(0);
-  let bubbleFormats = $state({
-    bold: false,
-    italic: false,
-    strike: false,
-    code: false,
-    link: false,
-  });
-
-  // ── DOM refs ──────────────────────────────────────────────────────────────────
-
-  let editorEl = $state<HTMLDivElement | null>(null);
-  let editor = $state<Editor | null>(null);
-
-  // ── Suggestion renderer factory ───────────────────────────────────────────────
-
-  function positionFromClientRect(rect: DOMRect): { x: number; y: number } {
-    return { x: rect.left, y: rect.bottom + 6 };
-  }
-
-  function makeMentionRenderer() {
-    return () => ({
-      onStart(props: {
-        query: string;
-        command: (p: { id: string; label: string }) => void;
-        clientRect?: (() => DOMRect | null) | null;
-      }) {
-        const q = props.query ?? '';
-        mentionItems = buildMentionResults(
-          q,
-          allAgents,
-          allWorkspaces,
-          allTasks,
-          allChannels,
-        );
-        mentionActiveIdx = 0;
-        mentionProps = { query: q, command: props.command };
-        const rect = props.clientRect?.();
-        if (rect) ({ x: mentionX, y: mentionY } = positionFromClientRect(rect));
-      },
-      onUpdate(props: {
-        query: string;
-        command: (p: { id: string; label: string }) => void;
-        clientRect?: (() => DOMRect | null) | null;
-      }) {
-        const q = props.query ?? '';
-        mentionItems = buildMentionResults(
-          q,
-          allAgents,
-          allWorkspaces,
-          allTasks,
-          allChannels,
-        );
-        mentionActiveIdx = 0;
-        mentionProps = { query: q, command: props.command };
-        const rect = props.clientRect?.();
-        if (rect) ({ x: mentionX, y: mentionY } = positionFromClientRect(rect));
-      },
-      onExit() {
-        mentionProps = null;
-        mentionItems = [];
-      },
-      onKeyDown({ event }: { event: KeyboardEvent }): boolean {
-        if (event.key === 'ArrowDown') {
-          mentionActiveIdx = Math.min(mentionActiveIdx + 1, mentionItems.length - 1);
-          return true;
-        }
-        if (event.key === 'ArrowUp') {
-          mentionActiveIdx = Math.max(mentionActiveIdx - 1, 0);
-          return true;
-        }
-        if (event.key === 'Enter') {
-          const item = mentionItems[mentionActiveIdx];
-          if (item && mentionProps) {
-            mentionProps.command({ id: item.slug, label: item.label });
-            mentionProps = null;
-            mentionItems = [];
-          }
-          return true;
-        }
-        if (event.key === 'Escape') {
+    onKeyDown({ event }: { event: KeyboardEvent }): boolean {
+      if (event.key === 'ArrowDown') {
+        mentionActiveIdx = Math.min(mentionActiveIdx + 1, mentionItems.length - 1);
+        return true;
+      }
+      if (event.key === 'ArrowUp') {
+        mentionActiveIdx = Math.max(mentionActiveIdx - 1, 0);
+        return true;
+      }
+      if (event.key === 'Enter') {
+        const item = mentionItems[mentionActiveIdx];
+        if (item && mentionProps) {
+          mentionProps.command({ id: item.slug, label: item.label });
           mentionProps = null;
           mentionItems = [];
-          return true;
         }
-        return false;
-      },
-    });
-  }
+        return true;
+      }
+      if (event.key === 'Escape') {
+        mentionProps = null;
+        mentionItems = [];
+        return true;
+      }
+      return false;
+    },
+  });
+}
 
-  function makeSlashRenderer() {
-    return () => ({
-      onStart(props: {
-        query: string;
-        command: (p: { id: string; label: string }) => void;
-        clientRect?: (() => DOMRect | null) | null;
-      }) {
-        const q = props.query ?? '';
-        slashItems = filterSlashCommands(q);
-        slashActiveIdx = 0;
-        slashProps = { query: q, command: props.command };
-        const rect = props.clientRect?.();
-        if (rect) ({ x: slashX, y: slashY } = positionFromClientRect(rect));
-      },
-      onUpdate(props: {
-        query: string;
-        command: (p: { id: string; label: string }) => void;
-        clientRect?: (() => DOMRect | null) | null;
-      }) {
-        const q = props.query ?? '';
-        slashItems = filterSlashCommands(q);
-        slashActiveIdx = 0;
-        slashProps = { query: q, command: props.command };
-        const rect = props.clientRect?.();
-        if (rect) ({ x: slashX, y: slashY } = positionFromClientRect(rect));
-      },
-      onExit() {
+function makeSlashRenderer() {
+  return () => ({
+    onStart(props: {
+      query: string;
+      command: (p: { id: string; label: string }) => void;
+      clientRect?: (() => DOMRect | null) | null;
+    }) {
+      const q = props.query ?? '';
+      slashItems = filterSlashCommands(q);
+      slashActiveIdx = 0;
+      slashProps = { query: q, command: props.command };
+      const rect = props.clientRect?.();
+      if (rect) ({ x: slashX, y: slashY } = positionFromClientRect(rect));
+    },
+    onUpdate(props: {
+      query: string;
+      command: (p: { id: string; label: string }) => void;
+      clientRect?: (() => DOMRect | null) | null;
+    }) {
+      const q = props.query ?? '';
+      slashItems = filterSlashCommands(q);
+      slashActiveIdx = 0;
+      slashProps = { query: q, command: props.command };
+      const rect = props.clientRect?.();
+      if (rect) ({ x: slashX, y: slashY } = positionFromClientRect(rect));
+    },
+    onExit() {
+      slashProps = null;
+      slashItems = [];
+    },
+    onKeyDown({ event }: { event: KeyboardEvent }): boolean {
+      if (event.key === 'ArrowDown') {
+        slashActiveIdx = Math.min(slashActiveIdx + 1, slashItems.length - 1);
+        return true;
+      }
+      if (event.key === 'ArrowUp') {
+        slashActiveIdx = Math.max(slashActiveIdx - 1, 0);
+        return true;
+      }
+      if (event.key === 'Enter') {
+        execSlash(slashActiveIdx);
+        return true;
+      }
+      if (event.key === 'Escape') {
         slashProps = null;
         slashItems = [];
-      },
-      onKeyDown({ event }: { event: KeyboardEvent }): boolean {
-        if (event.key === 'ArrowDown') {
-          slashActiveIdx = Math.min(slashActiveIdx + 1, slashItems.length - 1);
-          return true;
-        }
-        if (event.key === 'ArrowUp') {
-          slashActiveIdx = Math.max(slashActiveIdx - 1, 0);
-          return true;
-        }
-        if (event.key === 'Enter') {
-          execSlash(slashActiveIdx);
-          return true;
-        }
-        if (event.key === 'Escape') {
-          slashProps = null;
-          slashItems = [];
-          return true;
-        }
-        return false;
-      },
-    });
-  }
-
-  function filterSlashCommands(q: string): SlashCommand[] {
-    if (!q) return SLASH_COMMANDS;
-    const lower = q.toLowerCase();
-    return SLASH_COMMANDS.filter(
-      (c) =>
-        c.label.toLowerCase().includes(lower) ||
-        c.description.toLowerCase().includes(lower),
-    );
-  }
-
-  function execSlash(idx: number): void {
-    const cmd = slashItems[idx];
-    if (!cmd || !slashProps || !editor) return;
-    // Commit the slash node (clears the "/" text) then run the command
-    slashProps.command({ id: cmd.id, label: cmd.label });
-    slashProps = null;
-    slashItems = [];
-    // Run the actual formatting action after the mention node is removed
-    setTimeout(() => {
-      if (!editor) return;
-      // Delete the inserted mention node (slash command acts as a trigger, not a node)
-      editor.chain().focus().deleteSelection().run();
-      cmd.action(editor);
-    }, 0);
-  }
-
-  // ── Bubble menu helpers ───────────────────────────────────────────────────────
-
-  function updateBubble(ed: Editor): void {
-    const { state } = ed;
-    const { selection } = state;
-    const { from, to, empty } = selection;
-
-    if (empty) {
-      bubbleVisible = false;
-      return;
-    }
-
-    bubbleFormats = {
-      bold: ed.isActive('bold'),
-      italic: ed.isActive('italic'),
-      strike: ed.isActive('strike'),
-      code: ed.isActive('code'),
-      link: ed.isActive('link'),
-    };
-
-    // Position bubble above the selection midpoint
-    const view = ed.view;
-    const start = view.coordsAtPos(from);
-    const end = view.coordsAtPos(to);
-    bubbleX = (start.left + end.left) / 2;
-    bubbleY = start.top - 8; // above the selection
-    bubbleVisible = true;
-  }
-
-  // ── Editor init ───────────────────────────────────────────────────────────────
-
-  onMount(() => {
-    if (!editorEl) return;
-
-    editor = new Editor({
-      element: editorEl,
-      editable,
-      content: initialJson ?? undefined,
-      extensions: [
-        StarterKit.configure({
-          codeBlock: false, // replaced by CodeBlockLowlight
-        }),
-        Typography,
-        CodeBlockLowlight.configure({ lowlight }),
-        Placeholder.configure({ placeholder }),
-        Link.configure({
-          openOnClick: false,
-          HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
-        }),
-        Image,
-        Table.configure({ resizable: false }),
-        TableRow,
-        TableCell,
-        TableHeader,
-        // @mention — entity autocomplete
-        Mention.configure({
-          HTMLAttributes: { class: 'te-mention' },
-          suggestion: {
-            char: '@',
-            allowSpaces: false,
-            render: makeMentionRenderer(),
-            items: ({ query }: { query: string }) =>
-              buildMentionResults(query, allAgents, allWorkspaces, allTasks, allChannels).map(
-                (m) => ({ id: m.slug, label: m.label }),
-              ),
-          },
-        }),
-        // Slash commands — reuse Mention extension with "/" trigger
-        Mention.extend({ name: 'slash-command' }).configure({
-          HTMLAttributes: { class: 'te-slash-node' },
-          suggestion: {
-            char: '/',
-            allowSpaces: false,
-            render: makeSlashRenderer(),
-            items: ({ query }: { query: string }) =>
-              filterSlashCommands(query).map((c) => ({ id: c.id, label: c.label })),
-          },
-        }),
-      ],
-      onUpdate: ({ editor: ed }) => {
-        const json = ed.getJSON() as ProseMirrorDoc;
-        const text = ed.getText();
-        onChange?.(json, text);
-      },
-      onSelectionUpdate: ({ editor: ed }) => {
-        updateBubble(ed);
-      },
-      onBlur: () => {
-        bubbleVisible = false;
-      },
-      onTransaction: ({ editor: ed }) => {
-        // Keep bubble in sync on any transaction
-        updateBubble(ed);
-      },
-    });
-
-    // ⌘Enter → onSubmit
-    editorEl.addEventListener('keydown', handleEditorKeydown);
-  });
-
-  onDestroy(() => {
-    editorEl?.removeEventListener('keydown', handleEditorKeydown);
-    editor?.destroy();
-    editor = null;
-  });
-
-  // ── Keyboard: ⌘Enter ──────────────────────────────────────────────────────────
-
-  function handleEditorKeydown(e: KeyboardEvent): void {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      onSubmit?.();
-    }
-    // ⌘K → link dialog
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault();
-      if (!editor) return;
-      const url = window.prompt('Link URL', editor.getAttributes('link').href ?? '');
-      if (url === null) return; // cancelled
-      if (url === '') {
-        editor.chain().focus().unsetLink().run();
-      } else {
-        editor.chain().focus().setLink({ href: url }).run();
+        return true;
       }
-    }
+      return false;
+    },
+  });
+}
+
+function filterSlashCommands(q: string): SlashCommand[] {
+  if (!q) return SLASH_COMMANDS;
+  const lower = q.toLowerCase();
+  return SLASH_COMMANDS.filter(
+    (c) => c.label.toLowerCase().includes(lower) || c.description.toLowerCase().includes(lower)
+  );
+}
+
+function execSlash(idx: number): void {
+  const cmd = slashItems[idx];
+  if (!cmd || !slashProps || !editor) return;
+  // Commit the slash node (clears the "/" text) then run the command
+  slashProps.command({ id: cmd.id, label: cmd.label });
+  slashProps = null;
+  slashItems = [];
+  // Run the actual formatting action after the mention node is removed
+  setTimeout(() => {
+    if (!editor) return;
+    // Delete the inserted mention node (slash command acts as a trigger, not a node)
+    editor.chain().focus().deleteSelection().run();
+    cmd.action(editor);
+  }, 0);
+}
+
+// ── Bubble menu helpers ───────────────────────────────────────────────────────
+
+function updateBubble(ed: Editor): void {
+  const { state } = ed;
+  const { selection } = state;
+  const { from, to, empty } = selection;
+
+  if (empty) {
+    bubbleVisible = false;
+    return;
   }
 
-  // ── Bubble menu actions ────────────────────────────────────────────────────────
+  bubbleFormats = {
+    bold: ed.isActive('bold'),
+    italic: ed.isActive('italic'),
+    strike: ed.isActive('strike'),
+    code: ed.isActive('code'),
+    link: ed.isActive('link'),
+  };
 
-  function bubbleToggle(format: 'bold' | 'italic' | 'strike' | 'code'): void {
-    if (!editor) return;
-    const cmds: Record<string, () => boolean> = {
-      bold: () => editor!.chain().focus().toggleBold().run(),
-      italic: () => editor!.chain().focus().toggleItalic().run(),
-      strike: () => editor!.chain().focus().toggleStrike().run(),
-      code: () => editor!.chain().focus().toggleCode().run(),
-    };
-    cmds[format]?.();
+  // Position bubble above the selection midpoint
+  const view = ed.view;
+  const start = view.coordsAtPos(from);
+  const end = view.coordsAtPos(to);
+  bubbleX = (start.left + end.left) / 2;
+  bubbleY = start.top - 8; // above the selection
+  bubbleVisible = true;
+}
+
+// ── Editor init ───────────────────────────────────────────────────────────────
+
+onMount(() => {
+  if (!editorEl) return;
+
+  editor = new Editor({
+    element: editorEl,
+    editable,
+    content: initialJson ?? undefined,
+    extensions: [
+      StarterKit.configure({
+        codeBlock: false, // replaced by CodeBlockLowlight
+      }),
+      Typography,
+      CodeBlockLowlight.configure({ lowlight }),
+      Placeholder.configure({ placeholder }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
+      }),
+      Image,
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      // @mention — entity autocomplete
+      Mention.configure({
+        HTMLAttributes: { class: 'te-mention' },
+        suggestion: {
+          char: '@',
+          allowSpaces: false,
+          render: makeMentionRenderer(),
+          items: ({ query }: { query: string }) =>
+            buildMentionResults(query, allAgents, allWorkspaces, allTasks, allChannels).map(
+              (m) => ({ id: m.slug, label: m.label })
+            ),
+        },
+      }),
+      // Slash commands — reuse Mention extension with "/" trigger
+      Mention.extend({ name: 'slash-command' }).configure({
+        HTMLAttributes: { class: 'te-slash-node' },
+        suggestion: {
+          char: '/',
+          allowSpaces: false,
+          render: makeSlashRenderer(),
+          items: ({ query }: { query: string }) =>
+            filterSlashCommands(query).map((c) => ({ id: c.id, label: c.label })),
+        },
+      }),
+    ],
+    onUpdate: ({ editor: ed }) => {
+      const json = ed.getJSON() as ProseMirrorDoc;
+      const text = ed.getText();
+      onChange?.(json, text);
+    },
+    onSelectionUpdate: ({ editor: ed }) => {
+      updateBubble(ed);
+    },
+    onBlur: () => {
+      bubbleVisible = false;
+    },
+    onTransaction: ({ editor: ed }) => {
+      // Keep bubble in sync on any transaction
+      updateBubble(ed);
+    },
+  });
+
+  // ⌘Enter → onSubmit
+  editorEl.addEventListener('keydown', handleEditorKeydown);
+});
+
+onDestroy(() => {
+  editorEl?.removeEventListener('keydown', handleEditorKeydown);
+  editor?.destroy();
+  editor = null;
+});
+
+// ── Keyboard: ⌘Enter ──────────────────────────────────────────────────────────
+
+function handleEditorKeydown(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    onSubmit?.();
   }
-
-  function bubbleLink(): void {
+  // ⌘K → link dialog
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
     if (!editor) return;
-    const current = editor.getAttributes('link').href as string | undefined;
-    const url = window.prompt('Link URL', current ?? '');
-    if (url === null) return;
+    const url = window.prompt('Link URL', editor.getAttributes('link').href ?? '');
+    if (url === null) return; // cancelled
     if (url === '') {
       editor.chain().focus().unsetLink().run();
     } else {
       editor.chain().focus().setLink({ href: url }).run();
     }
   }
+}
 
-  function bubbleClearFormatting(): void {
-    editor?.chain().focus().unsetAllMarks().run();
-  }
+// ── Bubble menu actions ────────────────────────────────────────────────────────
 
-  // ── Mention selection (click) ─────────────────────────────────────────────────
-
-  function selectMentionItem(item: MentionItem): void {
-    if (!mentionProps) return;
-    mentionProps.command({ id: item.slug, label: item.label });
-    mentionProps = null;
-    mentionItems = [];
-  }
-
-  // ── Category labels ───────────────────────────────────────────────────────────
-
-  const CATEGORY_LABELS: Record<MentionCategory, string> = {
-    agents: 'Agents',
-    workspaces: 'Workspaces',
-    tasks: 'Tasks',
-    channels: 'Channels',
+function bubbleToggle(format: 'bold' | 'italic' | 'strike' | 'code'): void {
+  if (!editor) return;
+  const cmds: Record<string, () => boolean> = {
+    bold: () => editor!.chain().focus().toggleBold().run(),
+    italic: () => editor!.chain().focus().toggleItalic().run(),
+    strike: () => editor!.chain().focus().toggleStrike().run(),
+    code: () => editor!.chain().focus().toggleCode().run(),
   };
+  cmds[format]?.();
+}
 
-  function taskDotColor(status: Task['status']): 'green' | 'amber' | 'grey' | 'red' {
-    if (status === 'in_progress') return 'green';
-    if (status === 'todo') return 'grey';
-    if (status === 'done') return 'grey';
-    return 'red';
+function bubbleLink(): void {
+  if (!editor) return;
+  const current = editor.getAttributes('link').href as string | undefined;
+  const url = window.prompt('Link URL', current ?? '');
+  if (url === null) return;
+  if (url === '') {
+    editor.chain().focus().unsetLink().run();
+  } else {
+    editor.chain().focus().setLink({ href: url }).run();
   }
+}
 
-  const groupedMentions = $derived.by(() => {
-    const map = new Map<MentionCategory, MentionItem[]>();
-    for (const item of mentionItems) {
-      const bucket = map.get(item.category) ?? [];
-      bucket.push(item);
-      map.set(item.category, bucket);
-    }
-    return map;
-  });
+function bubbleClearFormatting(): void {
+  editor?.chain().focus().unsetAllMarks().run();
+}
+
+// ── Mention selection (click) ─────────────────────────────────────────────────
+
+function selectMentionItem(item: MentionItem): void {
+  if (!mentionProps) return;
+  mentionProps.command({ id: item.slug, label: item.label });
+  mentionProps = null;
+  mentionItems = [];
+}
+
+// ── Category labels ───────────────────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<MentionCategory, string> = {
+  agents: 'Agents',
+  workspaces: 'Workspaces',
+  tasks: 'Tasks',
+  channels: 'Channels',
+};
+
+function taskDotColor(status: Task['status']): 'green' | 'amber' | 'grey' | 'red' {
+  if (status === 'in_progress') return 'green';
+  if (status === 'todo') return 'grey';
+  if (status === 'done') return 'grey';
+  return 'red';
+}
+
+const groupedMentions = $derived.by(() => {
+  const map = new Map<MentionCategory, MentionItem[]>();
+  for (const item of mentionItems) {
+    const bucket = map.get(item.category) ?? [];
+    bucket.push(item);
+    map.set(item.category, bucket);
+  }
+  return map;
+});
 </script>
 
 <!-- ── Editor shell ──────────────────────────────────────────────────────────── -->

@@ -6,21 +6,21 @@
  * CSS prefix: ws- (WorkspaceSwitcher)
  * LOC target: ≤ 250
  */
-import { type CreateQueryOptions, createQuery } from "@tanstack/svelte-query";
-import { ChevronDown } from "lucide-svelte";
-import { untrack } from "svelte";
-import { writable } from "svelte/store";
-import { workspacesQuery } from "$lib/api/queries/workspaces.js";
-import type { Workspace } from "$lib/domain/workspaces/types.js";
-import { activeWorkspace } from "$lib/stores/active-workspace.svelte.js";
-import { ui } from "$lib/stores/ui.svelte.js";
-import { toasts } from "$lib/stores/toasts.svelte.js";
-import NewWorkspaceDialog from "$lib/design/patterns/workspace/NewWorkspaceDialog.svelte";
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { ChevronDown } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { workspacesQuery } from '$lib/api/queries/workspaces.js';
+import NewWorkspaceDialog from '$lib/design/patterns/workspace/NewWorkspaceDialog.svelte';
+import type { Workspace } from '$lib/domain/workspaces/types.js';
+import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import { ui } from '$lib/stores/ui.svelte.js';
 
 // ── TanStack Query (canonical writable+untrack+$effect bridge) ───────────────
 
 const queryOptsStore = writable(
-  untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>),
+  untrack(() => workspacesQuery() as CreateQueryOptions<Workspace[]>)
 );
 const workspacesQ = createQuery<Workspace[]>(queryOptsStore);
 
@@ -29,19 +29,19 @@ const workspaces = $derived(($workspacesQ.data ?? []) as Workspace[]);
 // ── Template emoji map (matches WorkspaceCard.svelte) ────────────────────────
 
 const TEMPLATE_EMOJI: Record<string, string> = {
-  blank: "📄",
-  "sales-engine": "💼",
-  "dev-shop": "⚙️",
-  "content-factory": "🎬",
+  blank: '📄',
+  'sales-engine': '💼',
+  'dev-shop': '⚙️',
+  'content-factory': '🎬',
 };
 
 function emojiFor(ws: Workspace): string {
-  return ws.template ? (TEMPLATE_EMOJI[ws.template] ?? "📁") : "📁";
+  return ws.template ? (TEMPLATE_EMOJI[ws.template] ?? '📁') : '📁';
 }
 
 // ── Local state ───────────────────────────────────────────────────────────────
 
-let searchQuery = $state("");
+let searchQuery = $state('');
 let activeIndex = $state(0);
 let triggerEl = $state<HTMLButtonElement | null>(null);
 let searchEl = $state<HTMLInputElement | null>(null);
@@ -50,23 +50,21 @@ let newDialogOpen = $state(false);
 const isOpen = $derived(ui.workspaceSwitcherOpen);
 
 const filtered = $derived(
-  searchQuery.trim() === ""
+  searchQuery.trim() === ''
     ? workspaces
     : workspaces.filter(
         (w) =>
           w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          w.slug.toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
+          w.slug.toLowerCase().includes(searchQuery.toLowerCase())
+      )
 );
 
 const currentWorkspace = $derived(
-  workspaces.find((w) => w.slug === ui.currentWorkspaceSlug) ?? null,
+  workspaces.find((w) => w.slug === ui.currentWorkspaceSlug) ?? null
 );
 
 const triggerLabel = $derived(
-  currentWorkspace
-    ? `${emojiFor(currentWorkspace)} ${currentWorkspace.name}`
-    : "📁 No workspace",
+  currentWorkspace ? `${emojiFor(currentWorkspace)} ${currentWorkspace.name}` : '📁 No workspace'
 );
 
 // Auto-select the first workspace when none is saved in localStorage.
@@ -93,7 +91,7 @@ $effect(() => {
 // Focus search input when popover opens
 $effect(() => {
   if (isOpen) {
-    searchQuery = "";
+    searchQuery = '';
     // Tick needed to let the popover render before focusing
     setTimeout(() => searchEl?.focus(), 0);
   }
@@ -128,30 +126,30 @@ function closeNewDialog(): void {
 }
 
 function handleTriggerKeydown(e: KeyboardEvent): void {
-  if (e.key === "Enter" || e.key === " ") {
+  if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
     ui.toggleWorkspaceSwitcher();
   }
 }
 
 function handleListKeydown(e: KeyboardEvent): void {
-  if (e.key === "Escape") {
+  if (e.key === 'Escape') {
     e.preventDefault();
     close();
     triggerEl?.focus();
     return;
   }
-  if (e.key === "ArrowDown") {
+  if (e.key === 'ArrowDown') {
     e.preventDefault();
     activeIndex = Math.min(activeIndex + 1, filtered.length - 1);
     return;
   }
-  if (e.key === "ArrowUp") {
+  if (e.key === 'ArrowUp') {
     e.preventDefault();
     activeIndex = Math.max(activeIndex - 1, 0);
     return;
   }
-  if (e.key === "Enter" && filtered[activeIndex]) {
+  if (e.key === 'Enter' && filtered[activeIndex]) {
     e.preventDefault();
     select(filtered[activeIndex]);
   }

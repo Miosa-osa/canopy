@@ -11,14 +11,14 @@
  * NOT a Svelte component — pure TypeScript, safe to import in tests without jsdom.
  */
 
-import type { Agent } from "$lib/domain/agents/types.js";
-import type { Workspace } from "$lib/domain/workspaces/types.js";
-import type { Task } from "$lib/domain/tasks/types.js";
-import type { Channel } from "$lib/domain/channels/types.js";
+import type { Agent } from '$lib/domain/agents/types.js';
+import type { Channel } from '$lib/domain/channels/types.js';
+import type { Task } from '$lib/domain/tasks/types.js';
+import type { Workspace } from '$lib/domain/workspaces/types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type MentionCategory = "agents" | "workspaces" | "tasks" | "channels";
+export type MentionCategory = 'agents' | 'workspaces' | 'tasks' | 'channels';
 
 export interface MentionItem {
   id: string;
@@ -27,7 +27,7 @@ export interface MentionItem {
   sublabel: string;
   category: MentionCategory;
   emoji?: string;
-  taskStatus?: Task["status"];
+  taskStatus?: Task['status'];
 }
 
 // ── Fuzzy scoring ─────────────────────────────────────────────────────────────
@@ -39,8 +39,7 @@ export function fuzzyScore(text: string, q: string): number {
   const lower = q.toLowerCase();
   const words = label.split(/[\s_-]+/);
   if (words.some((w) => w.startsWith(lower))) return 4;
-  if (words.some((w) => w.startsWith(lower.charAt(0)) && label.includes(lower)))
-    return 3;
+  if (words.some((w) => w.startsWith(lower.charAt(0)) && label.includes(lower))) return 3;
   if (label.includes(lower)) return 2;
   if (isSubsequence(lower, label)) return 1;
   return 0;
@@ -58,7 +57,7 @@ export function scoreAndFilter<T>(
   items: T[],
   getKey: (i: T) => string,
   q: string,
-  limit: number,
+  limit: number
 ): Array<{ item: T; score: number }> {
   return items
     .map((item) => ({ item, score: fuzzyScore(getKey(item), q) }))
@@ -74,67 +73,52 @@ export function buildMentionResults(
   allAgents: Agent[],
   allWorkspaces: Workspace[],
   allTasks: Task[],
-  allChannels: Channel[],
+  allChannels: Channel[]
 ): MentionItem[] {
-  const agentItems = scoreAndFilter(
-    allAgents,
-    (a) => `${a.name} ${a.slug}`,
-    q,
-    3,
-  ).map(({ item: a }) => ({
-    id: a.slug,
-    slug: a.slug,
-    label: a.name,
-    sublabel: a.title,
-    category: "agents" as const,
-    emoji: a.emoji,
-  }));
-
-  const wsItems = scoreAndFilter(
-    allWorkspaces,
-    (w) => `${w.name} ${w.slug}`,
-    q,
-    2,
-  ).map(({ item: w }) => ({
-    id: w.slug,
-    slug: w.slug,
-    label: w.name,
-    sublabel: w.slug,
-    category: "workspaces" as const,
-  }));
-
-  const taskItems = scoreAndFilter(
-    allTasks,
-    (t) => `${t.shortId} ${t.title}`,
-    q,
-    3,
-  ).map(({ item: t }) => ({
-    id: t.id,
-    slug: t.shortId.toLowerCase(),
-    label: t.shortId,
-    sublabel: t.title.length > 40 ? t.title.slice(0, 40) + "…" : t.title,
-    category: "tasks" as const,
-    taskStatus: t.status,
-  }));
-
-  const channelItems = scoreAndFilter(
-    allChannels,
-    (c) => `${c.name} ${c.slug}`,
-    q,
-    2,
-  ).map(({ item: c }) => ({
-    id: c.id,
-    slug: c.slug,
-    label: c.name,
-    sublabel: c.slug,
-    category: "channels" as const,
-    emoji: c.icon ?? "#",
-  }));
-
-  return [...agentItems, ...wsItems, ...taskItems, ...channelItems].slice(
-    0,
-    10,
+  const agentItems = scoreAndFilter(allAgents, (a) => `${a.name} ${a.slug}`, q, 3).map(
+    ({ item: a }) => ({
+      id: a.slug,
+      slug: a.slug,
+      label: a.name,
+      sublabel: a.title,
+      category: 'agents' as const,
+      emoji: a.emoji,
+    })
   );
+
+  const wsItems = scoreAndFilter(allWorkspaces, (w) => `${w.name} ${w.slug}`, q, 2).map(
+    ({ item: w }) => ({
+      id: w.slug,
+      slug: w.slug,
+      label: w.name,
+      sublabel: w.slug,
+      category: 'workspaces' as const,
+    })
+  );
+
+  const taskItems = scoreAndFilter(allTasks, (t) => `${t.shortId} ${t.title}`, q, 3).map(
+    ({ item: t }) => ({
+      id: t.id,
+      slug: t.shortId.toLowerCase(),
+      label: t.shortId,
+      sublabel: t.title.length > 40 ? t.title.slice(0, 40) + '…' : t.title,
+      category: 'tasks' as const,
+      taskStatus: t.status,
+    })
+  );
+
+  const channelItems = scoreAndFilter(allChannels, (c) => `${c.name} ${c.slug}`, q, 2).map(
+    ({ item: c }) => ({
+      id: c.id,
+      slug: c.slug,
+      label: c.name,
+      sublabel: c.slug,
+      category: 'channels' as const,
+      emoji: c.icon ?? '#',
+    })
+  );
+
+  return [...agentItems, ...wsItems, ...taskItems, ...channelItems].slice(0, 10);
 }
 
 // ── Mention extraction ────────────────────────────────────────────────────────

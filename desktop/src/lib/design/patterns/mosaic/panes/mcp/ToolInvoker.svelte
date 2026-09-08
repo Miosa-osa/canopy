@@ -1,214 +1,210 @@
 <script lang="ts">
-  /**
-   * ToolInvoker — inline test-invocation form for a registered tool.
-   *
-   * Reuses (no duplication):
-   *   - RuntimeConfigForm (declarative ConfigFieldSchema-driven form)
-   *   - sessionsQuery (existing TanStack factory)
-   *   - dispatchToolMutation → POST /api/v1/agents/tools/:tool_name
-   *
-   * Translates the tool's JSON-Schema `parameters.properties` map into the
-   * `ConfigFieldSchema[]` shape the existing form expects. Falls back to a raw
-   * JSON textarea when a property has no representable type.
-   *
-   * CSS prefix: ti-
-   */
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
-  import Alert from '$lib/design/foundation/alert/Alert.svelte';
-  import Button from '$lib/design/foundation/button/Button.svelte';
-  import Select from '$lib/design/foundation/select/Select.svelte';
-  import Textarea from '$lib/design/foundation/textarea/Textarea.svelte';
-  import RuntimeConfigForm from '$lib/design/patterns/RuntimeConfigForm.svelte';
-  import type { ConfigFieldSchema } from '$lib/domain/runtimes/types.js';
-  import type {
-    RegisteredTool,
-    ToolDispatchResponse,
-    ToolParam,
-  } from '$lib/domain/mcp/types.js';
-  import { dispatchToolMutation } from '$lib/api/queries/mcp.js';
-  import { sessionsQuery } from '$lib/api/queries/sessions.js';
+/**
+ * ToolInvoker — inline test-invocation form for a registered tool.
+ *
+ * Reuses (no duplication):
+ *   - RuntimeConfigForm (declarative ConfigFieldSchema-driven form)
+ *   - sessionsQuery (existing TanStack factory)
+ *   - dispatchToolMutation → POST /api/v1/agents/tools/:tool_name
+ *
+ * Translates the tool's JSON-Schema `parameters.properties` map into the
+ * `ConfigFieldSchema[]` shape the existing form expects. Falls back to a raw
+ * JSON textarea when a property has no representable type.
+ *
+ * CSS prefix: ti-
+ */
+import { createMutation, createQuery } from '@tanstack/svelte-query';
+import { dispatchToolMutation } from '$lib/api/queries/mcp.js';
+import { sessionsQuery } from '$lib/api/queries/sessions.js';
+import Alert from '$lib/design/foundation/alert/Alert.svelte';
+import Button from '$lib/design/foundation/button/Button.svelte';
+import Select from '$lib/design/foundation/select/Select.svelte';
+import Textarea from '$lib/design/foundation/textarea/Textarea.svelte';
+import RuntimeConfigForm from '$lib/design/patterns/RuntimeConfigForm.svelte';
+import type { RegisteredTool, ToolDispatchResponse, ToolParam } from '$lib/domain/mcp/types.js';
+import type { ConfigFieldSchema } from '$lib/domain/runtimes/types.js';
 
-  interface Props {
-    tool: RegisteredTool;
-    onClose: () => void;
+interface Props {
+  tool: RegisteredTool;
+  onClose: () => void;
+}
+
+let { tool, onClose }: Props = $props();
+
+// Sessions list — needed because /agents/tools/:tool_name requires session_id.
+const sessions = createQuery(sessionsQuery({ limit: 50 }));
+const dispatch = createMutation({ ...dispatchToolMutation() });
+
+let sessionId = $state('');
+let useRawJson = $state(false);
+let rawJson = $state('{}');
+let rawJsonError = $state<string | null>(null);
+let result = $state<ToolDispatchResponse | null>(null);
+let invokeError = $state<string | null>(null);
+
+// Build a sessions select option list. The first available session is the
+// default; selector lets the user pick another.
+const sessionOptions = $derived(
+  ($sessions.data ?? []).map((s) => ({
+    value: s.id,
+    label: s.id.slice(0, 8) + ' — ' + (s.runtimeType ?? 'session'),
+  }))
+);
+
+$effect(() => {
+  if (!sessionId && sessionOptions.length > 0) {
+    sessionId = sessionOptions[0]!.value;
   }
+});
 
-  let { tool, onClose }: Props = $props();
-
-  // Sessions list — needed because /agents/tools/:tool_name requires session_id.
-  const sessions = createQuery(sessionsQuery({ limit: 50 }));
-  const dispatch = createMutation({ ...dispatchToolMutation() });
-
-  let sessionId = $state('');
-  let useRawJson = $state(false);
-  let rawJson = $state('{}');
-  let rawJsonError = $state<string | null>(null);
-  let result = $state<ToolDispatchResponse | null>(null);
-  let invokeError = $state<string | null>(null);
-
-  // Build a sessions select option list. The first available session is the
-  // default; selector lets the user pick another.
-  const sessionOptions = $derived(
-    ($sessions.data ?? []).map((s) => ({
-      value: s.id,
-      label: s.id.slice(0, 8) + ' — ' + (s.runtimeType ?? 'session'),
-    })),
-  );
-
-  $effect(() => {
-    if (!sessionId && sessionOptions.length > 0) {
-      sessionId = sessionOptions[0]!.value;
-    }
-  });
-
-  /**
-   * Convert a tool's `parameters.properties` map into a flat
-   * `ConfigFieldSchema[]` for RuntimeConfigForm.
-   *
-   * - `string` with `enum` → select
-   * - `string` / `number` / `integer` → text/number input
-   * - `boolean` → toggle
-   * - other (object/array) → falls back to "raw JSON" mode for the whole form.
-   */
-  function schemaToFields(t: RegisteredTool): {
-    fields: ConfigFieldSchema[];
-    forceRaw: boolean;
-  } {
-    const props = t.parameters?.properties;
-    if (!props || Object.keys(props).length === 0) {
-      return { fields: [], forceRaw: false };
-    }
-    const required = new Set(t.parameters?.required ?? []);
-    const fields: ConfigFieldSchema[] = [];
-    let forceRaw = false;
-
-    for (const [key, raw] of Object.entries(props)) {
-      const p = (raw ?? {}) as ToolParam;
-      const type = p.type ?? 'string';
-
-      if (Array.isArray(p.enum) && p.enum.length > 0) {
-        fields.push({
-          key,
-          label: key,
-          type: 'select',
-          required: required.has(key),
-          description: p.description,
-          options: p.enum.map((v) => ({ value: String(v), label: String(v) })),
-        });
-        continue;
-      }
-
-      if (type === 'string') {
-        fields.push({
-          key,
-          label: key,
-          type: 'text',
-          required: required.has(key),
-          description: p.description,
-        });
-      } else if (type === 'integer' || type === 'number') {
-        fields.push({
-          key,
-          label: key,
-          type: 'number',
-          required: required.has(key),
-          description: p.description,
-        });
-      } else if (type === 'boolean') {
-        fields.push({
-          key,
-          label: key,
-          type: 'toggle',
-          required: required.has(key),
-          description: p.description,
-        });
-      } else {
-        // object / array — drop into raw JSON mode for the whole form.
-        forceRaw = true;
-      }
-    }
-
-    return { fields, forceRaw };
+/**
+ * Convert a tool's `parameters.properties` map into a flat
+ * `ConfigFieldSchema[]` for RuntimeConfigForm.
+ *
+ * - `string` with `enum` → select
+ * - `string` / `number` / `integer` → text/number input
+ * - `boolean` → toggle
+ * - other (object/array) → falls back to "raw JSON" mode for the whole form.
+ */
+function schemaToFields(t: RegisteredTool): {
+  fields: ConfigFieldSchema[];
+  forceRaw: boolean;
+} {
+  const props = t.parameters?.properties;
+  if (!props || Object.keys(props).length === 0) {
+    return { fields: [], forceRaw: false };
   }
+  const required = new Set(t.parameters?.required ?? []);
+  const fields: ConfigFieldSchema[] = [];
+  let forceRaw = false;
 
-  const fieldsInfo = $derived(schemaToFields(tool));
+  for (const [key, raw] of Object.entries(props)) {
+    const p = (raw ?? {}) as ToolParam;
+    const type = p.type ?? 'string';
 
-  $effect(() => {
-    // Reset display when tool changes.
-    void tool.name;
-    result = null;
-    invokeError = null;
-    rawJsonError = null;
-    rawJson = '{}';
-    useRawJson = fieldsInfo.forceRaw;
-  });
-
-  /** Coerce text values from RuntimeConfigForm back to numbers/booleans. */
-  function coerceValues(
-    raw: Record<string, unknown>,
-    fields: ConfigFieldSchema[],
-  ): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
-    for (const f of fields) {
-      const v = raw[f.key];
-      if (v === undefined || v === '' || v === null) continue;
-      if (f.type === 'number') {
-        const n = Number(v);
-        out[f.key] = Number.isFinite(n) ? n : v;
-      } else if (f.type === 'toggle') {
-        out[f.key] = Boolean(v);
-      } else {
-        out[f.key] = v;
-      }
-    }
-    return out;
-  }
-
-  async function handleSubmit(values: Record<string, unknown>): Promise<void> {
-    invokeError = null;
-    result = null;
-    if (!sessionId) {
-      invokeError = 'Pick a session first — dispatch needs a session_id.';
-      return;
-    }
-    const params = coerceValues(values, fieldsInfo.fields);
-    await runDispatch(params);
-  }
-
-  async function handleRawSubmit(): Promise<void> {
-    invokeError = null;
-    rawJsonError = null;
-    result = null;
-    if (!sessionId) {
-      invokeError = 'Pick a session first — dispatch needs a session_id.';
-      return;
-    }
-    let params: Record<string, unknown>;
-    try {
-      const parsed = JSON.parse(rawJson);
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        rawJsonError = 'Params must be a JSON object.';
-        return;
-      }
-      params = parsed as Record<string, unknown>;
-    } catch (err) {
-      rawJsonError = err instanceof Error ? err.message : 'Invalid JSON';
-      return;
-    }
-    await runDispatch(params);
-  }
-
-  async function runDispatch(params: Record<string, unknown>): Promise<void> {
-    try {
-      const resp = await $dispatch.mutateAsync({
-        toolName: tool.name,
-        body: { sessionId, params },
+    if (Array.isArray(p.enum) && p.enum.length > 0) {
+      fields.push({
+        key,
+        label: key,
+        type: 'select',
+        required: required.has(key),
+        description: p.description,
+        options: p.enum.map((v) => ({ value: String(v), label: String(v) })),
       });
-      result = resp;
-    } catch (err) {
-      invokeError = err instanceof Error ? err.message : String(err);
+      continue;
+    }
+
+    if (type === 'string') {
+      fields.push({
+        key,
+        label: key,
+        type: 'text',
+        required: required.has(key),
+        description: p.description,
+      });
+    } else if (type === 'integer' || type === 'number') {
+      fields.push({
+        key,
+        label: key,
+        type: 'number',
+        required: required.has(key),
+        description: p.description,
+      });
+    } else if (type === 'boolean') {
+      fields.push({
+        key,
+        label: key,
+        type: 'toggle',
+        required: required.has(key),
+        description: p.description,
+      });
+    } else {
+      // object / array — drop into raw JSON mode for the whole form.
+      forceRaw = true;
     }
   }
+
+  return { fields, forceRaw };
+}
+
+const fieldsInfo = $derived(schemaToFields(tool));
+
+$effect(() => {
+  // Reset display when tool changes.
+  void tool.name;
+  result = null;
+  invokeError = null;
+  rawJsonError = null;
+  rawJson = '{}';
+  useRawJson = fieldsInfo.forceRaw;
+});
+
+/** Coerce text values from RuntimeConfigForm back to numbers/booleans. */
+function coerceValues(
+  raw: Record<string, unknown>,
+  fields: ConfigFieldSchema[]
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const f of fields) {
+    const v = raw[f.key];
+    if (v === undefined || v === '' || v === null) continue;
+    if (f.type === 'number') {
+      const n = Number(v);
+      out[f.key] = Number.isFinite(n) ? n : v;
+    } else if (f.type === 'toggle') {
+      out[f.key] = Boolean(v);
+    } else {
+      out[f.key] = v;
+    }
+  }
+  return out;
+}
+
+async function handleSubmit(values: Record<string, unknown>): Promise<void> {
+  invokeError = null;
+  result = null;
+  if (!sessionId) {
+    invokeError = 'Pick a session first — dispatch needs a session_id.';
+    return;
+  }
+  const params = coerceValues(values, fieldsInfo.fields);
+  await runDispatch(params);
+}
+
+async function handleRawSubmit(): Promise<void> {
+  invokeError = null;
+  rawJsonError = null;
+  result = null;
+  if (!sessionId) {
+    invokeError = 'Pick a session first — dispatch needs a session_id.';
+    return;
+  }
+  let params: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(rawJson);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      rawJsonError = 'Params must be a JSON object.';
+      return;
+    }
+    params = parsed as Record<string, unknown>;
+  } catch (err) {
+    rawJsonError = err instanceof Error ? err.message : 'Invalid JSON';
+    return;
+  }
+  await runDispatch(params);
+}
+
+async function runDispatch(params: Record<string, unknown>): Promise<void> {
+  try {
+    const resp = await $dispatch.mutateAsync({
+      toolName: tool.name,
+      body: { sessionId, params },
+    });
+    result = resp;
+  } catch (err) {
+    invokeError = err instanceof Error ? err.message : String(err);
+  }
+}
 </script>
 
 <section class="ti-root" aria-label="Test invocation for {tool.name}">

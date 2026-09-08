@@ -13,7 +13,7 @@ defmodule Canopy.Workspaces.Engine do
   """
 
   alias Canopy.Workspaces
-  alias Canopy.Workspaces.Engine.Manifest
+  alias Canopy.Workspaces.Engine.{Compatibility, Manifest}
   alias Canopy.Workspaces.Workspace
 
   require Logger
@@ -45,6 +45,7 @@ defmodule Canopy.Workspaces.Engine do
       engine_exists = File.dir?(engine_path)
       mix_project = File.exists?(Path.join(engine_path, "mix.exs"))
       manifest_exists = File.exists?(manifest_path)
+      compatibility = Compatibility.check(workspace.root_path)
 
       {:ok,
        %{
@@ -56,7 +57,8 @@ defmodule Canopy.Workspaces.Engine do
          manifest_path: manifest_path,
          manifest_exists: manifest_exists,
          commands_count: length(commands),
-         available: engine_exists and mix_project and manifest_exists
+         compatibility_error: if(compatibility == :ok, do: nil, else: inspect(compatibility)),
+         available: engine_exists and mix_project and manifest_exists and compatibility == :ok
        }}
     end
   end
@@ -65,7 +67,8 @@ defmodule Canopy.Workspaces.Engine do
   def list_commands(workspace_slug) do
     with {:ok, workspace} <- Workspaces.get_by_slug(workspace_slug),
          :ok <- ensure_engine_ready(workspace),
-         {:ok, commands} <- Manifest.load(workspace.root_path) do
+         {:ok, commands} <- Manifest.load(workspace.root_path),
+         :ok <- Compatibility.check(workspace.root_path) do
       {:ok, commands}
     end
   end
@@ -79,6 +82,7 @@ defmodule Canopy.Workspaces.Engine do
     with {:ok, workspace} <- Workspaces.get_by_slug(workspace_slug),
          :ok <- ensure_engine_ready(workspace),
          {:ok, commands} <- Manifest.load(workspace.root_path),
+         :ok <- Compatibility.check(workspace.root_path),
          {:ok, manifest_command} <- find_command(commands, command),
          {:ok, runtime_args} <- normalize_args(args),
          {:ok, timeout_ms} <- normalize_timeout(Keyword.get(opts, :timeout_ms)) do
@@ -94,6 +98,7 @@ defmodule Canopy.Workspaces.Engine do
     started = System.monotonic_time(:millisecond)
     cwd = engine_dir(workspace)
     mix = Application.get_env(:canopy, :engine_mix_executable, "mix")
+    mix = System.find_executable(mix) || mix
     args = [manifest_command.task] ++ manifest_command.args ++ runtime_args
 
     Logger.info(

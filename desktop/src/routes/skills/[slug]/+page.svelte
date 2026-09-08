@@ -31,9 +31,7 @@ const queryClient = useQueryClient();
 
 const slug = $derived(page.params.slug ?? '');
 
-const skillOptsStore = writable(
-  untrack(() => skillQuery(slug) as CreateQueryOptions<Skill>)
-);
+const skillOptsStore = writable(untrack(() => skillQuery(slug) as CreateQueryOptions<Skill>));
 
 $effect(() => {
   skillOptsStore.set(skillQuery(slug) as CreateQueryOptions<Skill>);
@@ -113,9 +111,7 @@ beforeNavigate(({ cancel, to }) => {
 });
 
 // Rendered HTML (read mode only)
-const renderedHtml = $derived(
-  !editMode && skill?.content ? renderMarkdown(skill.content) : ''
-);
+const renderedHtml = $derived(!editMode && skill?.content ? renderMarkdown(skill.content) : '');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -129,11 +125,16 @@ function formatDate(iso: string): string {
 
 function sourceLabel(source: string): string {
   switch (source) {
-    case 'clawhub': return 'Clawhub';
-    case 'skills_sh': return 'Skills.sh';
-    case 'local': return 'Local';
-    case 'user': return 'User';
-    default: return source;
+    case 'clawhub':
+      return 'Clawhub';
+    case 'skills_sh':
+      return 'Skills.sh';
+    case 'local':
+      return 'Local';
+    case 'user':
+      return 'User';
+    default:
+      return source;
   }
 }
 </script>

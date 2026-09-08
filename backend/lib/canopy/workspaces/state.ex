@@ -24,8 +24,7 @@ defmodule Canopy.Workspaces.State do
   @foreign_key_type :binary_id
   @timestamps_opts [type: :utc_datetime_usec]
 
-  @derive {Jason.Encoder,
-           only: [:id, :workspace_slug, :key, :value, :inserted_at, :updated_at]}
+  @derive {Jason.Encoder, only: [:id, :workspace_slug, :key, :value, :inserted_at, :updated_at]}
 
   @workspace_slug_regex ~r/\A[a-z0-9][a-z0-9_-]{0,127}\z/
   # Keys are programmatic identifiers — allow camelCase + dots/underscores/dashes.

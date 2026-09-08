@@ -1,62 +1,65 @@
 <script lang="ts">
-  /**
-   * CommitModal — inline dialog to commit worktree changes.
-   * CSS prefix: cm-
-   * LOC target: ≤ 140.
-   */
-  import type { DiffFile } from '$lib/utils/parse-diff.js';
-  import { fileStatusIcon } from '$lib/utils/parse-diff.js';
+/**
+ * CommitModal — inline dialog to commit worktree changes.
+ * CSS prefix: cm-
+ * LOC target: ≤ 140.
+ */
+import type { DiffFile } from '$lib/utils/parse-diff.js';
+import { fileStatusIcon } from '$lib/utils/parse-diff.js';
 
-  interface Props {
-    open: boolean;
-    files: DiffFile[];
-    sessionId: string;
-    onClose: () => void;
-    onSuccess: () => void;
+interface Props {
+  open: boolean;
+  files: DiffFile[];
+  sessionId: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+let { open, files, sessionId, onClose, onSuccess }: Props = $props();
+
+let message = $state('');
+let isPending = $state(false);
+let error = $state<string | null>(null);
+
+function handleKeydown(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    void handleCommit();
   }
+  if (e.key === 'Escape') onClose();
+}
 
-  let { open, files, sessionId, onClose, onSuccess }: Props = $props();
-
-  let message = $state('');
-  let isPending = $state(false);
-  let error = $state<string | null>(null);
-
-  function handleKeydown(e: KeyboardEvent): void {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      void handleCommit();
+async function handleCommit(): Promise<void> {
+  if (!message.trim() || isPending) return;
+  isPending = true;
+  error = null;
+  try {
+    const res = await fetch(`http://localhost:9190/api/v1/sessions/${sessionId}/worktree/commit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: message.trim() }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? `HTTP ${res.status}`);
     }
-    if (e.key === 'Escape') onClose();
+    message = '';
+    onSuccess();
+    onClose();
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Commit failed';
+  } finally {
+    isPending = false;
   }
+}
 
-  async function handleCommit(): Promise<void> {
-    if (!message.trim() || isPending) return;
-    isPending = true;
+// Reset on open
+$effect(() => {
+  if (!open) {
+    message = '';
     error = null;
-    try {
-      const res = await fetch(`http://localhost:9190/api/v1/sessions/${sessionId}/worktree/commit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: message.trim() }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      message = '';
-      onSuccess();
-      onClose();
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Commit failed';
-    } finally {
-      isPending = false;
-    }
   }
-
-  // Reset on open
-  $effect(() => {
-    if (!open) { message = ''; error = null; }
-  });
+});
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

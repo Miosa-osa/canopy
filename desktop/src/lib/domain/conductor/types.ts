@@ -25,7 +25,7 @@
  * dispatcher ignores them.
  */
 
-import type { Density } from "$lib/domain/build/types.js";
+import type { Density } from '$lib/domain/build/types.js';
 
 // ── Pane kinds emitted by Conductor ──────────────────────────────────────────
 
@@ -38,14 +38,14 @@ import type { Density } from "$lib/domain/build/types.js";
  * `mapBackendPaneKind` — see `build-dispatcher.svelte.ts`.
  */
 export type ConductorPaneKind =
-  | "terminal"
-  | "block_stream"
-  | "code_editor"
-  | "file_viewer"
-  | "diff"
-  | "mcp";
+  | 'terminal'
+  | 'block_stream'
+  | 'code_editor'
+  | 'file_viewer'
+  | 'diff'
+  | 'mcp';
 
-export type ConductorSplitDirection = "left" | "right" | "up" | "down";
+export type ConductorSplitDirection = 'left' | 'right' | 'up' | 'down';
 
 // ── Action discriminated union ───────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ export type ConductorSplitDirection = "left" | "right" | "up" | "down";
  * `build.open_file`, `build.open_block`, `build.run_command`.
  */
 export interface OpenPaneAction {
-  action: "open_pane";
+  action: 'open_pane';
   pane_kind: ConductorPaneKind;
   config: Record<string, unknown>;
 }
@@ -64,7 +64,7 @@ export interface OpenPaneAction {
  * pane goes on the side indicated by `direction`.
  */
 export interface SplitPaneAction {
-  action: "split_pane";
+  action: 'split_pane';
   pane_id: string;
   direction: ConductorSplitDirection;
   new_pane_kind: ConductorPaneKind;
@@ -73,13 +73,13 @@ export interface SplitPaneAction {
 
 /** Close a pane in the active layout. Emitted by `build.close_pane`. */
 export interface ClosePaneAction {
-  action: "close_pane";
+  action: 'close_pane';
   pane_id: string;
 }
 
 /** Move focus to a specific pane. Emitted by `build.focus_pane`. */
 export interface FocusPaneAction {
-  action: "focus_pane";
+  action: 'focus_pane';
   pane_id: string;
 }
 
@@ -90,7 +90,7 @@ export interface FocusPaneAction {
  * loaded via the existing `mosaicLayout.load(slug)` localStorage path.
  */
 export interface LoadLayoutAction {
-  action: "load_layout";
+  action: 'load_layout';
   slug: string;
   scope: string;
   /** Opaque Mosaic tree — same shape the frontend persists to localStorage. */
@@ -106,7 +106,7 @@ export interface LoadLayoutAction {
  * toasts / telemetry.
  */
 export interface SaveLayoutAction {
-  action: "save_layout";
+  action: 'save_layout';
   slug: string;
   scope: string;
   id: string;
@@ -114,7 +114,7 @@ export interface SaveLayoutAction {
 
 /** Set the active pane density preference. Emitted by `build.set_density`. */
 export interface SetDensityAction {
-  action: "set_density";
+  action: 'set_density';
   level: Density;
 }
 
@@ -125,7 +125,7 @@ export interface SetDensityAction {
  * picks the session up — no new component path.
  */
 export interface EmbedRuntimeAction {
-  action: "embed_runtime";
+  action: 'embed_runtime';
   runtime_type: string;
   session_id: string;
   embed_into_pane: true;
@@ -138,7 +138,7 @@ export interface EmbedRuntimeAction {
  * context — no Mosaic mutation required.
  */
 export interface ApplySkillAction {
-  action: "apply_skill";
+  action: 'apply_skill';
   skill_slug: string;
   /** Optional session id when the dispatch site already knows it. */
   session_id?: string | null;
@@ -151,7 +151,7 @@ export interface ApplySkillAction {
  * Templates super-module's existing endpoints.
  */
 export interface InstantiateTemplateAction {
-  action: "instantiate_template";
+  action: 'instantiate_template';
   template_slug: string;
   workspace_slug?: string | null;
 }
@@ -196,8 +196,8 @@ export interface ConductorToolResult {
  */
 export function isConductorAction(value: unknown): value is ConductorAction {
   return (
-    typeof value === "object" &&
+    typeof value === 'object' &&
     value !== null &&
-    typeof (value as { action?: unknown }).action === "string"
+    typeof (value as { action?: unknown }).action === 'string'
   );
 }

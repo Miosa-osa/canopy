@@ -3,8 +3,8 @@
  * Single endpoint — GET /api/v1/dashboard/summary returns all 3 widget payloads.
  */
 
-import { apiGet } from "$lib/api/client.js";
-import type { DashboardSummary } from "$lib/domain/dashboard/types.js";
+import { apiGet } from '$lib/api/client.js';
+import type { DashboardSummary } from '$lib/domain/dashboard/types.js';
 
 // ── Raw API types (snake_case from Phoenix) ──────────────────────────────────
 
@@ -173,7 +173,7 @@ function transformSummary(raw: RawDashboardSummary): DashboardSummary {
 // ── Raw API call ─────────────────────────────────────────────────────────────
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
-  const raw = await apiGet<RawDashboardSummary>("/dashboard/summary");
+  const raw = await apiGet<RawDashboardSummary>('/dashboard/summary');
   return transformSummary(raw);
 }
 
@@ -185,7 +185,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
  */
 export function dashboardSummaryQuery() {
   return {
-    queryKey: ["dashboard", "summary"] as const,
+    queryKey: ['dashboard', 'summary'] as const,
     queryFn: getDashboardSummary,
     staleTime: 30_000,
     refetchOnWindowFocus: true,

@@ -4,7 +4,7 @@
  * createQuery() / createMutation() in component scripts.
  */
 
-import { apiDelete, apiGet, apiPatch, apiPost } from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPatch, apiPost } from '$lib/api/client.js';
 import type {
   AssignBody,
   CreateTaskBody,
@@ -12,21 +12,21 @@ import type {
   TaskFilters,
   TaskStatus,
   UpdateTaskBody,
-} from "$lib/domain/tasks/types.js";
-import type { TransitionVerb } from "$lib/stores/kanban-boards.svelte.js";
+} from '$lib/domain/tasks/types.js';
+import type { TransitionVerb } from '$lib/stores/kanban-boards.svelte.js';
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
 export function listTasks(filters?: TaskFilters): Promise<Task[]> {
   const params = new URLSearchParams();
-  if (filters?.status) params.set("status", filters.status);
-  if (filters?.assigneeType) params.set("assignee_type", filters.assigneeType);
-  if (filters?.assigneeId) params.set("assignee_id", filters.assigneeId);
-  if (filters?.projectSlug) params.set("project_slug", filters.projectSlug);
-  if (filters?.parentId) params.set("parent_id", filters.parentId);
-  if (filters?.q) params.set("q", filters.q);
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.assigneeType) params.set('assignee_type', filters.assigneeType);
+  if (filters?.assigneeId) params.set('assignee_id', filters.assigneeId);
+  if (filters?.projectSlug) params.set('project_slug', filters.projectSlug);
+  if (filters?.parentId) params.set('parent_id', filters.parentId);
+  if (filters?.q) params.set('q', filters.q);
   const qs = params.toString();
-  return apiGet<Task[]>(`/tasks${qs ? `?${qs}` : ""}`);
+  return apiGet<Task[]>(`/tasks${qs ? `?${qs}` : ''}`);
 }
 
 export function getTask(shortId: string): Promise<Task> {
@@ -34,13 +34,10 @@ export function getTask(shortId: string): Promise<Task> {
 }
 
 export function createTask(body: CreateTaskBody): Promise<Task> {
-  return apiPost<Task>("/tasks", body);
+  return apiPost<Task>('/tasks', body);
 }
 
-export function updateTask(
-  shortId: string,
-  body: UpdateTaskBody,
-): Promise<Task> {
+export function updateTask(shortId: string, body: UpdateTaskBody): Promise<Task> {
   return apiPatch<Task>(`/tasks/${shortId}`, body);
 }
 
@@ -68,7 +65,7 @@ export function assignTask(shortId: string, body: AssignBody): Promise<Task> {
 export function transitionTask(
   shortId: string,
   status: TaskStatus,
-  verb: TransitionVerb,
+  verb: TransitionVerb
 ): Promise<Task> {
   return apiPost<Task>(`/tasks/${shortId}/transition`, { status, verb });
 }
@@ -78,7 +75,7 @@ export function transitionTask(
 /** Query options for the task list with optional filters. */
 export function tasksQuery(filters?: TaskFilters) {
   return {
-    queryKey: ["tasks", filters ?? {}] as const,
+    queryKey: ['tasks', filters ?? {}] as const,
     queryFn: () => listTasks(filters),
     staleTime: 15_000,
   };
@@ -87,7 +84,7 @@ export function tasksQuery(filters?: TaskFilters) {
 /** Query options for a single task by short_id. */
 export function taskQuery(shortId: string) {
   return {
-    queryKey: ["tasks", shortId] as const,
+    queryKey: ['tasks', shortId] as const,
     queryFn: () => getTask(shortId),
     staleTime: 10_000,
     enabled: Boolean(shortId),
@@ -97,7 +94,7 @@ export function taskQuery(shortId: string) {
 /** Mutation options to create a task. */
 export function createTaskMutation() {
   return {
-    mutationKey: ["tasks", "create"] as const,
+    mutationKey: ['tasks', 'create'] as const,
     mutationFn: (body: CreateTaskBody) => createTask(body),
   };
 }
@@ -105,21 +102,16 @@ export function createTaskMutation() {
 /** Mutation options to update a task. */
 export function updateTaskMutation() {
   return {
-    mutationKey: ["tasks", "update"] as const,
-    mutationFn: ({
-      shortId,
-      body,
-    }: {
-      shortId: string;
-      body: UpdateTaskBody;
-    }) => updateTask(shortId, body),
+    mutationKey: ['tasks', 'update'] as const,
+    mutationFn: ({ shortId, body }: { shortId: string; body: UpdateTaskBody }) =>
+      updateTask(shortId, body),
   };
 }
 
 /** Mutation options to delete a task. */
 export function deleteTaskMutation() {
   return {
-    mutationKey: ["tasks", "delete"] as const,
+    mutationKey: ['tasks', 'delete'] as const,
     mutationFn: (shortId: string) => deleteTask(shortId),
   };
 }
@@ -127,7 +119,7 @@ export function deleteTaskMutation() {
 /** Mutation options to mark a task complete. */
 export function completeTaskMutation() {
   return {
-    mutationKey: ["tasks", "complete"] as const,
+    mutationKey: ['tasks', 'complete'] as const,
     mutationFn: (shortId: string) => completeTask(shortId),
   };
 }
@@ -135,7 +127,7 @@ export function completeTaskMutation() {
 /** Mutation options to reopen a completed/cancelled task. */
 export function reopenTaskMutation() {
   return {
-    mutationKey: ["tasks", "reopen"] as const,
+    mutationKey: ['tasks', 'reopen'] as const,
     mutationFn: (shortId: string) => reopenTask(shortId),
   };
 }
@@ -143,7 +135,7 @@ export function reopenTaskMutation() {
 /** Mutation options to assign a task to an agent or user. */
 export function assignTaskMutation() {
   return {
-    mutationKey: ["tasks", "assign"] as const,
+    mutationKey: ['tasks', 'assign'] as const,
     mutationFn: ({ shortId, body }: { shortId: string; body: AssignBody }) =>
       assignTask(shortId, body),
   };

@@ -190,7 +190,7 @@ defmodule Canopy.Search.Backend.Elixir do
   end
 
   # Returns [{byte_offset, byte_length}, ...] for each occurrence.
-  defp find_all_byte_positions(haystack, needle) when byte_size(needle) == 0, do: []
+  defp find_all_byte_positions(_haystack, needle) when byte_size(needle) == 0, do: []
 
   defp find_all_byte_positions(haystack, needle) do
     do_find_all(haystack, needle, 0, [])

@@ -1,40 +1,47 @@
 <script lang="ts">
-  /**
-   * RuntimesWidget — authenticated/installed/error status matrix.
-   * CSS prefix: rw- (RuntimesWidget)
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { runtimesQuery } from '$lib/api/queries/runtimes.js';
-  import type { Runtime, RuntimeStatus } from '$lib/domain/runtimes/types.js';
-  import type { CreateQueryOptions } from '@tanstack/svelte-query';
+/**
+ * RuntimesWidget — authenticated/installed/error status matrix.
+ * CSS prefix: rw- (RuntimesWidget)
+ */
 
-  const optsStore = writable(
-    untrack(() => runtimesQuery() as CreateQueryOptions<Runtime[]>),
-  );
-  const query = createQuery<Runtime[]>(optsStore);
+import type { CreateQueryOptions } from '@tanstack/svelte-query';
+import { createQuery } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { runtimesQuery } from '$lib/api/queries/runtimes.js';
+import type { Runtime, RuntimeStatus } from '$lib/domain/runtimes/types.js';
 
-  const runtimes = $derived(($query.data ?? []) as Runtime[]);
+const optsStore = writable(untrack(() => runtimesQuery() as CreateQueryOptions<Runtime[]>));
+const query = createQuery<Runtime[]>(optsStore);
 
-  function statusLabel(s: RuntimeStatus): string {
-    switch (s) {
-      case 'installed': return 'OK';
-      case 'not_installed': return 'Not installed';
-      case 'misconfigured': return 'Misconfigured';
-      case 'error': return 'Error';
-    }
+const runtimes = $derived(($query.data ?? []) as Runtime[]);
+
+function statusLabel(s: RuntimeStatus): string {
+  switch (s) {
+    case 'installed':
+      return 'OK';
+    case 'not_installed':
+      return 'Not installed';
+    case 'misconfigured':
+      return 'Misconfigured';
+    case 'error':
+      return 'Error';
   }
+}
 
-  function statusClass(s: RuntimeStatus): string {
-    switch (s) {
-      case 'installed': return 'rw-dot--ok';
-      case 'not_installed': return 'rw-dot--missing';
-      case 'misconfigured': return 'rw-dot--warn';
-      case 'error': return 'rw-dot--error';
-    }
+function statusClass(s: RuntimeStatus): string {
+  switch (s) {
+    case 'installed':
+      return 'rw-dot--ok';
+    case 'not_installed':
+      return 'rw-dot--missing';
+    case 'misconfigured':
+      return 'rw-dot--warn';
+    case 'error':
+      return 'rw-dot--error';
   }
+}
 </script>
 
 <div class="rw-widget">

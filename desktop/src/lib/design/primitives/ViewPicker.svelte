@@ -1,107 +1,107 @@
 <script lang="ts">
-  /**
-   * ViewPicker — layout / density / sort controls for list pages.
-   *
-   * CSS prefix: vp-
-   * Three inline control groups:
-   *   Layout  — Grid | List | (Board, when boardEnabled=true)
-   *   Density — Compact | Comfortable | Roomy
-   *   Sort    — configurable per-page via sortOptions prop
-   *
-   * State is persisted per-route in localStorage under `canopy.view.<routeSlug>`.
-   */
+/**
+ * ViewPicker — layout / density / sort controls for list pages.
+ *
+ * CSS prefix: vp-
+ * Three inline control groups:
+ *   Layout  — Grid | List | (Board, when boardEnabled=true)
+ *   Density — Compact | Comfortable | Roomy
+ *   Sort    — configurable per-page via sortOptions prop
+ *
+ * State is persisted per-route in localStorage under `canopy.view.<routeSlug>`.
+ */
 
-  export type ViewLayout = "grid" | "list" | "board";
-  export type ViewDensity = "compact" | "comfortable" | "roomy";
-  export type ViewSort = string; // caller defines valid values via sortOptions
+export type ViewLayout = 'grid' | 'list' | 'board';
+export type ViewDensity = 'compact' | 'comfortable' | 'roomy';
+export type ViewSort = string; // caller defines valid values via sortOptions
 
-  export interface SortOption {
-    value: ViewSort;
-    label: string;
+export interface SortOption {
+  value: ViewSort;
+  label: string;
+}
+
+export interface ViewState {
+  layout: ViewLayout;
+  density: ViewDensity;
+  sort: ViewSort;
+}
+
+interface Props {
+  /** localStorage key suffix — use the route slug, e.g. "sessions". */
+  routeSlug: string;
+  /** Current view state (bindable). */
+  view: ViewState;
+  /** Whether the Board layout option is available. Default false. */
+  boardEnabled?: boolean;
+  /** Sort options available for this page. */
+  sortOptions?: SortOption[];
+}
+
+const DEFAULT_SORT_OPTIONS: SortOption[] = [
+  { value: 'recent', label: 'Recent' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'name_asc', label: 'Name A–Z' },
+  { value: 'name_desc', label: 'Name Z–A' },
+  { value: 'status', label: 'Status' },
+];
+
+let {
+  routeSlug,
+  view = $bindable(),
+  boardEnabled = false,
+  sortOptions = DEFAULT_SORT_OPTIONS,
+}: Props = $props();
+
+const LS_KEY = `canopy.view.${routeSlug}`;
+
+// Load persisted state once on mount.
+$effect(() => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw) as Partial<ViewState>;
+    view = {
+      layout: saved.layout ?? view.layout,
+      density: saved.density ?? view.density,
+      sort: saved.sort ?? view.sort,
+    };
+  } catch {
+    // corrupt storage — ignore
   }
+});
 
-  export interface ViewState {
-    layout: ViewLayout;
-    density: ViewDensity;
-    sort: ViewSort;
+// Persist on every change.
+$effect(() => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(view));
+  } catch {
+    // quota exceeded — ignore
   }
+});
 
-  interface Props {
-    /** localStorage key suffix — use the route slug, e.g. "sessions". */
-    routeSlug: string;
-    /** Current view state (bindable). */
-    view: ViewState;
-    /** Whether the Board layout option is available. Default false. */
-    boardEnabled?: boolean;
-    /** Sort options available for this page. */
-    sortOptions?: SortOption[];
-  }
+function setLayout(l: ViewLayout): void {
+  view = { ...view, layout: l };
+}
+function setDensity(d: ViewDensity): void {
+  view = { ...view, density: d };
+}
+function setSort(s: ViewSort): void {
+  view = { ...view, sort: s };
+}
 
-  const DEFAULT_SORT_OPTIONS: SortOption[] = [
-    { value: "recent", label: "Recent" },
-    { value: "oldest", label: "Oldest" },
-    { value: "name_asc", label: "Name A–Z" },
-    { value: "name_desc", label: "Name Z–A" },
-    { value: "status", label: "Status" },
-  ];
+const LAYOUT_OPTIONS: Array<{ value: ViewLayout; label: string }> = [
+  { value: 'list', label: 'List' },
+  { value: 'grid', label: 'Grid' },
+  ...(boardEnabled ? [{ value: 'board' as ViewLayout, label: 'Board' }] : []),
+];
 
-  let {
-    routeSlug,
-    view = $bindable(),
-    boardEnabled = false,
-    sortOptions = DEFAULT_SORT_OPTIONS,
-  }: Props = $props();
-
-  const LS_KEY = `canopy.view.${routeSlug}`;
-
-  // Load persisted state once on mount.
-  $effect(() => {
-    if (typeof localStorage === "undefined") return;
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as Partial<ViewState>;
-      view = {
-        layout: saved.layout ?? view.layout,
-        density: saved.density ?? view.density,
-        sort: saved.sort ?? view.sort,
-      };
-    } catch {
-      // corrupt storage — ignore
-    }
-  });
-
-  // Persist on every change.
-  $effect(() => {
-    if (typeof localStorage === "undefined") return;
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(view));
-    } catch {
-      // quota exceeded — ignore
-    }
-  });
-
-  function setLayout(l: ViewLayout): void {
-    view = { ...view, layout: l };
-  }
-  function setDensity(d: ViewDensity): void {
-    view = { ...view, density: d };
-  }
-  function setSort(s: ViewSort): void {
-    view = { ...view, sort: s };
-  }
-
-  const LAYOUT_OPTIONS: Array<{ value: ViewLayout; label: string }> = [
-    { value: "list", label: "List" },
-    { value: "grid", label: "Grid" },
-    ...(boardEnabled ? [{ value: "board" as ViewLayout, label: "Board" }] : []),
-  ];
-
-  const DENSITY_OPTIONS: Array<{ value: ViewDensity; label: string }> = [
-    { value: "compact", label: "Compact" },
-    { value: "comfortable", label: "Comfortable" },
-    { value: "roomy", label: "Roomy" },
-  ];
+const DENSITY_OPTIONS: Array<{ value: ViewDensity; label: string }> = [
+  { value: 'compact', label: 'Compact' },
+  { value: 'comfortable', label: 'Comfortable' },
+  { value: 'roomy', label: 'Roomy' },
+];
 </script>
 
 <div class="vp-root" role="toolbar" aria-label="View options">

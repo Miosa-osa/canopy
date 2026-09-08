@@ -7,18 +7,18 @@
  */
 
 import {
-  Terminal,
+  Activity,
+  AlertTriangle,
   CheckSquare,
   CircleDot,
-  XCircle,
-  Play,
-  Pause,
-  RotateCcw,
-  AlertTriangle,
-  Zap,
   FolderOpen,
+  Pause,
+  Play,
+  RotateCcw,
+  Terminal,
   Users,
-  Activity,
+  XCircle,
+  Zap,
 } from 'lucide-svelte';
 import type { ActivityEvent, ActivityEventType } from '$lib/domain/activity/types.js';
 
@@ -88,17 +88,15 @@ const absTs = $derived(absoluteTime(event.at));
 
 const isToolOutput = $derived(
   event.type === 'session_started' ||
-  event.type === 'task_dispatched' ||
-  event.type === 'session_ended'
+    event.type === 'task_dispatched' ||
+    event.type === 'session_ended'
 );
 
 const href = $derived(entityHref());
 
 // ── Wake-reason pill ──────────────────────────────────────────────────────────
 
-const wakeReason = $derived(
-  event.type === 'session_started' ? (event.wake_reason ?? null) : null,
-);
+const wakeReason = $derived(event.type === 'session_started' ? (event.wake_reason ?? null) : null);
 
 const WAKE_PILL_CLASS: Record<string, string> = {
   user_prompt: 'ar-wake--user',

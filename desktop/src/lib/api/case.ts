@@ -26,7 +26,7 @@ function camelToSnake(key: string): string {
 type PlainObject = Record<string, unknown>;
 
 function isPlainObject(value: unknown): value is PlainObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Recursively convert all object keys from snake_case to camelCase. */

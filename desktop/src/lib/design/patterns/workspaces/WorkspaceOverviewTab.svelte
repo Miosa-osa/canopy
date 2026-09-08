@@ -4,7 +4,7 @@
  * Shows stat tiles + detail list.
  * CSS prefix: wot-
  */
-import type { WorkspaceDetail, FileTreeNode } from '$lib/domain/workspaces/types.js';
+import type { FileTreeNode, WorkspaceDetail } from '$lib/domain/workspaces/types.js';
 import WorkspaceStatsTiles from './WorkspaceStatsTiles.svelte';
 
 interface Props {

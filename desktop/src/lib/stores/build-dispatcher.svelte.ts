@@ -29,10 +29,10 @@
 
 import type {
   ApplySkillAction,
+  ClosePaneAction,
   ConductorAction,
   ConductorPaneKind,
   ConductorSplitDirection,
-  ClosePaneAction,
   EmbedRuntimeAction,
   FocusPaneAction,
   InstantiateTemplateAction,
@@ -41,15 +41,10 @@ import type {
   SaveLayoutAction,
   SetDensityAction,
   SplitPaneAction,
-} from "$lib/domain/conductor/types.js";
-import { isConductorAction } from "$lib/domain/conductor/types.js";
-import {
-  mosaicLayout,
-  type Pane,
-  type PaneKind,
-  type Tile,
-} from "./mosaic-layout.svelte.js";
-import { mosaicPrefs } from "./mosaic-prefs.svelte.js";
+} from '$lib/domain/conductor/types.js';
+import { isConductorAction } from '$lib/domain/conductor/types.js';
+import { mosaicLayout, type Pane, type PaneKind, type Tile } from './mosaic-layout.svelte.js';
+import { mosaicPrefs } from './mosaic-prefs.svelte.js';
 
 // ── Backend → Mosaic kind mapping ────────────────────────────────────────────
 
@@ -64,22 +59,22 @@ import { mosaicPrefs } from "./mosaic-prefs.svelte.js";
  */
 function mapBackendPaneKind(kind: ConductorPaneKind): PaneKind {
   switch (kind) {
-    case "terminal":
-      return "terminal";
-    case "file_viewer":
-    case "code_editor":
-      return "file";
-    case "diff":
-      return "changes";
-    case "block_stream":
-      return "session";
-    case "mcp":
-      return "agent_conversation";
+    case 'terminal':
+      return 'terminal';
+    case 'file_viewer':
+    case 'code_editor':
+      return 'file';
+    case 'diff':
+      return 'changes';
+    case 'block_stream':
+      return 'session';
+    case 'mcp':
+      return 'agent_conversation';
     default: {
       // exhaustive guard
       const _never: never = kind;
       void _never;
-      return "session";
+      return 'session';
     }
   }
 }
@@ -88,10 +83,8 @@ function mapBackendPaneKind(kind: ConductorPaneKind): PaneKind {
  * Direction → orientation. left/right split side-by-side (vertical divider);
  * up/down split top-and-bottom (horizontal divider).
  */
-function directionToOrientation(
-  dir: ConductorSplitDirection,
-): "horizontal" | "vertical" {
-  return dir === "left" || dir === "right" ? "vertical" : "horizontal";
+function directionToOrientation(dir: ConductorSplitDirection): 'horizontal' | 'vertical' {
+  return dir === 'left' || dir === 'right' ? 'vertical' : 'horizontal';
 }
 
 // ── Pane construction ────────────────────────────────────────────────────────
@@ -104,15 +97,11 @@ function paneId(): string {
  * Derive a human-readable title from a Conductor pane config. Falls back to
  * the pane kind if no obvious title field is present.
  */
-function deriveTitle(
-  kind: ConductorPaneKind,
-  config: Record<string, unknown>,
-): string {
-  const path = typeof config.path === "string" ? config.path : null;
-  const fileId = typeof config.file_id === "string" ? config.file_id : null;
-  const cmd =
-    typeof config.queued_command === "string" ? config.queued_command : null;
-  const blockId = typeof config.block_id === "string" ? config.block_id : null;
+function deriveTitle(kind: ConductorPaneKind, config: Record<string, unknown>): string {
+  const path = typeof config.path === 'string' ? config.path : null;
+  const fileId = typeof config.file_id === 'string' ? config.file_id : null;
+  const cmd = typeof config.queued_command === 'string' ? config.queued_command : null;
+  const blockId = typeof config.block_id === 'string' ? config.block_id : null;
 
   return path ?? cmd ?? blockId ?? fileId ?? kind;
 }
@@ -123,24 +112,14 @@ function deriveTitle(
  * inspects `config` for the real backend fields.
  */
 function deriveRef(config: Record<string, unknown>): string {
-  for (const key of [
-    "file_id",
-    "block_id",
-    "session_id",
-    "path",
-    "slug",
-    "id",
-  ]) {
+  for (const key of ['file_id', 'block_id', 'session_id', 'path', 'slug', 'id']) {
     const v = config[key];
-    if (typeof v === "string" && v.length > 0) return v;
+    if (typeof v === 'string' && v.length > 0) return v;
   }
-  return "";
+  return '';
 }
 
-function buildPane(
-  kind: ConductorPaneKind,
-  config: Record<string, unknown>,
-): Pane {
+function buildPane(kind: ConductorPaneKind, config: Record<string, unknown>): Pane {
   return {
     id: paneId(),
     kind: mapBackendPaneKind(kind),
@@ -175,11 +154,7 @@ function handleSplitPane(action: SplitPaneAction): void {
   }
   const cfg = action.new_config ?? {};
   const newPane = buildPane(action.new_pane_kind, cfg);
-  mosaicLayout.splitTile(
-    tile.id,
-    directionToOrientation(action.direction),
-    newPane,
-  );
+  mosaicLayout.splitTile(tile.id, directionToOrientation(action.direction), newPane);
 }
 
 function handleClosePane(action: ClosePaneAction): void {
@@ -204,9 +179,9 @@ function handleLoadLayout(action: LoadLayoutAction): void {
     mosaicPrefs.setDensity(action.density);
   }
   if (
-    action.pane_title_format === "command" ||
-    action.pane_title_format === "working_directory" ||
-    action.pane_title_format === "branch"
+    action.pane_title_format === 'command' ||
+    action.pane_title_format === 'working_directory' ||
+    action.pane_title_format === 'branch'
   ) {
     mosaicPrefs.setTitleFormat(action.pane_title_format);
   }
@@ -233,7 +208,7 @@ function handleSaveLayout(_action: SaveLayoutAction): void {
 function handleEmbedRuntime(action: EmbedRuntimeAction): void {
   const pane = {
     id: paneId(),
-    kind: "agent_conversation" as PaneKind,
+    kind: 'agent_conversation' as PaneKind,
     ref: action.session_id,
     title: action.runtime_type,
     config: {
@@ -257,8 +232,8 @@ function handleEmbedRuntime(action: EmbedRuntimeAction): void {
  * Listening side: `window.addEventListener("canopy:apply_skill", ...)`.
  */
 function handleApplySkill(action: ApplySkillAction): void {
-  if (typeof window === "undefined") return;
-  const ev = new CustomEvent("canopy:apply_skill", {
+  if (typeof window === 'undefined') return;
+  const ev = new CustomEvent('canopy:apply_skill', {
     detail: {
       skill_slug: action.skill_slug,
       session_id: action.session_id ?? null,
@@ -275,8 +250,8 @@ function handleApplySkill(action: ApplySkillAction): void {
  * endpoints — the dispatcher does not call any new endpoint.
  */
 function handleInstantiateTemplate(action: InstantiateTemplateAction): void {
-  if (typeof window === "undefined") return;
-  const ev = new CustomEvent("canopy:instantiate_template", {
+  if (typeof window === 'undefined') return;
+  const ev = new CustomEvent('canopy:instantiate_template', {
     detail: {
       template_slug: action.template_slug,
       workspace_slug: action.workspace_slug ?? null,
@@ -309,44 +284,41 @@ class BuildDispatcherStore {
     this.lastAction = action;
 
     switch (action.action) {
-      case "open_pane":
+      case 'open_pane':
         handleOpenPane(action);
         return;
-      case "split_pane":
+      case 'split_pane':
         handleSplitPane(action);
         return;
-      case "close_pane":
+      case 'close_pane':
         handleClosePane(action);
         return;
-      case "focus_pane":
+      case 'focus_pane':
         handleFocusPane(action);
         return;
-      case "load_layout":
+      case 'load_layout':
         handleLoadLayout(action);
         return;
-      case "save_layout":
+      case 'save_layout':
         handleSaveLayout(action);
         return;
-      case "set_density":
+      case 'set_density':
         handleSetDensity(action);
         return;
-      case "embed_runtime":
+      case 'embed_runtime':
         handleEmbedRuntime(action);
         return;
-      case "apply_skill":
+      case 'apply_skill':
         handleApplySkill(action);
         return;
-      case "instantiate_template":
+      case 'instantiate_template':
         handleInstantiateTemplate(action);
         return;
       default: {
         // Exhaustive guard. New action variants must add a case above.
         const _never: never = action;
         // eslint-disable-next-line no-console
-        console.warn(
-          "[BuildDispatcher] unknown action variant — ignoring",
-          _never,
-        );
+        console.warn('[BuildDispatcher] unknown action variant — ignoring', _never);
       }
     }
   }
@@ -360,20 +332,13 @@ class BuildDispatcherStore {
   private normalize(payload: unknown): ConductorAction | null {
     if (isConductorAction(payload)) return payload;
 
-    if (
-      typeof payload === "object" &&
-      payload !== null &&
-      "result" in payload
-    ) {
+    if (typeof payload === 'object' && payload !== null && 'result' in payload) {
       const inner = (payload as { result: unknown }).result;
       if (isConductorAction(inner)) return inner;
     }
 
     // eslint-disable-next-line no-console
-    console.warn(
-      "[BuildDispatcher] malformed Conductor payload — ignoring",
-      payload,
-    );
+    console.warn('[BuildDispatcher] malformed Conductor payload — ignoring', payload);
     return null;
   }
 }

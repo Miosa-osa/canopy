@@ -13,8 +13,8 @@
  * stored value is preserved verbatim (no key mangling on nested objects).
  */
 
-import { apiDelete, apiGet, apiPut } from "$lib/api/client.js";
-import { activeWorkspace } from "$lib/stores/active-workspace.svelte.js";
+import { apiDelete, apiGet, apiPut } from '$lib/api/client.js';
+import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
 
 // ── Wire types (one row of the state table) ──────────────────────────────────
 
@@ -33,25 +33,19 @@ export interface WorkspaceStateMapResponse {
 // ── Raw API ─────────────────────────────────────────────────────────────────
 
 /** GET full state map for a workspace. */
-export async function listWorkspaceState(
-  slug: string,
-): Promise<Record<string, unknown>> {
-  const raw = await apiGet<WorkspaceStateMapResponse>(
-    `/workspaces/${slug}/state`,
-    { rawKeys: true },
-  );
+export async function listWorkspaceState(slug: string): Promise<Record<string, unknown>> {
+  const raw = await apiGet<WorkspaceStateMapResponse>(`/workspaces/${slug}/state`, {
+    rawKeys: true,
+  });
   return raw.data ?? {};
 }
 
 /** GET a single value. Returns `null` when the key is absent (404 → null). */
-export async function getWorkspaceState<T = unknown>(
-  slug: string,
-  key: string,
-): Promise<T | null> {
+export async function getWorkspaceState<T = unknown>(slug: string, key: string): Promise<T | null> {
   try {
     const raw = await apiGet<WorkspaceStateValueResponse<T>>(
       `/workspaces/${slug}/state/${encodeURIComponent(key)}`,
-      { rawKeys: true },
+      { rawKeys: true }
     );
     return raw.value ?? null;
   } catch (err: unknown) {
@@ -64,23 +58,18 @@ export async function getWorkspaceState<T = unknown>(
 export async function putWorkspaceState<T = unknown>(
   slug: string,
   key: string,
-  value: T,
+  value: T
 ): Promise<WorkspaceStateValueResponse<T>> {
   return apiPut<WorkspaceStateValueResponse<T>>(
     `/workspaces/${slug}/state/${encodeURIComponent(key)}`,
     { value },
-    { rawKeys: true },
+    { rawKeys: true }
   );
 }
 
 /** DELETE a single key. */
-export async function deleteWorkspaceState(
-  slug: string,
-  key: string,
-): Promise<void> {
-  await apiDelete<unknown>(
-    `/workspaces/${slug}/state/${encodeURIComponent(key)}`,
-  );
+export async function deleteWorkspaceState(slug: string, key: string): Promise<void> {
+  await apiDelete<unknown>(`/workspaces/${slug}/state/${encodeURIComponent(key)}`);
 }
 
 // ── TanStack Query option factories ──────────────────────────────────────────
@@ -88,7 +77,7 @@ export async function deleteWorkspaceState(
 /** Query options for the full state map of a workspace. */
 export function workspaceStateMapQuery(slug: string | null) {
   return {
-    queryKey: ["workspaces", slug, "state"] as const,
+    queryKey: ['workspaces', slug, 'state'] as const,
     queryFn: () => listWorkspaceState(slug as string),
     staleTime: 5_000,
     enabled: Boolean(slug),
@@ -96,12 +85,9 @@ export function workspaceStateMapQuery(slug: string | null) {
 }
 
 /** Query options for a single workspace state key. */
-export function workspaceStateQuery<T = unknown>(
-  slug: string | null,
-  key: string,
-) {
+export function workspaceStateQuery<T = unknown>(slug: string | null, key: string) {
   return {
-    queryKey: ["workspaces", slug, "state", key] as const,
+    queryKey: ['workspaces', slug, 'state', key] as const,
     queryFn: () => getWorkspaceState<T>(slug as string, key),
     staleTime: 5_000,
     enabled: Boolean(slug) && Boolean(key),
@@ -152,7 +138,7 @@ export interface WorkspaceStateCell<T> {
 export function useWorkspaceState<T>(
   key: string,
   defaultValue: T,
-  slugOverride?: string | null,
+  slugOverride?: string | null
 ): WorkspaceStateCell<T> {
   const cell = $state({
     value: defaultValue,

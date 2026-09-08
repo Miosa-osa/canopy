@@ -1,156 +1,176 @@
 <script lang="ts">
-  /**
-   * GitChangesPanel — workspace-level git status panel.
-   * Shows staged/unstaged files with inline diff expansion, stage/unstage,
-   * commit message input, and push. Backed by session worktree endpoints.
-   * CSS prefix: gcp-
-   * LOC target: ≤ 300.
-   */
-  import {
-    type CreateQueryOptions,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import {
-    GitBranch,
-    Plus,
-    Minus,
-    RefreshCw,
-    GitCommitHorizontal,
-    Upload,
-    ChevronDown,
-    ChevronRight,
-    FileText,
-  } from 'lucide-svelte';
-  import {
-    worktreeStatusQuery,
-    worktreeDiffQuery,
-    sessionsQuery,
-    type WorktreeStatus,
-  } from '$lib/api/queries/sessions.js';
-  import { apiPost } from '$lib/api/client.js';
-  import { parseDiff, type DiffFile } from '$lib/utils/parse-diff.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
-  import type { Session } from '$lib/domain/sessions/types.js';
+/**
+ * GitChangesPanel — workspace-level git status panel.
+ * Shows staged/unstaged files with inline diff expansion, stage/unstage,
+ * commit message input, and push. Backed by session worktree endpoints.
+ * CSS prefix: gcp-
+ * LOC target: ≤ 300.
+ */
+import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import {
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  GitBranch,
+  GitCommitHorizontal,
+  Minus,
+  Plus,
+  RefreshCw,
+  Upload,
+} from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { apiPost } from '$lib/api/client.js';
+import {
+  sessionsQuery,
+  type WorktreeStatus,
+  worktreeDiffQuery,
+  worktreeStatusQuery,
+} from '$lib/api/queries/sessions.js';
+import type { Session } from '$lib/domain/sessions/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import { type DiffFile, parseDiff } from '$lib/utils/parse-diff.js';
 
-  // ── Find first session with a worktree ────────────────────────────────────────
+// ── Find first session with a worktree ────────────────────────────────────────
 
-  const allSessionsQuery = createQuery(
-    sessionsQuery({ limit: 20 }) as CreateQueryOptions<Session[]>,
+const allSessionsQuery = createQuery(sessionsQuery({ limit: 20 }) as CreateQueryOptions<Session[]>);
+
+const sessionId = $derived(
+  ($allSessionsQuery.data ?? []).find((s) =>
+    Boolean((s as Session & { worktreePath?: string }).worktreePath)
+  )?.id ?? ''
+);
+
+// ── Worktree status + diff ────────────────────────────────────────────────────
+
+const queryClient = useQueryClient();
+
+const statusOptsStore = writable(
+  untrack(() => worktreeStatusQuery(sessionId) as CreateQueryOptions<WorktreeStatus>)
+);
+$effect(() => {
+  statusOptsStore.set(worktreeStatusQuery(sessionId) as CreateQueryOptions<WorktreeStatus>);
+});
+const statusQuery = createQuery<WorktreeStatus>(statusOptsStore);
+
+const hasWorktree = $derived(Boolean($statusQuery.data?.path));
+const branch = $derived($statusQuery.data?.branch ?? 'unknown');
+const changesCount = $derived($statusQuery.data?.changesCount ?? 0);
+
+const diffOptsStore = writable(
+  untrack(
+    () =>
+      worktreeDiffQuery(sessionId, false) as CreateQueryOptions<{ raw: string; truncated: boolean }>
+  )
+);
+$effect(() => {
+  diffOptsStore.set(
+    worktreeDiffQuery(sessionId, hasWorktree && changesCount > 0) as CreateQueryOptions<{
+      raw: string;
+      truncated: boolean;
+    }>
   );
+});
+const diffQuery = createQuery<{ raw: string; truncated: boolean }>(diffOptsStore);
+const files = $derived<DiffFile[]>($diffQuery.data?.raw ? parseDiff($diffQuery.data.raw) : []);
 
-  const sessionId = $derived(
-    ($allSessionsQuery.data ?? []).find(
-      (s) => Boolean((s as Session & { worktreePath?: string }).worktreePath),
-    )?.id ?? '',
-  );
+// ── Staged state (client-side) ────────────────────────────────────────────────
 
-  // ── Worktree status + diff ────────────────────────────────────────────────────
+let stagedPaths = $state<Set<string>>(new Set());
+$effect(() => {
+  stagedPaths = new Set(files.map((f) => f.path));
+});
 
-  const queryClient = useQueryClient();
+const stagedFiles = $derived(files.filter((f) => stagedPaths.has(f.path)));
+const unstagedFiles = $derived(files.filter((f) => !stagedPaths.has(f.path)));
 
-  const statusOptsStore = writable(
-    untrack(() => worktreeStatusQuery(sessionId) as CreateQueryOptions<WorktreeStatus>),
-  );
-  $effect(() => {
-    statusOptsStore.set(worktreeStatusQuery(sessionId) as CreateQueryOptions<WorktreeStatus>);
-  });
-  const statusQuery = createQuery<WorktreeStatus>(statusOptsStore);
+function stageFile(path: string): void {
+  stagedPaths = new Set([...stagedPaths, path]);
+}
+function unstageFile(path: string): void {
+  const n = new Set(stagedPaths);
+  n.delete(path);
+  stagedPaths = n;
+}
+function stageAll(): void {
+  stagedPaths = new Set(files.map((f) => f.path));
+}
+function unstageAll(): void {
+  stagedPaths = new Set();
+}
 
-  const hasWorktree = $derived(Boolean($statusQuery.data?.path));
-  const branch = $derived($statusQuery.data?.branch ?? 'unknown');
-  const changesCount = $derived($statusQuery.data?.changesCount ?? 0);
+// ── Expanded diffs ────────────────────────────────────────────────────────────
 
-  const diffOptsStore = writable(
-    untrack(() => worktreeDiffQuery(sessionId, false) as CreateQueryOptions<{ raw: string; truncated: boolean }>),
-  );
-  $effect(() => {
-    diffOptsStore.set(
-      worktreeDiffQuery(sessionId, hasWorktree && changesCount > 0) as CreateQueryOptions<{ raw: string; truncated: boolean }>,
-    );
-  });
-  const diffQuery = createQuery<{ raw: string; truncated: boolean }>(diffOptsStore);
-  const files = $derived<DiffFile[]>($diffQuery.data?.raw ? parseDiff($diffQuery.data.raw) : []);
+let expandedPaths = $state<Set<string>>(new Set());
+function toggleExpand(path: string): void {
+  const n = new Set(expandedPaths);
+  if (n.has(path)) n.delete(path);
+  else n.add(path);
+  expandedPaths = n;
+}
 
-  // ── Staged state (client-side) ────────────────────────────────────────────────
+// ── Commit + push ─────────────────────────────────────────────────────────────
 
-  let stagedPaths = $state<Set<string>>(new Set());
-  $effect(() => { stagedPaths = new Set(files.map((f) => f.path)); });
+let commitMsg = $state('');
+let isCommitting = $state(false);
+let isPushing = $state(false);
 
-  const stagedFiles = $derived(files.filter((f) => stagedPaths.has(f.path)));
-  const unstagedFiles = $derived(files.filter((f) => !stagedPaths.has(f.path)));
-
-  function stageFile(path: string): void { stagedPaths = new Set([...stagedPaths, path]); }
-  function unstageFile(path: string): void { const n = new Set(stagedPaths); n.delete(path); stagedPaths = n; }
-  function stageAll(): void { stagedPaths = new Set(files.map((f) => f.path)); }
-  function unstageAll(): void { stagedPaths = new Set(); }
-
-  // ── Expanded diffs ────────────────────────────────────────────────────────────
-
-  let expandedPaths = $state<Set<string>>(new Set());
-  function toggleExpand(path: string): void {
-    const n = new Set(expandedPaths);
-    if (n.has(path)) n.delete(path); else n.add(path);
-    expandedPaths = n;
-  }
-
-  // ── Commit + push ─────────────────────────────────────────────────────────────
-
-  let commitMsg = $state('');
-  let isCommitting = $state(false);
-  let isPushing = $state(false);
-
-  async function handleCommit(): Promise<void> {
-    if (!commitMsg.trim() || !sessionId) return;
-    isCommitting = true;
-    try {
-      await apiPost(`/sessions/${sessionId}/worktree/commit`, {
-        message: commitMsg.trim(),
-        files: stagedPaths.size > 0 ? [...stagedPaths] : undefined,
-      });
-      toasts.success('Committed successfully');
-      commitMsg = '';
-      stagedPaths = new Set();
-      void queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'worktree'] });
-    } catch (err) {
-      toasts.error(`Commit failed: ${err instanceof Error ? err.message : 'unknown error'}`);
-    } finally { isCommitting = false; }
-  }
-
-  async function handlePush(): Promise<void> {
-    if (!sessionId) return;
-    isPushing = true;
-    try {
-      await apiPost(`/sessions/${sessionId}/worktree/push`, { remote: 'origin' });
-      toasts.success('Pushed to origin');
-    } catch (err) {
-      toasts.error(`Push failed: ${err instanceof Error ? err.message : 'unknown error'}`);
-    } finally { isPushing = false; }
-  }
-
-  function refresh(): void {
+async function handleCommit(): Promise<void> {
+  if (!commitMsg.trim() || !sessionId) return;
+  isCommitting = true;
+  try {
+    await apiPost(`/sessions/${sessionId}/worktree/commit`, {
+      message: commitMsg.trim(),
+      files: stagedPaths.size > 0 ? [...stagedPaths] : undefined,
+    });
+    toasts.success('Committed successfully');
+    commitMsg = '';
+    stagedPaths = new Set();
     void queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'worktree'] });
+  } catch (err) {
+    toasts.error(`Commit failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+  } finally {
+    isCommitting = false;
   }
+}
 
-  $effect(() => {
-    if (!sessionId) return;
-    const timer = setInterval(refresh, 10_000);
-    return () => clearInterval(timer);
-  });
-
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-
-  function statusLabel(s: DiffFile['status']): string {
-    return s === 'added' ? 'A' : s === 'deleted' ? 'D' : s === 'renamed' ? 'R' : 'M';
+async function handlePush(): Promise<void> {
+  if (!sessionId) return;
+  isPushing = true;
+  try {
+    await apiPost(`/sessions/${sessionId}/worktree/push`, { remote: 'origin' });
+    toasts.success('Pushed to origin');
+  } catch (err) {
+    toasts.error(`Push failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+  } finally {
+    isPushing = false;
   }
-  function statusColor(s: DiffFile['status']): string {
-    return s === 'added' ? 'var(--success, oklch(0.72 0.18 145))'
-      : s === 'deleted' ? 'var(--destructive, oklch(0.65 0.22 25))'
-      : s === 'renamed' ? 'oklch(0.72 0.18 250)'
-      : 'oklch(0.72 0.18 70)';
-  }
+}
+
+function refresh(): void {
+  void queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'worktree'] });
+}
+
+$effect(() => {
+  if (!sessionId) return;
+  const timer = setInterval(refresh, 10_000);
+  return () => clearInterval(timer);
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function statusLabel(s: DiffFile['status']): string {
+  return s === 'added' ? 'A' : s === 'deleted' ? 'D' : s === 'renamed' ? 'R' : 'M';
+}
+function statusColor(s: DiffFile['status']): string {
+  return s === 'added'
+    ? 'var(--success, oklch(0.72 0.18 145))'
+    : s === 'deleted'
+      ? 'var(--destructive, oklch(0.65 0.22 25))'
+      : s === 'renamed'
+        ? 'oklch(0.72 0.18 250)'
+        : 'oklch(0.72 0.18 70)';
+}
 </script>
 
 {#snippet fileRow(file: DiffFile, staged: boolean)}

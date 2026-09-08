@@ -5,7 +5,7 @@
  * the backend sends). Pass `lastN` for cold restore; pass `from` for polling.
  */
 
-const API_BASE = "http://localhost:9190/api/v1";
+const API_BASE = 'http://localhost:9190/api/v1';
 
 export interface ScrollbackResult {
   data: Uint8Array;
@@ -15,11 +15,11 @@ export interface ScrollbackResult {
 
 export async function fetchScrollback(
   sessionId: string,
-  opts: { lastN?: number; from?: number } = {},
+  opts: { lastN?: number; from?: number } = {}
 ): Promise<ScrollbackResult> {
   const params = new URLSearchParams();
-  if (opts.from !== undefined) params.set("from", String(opts.from));
-  else if (opts.lastN !== undefined) params.set("last_n", String(opts.lastN));
+  if (opts.from !== undefined) params.set('from', String(opts.from));
+  else if (opts.lastN !== undefined) params.set('last_n', String(opts.lastN));
 
   const url = `${API_BASE}/sessions/${sessionId}/scrollback?${params}`;
   const res = await fetch(url);

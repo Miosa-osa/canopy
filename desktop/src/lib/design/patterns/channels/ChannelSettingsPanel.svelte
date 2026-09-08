@@ -1,130 +1,130 @@
 <script lang="ts">
-  /**
-   * ChannelSettingsPanel — right slide-out panel for channel config.
-   * CSS prefix: csp- (ChannelSettingsPanel)
-   * LOC target: ≤280
-   */
-  import { X, Trash2, UserMinus, UserPlus, Lock, Hash } from 'lucide-svelte';
-  import {
-    updateChannel,
-    deleteChannel,
-    listMembers,
-    addMember,
-    removeMember,
-  } from '$lib/api/queries/channels.js';
-  import type { Channel, ChannelMember, ActorType } from '$lib/domain/channels/types.js';
+/**
+ * ChannelSettingsPanel — right slide-out panel for channel config.
+ * CSS prefix: csp- (ChannelSettingsPanel)
+ * LOC target: ≤280
+ */
+import { Hash, Lock, Trash2, UserMinus, UserPlus, X } from 'lucide-svelte';
+import {
+  addMember,
+  deleteChannel,
+  listMembers,
+  removeMember,
+  updateChannel,
+} from '$lib/api/queries/channels.js';
+import type { ActorType, Channel, ChannelMember } from '$lib/domain/channels/types.js';
 
-  interface Props {
-    channel: Channel;
-    open: boolean;
-    onClose: () => void;
-    onUpdated: () => void;
-    onDeleted: () => void;
+interface Props {
+  channel: Channel;
+  open: boolean;
+  onClose: () => void;
+  onUpdated: () => void;
+  onDeleted: () => void;
+}
+
+let { channel, open, onClose, onUpdated, onDeleted }: Props = $props();
+
+// ── Details form state ────────────────────────────────────────────────────
+// Initialized empty; $effect below populates and re-syncs when channel changes.
+let editName = $state('');
+let editDesc = $state('');
+let editVisibility = $state<'public' | 'private'>('public');
+let saving = $state(false);
+let saveError = $state<string | null>(null);
+
+// Sync form values when channel prop changes (e.g. after invalidation)
+$effect(() => {
+  editName = channel.name;
+  editDesc = channel.description ?? '';
+  editVisibility = channel.visibility;
+});
+
+async function handleSave(): Promise<void> {
+  if (!editName.trim()) return;
+  saving = true;
+  saveError = null;
+  try {
+    await updateChannel(channel.id, {
+      name: editName.trim(),
+      description: editDesc.trim() || null,
+      visibility: editVisibility,
+    });
+    onUpdated();
+  } catch (e) {
+    saveError = e instanceof Error ? e.message : 'Save failed';
+  } finally {
+    saving = false;
   }
+}
 
-  let { channel, open, onClose, onUpdated, onDeleted }: Props = $props();
+// ── Members ───────────────────────────────────────────────────────────────
+let members = $state<ChannelMember[]>([]);
+let membersLoading = $state(false);
+let membersError = $state<string | null>(null);
+let addSlug = $state('');
+let addActorType = $state<ActorType>('agent');
+let adding = $state(false);
+let addError = $state<string | null>(null);
 
-  // ── Details form state ────────────────────────────────────────────────────
-  // Initialized empty; $effect below populates and re-syncs when channel changes.
-  let editName = $state('');
-  let editDesc = $state('');
-  let editVisibility = $state<'public' | 'private'>('public');
-  let saving = $state(false);
-  let saveError = $state<string | null>(null);
-
-  // Sync form values when channel prop changes (e.g. after invalidation)
-  $effect(() => {
-    editName = channel.name;
-    editDesc = channel.description ?? '';
-    editVisibility = channel.visibility;
-  });
-
-  async function handleSave(): Promise<void> {
-    if (!editName.trim()) return;
-    saving = true;
-    saveError = null;
-    try {
-      await updateChannel(channel.id, {
-        name: editName.trim(),
-        description: editDesc.trim() || null,
-        visibility: editVisibility,
-      });
-      onUpdated();
-    } catch (e) {
-      saveError = e instanceof Error ? e.message : 'Save failed';
-    } finally {
-      saving = false;
-    }
+async function loadMembers(): Promise<void> {
+  membersLoading = true;
+  membersError = null;
+  try {
+    members = await listMembers(channel.id);
+  } catch (e) {
+    membersError = e instanceof Error ? e.message : 'Failed to load members';
+  } finally {
+    membersLoading = false;
   }
+}
 
-  // ── Members ───────────────────────────────────────────────────────────────
-  let members = $state<ChannelMember[]>([]);
-  let membersLoading = $state(false);
-  let membersError = $state<string | null>(null);
-  let addSlug = $state('');
-  let addActorType = $state<ActorType>('agent');
-  let adding = $state(false);
-  let addError = $state<string | null>(null);
+$effect(() => {
+  if (open) void loadMembers();
+});
 
-  async function loadMembers(): Promise<void> {
-    membersLoading = true;
-    membersError = null;
-    try {
-      members = await listMembers(channel.id);
-    } catch (e) {
-      membersError = e instanceof Error ? e.message : 'Failed to load members';
-    } finally {
-      membersLoading = false;
-    }
+async function handleAddMember(): Promise<void> {
+  const slug = addSlug.trim();
+  if (!slug) return;
+  adding = true;
+  addError = null;
+  try {
+    await addMember(channel.id, { actorType: addActorType, actorId: slug });
+    addSlug = '';
+    await loadMembers();
+  } catch (e) {
+    addError = e instanceof Error ? e.message : 'Failed to add member';
+  } finally {
+    adding = false;
   }
+}
 
-  $effect(() => {
-    if (open) void loadMembers();
-  });
-
-  async function handleAddMember(): Promise<void> {
-    const slug = addSlug.trim();
-    if (!slug) return;
-    adding = true;
-    addError = null;
-    try {
-      await addMember(channel.id, { actorType: addActorType, actorId: slug });
-      addSlug = '';
-      await loadMembers();
-    } catch (e) {
-      addError = e instanceof Error ? e.message : 'Failed to add member';
-    } finally {
-      adding = false;
-    }
+async function handleRemoveMember(m: ChannelMember): Promise<void> {
+  try {
+    await removeMember(channel.id, m.actorType, m.actorId);
+    await loadMembers();
+  } catch {
+    // silently fail — member list refresh will show truth
   }
+}
 
-  async function handleRemoveMember(m: ChannelMember): Promise<void> {
-    try {
-      await removeMember(channel.id, m.actorType, m.actorId);
-      await loadMembers();
-    } catch {
-      // silently fail — member list refresh will show truth
-    }
+// ── Danger zone ───────────────────────────────────────────────────────────
+let confirmDelete = $state(false);
+let deleting = $state(false);
+
+async function handleDelete(): Promise<void> {
+  deleting = true;
+  try {
+    await deleteChannel(channel.id);
+    onDeleted();
+  } catch {
+    deleting = false;
+    confirmDelete = false;
   }
+}
 
-  // ── Danger zone ───────────────────────────────────────────────────────────
-  let confirmDelete = $state(false);
-  let deleting = $state(false);
-
-  async function handleDelete(): Promise<void> {
-    deleting = true;
-    try {
-      await deleteChannel(channel.id);
-      onDeleted();
-    } catch {
-      deleting = false;
-      confirmDelete = false;
-    }
-  }
-
-  function handleOverlayClick(e: MouseEvent): void {
-    if (e.target === e.currentTarget) onClose();
-  }
+function handleOverlayClick(e: MouseEvent): void {
+  if (e.target === e.currentTarget) onClose();
+}
 </script>
 
 {#if open}

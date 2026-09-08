@@ -1,3 +1,7 @@
+> HISTORICAL EVIDENCE: This document records an earlier plan or assessment.
+> It does not establish current product scope, runtime readiness, or write authority.
+> Resolve current ownership through the repository root `agent-authority.json`.
+
 # OSS Deep Steal Report -- 2026-05-01
 
 > 3 repos audited. 187 distinct features cataloged. 53 features we're MISSING. Top 15 build candidates below.

@@ -3,7 +3,7 @@
  * All fields mirror the backend Ecto schema after camelCase transformation.
  */
 
-import type { TranscriptEntry } from "$lib/domain/sessions/types.js";
+import type { TranscriptEntry } from '$lib/domain/sessions/types.js';
 
 // ── Core Thread ───────────────────────────────────────────────────────────────
 

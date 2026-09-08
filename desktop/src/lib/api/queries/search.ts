@@ -23,7 +23,7 @@
  * without throwing.
  */
 
-import { API_BASE, ApiError } from "$lib/api/client.js";
+import { API_BASE, ApiError } from '$lib/api/client.js';
 
 /** A single ripgrep match, normalised to camelCase by the API client. */
 export interface SearchHit {
@@ -78,7 +78,7 @@ export interface BackendStatus {
   /** Hits — empty array when unavailable or no matches. */
   hits: SearchHit[];
   /** Which backend served the request, when available. */
-  backend?: "ripgrep" | "elixir";
+  backend?: 'ripgrep' | 'elixir';
   /** Wall-clock backend time, when available. */
   elapsedMs?: number;
   /** True when at least one returned line was truncated to fit. */
@@ -93,22 +93,20 @@ export interface BackendStatus {
  * `data`, which the shared `apiGet` helper would strip via its
  * `{data: ...}` envelope-unwrapping pass.
  */
-export async function searchWorkspace(
-  filters: SearchFilters,
-): Promise<BackendStatus> {
+export async function searchWorkspace(filters: SearchFilters): Promise<BackendStatus> {
   const params = new URLSearchParams();
-  params.set("workspace_slug", filters.workspaceSlug);
-  params.set("q", filters.q);
-  if (filters.regex !== undefined) params.set("regex", String(filters.regex));
+  params.set('workspace_slug', filters.workspaceSlug);
+  params.set('q', filters.q);
+  if (filters.regex !== undefined) params.set('regex', String(filters.regex));
   if (filters.caseSensitive !== undefined) {
-    params.set("case_sensitive", String(filters.caseSensitive));
+    params.set('case_sensitive', String(filters.caseSensitive));
   }
-  if (filters.limit !== undefined) params.set("limit", String(filters.limit));
+  if (filters.limit !== undefined) params.set('limit', String(filters.limit));
 
   try {
     const res = await fetch(`${API_BASE}/search?${params.toString()}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
     });
 
     if (res.status === 404) {
@@ -134,7 +132,7 @@ export async function searchWorkspace(
         match_start: number;
         match_end: number;
       }>;
-      backend?: "ripgrep" | "elixir";
+      backend?: 'ripgrep' | 'elixir';
       elapsed_ms?: number;
       truncated?: boolean;
     };
@@ -166,8 +164,8 @@ export async function searchWorkspace(
 export function searchQuery(filters: SearchFilters) {
   return {
     queryKey: [
-      "build-rail",
-      "search",
+      'build-rail',
+      'search',
       filters.workspaceSlug,
       filters.q,
       filters.regex ?? false,

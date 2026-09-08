@@ -1,78 +1,78 @@
 <script lang="ts">
-  /**
-   * PersonaEditor — system prompt textarea + category picker + trait tags.
-   * CSS prefix: pe- (PersonaEditor)
-   */
-  import type { AgentDetail, AgentCategory } from '$lib/domain/agents/types.js';
-  import { renderMarkdown } from '$lib/utils/markdown.js';
+/**
+ * PersonaEditor — system prompt textarea + category picker + trait tags.
+ * CSS prefix: pe- (PersonaEditor)
+ */
+import type { AgentCategory, AgentDetail } from '$lib/domain/agents/types.js';
+import { renderMarkdown } from '$lib/utils/markdown.js';
 
-  interface Props {
-    agent: AgentDetail;
-    onSave: (systemPrompt: string, traits: string[]) => void;
-    isSaving: boolean;
+interface Props {
+  agent: AgentDetail;
+  onSave: (systemPrompt: string, traits: string[]) => void;
+  isSaving: boolean;
+}
+
+let { agent, onSave, isSaving }: Props = $props();
+
+let editText = $state('');
+let traitInput = $state('');
+let traits = $state<string[]>([]);
+let viewMode = $state<'edit' | 'preview'>('edit');
+
+// Sync editText with agent prop reactively
+$effect(() => {
+  editText = agent.personaMarkdown ?? '';
+});
+
+const isDirty = $derived(editText !== (agent.personaMarkdown ?? ''));
+const renderedHtml = $derived(viewMode === 'preview' && editText ? renderMarkdown(editText) : '');
+
+function handleKeydown(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    if (isDirty) onSave(editText, traits);
   }
+}
 
-  let { agent, onSave, isSaving }: Props = $props();
-
-  let editText = $state('');
-  let traitInput = $state('');
-  let traits = $state<string[]>([]);
-  let viewMode = $state<'edit' | 'preview'>('edit');
-
-  // Sync editText with agent prop reactively
-  $effect(() => {
-    editText = agent.personaMarkdown ?? '';
-  });
-
-  const isDirty = $derived(editText !== (agent.personaMarkdown ?? ''));
-  const renderedHtml = $derived(
-    viewMode === 'preview' && editText ? renderMarkdown(editText) : '',
-  );
-
-  function handleKeydown(e: KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault();
-      if (isDirty) onSave(editText, traits);
-    }
+function addTrait(e: KeyboardEvent) {
+  if (e.key === 'Enter' && traitInput.trim()) {
+    e.preventDefault();
+    const next = traitInput.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!traits.includes(next)) traits = [...traits, next];
+    traitInput = '';
   }
+}
 
-  function addTrait(e: KeyboardEvent) {
-    if (e.key === 'Enter' && traitInput.trim()) {
-      e.preventDefault();
-      const next = traitInput.trim().toLowerCase().replace(/\s+/g, '-');
-      if (!traits.includes(next)) traits = [...traits, next];
-      traitInput = '';
-    }
-  }
+function removeTrait(t: string) {
+  traits = traits.filter((x) => x !== t);
+}
 
-  function removeTrait(t: string) {
-    traits = traits.filter((x) => x !== t);
-  }
+const CATEGORIES: Array<{ value: AgentCategory; label: string }> = [
+  { value: 'academic', label: 'Academic' },
+  { value: 'creative-content', label: 'Creative Content' },
+  { value: 'design', label: 'Design' },
+  { value: 'engineering', label: 'Engineering' },
+  { value: 'executive', label: 'Executive' },
+  { value: 'game-development', label: 'Game Development' },
+  { value: 'growth', label: 'Growth' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'operations', label: 'Operations' },
+  { value: 'paid-media', label: 'Paid Media' },
+  { value: 'product', label: 'Product' },
+  { value: 'project-management', label: 'Project Management' },
+  { value: 'revenue', label: 'Revenue' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'spatial-computing', label: 'Spatial Computing' },
+  { value: 'specialized', label: 'Specialized' },
+  { value: 'support', label: 'Support' },
+  { value: 'technology', label: 'Technology' },
+  { value: 'testing', label: 'Testing' },
+];
 
-  const CATEGORIES: Array<{ value: AgentCategory; label: string }> = [
-    { value: 'academic', label: 'Academic' },
-    { value: 'creative-content', label: 'Creative Content' },
-    { value: 'design', label: 'Design' },
-    { value: 'engineering', label: 'Engineering' },
-    { value: 'executive', label: 'Executive' },
-    { value: 'game-development', label: 'Game Development' },
-    { value: 'growth', label: 'Growth' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'operations', label: 'Operations' },
-    { value: 'paid-media', label: 'Paid Media' },
-    { value: 'product', label: 'Product' },
-    { value: 'project-management', label: 'Project Management' },
-    { value: 'revenue', label: 'Revenue' },
-    { value: 'sales', label: 'Sales' },
-    { value: 'spatial-computing', label: 'Spatial Computing' },
-    { value: 'specialized', label: 'Specialized' },
-    { value: 'support', label: 'Support' },
-    { value: 'technology', label: 'Technology' },
-    { value: 'testing', label: 'Testing' },
-  ];
-
-  let selectedCategory = $state<AgentCategory>('engineering');
-  $effect(() => { selectedCategory = agent.category; });
+let selectedCategory = $state<AgentCategory>('engineering');
+$effect(() => {
+  selectedCategory = agent.category;
+});
 </script>
 
 <div class="pe-root">

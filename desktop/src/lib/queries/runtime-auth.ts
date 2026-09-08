@@ -6,13 +6,12 @@
  * "backend not ready" banner. The probe function below handles that.
  */
 
-import { apiDelete, apiGet, apiPost, apiPut } from "$lib/api/client.js";
-import { ApiError } from "$lib/api/client.js";
-import type { AuthStatus } from "$lib/domain/runtimes/types.js";
+import { ApiError, apiDelete, apiGet, apiPost, apiPut } from '$lib/api/client.js';
+import type { AuthStatus } from '$lib/domain/runtimes/types.js';
 
 // ── Response shapes ──────────────────────────────────────────────────────────
 
-export type FlowType = "device_code" | "api_key";
+export type FlowType = 'device_code' | 'api_key';
 
 export interface AuthStartResponse {
   flow_type: FlowType;
@@ -23,7 +22,7 @@ export interface AuthStartResponse {
   interval?: number;
 }
 
-export type PollStatus = "pending" | "active" | "expired";
+export type PollStatus = 'pending' | 'active' | 'expired';
 
 export interface AuthPollResponse {
   status: PollStatus;
@@ -43,10 +42,7 @@ export function startAuthFlow(runtimeId: string): Promise<AuthStartResponse> {
   return apiPost<AuthStartResponse>(`/runtimes/${runtimeId}/auth/start`);
 }
 
-export function pollAuthFlow(
-  runtimeId: string,
-  deviceCode: string,
-): Promise<AuthPollResponse> {
+export function pollAuthFlow(runtimeId: string, deviceCode: string): Promise<AuthPollResponse> {
   return apiPost<AuthPollResponse>(`/runtimes/${runtimeId}/auth/poll`, {
     device_code: deviceCode,
   });
@@ -54,7 +50,7 @@ export function pollAuthFlow(
 
 export function saveApiKey(runtimeId: string, key: string): Promise<void> {
   return apiPut<void>(`/runtimes/${runtimeId}/credentials`, {
-    auth_type: "api_key",
+    auth_type: 'api_key',
     api_key: key,
   });
 }
@@ -76,7 +72,7 @@ export function getAuthStatus(runtimeId: string): Promise<AuthStatus> {
 /** TanStack Query options for GET /runtimes/:type/auth/status */
 export function authStatusQuery(runtimeId: string) {
   return {
-    queryKey: ["runtimes", runtimeId, "auth", "status"] as const,
+    queryKey: ['runtimes', runtimeId, 'auth', 'status'] as const,
     queryFn: () => getAuthStatus(runtimeId),
     staleTime: 30_000,
     retry: false,
@@ -118,7 +114,7 @@ export function createAuthPoller(
   intervalMs: number,
   onResult: (result: AuthPollResponse) => void,
   onDone: (result: AuthPollResponse) => void,
-  onError: (err: unknown) => void,
+  onError: (err: unknown) => void
 ): PollerHandle {
   let active = true;
 
@@ -128,7 +124,7 @@ export function createAuthPoller(
       const result = await pollAuthFlow(runtimeId, deviceCode);
       if (!active) return;
       onResult(result);
-      if (result.status === "active" || result.status === "expired") {
+      if (result.status === 'active' || result.status === 'expired') {
         active = false;
         onDone(result);
       }
@@ -153,7 +149,7 @@ export function createAuthPoller(
 /** Mutation options: start OAuth device code flow */
 export function startAuthFlowMutation(runtimeId: string) {
   return {
-    mutationKey: ["runtimes", runtimeId, "auth", "start"] as const,
+    mutationKey: ['runtimes', runtimeId, 'auth', 'start'] as const,
     mutationFn: () => startAuthFlow(runtimeId),
   };
 }
@@ -161,7 +157,7 @@ export function startAuthFlowMutation(runtimeId: string) {
 /** Mutation options: save API key credential */
 export function saveApiKeyMutation(runtimeId: string) {
   return {
-    mutationKey: ["runtimes", runtimeId, "auth", "api_key"] as const,
+    mutationKey: ['runtimes', runtimeId, 'auth', 'api_key'] as const,
     mutationFn: (key: string) => saveApiKey(runtimeId, key),
   };
 }
@@ -169,7 +165,7 @@ export function saveApiKeyMutation(runtimeId: string) {
 /** Mutation options: revoke credentials */
 export function revokeCredentialsMutation(runtimeId: string) {
   return {
-    mutationKey: ["runtimes", runtimeId, "credentials", "revoke"] as const,
+    mutationKey: ['runtimes', runtimeId, 'credentials', 'revoke'] as const,
     mutationFn: () => revokeCredentials(runtimeId),
   };
 }
@@ -177,7 +173,7 @@ export function revokeCredentialsMutation(runtimeId: string) {
 /** Mutation options: test runtime connection */
 export function testRuntimeMutation(runtimeId: string) {
   return {
-    mutationKey: ["runtimes", runtimeId, "test"] as const,
+    mutationKey: ['runtimes', runtimeId, 'test'] as const,
     mutationFn: () => testRuntime(runtimeId),
   };
 }

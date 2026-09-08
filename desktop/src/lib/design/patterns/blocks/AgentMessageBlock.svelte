@@ -1,30 +1,30 @@
 <script lang="ts">
-  /**
-   * AgentMessageBlock — kind='agent_message' renderer.
-   *
-   * Renders the markdown body of an LLM message and an optional model
-   * badge pulled from `metadata.model`. Markdown is rendered as
-   * pre-wrapped plain text here (a markdown renderer can be plugged in
-   * later via the foundation layer).
-   *
-   * Thin component — no fetching, no state. Pure render of `block` prop.
-   *
-   * CSS prefix: amsg-
-   */
+/**
+ * AgentMessageBlock — kind='agent_message' renderer.
+ *
+ * Renders the markdown body of an LLM message and an optional model
+ * badge pulled from `metadata.model`. Markdown is rendered as
+ * pre-wrapped plain text here (a markdown renderer can be plugged in
+ * later via the foundation layer).
+ *
+ * Thin component — no fetching, no state. Pure render of `block` prop.
+ *
+ * CSS prefix: amsg-
+ */
 
-  import type { Block } from '$lib/domain/blocks/types.js';
+import type { Block } from '$lib/domain/blocks/types.js';
 
-  interface Props {
-    block: Block;
-  }
+interface Props {
+  block: Block;
+}
 
-  let { block }: Props = $props();
+let { block }: Props = $props();
 
-  const model = $derived(
-    typeof block.metadata?.model === 'string' ? (block.metadata.model as string) : null,
-  );
+const model = $derived(
+  typeof block.metadata?.model === 'string' ? (block.metadata.model as string) : null
+);
 
-  const body = $derived(block.outputText ?? block.inputText ?? '');
+const body = $derived(block.outputText ?? block.inputText ?? '');
 </script>
 
 <div class="amsg-root">

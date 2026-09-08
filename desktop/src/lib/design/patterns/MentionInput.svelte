@@ -25,18 +25,21 @@
  * LOC budget: ≤ 280
  */
 
-import { onMount, onDestroy } from 'svelte';
 import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { onDestroy, onMount } from 'svelte';
 import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
-import { workspacesQuery } from '$lib/api/queries/workspaces.js';
-import { tasksQuery } from '$lib/api/queries/tasks.js';
 import { channelsQuery } from '$lib/api/queries/channels.js';
+import { tasksQuery } from '$lib/api/queries/tasks.js';
+import { workspacesQuery } from '$lib/api/queries/workspaces.js';
+import {
+  trackRecentCommand,
+  useGhostSuggestion,
+} from '$lib/design/patterns/mosaic/panes/agent-conversation/useGhostSuggestion.svelte.js';
 import type { Agent } from '$lib/domain/agents/types.js';
-import type { Workspace } from '$lib/domain/workspaces/types.js';
-import type { Task } from '$lib/domain/tasks/types.js';
 import type { Channel } from '$lib/domain/channels/types.js';
+import type { Task } from '$lib/domain/tasks/types.js';
+import type { Workspace } from '$lib/domain/workspaces/types.js';
 import StatusDot from './StatusDot.svelte';
-import { useGhostSuggestion, trackRecentCommand } from '$lib/design/patterns/mosaic/panes/agent-conversation/useGhostSuggestion.svelte.js';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -82,10 +85,7 @@ const channelsQ = createQuery<Channel[]>(channelsQuery() as CreateQueryOptions<C
 
 const allAgents = $derived(($agentsQ.data ?? []) as Agent[]);
 const allWorkspaces = $derived(($workspacesQ.data ?? []) as Workspace[]);
-const allTasks = $derived([
-  ...($openTasksQ.data ?? []),
-  ...($inProgressQ.data ?? []),
-] as Task[]);
+const allTasks = $derived([...($openTasksQ.data ?? []), ...($inProgressQ.data ?? [])] as Task[]);
 const allChannels = $derived(($channelsQ.data ?? []) as Channel[]);
 
 // ── Fuzzy scoring (reuse CommandPalette tiers) ────────────────────────────────
@@ -151,44 +151,48 @@ const dropdownOpen = $derived(mentionQuery !== null && results.length > 0);
 // ── Category aggregation ──────────────────────────────────────────────────────
 
 function buildResults(q: string): MentionItem[] {
-  const agentItems = scoreAndFilter(allAgents, (a) => `${a.name} ${a.slug}`, q, 3)
-    .map(({ item: a }) => ({
+  const agentItems = scoreAndFilter(allAgents, (a) => `${a.name} ${a.slug}`, q, 3).map(
+    ({ item: a }) => ({
       id: a.slug,
       slug: a.slug,
       label: a.name,
       sublabel: a.title,
       category: 'agents' as const,
       emoji: a.emoji,
-    }));
+    })
+  );
 
-  const wsItems = scoreAndFilter(allWorkspaces, (w) => `${w.name} ${w.slug}`, q, 2)
-    .map(({ item: w }) => ({
+  const wsItems = scoreAndFilter(allWorkspaces, (w) => `${w.name} ${w.slug}`, q, 2).map(
+    ({ item: w }) => ({
       id: w.slug,
       slug: w.slug,
       label: w.name,
       sublabel: w.slug,
       category: 'workspaces' as const,
-    }));
+    })
+  );
 
-  const taskItems = scoreAndFilter(allTasks, (t) => `${t.shortId} ${t.title}`, q, 3)
-    .map(({ item: t }) => ({
+  const taskItems = scoreAndFilter(allTasks, (t) => `${t.shortId} ${t.title}`, q, 3).map(
+    ({ item: t }) => ({
       id: t.id,
       slug: t.shortId.toLowerCase(),
       label: t.shortId,
       sublabel: t.title.length > 40 ? t.title.slice(0, 40) + '…' : t.title,
       category: 'tasks' as const,
       taskStatus: t.status,
-    }));
+    })
+  );
 
-  const channelItems = scoreAndFilter(allChannels, (c) => `${c.name} ${c.slug}`, q, 2)
-    .map(({ item: c }) => ({
+  const channelItems = scoreAndFilter(allChannels, (c) => `${c.name} ${c.slug}`, q, 2).map(
+    ({ item: c }) => ({
       id: c.id,
       slug: c.slug,
       label: c.name,
       sublabel: c.slug,
       category: 'channels' as const,
       emoji: c.icon ?? '#',
-    }));
+    })
+  );
 
   return [...agentItems, ...wsItems, ...taskItems, ...channelItems].slice(0, 10);
 }
@@ -279,11 +283,12 @@ function selectItem(item: MentionItem): void {
 /** Dismiss ghost text without accepting (used by Escape). */
 let ghostDismissed = $state(false);
 /** Reset dismiss flag whenever draft changes. */
-$effect(() => { void value; ghostDismissed = false; });
+$effect(() => {
+  void value;
+  ghostDismissed = false;
+});
 
-const activeGhost = $derived(
-  !ghostDismissed && !dropdownOpen ? ghost.suggestion : null,
-);
+const activeGhost = $derived(!ghostDismissed && !dropdownOpen ? ghost.suggestion : null);
 
 function handleKeydown(e: KeyboardEvent): void {
   if (e.key === 'Enter' && e.metaKey) {

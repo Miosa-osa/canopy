@@ -5,14 +5,8 @@
  * createQuery() / createMutation() in component scripts.
  */
 
-import {
-  apiDelete,
-  apiGet,
-  apiPatch,
-  apiPost,
-  apiPut,
-} from "$lib/api/client.js";
-import { toCamel } from "$lib/api/case.js";
+import { toCamel } from '$lib/api/case.js';
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '$lib/api/client.js';
 import type {
   CreateWorkspaceBody,
   DirEntry,
@@ -24,7 +18,7 @@ import type {
   WorkspaceDetail,
   WorkspaceFilters,
   WorkspaceTemplate,
-} from "$lib/domain/workspaces/types.js";
+} from '$lib/domain/workspaces/types.js';
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 //
@@ -32,13 +26,11 @@ import type {
 // {data: ...} envelope. The backend sends snake_case; toCamel() converts
 // keys to camelCase so TypeScript domain types (rootPath, isDir, etc.) match.
 
-export async function listWorkspaces(
-  filters?: WorkspaceFilters,
-): Promise<Workspace[]> {
+export async function listWorkspaces(filters?: WorkspaceFilters): Promise<Workspace[]> {
   const params = new URLSearchParams();
-  if (filters?.includeDeleted) params.set("include_deleted", "true");
+  if (filters?.includeDeleted) params.set('include_deleted', 'true');
   const qs = params.toString();
-  const raw = await apiGet<unknown>(`/workspaces${qs ? `?${qs}` : ""}`);
+  const raw = await apiGet<unknown>(`/workspaces${qs ? `?${qs}` : ''}`);
   return toCamel(raw) as Workspace[];
 }
 
@@ -47,9 +39,7 @@ export async function getWorkspace(slug: string): Promise<WorkspaceDetail> {
   return toCamel(raw) as WorkspaceDetail;
 }
 
-export async function createWorkspace(
-  body: CreateWorkspaceBody,
-): Promise<Workspace> {
+export async function createWorkspace(body: CreateWorkspaceBody): Promise<Workspace> {
   const payload = {
     slug: body.slug,
     name: body.name,
@@ -57,7 +47,7 @@ export async function createWorkspace(
     description: body.description ?? null,
     template_slug: body.templateSlug ?? null,
   };
-  const raw = await apiPost<unknown>("/workspaces", payload);
+  const raw = await apiPost<unknown>('/workspaces', payload);
   return toCamel(raw) as Workspace;
 }
 
@@ -66,7 +56,7 @@ export function deleteWorkspace(slug: string): Promise<void> {
 }
 
 export async function listTemplates(): Promise<WorkspaceTemplate[]> {
-  const raw = await apiGet<unknown>("/workspaces/templates");
+  const raw = await apiGet<unknown>('/workspaces/templates');
   return toCamel(raw) as WorkspaceTemplate[];
 }
 
@@ -75,43 +65,29 @@ export async function getFileTree(slug: string): Promise<FileTreeNode> {
   return toCamel(raw) as FileTreeNode;
 }
 
-export async function listDir(
-  slug: string,
-  path: string = "",
-): Promise<DirEntry[]> {
-  const qs = path ? `?path=${encodeURIComponent(path)}` : "";
+export async function listDir(slug: string, path: string = ''): Promise<DirEntry[]> {
+  const qs = path ? `?path=${encodeURIComponent(path)}` : '';
   const raw = await apiGet<unknown>(`/workspaces/${slug}/files${qs}`);
   return toCamel(raw) as DirEntry[];
 }
 
-export function readFile(
-  slug: string,
-  path: string,
-): Promise<FileReadResponse> {
-  return apiGet<FileReadResponse>(
-    `/workspaces/${slug}/files/${encodePath(path)}`,
-  );
+export function readFile(slug: string, path: string): Promise<FileReadResponse> {
+  return apiGet<FileReadResponse>(`/workspaces/${slug}/files/${encodePath(path)}`);
 }
 
 export function writeFile(
   slug: string,
   path: string,
-  body: FileWriteBody,
+  body: FileWriteBody
 ): Promise<FileReadResponse> {
-  return apiPut<FileReadResponse>(
-    `/workspaces/${slug}/files/${encodePath(path)}`,
-    body,
-  );
+  return apiPut<FileReadResponse>(`/workspaces/${slug}/files/${encodePath(path)}`, body);
 }
 
 export function deleteFile(slug: string, path: string): Promise<void> {
   return apiDelete<void>(`/workspaces/${slug}/files/${encodePath(path)}`);
 }
 
-export function moveFile(
-  slug: string,
-  body: FileMoveBody,
-): Promise<FileReadResponse> {
+export function moveFile(slug: string, body: FileMoveBody): Promise<FileReadResponse> {
   return apiPost<FileReadResponse>(`/workspaces/${slug}/files/move`, body);
 }
 
@@ -121,10 +97,10 @@ export function moveFile(
  */
 function encodePath(path: string): string {
   return path
-    .split("/")
+    .split('/')
     .filter((seg) => seg.length > 0)
     .map(encodeURIComponent)
-    .join("/");
+    .join('/');
 }
 
 // ── TanStack Query option factories ─────────────────────────────────────────
@@ -132,7 +108,7 @@ function encodePath(path: string): string {
 /** Query options for the workspace list grid. */
 export function workspacesQuery(filters?: WorkspaceFilters) {
   return {
-    queryKey: ["workspaces", filters ?? {}] as const,
+    queryKey: ['workspaces', filters ?? {}] as const,
     queryFn: () => listWorkspaces(filters),
     staleTime: 30_000,
   };
@@ -141,7 +117,7 @@ export function workspacesQuery(filters?: WorkspaceFilters) {
 /** Query options for a single workspace detail page. */
 export function workspaceDetailQuery(slug: string) {
   return {
-    queryKey: ["workspaces", slug] as const,
+    queryKey: ['workspaces', slug] as const,
     queryFn: () => getWorkspace(slug),
     staleTime: 30_000,
     enabled: Boolean(slug),
@@ -151,7 +127,7 @@ export function workspaceDetailQuery(slug: string) {
 /** Query options for the workspace file tree — used on detail page sidebar. */
 export function workspaceTreeQuery(slug: string) {
   return {
-    queryKey: ["workspaces", slug, "tree"] as const,
+    queryKey: ['workspaces', slug, 'tree'] as const,
     queryFn: () => getFileTree(slug),
     staleTime: 10_000,
     enabled: Boolean(slug),
@@ -161,7 +137,7 @@ export function workspaceTreeQuery(slug: string) {
 /** Query options for reading a single file's contents. */
 export function workspaceFileQuery(slug: string, path: string) {
   return {
-    queryKey: ["workspaces", slug, "file", path] as const,
+    queryKey: ['workspaces', slug, 'file', path] as const,
     queryFn: () => readFile(slug, path),
     staleTime: 0,
     enabled: Boolean(slug) && Boolean(path),
@@ -171,7 +147,7 @@ export function workspaceFileQuery(slug: string, path: string) {
 /** Query options for the 4 starter templates. Templates are static, so cache forever. */
 export function workspaceTemplatesQuery() {
   return {
-    queryKey: ["workspaces", "templates"] as const,
+    queryKey: ['workspaces', 'templates'] as const,
     queryFn: () => listTemplates(),
     staleTime: Infinity,
   };
@@ -180,7 +156,7 @@ export function workspaceTemplatesQuery() {
 /** Mutation options to create a workspace (optionally from a template). */
 export function createWorkspaceMutation() {
   return {
-    mutationKey: ["workspaces", "create"] as const,
+    mutationKey: ['workspaces', 'create'] as const,
     mutationFn: (body: CreateWorkspaceBody) => createWorkspace(body),
   };
 }
@@ -188,7 +164,7 @@ export function createWorkspaceMutation() {
 /** Mutation options to soft-delete a workspace. */
 export function deleteWorkspaceMutation() {
   return {
-    mutationKey: ["workspaces", "delete"] as const,
+    mutationKey: ['workspaces', 'delete'] as const,
     mutationFn: (slug: string) => deleteWorkspace(slug),
   };
 }
@@ -198,10 +174,7 @@ export interface UpdateWorkspaceBody {
   rootPath?: string;
 }
 
-export async function updateWorkspace(
-  slug: string,
-  body: UpdateWorkspaceBody,
-): Promise<Workspace> {
+export async function updateWorkspace(slug: string, body: UpdateWorkspaceBody): Promise<Workspace> {
   const payload: Record<string, string> = {};
   if (body.name !== undefined) payload.name = body.name;
   if (body.rootPath !== undefined) payload.root_path = body.rootPath;
@@ -212,7 +185,7 @@ export async function updateWorkspace(
 /** Mutation options to update a workspace's name or root_path. */
 export function updateWorkspaceMutation() {
   return {
-    mutationKey: ["workspaces", "update"] as const,
+    mutationKey: ['workspaces', 'update'] as const,
     mutationFn: ({ slug, body }: { slug: string; body: UpdateWorkspaceBody }) =>
       updateWorkspace(slug, body),
   };
@@ -221,7 +194,7 @@ export function updateWorkspaceMutation() {
 /** Mutation options to write a file. */
 export function writeFileMutation(slug: string) {
   return {
-    mutationKey: ["workspaces", slug, "write-file"] as const,
+    mutationKey: ['workspaces', slug, 'write-file'] as const,
     mutationFn: ({ path, contents }: { path: string; contents: string }) =>
       writeFile(slug, path, { contents }),
   };
@@ -230,7 +203,7 @@ export function writeFileMutation(slug: string) {
 /** Mutation options to delete a file. */
 export function deleteFileMutation(slug: string) {
   return {
-    mutationKey: ["workspaces", slug, "delete-file"] as const,
+    mutationKey: ['workspaces', slug, 'delete-file'] as const,
     mutationFn: (path: string) => deleteFile(slug, path),
   };
 }
@@ -238,7 +211,7 @@ export function deleteFileMutation(slug: string) {
 /** Mutation options to move/rename a file within a workspace. */
 export function moveFileMutation(slug: string) {
   return {
-    mutationKey: ["workspaces", slug, "move-file"] as const,
+    mutationKey: ['workspaces', slug, 'move-file'] as const,
     mutationFn: (body: FileMoveBody) => moveFile(slug, body),
   };
 }
@@ -250,14 +223,11 @@ export interface StartInitResponse {
   streamUrl: string;
 }
 
-export async function startInitJob(
-  slug: string,
-  cloneUrl?: string,
-): Promise<StartInitResponse> {
+export async function startInitJob(slug: string, cloneUrl?: string): Promise<StartInitResponse> {
   const payload = cloneUrl ? { clone_url: cloneUrl } : {};
   const raw = await apiPost<{ job_id: string; stream_url: string }>(
     `/workspaces/${slug}/init`,
-    payload,
+    payload
   );
   return {
     jobId: raw.job_id,
@@ -265,28 +235,21 @@ export async function startInitJob(
   } as unknown as StartInitResponse;
 }
 
-export async function cancelInitJob(
-  slug: string,
-  jobId: string,
-): Promise<void> {
+export async function cancelInitJob(slug: string, jobId: string): Promise<void> {
   await apiPost<unknown>(`/workspaces/${slug}/init/${jobId}/cancel`, {});
 }
 
 /** Query options for polling the latest init job for a workspace. */
 export function workspaceInitJobQuery(slug: string, jobId: string) {
   return {
-    queryKey: ["workspaces", slug, "init", jobId] as const,
+    queryKey: ['workspaces', slug, 'init', jobId] as const,
     queryFn: async () => {
       const raw = await apiGet<unknown>(`/workspaces/${slug}/init/${jobId}`);
-      return toCamel(raw) as import("$lib/domain/workspaces/types.js").InitJob;
+      return toCamel(raw) as import('$lib/domain/workspaces/types.js').InitJob;
     },
     refetchInterval: (query: { state: { data?: { status?: string } } }) => {
       const status = query.state.data?.status;
-      if (
-        status === "succeeded" ||
-        status === "failed" ||
-        status === "cancelled"
-      ) {
+      if (status === 'succeeded' || status === 'failed' || status === 'cancelled') {
         return false as const;
       }
       return 2000;

@@ -29,7 +29,8 @@ defmodule Canopy.Workspaces.RulesScanner do
 
   Returns `{:error, :invalid_path}` when `root_path` is `nil` or not a directory.
   """
-  @spec scan(String.t() | nil) :: {:ok, [%{file: String.t(), content: String.t()}]} | {:error, :invalid_path}
+  @spec scan(String.t() | nil) ::
+          {:ok, [%{file: String.t(), content: String.t()}]} | {:error, :invalid_path}
   def scan(nil), do: {:error, :invalid_path}
 
   def scan(root_path) do

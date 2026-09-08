@@ -7,27 +7,25 @@
  * Full list uses staleTime: 30_000 — refreshed on demand or window focus.
  */
 
-import { apiDelete, apiGet, apiPost } from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPost } from '$lib/api/client.js';
 import type {
   Notification,
   NotificationFilters,
   UnreadCountResponse,
-} from "$lib/domain/notifications/types.js";
+} from '$lib/domain/notifications/types.js';
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
 export function getUnreadCount(): Promise<UnreadCountResponse> {
-  return apiGet<UnreadCountResponse>("/notifications/unread_count");
+  return apiGet<UnreadCountResponse>('/notifications/unread_count');
 }
 
-export function listNotifications(
-  filters?: NotificationFilters,
-): Promise<Notification[]> {
+export function listNotifications(filters?: NotificationFilters): Promise<Notification[]> {
   const params = new URLSearchParams();
-  if (filters?.unread === true) params.set("unread", "true");
-  if (filters?.limit !== undefined) params.set("limit", String(filters.limit));
+  if (filters?.unread === true) params.set('unread', 'true');
+  if (filters?.limit !== undefined) params.set('limit', String(filters.limit));
   const qs = params.toString();
-  return apiGet<Notification[]>(`/notifications${qs ? `?${qs}` : ""}`);
+  return apiGet<Notification[]>(`/notifications${qs ? `?${qs}` : ''}`);
 }
 
 export function markNotificationRead(id: string): Promise<Notification> {
@@ -35,7 +33,7 @@ export function markNotificationRead(id: string): Promise<Notification> {
 }
 
 export function markAllNotificationsRead(): Promise<{ count: number }> {
-  return apiPost<{ count: number }>("/notifications/read_all", {});
+  return apiPost<{ count: number }>('/notifications/read_all', {});
 }
 
 export function deleteNotification(id: string): Promise<void> {
@@ -51,7 +49,7 @@ export function deleteNotification(id: string): Promise<void> {
  */
 export function unreadCountQuery() {
   return {
-    queryKey: ["notifications", "unread_count"] as const,
+    queryKey: ['notifications', 'unread_count'] as const,
     queryFn: () => getUnreadCount(),
     staleTime: 0,
     refetchInterval: 60_000,
@@ -64,7 +62,7 @@ export function unreadCountQuery() {
  */
 export function notificationsQuery(filters?: NotificationFilters) {
   return {
-    queryKey: ["notifications", "list", filters ?? {}] as const,
+    queryKey: ['notifications', 'list', filters ?? {}] as const,
     queryFn: () => listNotifications(filters),
     staleTime: 30_000,
   };
@@ -73,7 +71,7 @@ export function notificationsQuery(filters?: NotificationFilters) {
 /** Mutation to mark a single notification as read. */
 export function markReadMutation() {
   return {
-    mutationKey: ["notifications", "mark_read"] as const,
+    mutationKey: ['notifications', 'mark_read'] as const,
     mutationFn: (id: string) => markNotificationRead(id),
   };
 }
@@ -81,7 +79,7 @@ export function markReadMutation() {
 /** Mutation to mark all notifications as read. */
 export function markAllReadMutation() {
   return {
-    mutationKey: ["notifications", "mark_all_read"] as const,
+    mutationKey: ['notifications', 'mark_all_read'] as const,
     mutationFn: () => markAllNotificationsRead(),
   };
 }
@@ -89,7 +87,7 @@ export function markAllReadMutation() {
 /** Mutation to delete a notification. */
 export function deleteNotificationMutation() {
   return {
-    mutationKey: ["notifications", "delete"] as const,
+    mutationKey: ['notifications', 'delete'] as const,
     mutationFn: (id: string) => deleteNotification(id),
   };
 }

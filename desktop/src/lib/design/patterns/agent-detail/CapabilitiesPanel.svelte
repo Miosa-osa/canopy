@@ -1,41 +1,41 @@
 <script lang="ts">
-  /**
-   * CapabilitiesPanel — checkbox list with risk warnings for dangerous perms.
-   * Stored in config.capabilities[] via localStorage draft.
-   * CSS prefix: cap- (CapabilitiesPanel)
-   */
-  import {
-    CAPABILITY_META,
-    CAPABILITY_RISK,
-    CAPABILITY_PRESETS,
-    CAPABILITY_PRESET_META,
-    type Capability,
-    type CapabilityPreset,
-  } from '$lib/domain/agents/config.js';
+/**
+ * CapabilitiesPanel — checkbox list with risk warnings for dangerous perms.
+ * Stored in config.capabilities[] via localStorage draft.
+ * CSS prefix: cap- (CapabilitiesPanel)
+ */
+import {
+  CAPABILITY_META,
+  CAPABILITY_PRESET_META,
+  CAPABILITY_PRESETS,
+  CAPABILITY_RISK,
+  type Capability,
+  type CapabilityPreset,
+} from '$lib/domain/agents/config.js';
 
-  interface Props {
-    enabled: Capability[];
-    onChange: (caps: Capability[]) => void;
-    isLocalDraft: boolean;
+interface Props {
+  enabled: Capability[];
+  onChange: (caps: Capability[]) => void;
+  isLocalDraft: boolean;
+}
+
+let { enabled, onChange, isLocalDraft }: Props = $props();
+
+const ALL_CAPS = Object.keys(CAPABILITY_META) as Capability[];
+const HIGH_RISK = ALL_CAPS.filter((c) => CAPABILITY_RISK[c] === 'high');
+const hasHighRisk = $derived(HIGH_RISK.some((c) => enabled.includes(c)));
+
+function toggle(cap: Capability) {
+  if (enabled.includes(cap)) {
+    onChange(enabled.filter((c) => c !== cap));
+  } else {
+    onChange([...enabled, cap]);
   }
+}
 
-  let { enabled, onChange, isLocalDraft }: Props = $props();
-
-  const ALL_CAPS = Object.keys(CAPABILITY_META) as Capability[];
-  const HIGH_RISK = ALL_CAPS.filter((c) => CAPABILITY_RISK[c] === 'high');
-  const hasHighRisk = $derived(HIGH_RISK.some((c) => enabled.includes(c)));
-
-  function toggle(cap: Capability) {
-    if (enabled.includes(cap)) {
-      onChange(enabled.filter((c) => c !== cap));
-    } else {
-      onChange([...enabled, cap]);
-    }
-  }
-
-  function applyPreset(preset: CapabilityPreset) {
-    onChange([...CAPABILITY_PRESETS[preset]]);
-  }
+function applyPreset(preset: CapabilityPreset) {
+  onChange([...CAPABILITY_PRESETS[preset]]);
+}
 </script>
 
 <div class="cap-root">

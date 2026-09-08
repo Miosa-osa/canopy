@@ -1,247 +1,278 @@
 <script lang="ts">
-  /**
-   * /chat/[id] — Thread detail: transcript + composer + metadata panel.
-   * Live streaming via subscribeToSession() when last session is running.
-   * Export downloads the thread as markdown.
-   * CSS prefix: ct- (ChatThread)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { page } from '$app/state';
-  import { Download, Pin, Trash2 } from 'lucide-svelte';
-  import { onMount, untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { goto } from '$app/navigation';
-  import {
-    continueThreadMutation,
-    deleteThreadMutation,
-    exportThreadMarkdown,
-    threadQuery,
-    updateThreadMutation,
-  } from '$lib/api/queries/chat.js';
-  import { subscribeToSession } from '$lib/api/realtime.js';
-  import Composer from '$lib/design/patterns/Composer.svelte';
-  import PushPanel from '$lib/design/patterns/PushPanel.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import TranscriptView from '$lib/design/patterns/TranscriptView.svelte';
-  import type { SessionStatus, TranscriptEntry } from '$lib/domain/sessions/types.js';
-  import type {
-    ContinueThreadBody,
-    ContinueThreadResponse,
-    Thread,
-    ThreadDetail,
-    UpdateThreadBody,
-  } from '$lib/domain/chat/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * /chat/[id] — Thread detail: transcript + composer + metadata panel.
+ * Live streaming via subscribeToSession() when last session is running.
+ * Export downloads the thread as markdown.
+ * CSS prefix: ct- (ChatThread)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { Download, Pin, Trash2 } from 'lucide-svelte';
+import { onMount, untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import {
+  continueThreadMutation,
+  deleteThreadMutation,
+  exportThreadMarkdown,
+  threadQuery,
+  updateThreadMutation,
+} from '$lib/api/queries/chat.js';
+import { subscribeToSession } from '$lib/api/realtime.js';
+import Composer from '$lib/design/patterns/Composer.svelte';
+import PushPanel from '$lib/design/patterns/PushPanel.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import TranscriptView from '$lib/design/patterns/TranscriptView.svelte';
+import type {
+  ContinueThreadBody,
+  ContinueThreadResponse,
+  Thread,
+  ThreadDetail,
+  UpdateThreadBody,
+} from '$lib/domain/chat/types.js';
+import type { SessionStatus, TranscriptEntry } from '$lib/domain/sessions/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  const threadId = $derived(page.params.id ?? '');
-  const queryClient = useQueryClient();
+const threadId = $derived(page.params.id ?? '');
+const queryClient = useQueryClient();
 
-  // ── Query ────────────────────────────────────────────────────────────────────
+// ── Query ────────────────────────────────────────────────────────────────────
 
-  const queryOptsStore = writable(
-    untrack(() => threadQuery(threadId) as CreateQueryOptions<ThreadDetail>),
-  );
-  $effect(() => {
-    queryOptsStore.set(threadQuery(threadId) as CreateQueryOptions<ThreadDetail>);
-  });
-  const query = createQuery<ThreadDetail>(queryOptsStore);
-  const detail = $derived($query.data as ThreadDetail | undefined);
-  const thread = $derived(detail?.thread as Thread | undefined);
+const queryOptsStore = writable(
+  untrack(() => threadQuery(threadId) as CreateQueryOptions<ThreadDetail>)
+);
+$effect(() => {
+  queryOptsStore.set(threadQuery(threadId) as CreateQueryOptions<ThreadDetail>);
+});
+const query = createQuery<ThreadDetail>(queryOptsStore);
+const detail = $derived($query.data as ThreadDetail | undefined);
+const thread = $derived(detail?.thread as Thread | undefined);
 
-  // ── Live transcript ───────────────────────────────────────────────────────────
+// ── Live transcript ───────────────────────────────────────────────────────────
 
-  let messages = $state<TranscriptEntry[]>([]);
-  let liveStatus = $state<SessionStatus | null>(null);
+let messages = $state<TranscriptEntry[]>([]);
+let liveStatus = $state<SessionStatus | null>(null);
 
-  // Seed from initial query data
-  $effect(() => {
-    const data = detail?.messages;
-    if (data && messages.length === 0) {
-      messages = [...data];
-    }
-  });
+// Seed from initial query data
+$effect(() => {
+  const data = detail?.messages;
+  if (data && messages.length === 0) {
+    messages = [...data];
+  }
+});
 
-  const isStreaming = $derived(liveStatus === 'running');
+const isStreaming = $derived(liveStatus === 'running');
 
-  // Subscribe to SSE if last session is running
-  onMount(() => {
-    let unsub: (() => void) | null = null;
+// Subscribe to SSE if last session is running
+onMount(() => {
+  let unsub: (() => void) | null = null;
 
-    const checkAndSubscribe = () => {
-      const t = thread;
-      if (!t?.lastSessionId) return;
-      // Only subscribe if we detect a running session
-      // (status is unknown until we see SSE events; subscribe conservatively)
-      unsub = subscribeToSession(
-        t.lastSessionId,
-        (entry: TranscriptEntry) => {
-          messages = [...messages, entry];
-        },
-        (status: SessionStatus) => {
-          liveStatus = status;
-        },
-        () => {
-          liveStatus = 'done' as SessionStatus;
-        },
-      );
-    };
+  const checkAndSubscribe = () => {
+    const t = thread;
+    if (!t?.lastSessionId) return;
+    // Only subscribe if we detect a running session
+    // (status is unknown until we see SSE events; subscribe conservatively)
+    unsub = subscribeToSession(
+      t.lastSessionId,
+      (entry: TranscriptEntry) => {
+        messages = [...messages, entry];
+      },
+      (status: SessionStatus) => {
+        liveStatus = status;
+      },
+      () => {
+        liveStatus = 'done' as SessionStatus;
+      }
+    );
+  };
 
-    // Subscribe when thread data arrives
-    const unsubEffect = $effect.root(() => {
-      $effect(() => {
-        if (thread?.lastSessionId && !unsub) {
-          checkAndSubscribe();
-        }
-      });
+  // Subscribe when thread data arrives
+  const unsubEffect = $effect.root(() => {
+    $effect(() => {
+      if (thread?.lastSessionId && !unsub) {
+        checkAndSubscribe();
+      }
     });
-
-    return () => {
-      unsub?.();
-      unsubEffect();
-    };
   });
 
-  // ── Mutations ─────────────────────────────────────────────────────────────────
+  return () => {
+    unsub?.();
+    unsubEffect();
+  };
+});
 
-  const continueMutOptsStore = writable(
-    untrack(() => continueThreadMutation(threadId) as CreateMutationOptions<ContinueThreadResponse, Error, ContinueThreadBody>),
+// ── Mutations ─────────────────────────────────────────────────────────────────
+
+const continueMutOptsStore = writable(
+  untrack(
+    () =>
+      continueThreadMutation(threadId) as CreateMutationOptions<
+        ContinueThreadResponse,
+        Error,
+        ContinueThreadBody
+      >
+  )
+);
+$effect(() => {
+  continueMutOptsStore.set(
+    continueThreadMutation(threadId) as CreateMutationOptions<
+      ContinueThreadResponse,
+      Error,
+      ContinueThreadBody
+    >
   );
-  $effect(() => {
-    continueMutOptsStore.set(
-      continueThreadMutation(threadId) as CreateMutationOptions<ContinueThreadResponse, Error, ContinueThreadBody>,
-    );
-  });
-  const continueMut = createMutation<ContinueThreadResponse, Error, ContinueThreadBody>(continueMutOptsStore);
+});
+const continueMut = createMutation<ContinueThreadResponse, Error, ContinueThreadBody>(
+  continueMutOptsStore
+);
 
-  const updateMut = createMutation<Thread, Error, { id: string; body: UpdateThreadBody }>(
-    updateThreadMutation() as CreateMutationOptions<Thread, Error, { id: string; body: UpdateThreadBody }>,
-  );
+const updateMut = createMutation<Thread, Error, { id: string; body: UpdateThreadBody }>(
+  updateThreadMutation() as CreateMutationOptions<
+    Thread,
+    Error,
+    { id: string; body: UpdateThreadBody }
+  >
+);
 
-  const deleteMut = createMutation<void, Error, string>(
-    deleteThreadMutation() as CreateMutationOptions<void, Error, string>,
-  );
+const deleteMut = createMutation<void, Error, string>(
+  deleteThreadMutation() as CreateMutationOptions<void, Error, string>
+);
 
-  function invalidate(): void {
-    queryClient.invalidateQueries({ queryKey: ['chat', 'threads', threadId] });
-    queryClient.invalidateQueries({ queryKey: ['chat', 'threads'] });
-  }
+function invalidate(): void {
+  queryClient.invalidateQueries({ queryKey: ['chat', 'threads', threadId] });
+  queryClient.invalidateQueries({ queryKey: ['chat', 'threads'] });
+}
 
-  function handleSend(prompt: string): void {
-    if (!prompt.trim()) return;
-    $continueMut.mutate(
-      { prompt },
-      {
-        onSuccess: () => {
-          invalidate();
-        },
-        onError: (err: Error) => {
-          toasts.error(`Send failed: ${err.message}`);
-        },
-      },
-    );
-  }
-
-  // ── Title edit ────────────────────────────────────────────────────────────────
-
-  let localTitle = $state('');
-  let titleDirty = $state(false);
-
-  $effect(() => {
-    if (thread && !titleDirty) {
-      localTitle = thread.title ?? '';
-    }
-  });
-
-  function saveTitle(): void {
-    if (!titleDirty || !localTitle.trim()) return;
-    $updateMut.mutate(
-      { id: threadId, body: { title: localTitle.trim() } },
-      {
-        onSuccess: () => {
-          titleDirty = false;
-          invalidate();
-          toasts.success('Title updated');
-        },
-        onError: (err: Error) => {
-          toasts.error(`Update failed: ${err.message}`);
-        },
-      },
-    );
-  }
-
-  // ── Pin / archive ─────────────────────────────────────────────────────────────
-
-  function handlePin(): void {
-    if (!thread) return;
-    $updateMut.mutate(
-      { id: threadId, body: { pinned: !thread.pinned } },
-      { onSuccess: () => { invalidate(); toasts.success(thread!.pinned ? 'Unpinned' : 'Pinned'); } },
-    );
-  }
-
-  function handleArchive(): void {
-    $updateMut.mutate(
-      { id: threadId, body: { archived: true } },
-      { onSuccess: () => { invalidate(); toasts.success('Thread archived'); } },
-    );
-  }
-
-  // ── Delete ────────────────────────────────────────────────────────────────────
-
-  let deleteConfirm = $state(false);
-
-  function handleDelete(): void {
-    $deleteMut.mutate(threadId, {
+function handleSend(prompt: string): void {
+  if (!prompt.trim()) return;
+  $continueMut.mutate(
+    { prompt },
+    {
       onSuccess: () => {
-        toasts.success('Thread deleted');
-        goto('/chat');
+        invalidate();
       },
       onError: (err: Error) => {
-        toasts.error(`Delete failed: ${err.message}`);
-        deleteConfirm = false;
+        toasts.error(`Send failed: ${err.message}`);
       },
-    });
-  }
-
-  // ── Export ────────────────────────────────────────────────────────────────────
-
-  let exporting = $state(false);
-
-  async function handleExport(): Promise<void> {
-    exporting = true;
-    try {
-      const md = await exportThreadMarkdown(threadId);
-      const blob = new Blob([md], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `thread-${threadId}.md`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toasts.success('Exported');
-    } catch (err) {
-      toasts.error(`Export failed: ${(err as Error).message}`);
-    } finally {
-      exporting = false;
     }
+  );
+}
+
+// ── Title edit ────────────────────────────────────────────────────────────────
+
+let localTitle = $state('');
+let titleDirty = $state(false);
+
+$effect(() => {
+  if (thread && !titleDirty) {
+    localTitle = thread.title ?? '';
   }
+});
 
-  // ── Panel ─────────────────────────────────────────────────────────────────────
+function saveTitle(): void {
+  if (!titleDirty || !localTitle.trim()) return;
+  $updateMut.mutate(
+    { id: threadId, body: { title: localTitle.trim() } },
+    {
+      onSuccess: () => {
+        titleDirty = false;
+        invalidate();
+        toasts.success('Title updated');
+      },
+      onError: (err: Error) => {
+        toasts.error(`Update failed: ${err.message}`);
+      },
+    }
+  );
+}
 
-  let panelOpen = $state(false);
+// ── Pin / archive ─────────────────────────────────────────────────────────────
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
+function handlePin(): void {
+  if (!thread) return;
+  $updateMut.mutate(
+    { id: threadId, body: { pinned: !thread.pinned } },
+    {
+      onSuccess: () => {
+        invalidate();
+        toasts.success(thread!.pinned ? 'Unpinned' : 'Pinned');
+      },
+    }
+  );
+}
 
-  function formatDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+function handleArchive(): void {
+  $updateMut.mutate(
+    { id: threadId, body: { archived: true } },
+    {
+      onSuccess: () => {
+        invalidate();
+        toasts.success('Thread archived');
+      },
+    }
+  );
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+let deleteConfirm = $state(false);
+
+function handleDelete(): void {
+  $deleteMut.mutate(threadId, {
+    onSuccess: () => {
+      toasts.success('Thread deleted');
+      goto('/chat');
+    },
+    onError: (err: Error) => {
+      toasts.error(`Delete failed: ${err.message}`);
+      deleteConfirm = false;
+    },
+  });
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+
+let exporting = $state(false);
+
+async function handleExport(): Promise<void> {
+  exporting = true;
+  try {
+    const md = await exportThreadMarkdown(threadId);
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `thread-${threadId}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toasts.success('Exported');
+  } catch (err) {
+    toasts.error(`Export failed: ${(err as Error).message}`);
+  } finally {
+    exporting = false;
   }
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
+
+let panelOpen = $state(false);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 </script>
 
 <div class="ct-shell">

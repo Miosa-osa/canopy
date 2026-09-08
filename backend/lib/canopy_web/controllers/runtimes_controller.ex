@@ -115,6 +115,9 @@ defmodule CanopyWeb.RuntimesController do
       {:error, :not_found} ->
         {:error, :not_found}
 
+      {:error, :not_installed} ->
+        json(conn, %{checks: [%{level: :error, message: "Runtime binary is not installed"}]})
+
       {:error, reason} ->
         Canopy.Analytics.Emitter.runtime_test_failed(type, %{
           payload: %{"reason" => inspect(reason)}

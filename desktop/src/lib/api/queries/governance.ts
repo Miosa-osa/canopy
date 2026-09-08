@@ -5,7 +5,7 @@
  * createQuery() / createMutation() in component scripts.
  */
 
-import { apiDelete, apiGet, apiPost, apiPut } from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPost, apiPut } from '$lib/api/client.js';
 import type {
   Approval,
   ApprovalFilters,
@@ -16,16 +16,16 @@ import type {
   DecisionBody,
   Rule,
   UpdateRuleBody,
-} from "$lib/domain/governance/types.js";
+} from '$lib/domain/governance/types.js';
 
 // ── Raw API calls ─────────────────────────────────────────────────────────────
 
 export function listRules(): Promise<Rule[]> {
-  return apiGet<Rule[]>("/governance/rules");
+  return apiGet<Rule[]>('/governance/rules');
 }
 
 export function createRule(body: CreateRuleBody): Promise<Rule> {
-  return apiPost<Rule>("/governance/rules", body);
+  return apiPost<Rule>('/governance/rules', body);
 }
 
 export function updateRule(id: string, body: UpdateRuleBody): Promise<Rule> {
@@ -38,33 +38,27 @@ export function deleteRule(id: string): Promise<void> {
 
 export function listApprovals(filters?: ApprovalFilters): Promise<Approval[]> {
   const params = new URLSearchParams();
-  if (filters?.status) params.set("status", filters.status);
+  if (filters?.status) params.set('status', filters.status);
   const qs = params.toString();
-  return apiGet<Approval[]>(`/governance/approvals${qs ? `?${qs}` : ""}`);
+  return apiGet<Approval[]>(`/governance/approvals${qs ? `?${qs}` : ''}`);
 }
 
-export function approveApproval(
-  id: string,
-  body?: DecisionBody,
-): Promise<Approval> {
+export function approveApproval(id: string, body?: DecisionBody): Promise<Approval> {
   return apiPost<Approval>(`/governance/approvals/${id}/approve`, body ?? {});
 }
 
-export function rejectApproval(
-  id: string,
-  body?: DecisionBody,
-): Promise<Approval> {
+export function rejectApproval(id: string, body?: DecisionBody): Promise<Approval> {
   return apiPost<Approval>(`/governance/approvals/${id}/reject`, body ?? {});
 }
 
 export function listAudit(filters?: AuditFilters): Promise<AuditEntry[]> {
   const params = new URLSearchParams();
-  if (filters?.event_type) params.set("event_type", filters.event_type);
-  if (filters?.session_id) params.set("session_id", filters.session_id);
-  if (filters?.before) params.set("before", filters.before);
-  if (filters?.after) params.set("after", filters.after);
+  if (filters?.event_type) params.set('event_type', filters.event_type);
+  if (filters?.session_id) params.set('session_id', filters.session_id);
+  if (filters?.before) params.set('before', filters.before);
+  if (filters?.after) params.set('after', filters.after);
   const qs = params.toString();
-  return apiGet<AuditEntry[]>(`/governance/audit${qs ? `?${qs}` : ""}`);
+  return apiGet<AuditEntry[]>(`/governance/audit${qs ? `?${qs}` : ''}`);
 }
 
 // ── TanStack Query option factories ──────────────────────────────────────────
@@ -72,7 +66,7 @@ export function listAudit(filters?: AuditFilters): Promise<AuditEntry[]> {
 /** Query options for the full rules list. */
 export function rulesQuery() {
   return {
-    queryKey: ["governance", "rules"] as const,
+    queryKey: ['governance', 'rules'] as const,
     queryFn: () => listRules(),
     staleTime: 30_000,
   };
@@ -81,7 +75,7 @@ export function rulesQuery() {
 /** Mutation options to create a new governance rule. */
 export function createRuleMutation() {
   return {
-    mutationKey: ["governance", "rules", "create"] as const,
+    mutationKey: ['governance', 'rules', 'create'] as const,
     mutationFn: (body: CreateRuleBody) => createRule(body),
   };
 }
@@ -89,16 +83,15 @@ export function createRuleMutation() {
 /** Mutation options to update an existing governance rule. */
 export function updateRuleMutation() {
   return {
-    mutationKey: ["governance", "rules", "update"] as const,
-    mutationFn: ({ id, body }: { id: string; body: UpdateRuleBody }) =>
-      updateRule(id, body),
+    mutationKey: ['governance', 'rules', 'update'] as const,
+    mutationFn: ({ id, body }: { id: string; body: UpdateRuleBody }) => updateRule(id, body),
   };
 }
 
 /** Mutation options to delete a governance rule. */
 export function deleteRuleMutation() {
   return {
-    mutationKey: ["governance", "rules", "delete"] as const,
+    mutationKey: ['governance', 'rules', 'delete'] as const,
     mutationFn: (id: string) => deleteRule(id),
   };
 }
@@ -107,7 +100,7 @@ export function deleteRuleMutation() {
 export function approvalsQuery(status?: ApprovalStatus) {
   const filters: ApprovalFilters = status ? { status } : {};
   return {
-    queryKey: ["governance", "approvals", status ?? "all"] as const,
+    queryKey: ['governance', 'approvals', status ?? 'all'] as const,
     queryFn: () => listApprovals(filters),
     staleTime: 10_000,
   };
@@ -116,25 +109,23 @@ export function approvalsQuery(status?: ApprovalStatus) {
 /** Mutation options to approve a pending approval. */
 export function approveApprovalMutation() {
   return {
-    mutationKey: ["governance", "approvals", "approve"] as const,
-    mutationFn: ({ id, body }: { id: string; body?: DecisionBody }) =>
-      approveApproval(id, body),
+    mutationKey: ['governance', 'approvals', 'approve'] as const,
+    mutationFn: ({ id, body }: { id: string; body?: DecisionBody }) => approveApproval(id, body),
   };
 }
 
 /** Mutation options to reject a pending approval. */
 export function rejectApprovalMutation() {
   return {
-    mutationKey: ["governance", "approvals", "reject"] as const,
-    mutationFn: ({ id, body }: { id: string; body?: DecisionBody }) =>
-      rejectApproval(id, body),
+    mutationKey: ['governance', 'approvals', 'reject'] as const,
+    mutationFn: ({ id, body }: { id: string; body?: DecisionBody }) => rejectApproval(id, body),
   };
 }
 
 /** Query options for the audit log with optional filters. */
 export function auditQuery(filters?: AuditFilters) {
   return {
-    queryKey: ["governance", "audit", filters ?? {}] as const,
+    queryKey: ['governance', 'audit', filters ?? {}] as const,
     queryFn: () => listAudit(filters),
     staleTime: 30_000,
   };

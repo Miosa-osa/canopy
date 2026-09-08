@@ -100,12 +100,23 @@ defmodule CanopyWeb.WorkspaceStatesController do
       |> put_status(:ok)
       |> json(%{key: state.key, value: state.value, updated_at: state.updated_at})
     else
-      {:error, :not_found} -> not_found(conn, "workspace_not_found", slug)
-      {:error, :value_too_large} -> unprocessable(conn, "value_too_large", value_too_large_message())
-      {:error, :too_many_keys} -> unprocessable(conn, "too_many_keys", too_many_keys_message())
-      {:error, :invalid_value} -> bad_request(conn, "value is not JSON-encodable")
-      {:error, %Ecto.Changeset{} = cs} -> {:error, cs}
-      {:error, reason} -> bad_request(conn, reason)
+      {:error, :not_found} ->
+        not_found(conn, "workspace_not_found", slug)
+
+      {:error, :value_too_large} ->
+        unprocessable(conn, "value_too_large", value_too_large_message())
+
+      {:error, :too_many_keys} ->
+        unprocessable(conn, "too_many_keys", too_many_keys_message())
+
+      {:error, :invalid_value} ->
+        bad_request(conn, "value is not JSON-encodable")
+
+      {:error, %Ecto.Changeset{} = cs} ->
+        {:error, cs}
+
+      {:error, reason} ->
+        bad_request(conn, reason)
     end
   end
 
@@ -155,8 +166,7 @@ defmodule CanopyWeb.WorkspaceStatesController do
     if Regex.match?(@key_regex, str) do
       :ok
     else
-      {:error,
-       "invalid key: must be lowercase alphanumeric/dashes/underscores/dots, 1-128 chars"}
+      {:error, "invalid key: must be lowercase alphanumeric/dashes/underscores/dots, 1-128 chars"}
     end
   end
 

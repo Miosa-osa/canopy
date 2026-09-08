@@ -12,62 +12,50 @@
  * LOC target: ≤ 220.
  */
 
-import { type CreateMutationOptions, type CreateQueryOptions, createMutation, createQuery } from "@tanstack/svelte-query";
-import { Bell } from "lucide-svelte";
-import { onDestroy } from "svelte";
-import { writable } from "svelte/store";
-import { untrack } from "svelte";
-import { goto } from "$app/navigation";
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+} from '@tanstack/svelte-query';
+import { Bell } from 'lucide-svelte';
+import { onDestroy, untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
 import {
   markAllReadMutation,
   markReadMutation,
   notificationsQuery,
   unreadCountQuery,
-} from "$lib/api/queries/notifications.js";
-import type { Notification } from "$lib/domain/notifications/types.js";
+} from '$lib/api/queries/notifications.js';
+import type { Notification } from '$lib/domain/notifications/types.js';
 
 // ── TanStack Query setup (writable+untrack bridge — same pattern as WorkspaceSwitcher) ──
 
 const unreadCountOpts = writable(
-  untrack(() => unreadCountQuery() as CreateQueryOptions<{ count: number }>),
+  untrack(() => unreadCountQuery() as CreateQueryOptions<{ count: number }>)
 );
 const unreadCountQ = createQuery<{ count: number }>(unreadCountOpts);
 
 const notifListOpts = writable(
-  untrack(
-    () =>
-      notificationsQuery({ limit: 10 }) as CreateQueryOptions<Notification[]>,
-  ),
+  untrack(() => notificationsQuery({ limit: 10 }) as CreateQueryOptions<Notification[]>)
 );
 const notifListQ = createQuery<Notification[]>(notifListOpts);
 
 const markReadMut = createMutation(
-  writable(
-    untrack(
-      () => markReadMutation() as CreateMutationOptions<Notification, Error, string>,
-    ),
-  ),
+  writable(untrack(() => markReadMutation() as CreateMutationOptions<Notification, Error, string>))
 );
 
 const markAllReadMut = createMutation(
   writable(
-    untrack(
-      () =>
-        markAllReadMutation() as CreateMutationOptions<
-          { count: number },
-          Error,
-          void
-        >,
-    ),
-  ),
+    untrack(() => markAllReadMutation() as CreateMutationOptions<{ count: number }, Error, void>)
+  )
 );
 
 // ── Derived state ─────────────────────────────────────────────────────────────
 
 const unreadCount = $derived(($unreadCountQ.data?.count ?? 0) as number);
-const notifications = $derived(
-  ($notifListQ.data ?? []) as Notification[],
-);
+const notifications = $derived(($notifListQ.data ?? []) as Notification[]);
 
 // ── Local state ───────────────────────────────────────────────────────────────
 
@@ -80,7 +68,7 @@ let dropdownEl = $state<HTMLDivElement | null>(null);
 
 function relativeTime(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (diff < 60) return "just now";
+  if (diff < 60) return 'just now';
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
@@ -91,23 +79,18 @@ function relativeTime(iso: string): string {
 function handleDocClick(e: MouseEvent): void {
   if (!isOpen) return;
   const target = e.target as Node;
-  if (
-    triggerEl &&
-    !triggerEl.contains(target) &&
-    dropdownEl &&
-    !dropdownEl.contains(target)
-  ) {
+  if (triggerEl && !triggerEl.contains(target) && dropdownEl && !dropdownEl.contains(target)) {
     isOpen = false;
   }
 }
 
-if (typeof document !== "undefined") {
-  document.addEventListener("click", handleDocClick, true);
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', handleDocClick, true);
 }
 
 onDestroy(() => {
-  if (typeof document !== "undefined") {
-    document.removeEventListener("click", handleDocClick, true);
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('click', handleDocClick, true);
   }
 });
 
@@ -137,23 +120,23 @@ async function handleMarkAllRead(): Promise<void> {
 }
 
 function handleDropdownKeydown(e: KeyboardEvent): void {
-  if (e.key === "Escape") {
+  if (e.key === 'Escape') {
     e.preventDefault();
     close();
     triggerEl?.focus();
     return;
   }
-  if (e.key === "j" || e.key === "ArrowDown") {
+  if (e.key === 'j' || e.key === 'ArrowDown') {
     e.preventDefault();
     activeIndex = Math.min(activeIndex + 1, notifications.length - 1);
     return;
   }
-  if (e.key === "k" || e.key === "ArrowUp") {
+  if (e.key === 'k' || e.key === 'ArrowUp') {
     e.preventDefault();
     activeIndex = Math.max(activeIndex - 1, 0);
     return;
   }
-  if (e.key === "Enter" && notifications[activeIndex]) {
+  if (e.key === 'Enter' && notifications[activeIndex]) {
     e.preventDefault();
     void handleItemClick(notifications[activeIndex]);
   }

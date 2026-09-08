@@ -1,39 +1,33 @@
 <script lang="ts">
-  /**
-   * /drive/[slug] — Drive entry deep-link page.
-   *
-   * Looks up the entry by slug across both scopes (personal first, then
-   * team) and renders the kind-appropriate detail view. Used as a stable
-   * URL surface for sharing references to drive entries.
-   *
-   * CSS prefix: ds-
-   */
-  import { page } from "$app/stores";
-  import {
-    type CreateQueryOptions,
-    createQuery,
-  } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import { ChevronLeft } from "lucide-svelte";
-  import { driveListQuery } from "$lib/api/queries/drive.js";
-  import type { DriveEntry } from "$lib/domain/drive/types.js";
+/**
+ * /drive/[slug] — Drive entry deep-link page.
+ *
+ * Looks up the entry by slug across both scopes (personal first, then
+ * team) and renders the kind-appropriate detail view. Used as a stable
+ * URL surface for sharing references to drive entries.
+ *
+ * CSS prefix: ds-
+ */
 
-  const slug = $derived($page.params.slug);
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { ChevronLeft } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { page } from '$app/stores';
+import { driveListQuery } from '$lib/api/queries/drive.js';
+import type { DriveEntry } from '$lib/domain/drive/types.js';
 
-  // We don't have an exact /drive?slug=… endpoint that respects scope
-  // disambiguation in Phase A, so we list and filter client-side. That's
-  // fine for the typical (small-ish) drive size in personal scope.
-  const listStore = writable(
-    untrack(
-      () => driveListQuery({ limit: 1000 }) as CreateQueryOptions<DriveEntry[]>,
-    ),
-  );
-  const listQ = createQuery<DriveEntry[]>(listStore);
+const slug = $derived($page.params.slug);
 
-  const entry = $derived(
-    ($listQ.data ?? []).find((e) => e.slug === slug) ?? null,
-  );
+// We don't have an exact /drive?slug=… endpoint that respects scope
+// disambiguation in Phase A, so we list and filter client-side. That's
+// fine for the typical (small-ish) drive size in personal scope.
+const listStore = writable(
+  untrack(() => driveListQuery({ limit: 1000 }) as CreateQueryOptions<DriveEntry[]>)
+);
+const listQ = createQuery<DriveEntry[]>(listStore);
+
+const entry = $derived(($listQ.data ?? []).find((e) => e.slug === slug) ?? null);
 </script>
 
 <div class="ds-page">

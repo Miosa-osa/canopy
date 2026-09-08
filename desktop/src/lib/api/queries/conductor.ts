@@ -21,13 +21,13 @@
  * `wiring/conductor-bootstrap-wiring.md`).
  */
 
-import { subscribeToSession } from "$lib/api/realtime.js";
-import type { TranscriptEntry } from "$lib/domain/sessions/types.js";
+import { subscribeToSession } from '$lib/api/realtime.js';
 import {
-  isConductorAction,
   type ConductorAction,
   type ConductorToolResult,
-} from "$lib/domain/conductor/types.js";
+  isConductorAction,
+} from '$lib/domain/conductor/types.js';
+import type { TranscriptEntry } from '$lib/domain/sessions/types.js';
 
 export type ConductorResultHandler = (result: ConductorToolResult) => void;
 
@@ -42,7 +42,7 @@ export type ConductorResultHandler = (result: ConductorToolResult) => void;
  */
 export function subscribeToConductor(
   sessionId: string,
-  onResult: ConductorResultHandler,
+  onResult: ConductorResultHandler
 ): () => void {
   return subscribeToSession(
     sessionId,
@@ -55,7 +55,7 @@ export function subscribeToConductor(
     },
     () => {
       // Stream completion handled by the SSE helper itself.
-    },
+    }
   );
 }
 
@@ -74,11 +74,9 @@ export function subscribeToConductor(
  *
  * Returns null when the entry is not a Conductor action.
  */
-function extractConductorResult(
-  entry: TranscriptEntry,
-): ConductorToolResult | null {
+function extractConductorResult(entry: TranscriptEntry): ConductorToolResult | null {
   const content = (entry as { content?: unknown }).content;
-  if (!content || typeof content !== "object") return null;
+  if (!content || typeof content !== 'object') return null;
 
   // Shape 1: direct action.
   if (isConductorAction(content)) {
@@ -89,8 +87,8 @@ function extractConductorResult(
   const wrapped = (content as { result?: unknown }).result;
   if (isConductorAction(wrapped)) {
     return {
-      tool: stringField(content, "tool"),
-      run_id: stringField(content, "run_id"),
+      tool: stringField(content, 'tool'),
+      run_id: stringField(content, 'run_id'),
       result: wrapped as ConductorAction,
     };
   }
@@ -99,7 +97,7 @@ function extractConductorResult(
 }
 
 function stringField(obj: unknown, key: string): string | undefined {
-  if (typeof obj !== "object" || obj === null) return undefined;
+  if (typeof obj !== 'object' || obj === null) return undefined;
   const v = (obj as Record<string, unknown>)[key];
-  return typeof v === "string" ? v : undefined;
+  return typeof v === 'string' ? v : undefined;
 }

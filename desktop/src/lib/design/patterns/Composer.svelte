@@ -19,7 +19,12 @@ import Kbd from './Kbd.svelte';
 import MentionInput from './MentionInput.svelte';
 
 interface Props {
-  onSubmit?: (prompt: string, agentSlug: string | null, runtime: string | null, mentions?: string[]) => void;
+  onSubmit?: (
+    prompt: string,
+    agentSlug: string | null,
+    runtime: string | null,
+    mentions?: string[]
+  ) => void;
   placeholder?: string;
   value?: string;
   class?: string;
@@ -37,7 +42,7 @@ const hiredQ = createQuery<Agent[]>(hiredAgentsQuery() as CreateQueryOptions<Age
 const hiredAgents = $derived(($hiredQ.data ?? []) as Agent[]);
 const runtimesQ = createQuery<Runtime[]>(runtimesQuery() as CreateQueryOptions<Runtime[]>);
 const runtimeOptions = $derived(
-  dedupeRuntimes((($runtimesQ.data ?? []) as Runtime[]).filter((runtime) => runtime.kind === 'cli')),
+  dedupeRuntimes((($runtimesQ.data ?? []) as Runtime[]).filter((runtime) => runtime.kind === 'cli'))
 );
 
 let selectedAgent = $state<string | null>(null);
@@ -50,9 +55,7 @@ function handleMentionSubmit(text: string, mentions: string[]): void {
   const trimmed = text.trim();
   if (!trimmed) return;
   // If a mention in the text matches a hired agent, auto-select it
-  const firstAgentMention = mentions.find((slug) =>
-    hiredAgents.some((a) => a.slug === slug)
-  );
+  const firstAgentMention = mentions.find((slug) => hiredAgents.some((a) => a.slug === slug));
   onSubmit?.(trimmed, selectedAgent ?? firstAgentMention ?? null, selectedRuntime, mentions);
   value = '';
 }
@@ -70,7 +73,10 @@ function selectAgentFromPicker(agent: Agent): void {
 }
 
 function isRuntimeInstalled(runtime: Runtime): boolean {
-  return runtime.status === 'installed' || (runtime as Runtime & { installed?: boolean }).installed === true;
+  return (
+    runtime.status === 'installed' ||
+    (runtime as Runtime & { installed?: boolean }).installed === true
+  );
 }
 
 function runtimeSubLabel(runtime: Runtime): string {
@@ -108,7 +114,7 @@ function dedupeRuntimes(runtimes: Runtime[]): Runtime[] {
     (a, b) =>
       Number(isRuntimeInstalled(b)) - Number(isRuntimeInstalled(a)) ||
       runtimeRank(b) - runtimeRank(a) ||
-      a.name.localeCompare(b.name),
+      a.name.localeCompare(b.name)
   );
 }
 </script>

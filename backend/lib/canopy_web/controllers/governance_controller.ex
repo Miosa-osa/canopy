@@ -225,7 +225,8 @@ defmodule CanopyWeb.GovernanceController do
 
   operation :permissions_index,
     summary: "List tool permission grants",
-    description: "Returns grants, optionally filtered by agent_slug, tool_name, workspace_slug, or scope.",
+    description:
+      "Returns grants, optionally filtered by agent_slug, tool_name, workspace_slug, or scope.",
     parameters: [
       agent_slug: [in: :query, type: :string, required: false],
       tool_name: [in: :query, type: :string, required: false],
@@ -251,7 +252,8 @@ defmodule CanopyWeb.GovernanceController do
 
   operation :permissions_create,
     summary: "Create a tool permission grant",
-    description: "Grants a scoped permission. Scope must be one of: once, session, today, forever, never.",
+    description:
+      "Grants a scoped permission. Scope must be one of: once, session, today, forever, never.",
     request_body: {"Grant params", "application/json", %OpenApiSpex.Schema{type: :object}},
     responses: [
       created: {"Created grant", "application/json", %OpenApiSpex.Schema{type: :object}},

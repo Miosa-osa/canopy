@@ -17,26 +17,26 @@ import {
   createMutation,
   createQuery,
   useQueryClient,
-} from "@tanstack/svelte-query";
-import { BookOpen, Plus, Trash2 } from "lucide-svelte";
-import { untrack } from "svelte";
-import { writable } from "svelte/store";
-import { goto } from "$app/navigation";
+} from '@tanstack/svelte-query';
+import { BookOpen, Plus, Trash2 } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
 import {
   archiveBaseMutation,
   createBaseMutation,
   knowledgeBasesQuery,
-} from "$lib/api/queries/knowledge.js";
-import EmptyState from "$lib/design/patterns/EmptyState.svelte";
-import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
-import type { CreateBaseBody, KnowledgeBase } from "$lib/domain/knowledge/types.js";
+} from '$lib/api/queries/knowledge.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { CreateBaseBody, KnowledgeBase } from '$lib/domain/knowledge/types.js';
 
 const queryClient = useQueryClient();
 
 // ── Query ─────────────────────────────────────────────────────────────────────
 
 const listOptsStore = writable(
-  untrack(() => knowledgeBasesQuery() as CreateQueryOptions<KnowledgeBase[]>),
+  untrack(() => knowledgeBasesQuery() as CreateQueryOptions<KnowledgeBase[]>)
 );
 const listQ = createQuery<KnowledgeBase[]>(listOptsStore);
 const bases = $derived(($listQ.data ?? []) as KnowledgeBase[]);
@@ -44,11 +44,11 @@ const bases = $derived(($listQ.data ?? []) as KnowledgeBase[]);
 // ── Create form state ─────────────────────────────────────────────────────────
 
 let createOpen = $state(false);
-let form = $state<CreateBaseBody>({ slug: "", name: "", description: "" });
+let form = $state<CreateBaseBody>({ slug: '', name: '', description: '' });
 let createError = $state<string | null>(null);
 
 const createMut = createMutation<KnowledgeBase, Error, CreateBaseBody>(
-  createBaseMutation() as CreateMutationOptions<KnowledgeBase, Error, CreateBaseBody>,
+  createBaseMutation() as CreateMutationOptions<KnowledgeBase, Error, CreateBaseBody>
 );
 
 function handleCreate(e: Event): void {
@@ -57,8 +57,8 @@ function handleCreate(e: Event): void {
   $createMut.mutate(form, {
     onSuccess: (kb) => {
       createOpen = false;
-      form = { slug: "", name: "", description: "" };
-      queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+      form = { slug: '', name: '', description: '' };
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
       goto(`/knowledge/${kb.slug}`);
     },
     onError: (err) => {
@@ -70,14 +70,14 @@ function handleCreate(e: Event): void {
 // ── Archive mutation ──────────────────────────────────────────────────────────
 
 const archiveMut = createMutation<KnowledgeBase, Error, string>(
-  archiveBaseMutation() as CreateMutationOptions<KnowledgeBase, Error, string>,
+  archiveBaseMutation() as CreateMutationOptions<KnowledgeBase, Error, string>
 );
 
 function handleArchive(slug: string): void {
   if (!confirm(`Archive knowledge base "${slug}"?`)) return;
   $archiveMut.mutate(slug, {
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
     },
   });
 }
@@ -86,28 +86,52 @@ function handleArchive(slug: string): void {
 
 const SEED_BASES: KnowledgeBase[] = [
   {
-    id: "seed-1", slug: "codebase-docs", name: "Codebase Docs",
-    description: "Auto-indexed source files and inline documentation.",
-    workspace_slug: null, embedding_model: "text-embedding-3-small",
-    dimensions: 1536, chunk_size: 512, chunk_overlap: 64,
-    chunk_count: 2840, agent_count: 3,
-    archived_at: null, inserted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    id: 'seed-1',
+    slug: 'codebase-docs',
+    name: 'Codebase Docs',
+    description: 'Auto-indexed source files and inline documentation.',
+    workspace_slug: null,
+    embedding_model: 'text-embedding-3-small',
+    dimensions: 1536,
+    chunk_size: 512,
+    chunk_overlap: 64,
+    chunk_count: 2840,
+    agent_count: 3,
+    archived_at: null,
+    inserted_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
-    id: "seed-2", slug: "team-wiki", name: "Team Wiki",
-    description: "Runbooks, SOPs, and onboarding guides.",
-    workspace_slug: null, embedding_model: "text-embedding-3-small",
-    dimensions: 1536, chunk_size: 512, chunk_overlap: 64,
-    chunk_count: 418, agent_count: 1,
-    archived_at: null, inserted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    id: 'seed-2',
+    slug: 'team-wiki',
+    name: 'Team Wiki',
+    description: 'Runbooks, SOPs, and onboarding guides.',
+    workspace_slug: null,
+    embedding_model: 'text-embedding-3-small',
+    dimensions: 1536,
+    chunk_size: 512,
+    chunk_overlap: 64,
+    chunk_count: 418,
+    agent_count: 1,
+    archived_at: null,
+    inserted_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
-    id: "seed-3", slug: "api-reference", name: "API Reference",
-    description: "OpenAPI specs and endpoint documentation.",
-    workspace_slug: null, embedding_model: "text-embedding-3-small",
-    dimensions: 1536, chunk_size: 512, chunk_overlap: 64,
-    chunk_count: 1102, agent_count: 2,
-    archived_at: null, inserted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    id: 'seed-3',
+    slug: 'api-reference',
+    name: 'API Reference',
+    description: 'OpenAPI specs and endpoint documentation.',
+    workspace_slug: null,
+    embedding_model: 'text-embedding-3-small',
+    dimensions: 1536,
+    chunk_size: 512,
+    chunk_overlap: 64,
+    chunk_count: 1102,
+    agent_count: 2,
+    archived_at: null,
+    inserted_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
 ];
 
@@ -115,9 +139,9 @@ const SEED_BASES: KnowledgeBase[] = [
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
 }
 </script>

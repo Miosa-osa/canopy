@@ -377,7 +377,8 @@ defmodule Canopy.Tools.Templates do
 
       %Template{} = parent ->
         case Templates.fork_template(parent, %{slug: new_slug, name: new_name}) do
-          {:ok, forked} -> {:ok, serialize_template(forked)}
+          {:ok, forked} ->
+            {:ok, serialize_template(forked)}
 
           {:error, changeset} ->
             {:error, %{error: "fork_failed", details: changeset_errors(changeset)}}

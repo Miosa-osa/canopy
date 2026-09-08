@@ -1,15 +1,15 @@
 <script lang="ts">
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { ArrowUp, Bot, ChevronDown, Cpu, FileIcon, Paperclip, X } from 'lucide-svelte';
 import { onMount } from 'svelte';
-import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
 import { goto } from '$app/navigation';
-import { ArrowUp, Bot, ChevronDown, Cpu, Paperclip, X, FileIcon } from 'lucide-svelte';
 import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
-import { createSessionMutation } from '$lib/api/queries/sessions.js';
 import { uploadFileMutation } from '$lib/api/queries/files.js';
+import { createSessionMutation } from '$lib/api/queries/sessions.js';
+import type { Agent } from '$lib/domain/agents/types.js';
+import { PROVIDERS, type ProviderConfig } from '$lib/domain/runtimes/providers.js';
 import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
 import { mosaicLayout } from '$lib/stores/mosaic-layout.svelte.js';
-import { PROVIDERS, type ProviderConfig } from '$lib/domain/runtimes/providers.js';
-import type { Agent } from '$lib/domain/agents/types.js';
 
 interface Props {
   onSubmitPrompt?: (prompt: string) => void;
@@ -45,7 +45,7 @@ interface Attachment {
 let attachments = $state<Attachment[]>([]);
 
 const activeProvider = $derived<ProviderConfig>(
-  PROVIDERS.find((p) => p.id === selectedRuntime) ?? PROVIDERS[0],
+  PROVIDERS.find((p) => p.id === selectedRuntime) ?? PROVIDERS[0]
 );
 const canSend = $derived(!submitting && (prompt.trim().length > 0 || attachments.length > 0));
 
@@ -55,7 +55,9 @@ $effect(() => {
   }
 });
 
-onMount(() => { textareaEl?.focus(); });
+onMount(() => {
+  textareaEl?.focus();
+});
 
 function autogrow(): void {
   if (!textareaEl) return;
@@ -78,10 +80,17 @@ async function addFiles(files: FileList | File[]): Promise<void> {
     const tempId = crypto.randomUUID();
     const preview = isImageType(file.type) ? URL.createObjectURL(file) : undefined;
 
-    attachments = [...attachments, {
-      id: tempId, name: file.name, size: file.size, type: file.type,
-      preview, uploading: true,
-    }];
+    attachments = [
+      ...attachments,
+      {
+        id: tempId,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        preview,
+        uploading: true,
+      },
+    ];
 
     const slug = activeWorkspace.slug;
     if (slug) {
@@ -92,17 +101,13 @@ async function addFiles(files: FileList | File[]): Promise<void> {
           file,
         });
         attachments = attachments.map((a) =>
-          a.id === tempId ? { ...a, uploading: false, fileId: result.id } : a,
+          a.id === tempId ? { ...a, uploading: false, fileId: result.id } : a
         );
       } catch {
-        attachments = attachments.map((a) =>
-          a.id === tempId ? { ...a, uploading: false } : a,
-        );
+        attachments = attachments.map((a) => (a.id === tempId ? { ...a, uploading: false } : a));
       }
     } else {
-      attachments = attachments.map((a) =>
-        a.id === tempId ? { ...a, uploading: false } : a,
-      );
+      attachments = attachments.map((a) => (a.id === tempId ? { ...a, uploading: false } : a));
     }
   }
 }
@@ -113,8 +118,14 @@ function removeAttachment(id: string): void {
   attachments = attachments.filter((a) => a.id !== id);
 }
 
-function handleDragEnter(e: DragEvent): void { e.preventDefault(); dragging = true; }
-function handleDragOver(e: DragEvent): void { e.preventDefault(); dragging = true; }
+function handleDragEnter(e: DragEvent): void {
+  e.preventDefault();
+  dragging = true;
+}
+function handleDragOver(e: DragEvent): void {
+  e.preventDefault();
+  dragging = true;
+}
 
 function handleDragLeave(e: DragEvent): void {
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -130,7 +141,10 @@ function handleDrop(e: DragEvent): void {
 
 function handleFileInput(e: Event): void {
   const input = e.target as HTMLInputElement;
-  if (input.files?.length) { void addFiles(input.files); input.value = ''; }
+  if (input.files?.length) {
+    void addFiles(input.files);
+    input.value = '';
+  }
 }
 
 function handlePaste(e: ClipboardEvent): void {
@@ -138,9 +152,15 @@ function handlePaste(e: ClipboardEvent): void {
   if (!items) return;
   const files: File[] = [];
   for (const item of items) {
-    if (item.kind === 'file') { const f = item.getAsFile(); if (f) files.push(f); }
+    if (item.kind === 'file') {
+      const f = item.getAsFile();
+      if (f) files.push(f);
+    }
   }
-  if (files.length > 0) { e.preventDefault(); void addFiles(files); }
+  if (files.length > 0) {
+    e.preventDefault();
+    void addFiles(files);
+  }
 }
 
 async function handleSubmit(): Promise<void> {
@@ -186,7 +206,9 @@ async function handleSubmit(): Promise<void> {
     });
 
     prompt = '';
-    attachments.forEach((a) => { if (a.preview) URL.revokeObjectURL(a.preview); });
+    attachments.forEach((a) => {
+      if (a.preview) URL.revokeObjectURL(a.preview);
+    });
     attachments = [];
     onSubmitPrompt?.(fullPrompt);
     await goto('/build');

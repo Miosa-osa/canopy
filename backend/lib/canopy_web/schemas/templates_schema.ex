@@ -6,6 +6,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule Template do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -39,6 +40,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule TemplateList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -50,6 +52,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule TemplateCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -72,6 +75,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule PreviewRequest do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -83,6 +87,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule PreviewResponse do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -99,6 +104,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule InstantiateRequest do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -114,6 +120,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule Instantiation do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -140,6 +147,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule InstantiationList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -151,6 +159,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule PublishRequest do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -164,6 +173,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule TemplateVersion do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -184,6 +194,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule PublishResponse do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -196,6 +207,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule VersionList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -209,6 +221,7 @@ defmodule CanopyWeb.Schemas.TemplatesSchema do
   defmodule ForkRequest do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{

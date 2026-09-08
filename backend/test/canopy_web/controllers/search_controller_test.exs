@@ -86,7 +86,11 @@ defmodule CanopyWeb.SearchControllerTest do
   end
 
   describe "happy path" do
-    test "returns matches with backend + elapsed_ms + truncated", %{conn: conn, slug: slug, dir: dir} do
+    test "returns matches with backend + elapsed_ms + truncated", %{
+      conn: conn,
+      slug: slug,
+      dir: dir
+    } do
       write!(dir, "a.txt", "alpha beta\n")
 
       conn = do_get(conn, %{"q" => "beta", "workspace_slug" => slug})
@@ -107,7 +111,11 @@ defmodule CanopyWeb.SearchControllerTest do
       assert match["match_end"] == 10
     end
 
-    test "case_sensitive=false returns case-insensitive matches", %{conn: conn, slug: slug, dir: dir} do
+    test "case_sensitive=false returns case-insensitive matches", %{
+      conn: conn,
+      slug: slug,
+      dir: dir
+    } do
       write!(dir, "a.txt", "Hello\nhello\nHELLO\n")
 
       conn =
@@ -128,6 +136,7 @@ defmodule CanopyWeb.SearchControllerTest do
         do_get(conn, %{
           "q" => "\\d+",
           "workspace_slug" => slug,
+          "include_glob" => "a.txt",
           "regex" => "true"
         })
 

@@ -1,49 +1,46 @@
 <script lang="ts">
-  /**
-   * FileSearchBar — top-bar search input for the /files project explorer.
-   * CSS prefix: fsb- (File Search Bar).
-   *
-   * Behaviour:
-   *   • Text input that shows the live query (no live-search — debouncing
-   *     is irrelevant here because we hand off to the global keyword-search
-   *     dialog).
-   *   • Enter or click the magnifier → opens the global keyword-search
-   *     overlay scoped to the active workspace via `ui.openKeywordSearch()`
-   *     (the overlay reads `activeWorkspace.slug` for its scope).
-   *   • Cmd/Ctrl+P or "/" inside the input also opens the dialog.
-   *
-   * No new fetcher — the actual search lives in KeywordSearchDialog.
-   *
-   * LOC target: ≤ 150.
-   */
-  import { Search } from "lucide-svelte";
-  import { ui } from "$lib/stores/ui.svelte.js";
+/**
+ * FileSearchBar — top-bar search input for the /files project explorer.
+ * CSS prefix: fsb- (File Search Bar).
+ *
+ * Behaviour:
+ *   • Text input that shows the live query (no live-search — debouncing
+ *     is irrelevant here because we hand off to the global keyword-search
+ *     dialog).
+ *   • Enter or click the magnifier → opens the global keyword-search
+ *     overlay scoped to the active workspace via `ui.openKeywordSearch()`
+ *     (the overlay reads `activeWorkspace.slug` for its scope).
+ *   • Cmd/Ctrl+P or "/" inside the input also opens the dialog.
+ *
+ * No new fetcher — the actual search lives in KeywordSearchDialog.
+ *
+ * LOC target: ≤ 150.
+ */
+import { Search } from 'lucide-svelte';
+import { ui } from '$lib/stores/ui.svelte.js';
 
-  interface Props {
-    workspaceSlug: string | null;
-    placeholder?: string;
+interface Props {
+  workspaceSlug: string | null;
+  placeholder?: string;
+}
+
+let { workspaceSlug, placeholder = 'Search files in this workspace…' }: Props = $props();
+
+let query = $state('');
+
+function openOverlay(): void {
+  if (!workspaceSlug) return;
+  ui.openKeywordSearch();
+}
+
+function onKeydown(ev: KeyboardEvent): void {
+  if (ev.key === 'Enter') {
+    ev.preventDefault();
+    openOverlay();
+  } else if (ev.key === 'Escape') {
+    query = '';
   }
-
-  let {
-    workspaceSlug,
-    placeholder = "Search files in this workspace…",
-  }: Props = $props();
-
-  let query = $state("");
-
-  function openOverlay(): void {
-    if (!workspaceSlug) return;
-    ui.openKeywordSearch();
-  }
-
-  function onKeydown(ev: KeyboardEvent): void {
-    if (ev.key === "Enter") {
-      ev.preventDefault();
-      openOverlay();
-    } else if (ev.key === "Escape") {
-      query = "";
-    }
-  }
+}
 </script>
 
 <div class="fsb" role="search">

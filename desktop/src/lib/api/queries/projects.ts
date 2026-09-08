@@ -4,25 +4,24 @@
  * createQuery() / createMutation() in component scripts.
  */
 
-import { apiDelete, apiGet, apiPatch, apiPost } from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPatch, apiPost } from '$lib/api/client.js';
 import type {
   CreateProjectBody,
   Project,
   ProjectFilters,
   ProjectSummary,
   UpdateProjectBody,
-} from "$lib/domain/projects/types.js";
+} from '$lib/domain/projects/types.js';
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
 export function listProjects(filters?: ProjectFilters): Promise<Project[]> {
   const params = new URLSearchParams();
-  if (filters?.workspaceSlug)
-    params.set("workspace_slug", filters.workspaceSlug);
-  if (filters?.status) params.set("status", filters.status);
-  if (filters?.limit) params.set("limit", String(filters.limit));
+  if (filters?.workspaceSlug) params.set('workspace_slug', filters.workspaceSlug);
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.limit) params.set('limit', String(filters.limit));
   const qs = params.toString();
-  return apiGet<Project[]>(`/projects${qs ? `?${qs}` : ""}`);
+  return apiGet<Project[]>(`/projects${qs ? `?${qs}` : ''}`);
 }
 
 export function getProject(slug: string): Promise<Project> {
@@ -34,13 +33,10 @@ export function getProjectSummary(slug: string): Promise<ProjectSummary> {
 }
 
 export function createProject(body: CreateProjectBody): Promise<Project> {
-  return apiPost<Project>("/projects", body);
+  return apiPost<Project>('/projects', body);
 }
 
-export function updateProject(
-  slug: string,
-  body: UpdateProjectBody,
-): Promise<Project> {
+export function updateProject(slug: string, body: UpdateProjectBody): Promise<Project> {
   return apiPatch<Project>(`/projects/${slug}`, body);
 }
 
@@ -60,7 +56,7 @@ export function deleteProject(slug: string): Promise<void> {
 
 export function projectsQuery(filters?: ProjectFilters) {
   return {
-    queryKey: ["projects", filters ?? {}] as const,
+    queryKey: ['projects', filters ?? {}] as const,
     queryFn: () => listProjects(filters),
     staleTime: 15_000,
     retry: false,
@@ -69,7 +65,7 @@ export function projectsQuery(filters?: ProjectFilters) {
 
 export function projectQuery(slug: string) {
   return {
-    queryKey: ["projects", slug] as const,
+    queryKey: ['projects', slug] as const,
     queryFn: () => getProject(slug),
     staleTime: 10_000,
     enabled: Boolean(slug),
@@ -79,7 +75,7 @@ export function projectQuery(slug: string) {
 
 export function projectSummaryQuery(slug: string) {
   return {
-    queryKey: ["projects", slug, "summary"] as const,
+    queryKey: ['projects', slug, 'summary'] as const,
     queryFn: () => getProjectSummary(slug),
     staleTime: 30_000,
     enabled: Boolean(slug),
@@ -89,14 +85,14 @@ export function projectSummaryQuery(slug: string) {
 
 export function createProjectMutation() {
   return {
-    mutationKey: ["projects", "create"] as const,
+    mutationKey: ['projects', 'create'] as const,
     mutationFn: (body: CreateProjectBody) => createProject(body),
   };
 }
 
 export function updateProjectMutation() {
   return {
-    mutationKey: ["projects", "update"] as const,
+    mutationKey: ['projects', 'update'] as const,
     mutationFn: ({ slug, body }: { slug: string; body: UpdateProjectBody }) =>
       updateProject(slug, body),
   };
@@ -104,14 +100,14 @@ export function updateProjectMutation() {
 
 export function archiveProjectMutation() {
   return {
-    mutationKey: ["projects", "archive"] as const,
+    mutationKey: ['projects', 'archive'] as const,
     mutationFn: (slug: string) => archiveProject(slug),
   };
 }
 
 export function deleteProjectMutation() {
   return {
-    mutationKey: ["projects", "delete"] as const,
+    mutationKey: ['projects', 'delete'] as const,
     mutationFn: (slug: string) => deleteProject(slug),
   };
 }

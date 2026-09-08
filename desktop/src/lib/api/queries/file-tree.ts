@@ -9,8 +9,8 @@
  * Endpoint: GET /api/v1/workspaces/:slug/files?path=<dir>
  */
 
-import { listDir } from "$lib/api/queries/workspaces.js";
-import type { DirEntry } from "$lib/domain/workspaces/types.js";
+import { listDir } from '$lib/api/queries/workspaces.js';
+import type { DirEntry } from '$lib/domain/workspaces/types.js';
 
 /**
  * Query options for a single directory listing inside a workspace.
@@ -18,9 +18,9 @@ import type { DirEntry } from "$lib/domain/workspaces/types.js";
  * @param slug   workspace slug
  * @param path   directory path relative to workspace root ("" = root)
  */
-export function directoryListingQuery(slug: string, path: string = "") {
+export function directoryListingQuery(slug: string, path: string = '') {
   return {
-    queryKey: ["build-rail", "directory", slug, path] as const,
+    queryKey: ['build-rail', 'directory', slug, path] as const,
     queryFn: (): Promise<DirEntry[]> => listDir(slug, path),
     staleTime: 10_000,
     enabled: Boolean(slug),

@@ -10,10 +10,10 @@
  *   done        — terminal status
  */
 
-import type { Task } from "$lib/domain/tasks/types.js";
+import type { Task } from '$lib/domain/tasks/types.js';
 
 /** Kanban column key — matches the backend `kanban_column` type. */
-export type AgentKanbanColumn = "backlog" | "claimed" | "in_progress" | "done";
+export type AgentKanbanColumn = 'backlog' | 'claimed' | 'in_progress' | 'done';
 
 /** Server response shape for GET /agent-kanban/board. */
 export interface AgentKanbanBoard {
@@ -58,8 +58,8 @@ export interface ColumnDescriptor {
 
 /** Static column ordering used by the pane. */
 export const KANBAN_COLUMNS: ColumnDescriptor[] = [
-  { key: "backlog", label: "Backlog" },
-  { key: "claimed", label: "Claimed" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "done", label: "Done" },
+  { key: 'backlog', label: 'Backlog' },
+  { key: 'claimed', label: 'Claimed' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'done', label: 'Done' },
 ];

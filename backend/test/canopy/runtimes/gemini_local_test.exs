@@ -13,7 +13,9 @@ defmodule Canopy.Runtimes.GeminiLocalTest do
   Parser unit tests live in their own async module (parser_test.exs).
   """
 
-  use ExUnit.Case
+  # execute/1 builds its environment from Vault, which reads the Repo.
+  # Own a sandbox connection instead of borrowing another test's shared owner.
+  use Canopy.DataCase, async: false
 
   alias Canopy.Runtimes.GeminiLocal
   alias Canopy.Runtimes.GeminiLocal.Runner
@@ -374,6 +376,8 @@ defmodule Canopy.Runtimes.GeminiLocalTest do
     end
 
     test "cancel/1 is accepted without crashing", %{session_id: session_id} do
+      # Exercise the actual credential lookup on the subprocess path.
+      assert {:ok, _} = Canopy.Vault.put("gemini-local", "api_key", "fake-test-credential")
       context = build_context(session_id)
       {:ok, session_ref} = GeminiLocal.execute(context)
 

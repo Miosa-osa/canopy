@@ -234,7 +234,10 @@ defmodule Canopy.Build.Commands do
   defp normalize_query(""), do: nil
 
   defp normalize_query(s) when is_binary(s) do
-    s |> String.trim() |> String.downcase() |> case do
+    s
+    |> String.trim()
+    |> String.downcase()
+    |> case do
       "" -> nil
       v -> v
     end

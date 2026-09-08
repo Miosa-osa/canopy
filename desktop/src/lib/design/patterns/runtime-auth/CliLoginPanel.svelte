@@ -26,7 +26,9 @@ let copied = $state(false);
 function copyCommand() {
   void navigator.clipboard.writeText(loginCommand).then(() => {
     copied = true;
-    setTimeout(() => { copied = false; }, 2000);
+    setTimeout(() => {
+      copied = false;
+    }, 2000);
   });
 }
 </script>

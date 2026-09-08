@@ -10,15 +10,10 @@
  * LOC target: ≤ 160.
  */
 
-export type MosaicViewMode = "panes" | "tabs";
-export type MosaicDensity = "compact" | "comfortable" | "roomy";
-export type MosaicTitleFormat = "command" | "working_directory" | "branch";
-export type MosaicMetadataField =
-  | "branch"
-  | "working_directory"
-  | "agent"
-  | "runtime"
-  | "model";
+export type MosaicViewMode = 'panes' | 'tabs';
+export type MosaicDensity = 'compact' | 'comfortable' | 'roomy';
+export type MosaicTitleFormat = 'command' | 'working_directory' | 'branch';
+export type MosaicMetadataField = 'branch' | 'working_directory' | 'agent' | 'runtime' | 'model';
 
 export interface MosaicPrefs {
   /** Where the Mosaic shows its content. `panes` = tiled split view (current). `tabs` = single tile, all panes as tabs. */
@@ -33,29 +28,25 @@ export interface MosaicPrefs {
   show_details_on_hover: boolean;
 }
 
-const LS_KEY = "canopy.mosaic.prefs";
+const LS_KEY = 'canopy.mosaic.prefs';
 
 export const defaultPrefs: MosaicPrefs = {
-  view_mode: "panes",
-  density: "comfortable",
-  pane_title_format: "command",
-  metadata_fields: ["branch"],
+  view_mode: 'panes',
+  density: 'comfortable',
+  pane_title_format: 'command',
+  metadata_fields: ['branch'],
   show_details_on_hover: true,
 };
 
-const VIEW_MODES: readonly MosaicViewMode[] = ["panes", "tabs"];
-const DENSITIES: readonly MosaicDensity[] = ["compact", "comfortable", "roomy"];
-const TITLE_FORMATS: readonly MosaicTitleFormat[] = [
-  "command",
-  "working_directory",
-  "branch",
-];
+const VIEW_MODES: readonly MosaicViewMode[] = ['panes', 'tabs'];
+const DENSITIES: readonly MosaicDensity[] = ['compact', 'comfortable', 'roomy'];
+const TITLE_FORMATS: readonly MosaicTitleFormat[] = ['command', 'working_directory', 'branch'];
 const METADATA_FIELDS: readonly MosaicMetadataField[] = [
-  "branch",
-  "working_directory",
-  "agent",
-  "runtime",
-  "model",
+  'branch',
+  'working_directory',
+  'agent',
+  'runtime',
+  'model',
 ];
 
 // ── Pure helpers (exported for tests) ─────────────────────────────────────────
@@ -65,12 +56,10 @@ const METADATA_FIELDS: readonly MosaicMetadataField[] = [
  * Unknown values fall back to defaults — never throw.
  */
 export function sanitize(raw: unknown): MosaicPrefs {
-  if (!raw || typeof raw !== "object") return { ...defaultPrefs };
+  if (!raw || typeof raw !== 'object') return { ...defaultPrefs };
   const r = raw as Partial<Record<keyof MosaicPrefs, unknown>>;
 
-  const view_mode = (VIEW_MODES as readonly string[]).includes(
-    r.view_mode as string,
-  )
+  const view_mode = (VIEW_MODES as readonly string[]).includes(r.view_mode as string)
     ? (r.view_mode as MosaicViewMode)
     : defaultPrefs.view_mode;
 
@@ -79,19 +68,19 @@ export function sanitize(raw: unknown): MosaicPrefs {
     : defaultPrefs.density;
 
   const pane_title_format = (TITLE_FORMATS as readonly string[]).includes(
-    r.pane_title_format as string,
+    r.pane_title_format as string
   )
     ? (r.pane_title_format as MosaicTitleFormat)
     : defaultPrefs.pane_title_format;
 
   const fields: MosaicMetadataField[] = Array.isArray(r.metadata_fields)
     ? (r.metadata_fields as unknown[]).filter((f): f is MosaicMetadataField =>
-        (METADATA_FIELDS as readonly string[]).includes(f as string),
+        (METADATA_FIELDS as readonly string[]).includes(f as string)
       )
     : [...defaultPrefs.metadata_fields];
 
   const show_details_on_hover =
-    typeof r.show_details_on_hover === "boolean"
+    typeof r.show_details_on_hover === 'boolean'
       ? r.show_details_on_hover
       : defaultPrefs.show_details_on_hover;
 
@@ -106,7 +95,7 @@ export function sanitize(raw: unknown): MosaicPrefs {
 
 export function loadPrefs(): MosaicPrefs {
   try {
-    if (typeof localStorage === "undefined") return { ...defaultPrefs };
+    if (typeof localStorage === 'undefined') return { ...defaultPrefs };
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return { ...defaultPrefs };
     return sanitize(JSON.parse(raw));
@@ -117,7 +106,7 @@ export function loadPrefs(): MosaicPrefs {
 
 export function savePrefs(prefs: MosaicPrefs): void {
   try {
-    if (typeof localStorage === "undefined") return;
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(LS_KEY, JSON.stringify(prefs));
   } catch {
     // Quota exceeded or private mode — silently ignore.
@@ -126,7 +115,7 @@ export function savePrefs(prefs: MosaicPrefs): void {
 
 export function resetPrefs(): void {
   try {
-    if (typeof localStorage === "undefined") return;
+    if (typeof localStorage === 'undefined') return;
     localStorage.removeItem(LS_KEY);
   } catch {
     // ignore
@@ -139,7 +128,7 @@ class MosaicPrefsStore {
   prefs = $state<MosaicPrefs>({ ...defaultPrefs });
 
   constructor() {
-    if (typeof localStorage !== "undefined") {
+    if (typeof localStorage !== 'undefined') {
       this.prefs = loadPrefs();
     }
   }

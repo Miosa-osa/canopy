@@ -12,23 +12,22 @@
  * "Create local skill" is not supported by the current backend.
  */
 
-import { apiGet, apiPost, apiPut } from "$lib/api/client.js";
-import { LOCAL_SKILLS } from "$lib/data/local-skills.js";
+import { apiGet, apiPost, apiPut } from '$lib/api/client.js';
+import { LOCAL_SKILLS } from '$lib/data/local-skills.js';
 import type {
   CreateSkillBody,
   ImportSkillBody,
   ImportSkillResponse,
   Skill,
   SkillFilters,
-} from "$lib/domain/skills/types.js";
+} from '$lib/domain/skills/types.js';
 
 // ── Raw API calls ────────────────────────────────────────────────────────────
 
 function applyLocalFilters(skills: Skill[], filters?: SkillFilters): Skill[] {
   return skills.filter((skill) => {
     if (filters?.source && skill.source !== filters.source) return false;
-    if (typeof filters?.enabled === "boolean" && skill.enabled !== filters.enabled)
-      return false;
+    if (typeof filters?.enabled === 'boolean' && skill.enabled !== filters.enabled) return false;
     if (filters?.tag && !skill.tags.includes(filters.tag)) return false;
     if (filters?.kind && skill.kind !== filters.kind) return false;
     return true;
@@ -40,22 +39,19 @@ function mergeSkills(remoteSkills: Skill[], localSkills: Skill[]): Skill[] {
     ...remoteSkills,
     ...localSkills.filter(
       (local) =>
-        !remoteSkills.some(
-          (remote) => remote.slug === local.slug || remote.id === local.id,
-        ),
+        !remoteSkills.some((remote) => remote.slug === local.slug || remote.id === local.id)
     ),
   ].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function listSkills(filters?: SkillFilters): Promise<Skill[]> {
   const params = new URLSearchParams();
-  if (filters?.source) params.set("source", filters.source);
-  if (typeof filters?.enabled === "boolean")
-    params.set("enabled", String(filters.enabled));
-  if (filters?.tag) params.set("tag", filters.tag);
-  if (filters?.kind) params.set("kind", filters.kind);
+  if (filters?.source) params.set('source', filters.source);
+  if (typeof filters?.enabled === 'boolean') params.set('enabled', String(filters.enabled));
+  if (filters?.tag) params.set('tag', filters.tag);
+  if (filters?.kind) params.set('kind', filters.kind);
   const qs = params.toString();
-  const remoteSkills = await apiGet<Skill[]>(`/skills${qs ? `?${qs}` : ""}`, {
+  const remoteSkills = await apiGet<Skill[]>(`/skills${qs ? `?${qs}` : ''}`, {
     rawKeys: true,
   });
   return mergeSkills(remoteSkills, applyLocalFilters(LOCAL_SKILLS, filters));
@@ -71,20 +67,15 @@ export async function getSkill(slug: string): Promise<Skill> {
  * Bulk import from an external registry (clawhub or skills_sh).
  * POST /api/v1/skills/import { source }
  */
-export function importSkills(
-  body: ImportSkillBody,
-): Promise<ImportSkillResponse> {
-  return apiPost<ImportSkillResponse>("/skills/import", body);
+export function importSkills(body: ImportSkillBody): Promise<ImportSkillResponse> {
+  return apiPost<ImportSkillResponse>('/skills/import', body);
 }
 
 /**
  * Update a skill's content/metadata.
  * PUT /api/v1/skills/:slug — used by the detail page ⌘S save flow.
  */
-export function updateSkill(
-  slug: string,
-  body: Partial<CreateSkillBody>,
-): Promise<Skill> {
+export function updateSkill(slug: string, body: Partial<CreateSkillBody>): Promise<Skill> {
   return apiPut<Skill>(`/skills/${slug}`, body, { rawKeys: true });
 }
 
@@ -93,7 +84,7 @@ export function updateSkill(
 /** Query options for the skills list with optional filters. */
 export function skillsQuery(filters?: SkillFilters) {
   return {
-    queryKey: ["skills", filters ?? {}] as const,
+    queryKey: ['skills', filters ?? {}] as const,
     queryFn: () => listSkills(filters),
     staleTime: 30_000,
   };
@@ -102,7 +93,7 @@ export function skillsQuery(filters?: SkillFilters) {
 /** Query options for a single skill detail page. */
 export function skillQuery(slug: string) {
   return {
-    queryKey: ["skills", slug] as const,
+    queryKey: ['skills', slug] as const,
     queryFn: () => getSkill(slug),
     staleTime: 30_000,
     enabled: Boolean(slug),
@@ -115,7 +106,7 @@ export function skillQuery(slug: string) {
  */
 export function importSkillMutation() {
   return {
-    mutationKey: ["skills", "import"] as const,
+    mutationKey: ['skills', 'import'] as const,
     mutationFn: (body: ImportSkillBody) => importSkills(body),
   };
 }
@@ -123,13 +114,8 @@ export function importSkillMutation() {
 /** Mutation options to update a skill's content/metadata. */
 export function updateSkillMutation() {
   return {
-    mutationKey: ["skills", "update"] as const,
-    mutationFn: ({
-      slug,
-      body,
-    }: {
-      slug: string;
-      body: Partial<CreateSkillBody>;
-    }) => updateSkill(slug, body),
+    mutationKey: ['skills', 'update'] as const,
+    mutationFn: ({ slug, body }: { slug: string; body: Partial<CreateSkillBody> }) =>
+      updateSkill(slug, body),
   };
 }

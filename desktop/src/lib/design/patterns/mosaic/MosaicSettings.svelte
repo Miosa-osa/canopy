@@ -1,123 +1,120 @@
 <script lang="ts">
-  /**
-   * MosaicSettings — settings popover for the Mosaic shell.
-   * Bound to the mosaicPrefs runes store. CSS prefix: ms-
-   *
-   * Sections (in order):
-   *   1. View as           (single-select Panes / Tabs)
-   *   2. Density           (single-select compact ☰ / comfortable / roomy ▦)
-   *   3. Pane title as     (single-select command / working_directory / branch)
-   *   4. Additional metadata (multi-select branch / working_directory / agent / runtime / model)
-   *   5. Show details on hover (toggle)
-   *
-   * Renders inline (caller wraps it in the foundation `<Popover>`'s children
-   * snippet). No own positioning logic — receiver supplies the popover.
-   *
-   * ARIA:
-   *   - role="menu" on root, role="menuitemradio" / "menuitemcheckbox" on options
-   *   - Esc closes via `onClose` prop
-   *   - Focus is trapped inside the popover (cycles between focusable controls)
-   *
-   * LOC target: ≤ 240.
-   */
-  import { onMount, tick } from 'svelte';
-  import {
-    AlignJustify,
-    LayoutGrid,
-    Rows,
-  } from 'lucide-svelte';
-  import {
-    mosaicPrefs,
-    type MosaicDensity,
-    type MosaicMetadataField,
-    type MosaicTitleFormat,
-    type MosaicViewMode,
-  } from '$lib/stores/mosaic-prefs.svelte.js';
-  import Toggle from '$lib/design/foundation/toggle/Toggle.svelte';
-  import Checkbox from '$lib/design/foundation/checkbox/Checkbox.svelte';
+/**
+ * MosaicSettings — settings popover for the Mosaic shell.
+ * Bound to the mosaicPrefs runes store. CSS prefix: ms-
+ *
+ * Sections (in order):
+ *   1. View as           (single-select Panes / Tabs)
+ *   2. Density           (single-select compact ☰ / comfortable / roomy ▦)
+ *   3. Pane title as     (single-select command / working_directory / branch)
+ *   4. Additional metadata (multi-select branch / working_directory / agent / runtime / model)
+ *   5. Show details on hover (toggle)
+ *
+ * Renders inline (caller wraps it in the foundation `<Popover>`'s children
+ * snippet). No own positioning logic — receiver supplies the popover.
+ *
+ * ARIA:
+ *   - role="menu" on root, role="menuitemradio" / "menuitemcheckbox" on options
+ *   - Esc closes via `onClose` prop
+ *   - Focus is trapped inside the popover (cycles between focusable controls)
+ *
+ * LOC target: ≤ 240.
+ */
 
-  interface Props {
-    /** Called when the user dismisses the popover (Esc key). The host owns open state. */
-    onClose?: () => void;
+import { AlignJustify, LayoutGrid, Rows } from 'lucide-svelte';
+import { onMount, tick } from 'svelte';
+import Checkbox from '$lib/design/foundation/checkbox/Checkbox.svelte';
+import Toggle from '$lib/design/foundation/toggle/Toggle.svelte';
+import {
+  type MosaicDensity,
+  type MosaicMetadataField,
+  type MosaicTitleFormat,
+  type MosaicViewMode,
+  mosaicPrefs,
+} from '$lib/stores/mosaic-prefs.svelte.js';
+
+interface Props {
+  /** Called when the user dismisses the popover (Esc key). The host owns open state. */
+  onClose?: () => void;
+}
+
+let { onClose }: Props = $props();
+
+let rootEl = $state<HTMLDivElement | null>(null);
+
+// ── Static option tables (single source of truth for labels & a11y) ────────
+
+const VIEW_MODES: ReadonlyArray<{ value: MosaicViewMode; label: string }> = [
+  { value: 'panes', label: 'Panes' },
+  { value: 'tabs', label: 'Tabs' },
+];
+
+const DENSITIES: ReadonlyArray<{
+  value: MosaicDensity;
+  label: string;
+  icon: typeof AlignJustify;
+}> = [
+  { value: 'compact', label: 'Compact list', icon: AlignJustify },
+  { value: 'comfortable', label: 'Comfortable', icon: Rows },
+  { value: 'roomy', label: 'Roomy grid', icon: LayoutGrid },
+];
+
+const TITLE_FORMATS: ReadonlyArray<{ value: MosaicTitleFormat; label: string }> = [
+  { value: 'command', label: 'Command' },
+  { value: 'working_directory', label: 'Working directory' },
+  { value: 'branch', label: 'Branch' },
+];
+
+const METADATA_FIELDS: ReadonlyArray<{ value: MosaicMetadataField; label: string }> = [
+  { value: 'branch', label: 'Branch' },
+  { value: 'working_directory', label: 'Working directory' },
+  { value: 'agent', label: 'Agent' },
+  { value: 'runtime', label: 'Runtime' },
+  { value: 'model', label: 'Model' },
+];
+
+// ── Focus trap ─────────────────────────────────────────────────────────────
+
+function focusables(): HTMLElement[] {
+  if (!rootEl) return [];
+  const sel =
+    'button:not([disabled]), [role="menuitemradio"], [role="menuitemcheckbox"], [role="switch"], [role="checkbox"], input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  return Array.from(rootEl.querySelectorAll<HTMLElement>(sel));
+}
+
+function handleKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    onClose?.();
+    return;
   }
-
-  let { onClose }: Props = $props();
-
-  let rootEl = $state<HTMLDivElement | null>(null);
-
-  // ── Static option tables (single source of truth for labels & a11y) ────────
-
-  const VIEW_MODES: ReadonlyArray<{ value: MosaicViewMode; label: string }> = [
-    { value: 'panes', label: 'Panes' },
-    { value: 'tabs', label: 'Tabs' },
-  ];
-
-  const DENSITIES: ReadonlyArray<{
-    value: MosaicDensity;
-    label: string;
-    icon: typeof AlignJustify;
-  }> = [
-    { value: 'compact', label: 'Compact list', icon: AlignJustify },
-    { value: 'comfortable', label: 'Comfortable', icon: Rows },
-    { value: 'roomy', label: 'Roomy grid', icon: LayoutGrid },
-  ];
-
-  const TITLE_FORMATS: ReadonlyArray<{ value: MosaicTitleFormat; label: string }> = [
-    { value: 'command', label: 'Command' },
-    { value: 'working_directory', label: 'Working directory' },
-    { value: 'branch', label: 'Branch' },
-  ];
-
-  const METADATA_FIELDS: ReadonlyArray<{ value: MosaicMetadataField; label: string }> = [
-    { value: 'branch', label: 'Branch' },
-    { value: 'working_directory', label: 'Working directory' },
-    { value: 'agent', label: 'Agent' },
-    { value: 'runtime', label: 'Runtime' },
-    { value: 'model', label: 'Model' },
-  ];
-
-  // ── Focus trap ─────────────────────────────────────────────────────────────
-
-  function focusables(): HTMLElement[] {
-    if (!rootEl) return [];
-    const sel =
-      'button:not([disabled]), [role="menuitemradio"], [role="menuitemcheckbox"], [role="switch"], [role="checkbox"], input:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    return Array.from(rootEl.querySelectorAll<HTMLElement>(sel));
+  if (e.key !== 'Tab') return;
+  const els = focusables();
+  if (els.length === 0) return;
+  const active = document.activeElement as HTMLElement | null;
+  const idx = active ? els.indexOf(active) : -1;
+  if (e.shiftKey && idx <= 0) {
+    e.preventDefault();
+    els[els.length - 1].focus();
+  } else if (!e.shiftKey && idx === els.length - 1) {
+    e.preventDefault();
+    els[0].focus();
   }
+}
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      onClose?.();
-      return;
-    }
-    if (e.key !== 'Tab') return;
+onMount(() => {
+  void tick().then(() => {
     const els = focusables();
-    if (els.length === 0) return;
-    const active = document.activeElement as HTMLElement | null;
-    const idx = active ? els.indexOf(active) : -1;
-    if (e.shiftKey && (idx <= 0)) {
-      e.preventDefault();
-      els[els.length - 1].focus();
-    } else if (!e.shiftKey && idx === els.length - 1) {
-      e.preventDefault();
-      els[0].focus();
-    }
-  }
-
-  onMount(() => {
-    void tick().then(() => {
-      const els = focusables();
-      els[0]?.focus();
-    });
+    els[0]?.focus();
   });
+});
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-  function isMetadataChecked(field: MosaicMetadataField): boolean {
-    return mosaicPrefs.prefs.metadata_fields.includes(field);
-  }
+function isMetadataChecked(field: MosaicMetadataField): boolean {
+  return mosaicPrefs.prefs.metadata_fields.includes(field);
+}
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

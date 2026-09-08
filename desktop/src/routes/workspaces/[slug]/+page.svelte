@@ -5,12 +5,18 @@
  * CSS prefix: wd-
  */
 
-import { type CreateQueryOptions, createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
 import { AlertCircle, FolderOpen } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
+import { sessionsQuery } from '$lib/api/queries/sessions.js';
 import {
   deleteWorkspaceMutation,
   startInitJob,
@@ -18,21 +24,20 @@ import {
   workspaceInitJobQuery,
   workspaceTreeQuery,
 } from '$lib/api/queries/workspaces.js';
-import { sessionsQuery } from '$lib/api/queries/sessions.js';
 import { Breadcrumb, BreadcrumbItem } from '$lib/design/foundation/breadcrumb/index.js';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import FileTree from '$lib/design/patterns/FileTree.svelte';
 import FileViewer from '$lib/design/patterns/FileViewer.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-import SetupScriptCard from '$lib/design/patterns/workspaces/SetupScriptCard.svelte';
 import InitProgressCard from '$lib/design/patterns/workspaces/InitProgressCard.svelte';
+import PinnedPanel from '$lib/design/patterns/workspaces/PinnedPanel.svelte';
+import SetupScriptCard from '$lib/design/patterns/workspaces/SetupScriptCard.svelte';
+import WorkspaceDangerTab from '$lib/design/patterns/workspaces/WorkspaceDangerTab.svelte';
 import WorkspaceEngineTab from '$lib/design/patterns/workspaces/WorkspaceEngineTab.svelte';
 import WorkspaceOverviewTab from '$lib/design/patterns/workspaces/WorkspaceOverviewTab.svelte';
 import WorkspaceSessionsTab from '$lib/design/patterns/workspaces/WorkspaceSessionsTab.svelte';
-import WorkspaceDangerTab from '$lib/design/patterns/workspaces/WorkspaceDangerTab.svelte';
-import PinnedPanel from '$lib/design/patterns/workspaces/PinnedPanel.svelte';
-import type { InitJob, WorkspaceDetail, FileTreeNode } from '$lib/domain/workspaces/types.js';
 import type { Session } from '$lib/domain/sessions/types.js';
+import type { FileTreeNode, InitJob, WorkspaceDetail } from '$lib/domain/workspaces/types.js';
 import { toasts } from '$lib/stores/toasts.svelte.js';
 
 const slug = $derived(page.params.slug ?? '');
@@ -60,9 +65,7 @@ $effect(() => {
 const treeQ = createQuery<FileTreeNode>(treeOptsStore);
 
 // ── Sessions query ────────────────────────────────────────────────────────────
-const sessionsOptsStore = writable(
-  untrack(() => sessionsQuery({ workspaceSlug: slug }))
-);
+const sessionsOptsStore = writable(untrack(() => sessionsQuery({ workspaceSlug: slug })));
 $effect(() => {
   sessionsOptsStore.set(sessionsQuery({ workspaceSlug: slug }));
 });
@@ -91,9 +94,7 @@ $effect(() => {
 });
 
 const initJobOptsStore = writable(
-  untrack(() =>
-    workspaceInitJobQuery(slug, activeJobId ?? '') as CreateQueryOptions<InitJob>
-  )
+  untrack(() => workspaceInitJobQuery(slug, activeJobId ?? '') as CreateQueryOptions<InitJob>)
 );
 
 $effect(() => {
@@ -104,11 +105,12 @@ $effect(() => {
 
 const initJobQ = createQuery<InitJob>(initJobOptsStore);
 
-const activeInitJob = $derived(activeJobId ? ($initJobQ.data ?? null) as InitJob | null : null);
+const activeInitJob = $derived(activeJobId ? (($initJobQ.data ?? null) as InitJob | null) : null);
 const showInitCard = $derived(
   activeInitJob !== null &&
-    (activeInitJob.status === 'running' || activeInitJob.status === 'pending' ||
-     activeInitJob.status === 'failed')
+    (activeInitJob.status === 'running' ||
+      activeInitJob.status === 'pending' ||
+      activeInitJob.status === 'failed')
 );
 
 function clearInitJob(): void {
@@ -152,11 +154,14 @@ function handleDeleted(): void {
 }
 
 function copyToClipboard(path: string): void {
-  navigator.clipboard.writeText(path).then(() => {
-    toasts.info('Copied to clipboard');
-  }).catch(() => {
-    toasts.error('Copy failed');
-  });
+  navigator.clipboard
+    .writeText(path)
+    .then(() => {
+      toasts.info('Copied to clipboard');
+    })
+    .catch(() => {
+      toasts.error('Copy failed');
+    });
 }
 </script>
 

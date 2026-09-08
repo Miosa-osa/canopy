@@ -1,93 +1,94 @@
 <script lang="ts">
-  /**
-   * PaneContent — dispatches to the right component based on pane.kind.
-   * CSS prefix: pc-
-   * LOC target: ≤ 180.
-   */
-  import { mosaicLayout, type Pane } from '$lib/stores/mosaic-layout.svelte.js';
-  import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
-  import { createSession, getSession } from '$lib/api/queries/sessions.js';
+/**
+ * PaneContent — dispatches to the right component based on pane.kind.
+ * CSS prefix: pc-
+ * LOC target: ≤ 180.
+ */
 
-  interface Props {
-    pane: Pane;
-  }
+import { createSession, getSession } from '$lib/api/queries/sessions.js';
+import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
+import { mosaicLayout, type Pane } from '$lib/stores/mosaic-layout.svelte.js';
 
-  let { pane }: Props = $props();
+interface Props {
+  pane: Pane;
+}
 
-  // Lazy-import heavy components to keep initial bundle small.
-  // IssueDetailMain/Sidebar, FilePreview, TiptapEditor are only loaded when needed.
+let { pane }: Props = $props();
 
-  // Knowledge pane stub data
-  type KnowledgeChunk = { id: string; title: string; preview: string };
-  const knowledgeChunks: KnowledgeChunk[] = [
-    { id: '1', title: 'Getting started', preview: 'A brief guide to using the workspace…' },
-    { id: '2', title: 'Keyboard shortcuts', preview: 'Full reference for all keyboard shortcuts…' },
-  ];
+// Lazy-import heavy components to keep initial bundle small.
+// IssueDetailMain/Sidebar, FilePreview, TiptapEditor are only loaded when needed.
 
-  // ── Local terminal: spawn an interactive claude-local session on first mount.
-  // The Mosaic "terminal" pane reuses every other runtime's channel — same
-  // wire-up as /sessions/[id], just without the harness chrome. Caches the
-  // session ID on pane.ref so remounts reattach to the same pty.
-  let terminalSessionId = $state<string | null>(null);
-  let terminalError = $state<string | null>(null);
+// Knowledge pane stub data
+type KnowledgeChunk = { id: string; title: string; preview: string };
+const knowledgeChunks: KnowledgeChunk[] = [
+  { id: '1', title: 'Getting started', preview: 'A brief guide to using the workspace…' },
+  { id: '2', title: 'Keyboard shortcuts', preview: 'Full reference for all keyboard shortcuts…' },
+];
 
-  $effect(() => {
-    if (pane.kind !== 'terminal') return;
+// ── Local terminal: spawn an interactive claude-local session on first mount.
+// The Mosaic "terminal" pane reuses every other runtime's channel — same
+// wire-up as /sessions/[id], just without the harness chrome. Caches the
+// session ID on pane.ref so remounts reattach to the same pty.
+let terminalSessionId = $state<string | null>(null);
+let terminalError = $state<string | null>(null);
 
-    let cancelled = false;
+$effect(() => {
+  if (pane.kind !== 'terminal') return;
 
-    const hasCachedUuid =
-      !!pane.ref && pane.ref !== 'local-shell' && pane.ref !== 'local' && pane.ref.length > 20;
+  let cancelled = false;
 
-    async function spawnFresh(): Promise<void> {
-      try {
-        const s = (await createSession({
-          runtimeType: 'claude-local',
-          workspaceSlug: 'default',
-          cwd: '~',
-        })) as unknown as { id?: string; sessionId?: string };
-        if (cancelled) return;
-        const id = s.sessionId ?? s.id;
-        if (!id) {
-          terminalError = 'Session spawn returned no id';
-          return;
-        }
-        terminalSessionId = id;
-        pane.ref = id;
-        mosaicLayout.save();
-      } catch (err) {
-        if (!cancelled) {
-          terminalError = err instanceof Error ? err.message : 'Failed to spawn terminal session';
-        }
+  const hasCachedUuid =
+    !!pane.ref && pane.ref !== 'local-shell' && pane.ref !== 'local' && pane.ref.length > 20;
+
+  async function spawnFresh(): Promise<void> {
+    try {
+      const s = (await createSession({
+        runtimeType: 'claude-local',
+        workspaceSlug: 'default',
+        cwd: '~',
+      })) as unknown as { id?: string; sessionId?: string };
+      if (cancelled) return;
+      const id = s.sessionId ?? s.id;
+      if (!id) {
+        terminalError = 'Session spawn returned no id';
+        return;
+      }
+      terminalSessionId = id;
+      pane.ref = id;
+      mosaicLayout.save();
+    } catch (err) {
+      if (!cancelled) {
+        terminalError = err instanceof Error ? err.message : 'Failed to spawn terminal session';
       }
     }
+  }
 
-    (async () => {
-      if (hasCachedUuid) {
-        // Verify the cached session still exists. If backend returns 404
-        // (session cleaned up, DB rebuilt, etc.), respawn fresh.
-        try {
-          await getSession(pane.ref);
-          if (cancelled) return;
-          terminalSessionId = pane.ref;
-          return;
-        } catch {
-          // Stale cache — fall through to fresh spawn.
-          pane.ref = 'local';
-          mosaicLayout.save();
-        }
+  (async () => {
+    if (hasCachedUuid) {
+      // Verify the cached session still exists. If backend returns 404
+      // (session cleaned up, DB rebuilt, etc.), respawn fresh.
+      try {
+        await getSession(pane.ref);
+        if (cancelled) return;
+        terminalSessionId = pane.ref;
+        return;
+      } catch {
+        // Stale cache — fall through to fresh spawn.
+        pane.ref = 'local';
+        mosaicLayout.save();
       }
-      if (!cancelled) {
-        terminalError = null;
-        terminalSessionId = null;
-        await spawnFresh();
-      }
-    })();
+    }
+    if (!cancelled) {
+      terminalError = null;
+      terminalSessionId = null;
+      await spawnFresh();
+    }
+  })();
 
-    return () => {
-      cancelled = true;
-    };
-  });
+  return () => {
+    cancelled = true;
+  };
+});
 </script>
 
 <div class="pc-root">

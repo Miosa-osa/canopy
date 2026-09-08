@@ -1,59 +1,57 @@
 <script lang="ts">
-  /**
-   * McpPane — Mosaic pane for inspecting registered tools and live invocations.
-   *
-   * Layout (3 zones):
-   *   ┌──────────┬──────────────────────────┐
-   *   │  Tool    │  Tool detail             │
-   *   │  list    │  + Test invocation       │
-   *   │  (left)  │  (top-right)             │
-   *   │          ├──────────────────────────┤
-   *   │          │  Invocation log          │
-   *   │          │  (bottom-right, polled)  │
-   *   │          ├──────────────────────────┤
-   *   │          │  MCP servers (stub)      │
-   *   └──────────┴──────────────────────────┘
-   *
-   * Reuses (no parallel implementation):
-   *   - Canopy.Tools.Registry  via /api/v1/tools
-   *   - AgentToolsController   via POST /api/v1/agents/tools/:tool_name
-   *   - Canopy.Agents.ToolCalls via GET /api/v1/agents/tool-calls (added)
-   *
-   * CSS prefix: mp-
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { registeredToolsQuery } from '$lib/api/queries/mcp.js';
-  import type { RegisteredTool } from '$lib/domain/mcp/types.js';
-  import InvocationLog from './mcp/InvocationLog.svelte';
-  import McpServerList from './mcp/McpServerList.svelte';
-  import ToolDetail from './mcp/ToolDetail.svelte';
-  import ToolInvoker from './mcp/ToolInvoker.svelte';
-  import ToolList from './mcp/ToolList.svelte';
+/**
+ * McpPane — Mosaic pane for inspecting registered tools and live invocations.
+ *
+ * Layout (3 zones):
+ *   ┌──────────┬──────────────────────────┐
+ *   │  Tool    │  Tool detail             │
+ *   │  list    │  + Test invocation       │
+ *   │  (left)  │  (top-right)             │
+ *   │          ├──────────────────────────┤
+ *   │          │  Invocation log          │
+ *   │          │  (bottom-right, polled)  │
+ *   │          ├──────────────────────────┤
+ *   │          │  MCP servers (stub)      │
+ *   └──────────┴──────────────────────────┘
+ *
+ * Reuses (no parallel implementation):
+ *   - Canopy.Tools.Registry  via /api/v1/tools
+ *   - AgentToolsController   via POST /api/v1/agents/tools/:tool_name
+ *   - Canopy.Agents.ToolCalls via GET /api/v1/agents/tool-calls (added)
+ *
+ * CSS prefix: mp-
+ */
+import { createQuery } from '@tanstack/svelte-query';
+import { registeredToolsQuery } from '$lib/api/queries/mcp.js';
+import type { RegisteredTool } from '$lib/domain/mcp/types.js';
+import InvocationLog from './mcp/InvocationLog.svelte';
+import McpServerList from './mcp/McpServerList.svelte';
+import ToolDetail from './mcp/ToolDetail.svelte';
+import ToolInvoker from './mcp/ToolInvoker.svelte';
+import ToolList from './mcp/ToolList.svelte';
 
-  const tools = createQuery(registeredToolsQuery());
+const tools = createQuery(registeredToolsQuery());
 
-  let selectedName = $state<string | null>(null);
-  let invokerOpen = $state(false);
+let selectedName = $state<string | null>(null);
+let invokerOpen = $state(false);
 
-  const toolList = $derived<RegisteredTool[]>($tools.data ?? []);
+const toolList = $derived<RegisteredTool[]>($tools.data ?? []);
 
-  const selected = $derived<RegisteredTool | null>(
-    selectedName
-      ? (toolList.find((t) => t.name === selectedName) ?? null)
-      : null,
-  );
+const selected = $derived<RegisteredTool | null>(
+  selectedName ? (toolList.find((t) => t.name === selectedName) ?? null) : null
+);
 
-  $effect(() => {
-    // Auto-select first tool once data lands.
-    if (!selectedName && toolList.length > 0) {
-      selectedName = toolList[0]!.name;
-    }
-  });
-
-  function handleSelect(name: string): void {
-    selectedName = name;
-    invokerOpen = false;
+$effect(() => {
+  // Auto-select first tool once data lands.
+  if (!selectedName && toolList.length > 0) {
+    selectedName = toolList[0]!.name;
   }
+});
+
+function handleSelect(name: string): void {
+  selectedName = name;
+  invokerOpen = false;
+}
 </script>
 
 <div class="mp-root">

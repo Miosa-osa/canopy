@@ -7,13 +7,7 @@
  * module needs them yet. Extract to utils/ only if reuse emerges.
  */
 
-import {
-  apiDelete,
-  apiGet,
-  apiPatch,
-  apiPost,
-  apiPut,
-} from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '$lib/api/client.js';
 import type {
   CreateDocumentBody,
   CreateFolderBody,
@@ -24,7 +18,7 @@ import type {
   ProseMirrorDoc,
   UpdateDocumentBody,
   UpdateFolderBody,
-} from "$lib/domain/docs/types.js";
+} from '$lib/domain/docs/types.js';
 
 // ── Body helpers ─────────────────────────────────────────────────────────────
 
@@ -33,14 +27,14 @@ import type {
  * Each line becomes a paragraph node. Empty string yields an empty paragraph.
  */
 export function bodyJsonFromText(text: string): ProseMirrorDoc {
-  if (text === "") {
-    return { type: "doc", content: [{ type: "paragraph", content: [] }] };
+  if (text === '') {
+    return { type: 'doc', content: [{ type: 'paragraph', content: [] }] };
   }
   return {
-    type: "doc",
-    content: text.split("\n").map((line) => ({
-      type: "paragraph",
-      content: line.length > 0 ? [{ type: "text", text: line }] : [],
+    type: 'doc',
+    content: text.split('\n').map((line) => ({
+      type: 'paragraph',
+      content: line.length > 0 ? [{ type: 'text', text: line }] : [],
     })),
   };
 }
@@ -50,41 +44,34 @@ export function bodyJsonFromText(text: string): ProseMirrorDoc {
  * Joins paragraph text content with newlines.
  */
 export function bodyTextFromJson(doc: ProseMirrorDoc | null): string {
-  if (!doc) return "";
+  if (!doc) return '';
   return doc.content
     .map((node) =>
       (node.content ?? [])
-        .filter((c) => c.type === "text")
+        .filter((c) => c.type === 'text')
         .map((c) => c.text)
-        .join(""),
+        .join('')
     )
-    .join("\n");
+    .join('\n');
 }
 
 // ── Raw API calls — Folders ──────────────────────────────────────────────────
 
 export function listDocFolders(workspaceSlug: string): Promise<Folder[]> {
-  return apiGet<Folder[]>(
-    `/doc-folders?workspace=${encodeURIComponent(workspaceSlug)}`,
-  );
+  return apiGet<Folder[]>(`/doc-folders?workspace=${encodeURIComponent(workspaceSlug)}`);
 }
 
-export function getDocFolderTree(
-  workspaceSlug: string,
-): Promise<FolderTreeNode[]> {
+export function getDocFolderTree(workspaceSlug: string): Promise<FolderTreeNode[]> {
   return apiGet<FolderTreeNode[]>(
-    `/doc-folders/tree?workspace=${encodeURIComponent(workspaceSlug)}`,
+    `/doc-folders/tree?workspace=${encodeURIComponent(workspaceSlug)}`
   );
 }
 
 export function createDocFolder(body: CreateFolderBody): Promise<Folder> {
-  return apiPost<Folder>("/doc-folders", body);
+  return apiPost<Folder>('/doc-folders', body);
 }
 
-export function updateDocFolder(
-  id: string,
-  body: UpdateFolderBody,
-): Promise<Folder> {
+export function updateDocFolder(id: string, body: UpdateFolderBody): Promise<Folder> {
   return apiPatch<Folder>(`/doc-folders/${id}`, body);
 }
 
@@ -96,13 +83,13 @@ export function deleteDocFolder(id: string): Promise<void> {
 
 export function listDocuments(filters?: DocFilters): Promise<Document[]> {
   const params = new URLSearchParams();
-  if (filters?.folderId) params.set("folder_id", filters.folderId);
-  if (filters?.tag) params.set("tag", filters.tag);
-  if (filters?.author) params.set("author", filters.author);
-  if (filters?.q) params.set("q", filters.q);
-  if (filters?.workspace) params.set("workspace", filters.workspace);
+  if (filters?.folderId) params.set('folder_id', filters.folderId);
+  if (filters?.tag) params.set('tag', filters.tag);
+  if (filters?.author) params.set('author', filters.author);
+  if (filters?.q) params.set('q', filters.q);
+  if (filters?.workspace) params.set('workspace', filters.workspace);
   const qs = params.toString();
-  return apiGet<Document[]>(`/docs${qs ? `?${qs}` : ""}`);
+  return apiGet<Document[]>(`/docs${qs ? `?${qs}` : ''}`);
 }
 
 export function getDocument(id: string): Promise<Document> {
@@ -110,13 +97,10 @@ export function getDocument(id: string): Promise<Document> {
 }
 
 export function createDocument(body: CreateDocumentBody): Promise<Document> {
-  return apiPost<Document>("/docs", body);
+  return apiPost<Document>('/docs', body);
 }
 
-export function updateDocument(
-  id: string,
-  body: UpdateDocumentBody,
-): Promise<Document> {
+export function updateDocument(id: string, body: UpdateDocumentBody): Promise<Document> {
   return apiPut<Document>(`/docs/${id}`, body);
 }
 
@@ -140,10 +124,7 @@ export function deleteDocument(id: string): Promise<void> {
   return apiDelete<void>(`/docs/${id}`);
 }
 
-export function searchDocuments(
-  workspaceSlug: string,
-  q: string,
-): Promise<Document[]> {
+export function searchDocuments(workspaceSlug: string, q: string): Promise<Document[]> {
   const params = new URLSearchParams({ workspace: workspaceSlug, q });
   return apiGet<Document[]>(`/docs/search?${params.toString()}`);
 }
@@ -153,7 +134,7 @@ export function searchDocuments(
 /** Query options for the flat folder list of a workspace. */
 export function foldersQuery(workspaceSlug: string) {
   return {
-    queryKey: ["doc-folders", workspaceSlug] as const,
+    queryKey: ['doc-folders', workspaceSlug] as const,
     queryFn: () => listDocFolders(workspaceSlug),
     staleTime: 30_000,
     enabled: Boolean(workspaceSlug),
@@ -163,7 +144,7 @@ export function foldersQuery(workspaceSlug: string) {
 /** Query options for the nested folder tree of a workspace. */
 export function folderTreeQuery(workspaceSlug: string) {
   return {
-    queryKey: ["doc-folders", workspaceSlug, "tree"] as const,
+    queryKey: ['doc-folders', workspaceSlug, 'tree'] as const,
     queryFn: () => getDocFolderTree(workspaceSlug),
     staleTime: 30_000,
     enabled: Boolean(workspaceSlug),
@@ -173,7 +154,7 @@ export function folderTreeQuery(workspaceSlug: string) {
 /** Mutation options to create a doc folder. */
 export function createFolderMutation() {
   return {
-    mutationKey: ["doc-folders", "create"] as const,
+    mutationKey: ['doc-folders', 'create'] as const,
     mutationFn: (body: CreateFolderBody) => createDocFolder(body),
   };
 }
@@ -181,16 +162,15 @@ export function createFolderMutation() {
 /** Mutation options to update a doc folder. */
 export function updateFolderMutation() {
   return {
-    mutationKey: ["doc-folders", "update"] as const,
-    mutationFn: ({ id, body }: { id: string; body: UpdateFolderBody }) =>
-      updateDocFolder(id, body),
+    mutationKey: ['doc-folders', 'update'] as const,
+    mutationFn: ({ id, body }: { id: string; body: UpdateFolderBody }) => updateDocFolder(id, body),
   };
 }
 
 /** Mutation options to delete a doc folder. */
 export function deleteFolderMutation() {
   return {
-    mutationKey: ["doc-folders", "delete"] as const,
+    mutationKey: ['doc-folders', 'delete'] as const,
     mutationFn: (id: string) => deleteDocFolder(id),
   };
 }
@@ -200,7 +180,7 @@ export function deleteFolderMutation() {
 /** Query options for the document list with optional filters. */
 export function documentsQuery(filters?: DocFilters) {
   return {
-    queryKey: ["docs", filters ?? {}] as const,
+    queryKey: ['docs', filters ?? {}] as const,
     queryFn: () => listDocuments(filters),
     staleTime: 10_000,
   };
@@ -209,7 +189,7 @@ export function documentsQuery(filters?: DocFilters) {
 /** Query options for a single document. */
 export function documentQuery(id: string) {
   return {
-    queryKey: ["docs", id] as const,
+    queryKey: ['docs', id] as const,
     queryFn: () => getDocument(id),
     staleTime: 5_000,
     enabled: Boolean(id),
@@ -219,7 +199,7 @@ export function documentQuery(id: string) {
 /** Mutation options to create a document. */
 export function createDocumentMutation() {
   return {
-    mutationKey: ["docs", "create"] as const,
+    mutationKey: ['docs', 'create'] as const,
     mutationFn: (body: CreateDocumentBody) => createDocument(body),
   };
 }
@@ -227,7 +207,7 @@ export function createDocumentMutation() {
 /** Mutation options to update a document. */
 export function updateDocumentMutation() {
   return {
-    mutationKey: ["docs", "update"] as const,
+    mutationKey: ['docs', 'update'] as const,
     mutationFn: ({ id, body }: { id: string; body: UpdateDocumentBody }) =>
       updateDocument(id, body),
   };
@@ -236,7 +216,7 @@ export function updateDocumentMutation() {
 /** Mutation options to publish a document. */
 export function publishDocumentMutation() {
   return {
-    mutationKey: ["docs", "publish"] as const,
+    mutationKey: ['docs', 'publish'] as const,
     mutationFn: (id: string) => publishDocument(id),
   };
 }
@@ -244,7 +224,7 @@ export function publishDocumentMutation() {
 /** Mutation options to unpublish a document. */
 export function unpublishDocumentMutation() {
   return {
-    mutationKey: ["docs", "unpublish"] as const,
+    mutationKey: ['docs', 'unpublish'] as const,
     mutationFn: (id: string) => unpublishDocument(id),
   };
 }
@@ -252,7 +232,7 @@ export function unpublishDocumentMutation() {
 /** Mutation options to archive a document. */
 export function archiveDocumentMutation() {
   return {
-    mutationKey: ["docs", "archive"] as const,
+    mutationKey: ['docs', 'archive'] as const,
     mutationFn: (id: string) => archiveDocument(id),
   };
 }
@@ -260,7 +240,7 @@ export function archiveDocumentMutation() {
 /** Mutation options to unarchive a document. */
 export function unarchiveDocumentMutation() {
   return {
-    mutationKey: ["docs", "unarchive"] as const,
+    mutationKey: ['docs', 'unarchive'] as const,
     mutationFn: (id: string) => unarchiveDocument(id),
   };
 }
@@ -268,7 +248,7 @@ export function unarchiveDocumentMutation() {
 /** Mutation options to delete a document. */
 export function deleteDocumentMutation() {
   return {
-    mutationKey: ["docs", "delete"] as const,
+    mutationKey: ['docs', 'delete'] as const,
     mutationFn: (id: string) => deleteDocument(id),
   };
 }
@@ -276,7 +256,7 @@ export function deleteDocumentMutation() {
 /** Query options for full-text document search. */
 export function searchDocumentsQuery(workspaceSlug: string, q: string) {
   return {
-    queryKey: ["docs", "search", workspaceSlug, q] as const,
+    queryKey: ['docs', 'search', workspaceSlug, q] as const,
     queryFn: () => searchDocuments(workspaceSlug, q),
     staleTime: 0,
     enabled: Boolean(workspaceSlug) && q.trim().length > 0,

@@ -28,7 +28,7 @@ const kindLabel = $derived(
       ? 'API'
       : runtime.kind === 'local_model'
         ? 'Local'
-        : runtime.kind ?? '—',
+        : (runtime.kind ?? '—')
 );
 
 const authLabel = $derived<string>(
@@ -40,11 +40,11 @@ const authLabel = $derived<string>(
         ? 'API key'
         : authStatus === 'error'
           ? 'Error'
-          : 'Not authenticated',
+          : 'Not authenticated'
 );
 
 const isAuthenticated = $derived(
-  authStatus === 'subscription' || authStatus === 'cli_login' || authStatus === 'api_key',
+  authStatus === 'subscription' || authStatus === 'cli_login' || authStatus === 'api_key'
 );
 
 const statusLabel = $derived<string>(
@@ -56,7 +56,7 @@ const statusLabel = $derived<string>(
         ? 'Misconfigured'
         : runtime.status === 'error'
           ? 'Error'
-          : runtime.status,
+          : runtime.status
 );
 </script>
 

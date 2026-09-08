@@ -162,6 +162,7 @@ defmodule Canopy.Analytics.EmitterTest do
                Emitter.governance_approved(%{run_id: run_id, session_id: nil}, rule)
 
       crumbs = Breadcrumbs.list(run_id)
+
       assert Enum.any?(crumbs, fn c -> c.type == "governance" and c.category == "approve-rule" end)
 
       Breadcrumbs.drop(run_id)

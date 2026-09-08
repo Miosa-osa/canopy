@@ -1,112 +1,105 @@
 <script lang="ts">
-  /**
-   * Settings › Sandboxes — TTL defaults, snapshot retention, alert config.
-   * Reads /api/v1/sandboxes-ng/alerts. Posts to create new alerts.
-   */
-  import {
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { Bell, Plus } from "lucide-svelte";
-  import {
-    sandboxAlertsQuery,
-    createSandboxAlert,
-  } from "$lib/api/queries/sandboxes_ng.js";
-  import type {
-    AlertSeverity,
-    AlertType,
-    SandboxAlertCreate,
-  } from "$lib/domain/sandboxes_ng/types.js";
+/**
+ * Settings › Sandboxes — TTL defaults, snapshot retention, alert config.
+ * Reads /api/v1/sandboxes-ng/alerts. Posts to create new alerts.
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Bell, Plus } from 'lucide-svelte';
+import { createSandboxAlert, sandboxAlertsQuery } from '$lib/api/queries/sandboxes_ng.js';
+import type {
+  AlertSeverity,
+  AlertType,
+  SandboxAlertCreate,
+} from '$lib/domain/sandboxes_ng/types.js';
 
-  const qc = useQueryClient();
-  const alertsResult = createQuery(sandboxAlertsQuery());
+const qc = useQueryClient();
+const alertsResult = createQuery(sandboxAlertsQuery());
 
-  // ── TTL defaults (local-only, no backend write yet) ────────────────────────
+// ── TTL defaults (local-only, no backend write yet) ────────────────────────
 
-  let ttlWallSeconds = $state(3600);
-  let ttlIdleSeconds = $state(900);
-  let ttlArchiveSeconds = $state(7 * 24 * 3600);
+let ttlWallSeconds = $state(3600);
+let ttlIdleSeconds = $state(900);
+let ttlArchiveSeconds = $state(7 * 24 * 3600);
 
-  // ── Snapshot retention (display only — defaults are server-side) ───────────
+// ── Snapshot retention (display only — defaults are server-side) ───────────
 
-  const RETENTION_HINTS = [
-    { kind: "filesystem", retention: "indefinite" },
-    { kind: "directory", retention: "30 days" },
-    { kind: "memory", retention: "7 days" },
-  ];
+const RETENTION_HINTS = [
+  { kind: 'filesystem', retention: 'indefinite' },
+  { kind: 'directory', retention: '30 days' },
+  { kind: 'memory', retention: '7 days' },
+];
 
-  // ── Form state ─────────────────────────────────────────────────────────────
+// ── Form state ─────────────────────────────────────────────────────────────
 
-  let creating = $state(false);
-  let formSlug = $state("");
-  let formName = $state("");
-  let formMetric = $state("public_port_count");
-  let formType = $state<AlertType>("threshold");
-  let formSeverity = $state<AlertSeverity>("medium");
-  let formDescription = $state("");
-  let formError = $state<string | null>(null);
+let creating = $state(false);
+let formSlug = $state('');
+let formName = $state('');
+let formMetric = $state('public_port_count');
+let formType = $state<AlertType>('threshold');
+let formSeverity = $state<AlertSeverity>('medium');
+let formDescription = $state('');
+let formError = $state<string | null>(null);
 
-  function resetForm() {
-    formSlug = "";
-    formName = "";
-    formMetric = "public_port_count";
-    formType = "threshold";
-    formSeverity = "medium";
-    formDescription = "";
-    formError = null;
+function resetForm() {
+  formSlug = '';
+  formName = '';
+  formMetric = 'public_port_count';
+  formType = 'threshold';
+  formSeverity = 'medium';
+  formDescription = '';
+  formError = null;
+}
+
+const createMut = createMutation({
+  mutationFn: (body: SandboxAlertCreate) => createSandboxAlert(body),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['sandboxes-ng', 'alerts'] });
+    creating = false;
+    resetForm();
+  },
+  onError: (err: Error) => {
+    formError = err.message;
+  },
+});
+
+function submitCreate(e: Event) {
+  e.preventDefault();
+  formError = null;
+  if (!formSlug.trim() || !formName.trim()) {
+    formError = 'Slug and name are required.';
+    return;
   }
-
-  const createMut = createMutation({
-    mutationFn: (body: SandboxAlertCreate) => createSandboxAlert(body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["sandboxes-ng", "alerts"] });
-      creating = false;
-      resetForm();
-    },
-    onError: (err: Error) => {
-      formError = err.message;
+  $createMut.mutate({
+    slug: formSlug.trim(),
+    name: formName.trim(),
+    metric: formMetric,
+    type: formType,
+    severity: formSeverity,
+    description: formDescription.trim() || undefined,
+    enabled: true,
+    config:
+      formType === 'threshold'
+        ? { value: 0, direction: 'above', window_seconds: 300 }
+        : { conditions: [] },
+    routing: {
+      channels: ['#sandboxes-feed'],
+      cooldown_seconds: 600,
     },
   });
+}
 
-  function submitCreate(e: Event) {
-    e.preventDefault();
-    formError = null;
-    if (!formSlug.trim() || !formName.trim()) {
-      formError = "Slug and name are required.";
-      return;
-    }
-    $createMut.mutate({
-      slug: formSlug.trim(),
-      name: formName.trim(),
-      metric: formMetric,
-      type: formType,
-      severity: formSeverity,
-      description: formDescription.trim() || undefined,
-      enabled: true,
-      config:
-        formType === "threshold"
-          ? { value: 0, direction: "above", window_seconds: 300 }
-          : { conditions: [] },
-      routing: {
-        channels: ["#sandboxes-feed"],
-        cooldown_seconds: 600,
-      },
-    });
-  }
+const alerts = $derived($alertsResult.data ?? []);
 
-  const alerts = $derived($alertsResult.data ?? []);
+function fmtFireCount(n: number): string {
+  return n === 0 ? 'never' : `${n}×`;
+}
 
-  function fmtFireCount(n: number): string {
-    return n === 0 ? "never" : `${n}×`;
-  }
-
-  function fmtSeconds(n: number): string {
-    if (n < 60) return `${n}s`;
-    if (n < 3600) return `${Math.round(n / 60)}m`;
-    if (n < 86400) return `${Math.round(n / 3600)}h`;
-    return `${Math.round(n / 86400)}d`;
-  }
+function fmtSeconds(n: number): string {
+  if (n < 60) return `${n}s`;
+  if (n < 3600) return `${Math.round(n / 60)}m`;
+  if (n < 86400) return `${Math.round(n / 3600)}h`;
+  return `${Math.round(n / 86400)}d`;
+}
 </script>
 
 <div class="ss-page">

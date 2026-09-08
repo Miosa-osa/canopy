@@ -1,52 +1,52 @@
 <script lang="ts">
-  /**
-   * MessageComposer — fixed bottom message input.
-   * Shift+Enter = newline. Enter = send.
-   * CSS prefix: mc- (MessageComposer)
-   * LOC target: ≤100
-   */
-  import { Paperclip, Send } from 'lucide-svelte';
+/**
+ * MessageComposer — fixed bottom message input.
+ * Shift+Enter = newline. Enter = send.
+ * CSS prefix: mc- (MessageComposer)
+ * LOC target: ≤100
+ */
+import { Paperclip, Send } from 'lucide-svelte';
 
-  interface Props {
-    placeholder?: string;
-    disabled?: boolean;
-    onSend: (body: string) => void | Promise<void>;
+interface Props {
+  placeholder?: string;
+  disabled?: boolean;
+  onSend: (body: string) => void | Promise<void>;
+}
+
+let { placeholder = 'Message…', disabled = false, onSend }: Props = $props();
+
+let body = $state('');
+let sending = $state(false);
+let textareaEl = $state<HTMLTextAreaElement | null>(null);
+
+function autoResize() {
+  if (!textareaEl) return;
+  textareaEl.style.height = 'auto';
+  textareaEl.style.height = `${Math.min(textareaEl.scrollHeight, 160)}px`;
+}
+
+async function handleSend() {
+  const text = body.trim();
+  if (!text || sending || disabled) return;
+  sending = true;
+  body = '';
+  if (textareaEl) textareaEl.style.height = 'auto';
+  try {
+    await onSend(text);
+  } finally {
+    sending = false;
+    textareaEl?.focus();
   }
+}
 
-  let { placeholder = 'Message…', disabled = false, onSend }: Props = $props();
-
-  let body = $state('');
-  let sending = $state(false);
-  let textareaEl = $state<HTMLTextAreaElement | null>(null);
-
-  function autoResize() {
-    if (!textareaEl) return;
-    textareaEl.style.height = 'auto';
-    textareaEl.style.height = `${Math.min(textareaEl.scrollHeight, 160)}px`;
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    void handleSend();
   }
+}
 
-  async function handleSend() {
-    const text = body.trim();
-    if (!text || sending || disabled) return;
-    sending = true;
-    body = '';
-    if (textareaEl) textareaEl.style.height = 'auto';
-    try {
-      await onSend(text);
-    } finally {
-      sending = false;
-      textareaEl?.focus();
-    }
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  }
-
-  const canSend = $derived(body.trim().length > 0 && !sending && !disabled);
+const canSend = $derived(body.trim().length > 0 && !sending && !disabled);
 </script>
 
 <div class="mc-wrap" role="form" aria-label="Message composer">

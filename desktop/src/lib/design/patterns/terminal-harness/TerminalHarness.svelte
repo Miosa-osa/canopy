@@ -22,9 +22,9 @@ import {
   stopSession,
 } from '$lib/api/queries/sessions.js';
 import TerminalSession from '$lib/design/patterns/TerminalSession.svelte';
+import type { Session } from '$lib/domain/sessions/types.js';
 import { harnessStore } from '$lib/stores/terminal-harness.svelte.js';
 import { toasts } from '$lib/stores/toasts.svelte.js';
-import type { Session } from '$lib/domain/sessions/types.js';
 
 interface Props {
   sessionId: string;
@@ -54,9 +54,7 @@ let {
 
 // ── Local state ───────────────────────────────────────────────────────────────
 
-let busy = $state<
-  'pause' | 'resume' | 'stop' | 'restart' | 'fork' | 'screenshot' | null
->(null);
+let busy = $state<'pause' | 'resume' | 'stop' | 'restart' | 'fork' | 'screenshot' | null>(null);
 let observerOpen = $state(false);
 let observerApiKey = $state('');
 let observerProvider = $state<'anthropic' | 'openai'>('anthropic');
@@ -123,7 +121,9 @@ function handleStop(e: MouseEvent): void {
     stopSession(sessionId)
       .then(() => toasts.info('Session hard-stopped'))
       .catch((err: unknown) => toasts.error(err instanceof Error ? err.message : 'Stop failed'))
-      .finally(() => { busy = null; });
+      .finally(() => {
+        busy = null;
+      });
   } else {
     // Soft: send Ctrl+C via channel.
     sendInput('\u0003');

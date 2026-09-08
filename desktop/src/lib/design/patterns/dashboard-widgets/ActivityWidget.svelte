@@ -1,32 +1,33 @@
 <script lang="ts">
-  /**
-   * ActivityWidget — last 10 agent activity events from /notifications.
-   * CSS prefix: aw- (ActivityWidget)
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import { notificationsQuery } from '$lib/api/queries/notifications.js';
-  import type { Notification } from '$lib/domain/notifications/types.js';
-  import type { CreateQueryOptions } from '@tanstack/svelte-query';
+/**
+ * ActivityWidget — last 10 agent activity events from /notifications.
+ * CSS prefix: aw- (ActivityWidget)
+ */
 
-  const optsStore = writable(
-    untrack(() => notificationsQuery({ limit: 10 }) as CreateQueryOptions<Notification[]>),
-  );
-  const query = createQuery<Notification[]>(optsStore);
+import type { CreateQueryOptions } from '@tanstack/svelte-query';
+import { createQuery } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { notificationsQuery } from '$lib/api/queries/notifications.js';
+import type { Notification } from '$lib/domain/notifications/types.js';
 
-  const events = $derived(($query.data ?? []) as Notification[]);
+const optsStore = writable(
+  untrack(() => notificationsQuery({ limit: 10 }) as CreateQueryOptions<Notification[]>)
+);
+const query = createQuery<Notification[]>(optsStore);
 
-  function relativeTime(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const sec = Math.floor(diff / 1000);
-    if (sec < 60) return `${sec}s ago`;
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m ago`;
-    const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}h ago`;
-    return `${Math.floor(hr / 24)}d ago`;
-  }
+const events = $derived(($query.data ?? []) as Notification[]);
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+}
 </script>
 
 <div class="aw-widget">

@@ -1,126 +1,133 @@
 <script lang="ts">
-  /**
-   * WorkflowPane — Mosaic pane that renders a Drive workflow entry as an
-   * executable form. Fetches the Drive entry (kind="workflow"), resolves its
-   * linked Routine, auto-detects {{param}} placeholders, lets the user fill
-   * them in, previews the interpolated steps, and runs the workflow by opening
-   * an agent_conversation pane.
-   *
-   * CSS prefix: wfp-
-   */
+/**
+ * WorkflowPane — Mosaic pane that renders a Drive workflow entry as an
+ * executable form. Fetches the Drive entry (kind="workflow"), resolves its
+ * linked Routine, auto-detects {{param}} placeholders, lets the user fill
+ * them in, previews the interpolated steps, and runs the workflow by opening
+ * an agent_conversation pane.
+ *
+ * CSS prefix: wfp-
+ */
 
-  import { createQuery } from '@tanstack/svelte-query';
-  import { driveEntryQuery } from '$lib/api/queries/drive.js';
-  import { routineQuery } from '$lib/api/queries/routines.js';
-  import { mosaicLayout } from '$lib/stores/mosaic-layout.svelte.js';
-  import type { WorkflowBody } from '$lib/domain/drive/types.js';
+import { createQuery } from '@tanstack/svelte-query';
+import { driveEntryQuery } from '$lib/api/queries/drive.js';
+import { routineQuery } from '$lib/api/queries/routines.js';
+import type { WorkflowBody } from '$lib/domain/drive/types.js';
+import { mosaicLayout } from '$lib/stores/mosaic-layout.svelte.js';
 
-  // ── Props ──────────────────────────────────────────────────────────────────
+// ── Props ──────────────────────────────────────────────────────────────────
 
-  interface Props {
-    workflowRef: string; // pane.ref — Drive entry id or slug
-    workspaceSlug?: string;
-  }
+interface Props {
+  workflowRef: string; // pane.ref — Drive entry id or slug
+  workspaceSlug?: string;
+}
 
-  let { workflowRef, workspaceSlug = 'default' }: Props = $props();
+let { workflowRef, workspaceSlug = 'default' }: Props = $props();
 
-  // ── Drive entry query ──────────────────────────────────────────────────────
+// ── Drive entry query ──────────────────────────────────────────────────────
 
-  const entryQuery = createQuery(driveEntryQuery(workflowRef));
+const entryQuery = createQuery(driveEntryQuery(workflowRef));
 
-  // ── Resolve routine_id from drive entry body ───────────────────────────────
+// ── Resolve routine_id from drive entry body ───────────────────────────────
 
-  const routineId = $derived(
-    ($entryQuery.data?.kind === 'workflow'
-      ? ($entryQuery.data.body as unknown as WorkflowBody).routine_id
-      : null) ?? '',
-  );
+const routineId = $derived(
+  ($entryQuery.data?.kind === 'workflow'
+    ? ($entryQuery.data.body as unknown as WorkflowBody).routine_id
+    : null) ?? ''
+);
 
-  const rQuery = createQuery({
-    ...routineQuery(routineId),
-    enabled: Boolean(routineId),
-  });
+const rQuery = createQuery({
+  ...routineQuery(routineId),
+  enabled: Boolean(routineId),
+});
 
-  // ── Parse steps from promptTemplate ───────────────────────────────────────
-  // A step = one non-empty line (or code block) from the template.
+// ── Parse steps from promptTemplate ───────────────────────────────────────
+// A step = one non-empty line (or code block) from the template.
 
-  const PARAM_RE = /\{\{(\w+)\}\}/g;
+const PARAM_RE = /\{\{(\w+)\}\}/g;
 
-  const steps = $derived.by(() => {
-    const tmpl = $rQuery.data?.promptTemplate ?? '';
-    if (!tmpl) return [] as string[];
-    // Split on double-newlines or numbered list markers; fall back to lines.
-    const raw = tmpl
-      .split(/\n{2,}|\r\n{2,}/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    return raw.length > 1 ? raw : tmpl.split('\n').map((s) => s.trim()).filter(Boolean);
-  });
+const steps = $derived.by(() => {
+  const tmpl = $rQuery.data?.promptTemplate ?? '';
+  if (!tmpl) return [] as string[];
+  // Split on double-newlines or numbered list markers; fall back to lines.
+  const raw = tmpl
+    .split(/\n{2,}|\r\n{2,}/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return raw.length > 1
+    ? raw
+    : tmpl
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+});
 
-  // Unique param names across all steps, in order of appearance.
-  const paramNames = $derived.by(() => {
-    const tmpl = $rQuery.data?.promptTemplate ?? '';
-    const seen = new Set<string>();
-    const out: string[] = [];
-    let m: RegExpExecArray | null;
-    const re = new RegExp(PARAM_RE.source, 'g');
-    while ((m = re.exec(tmpl)) !== null) {
-      if (!seen.has(m[1])) { seen.add(m[1]); out.push(m[1]); }
+// Unique param names across all steps, in order of appearance.
+const paramNames = $derived.by(() => {
+  const tmpl = $rQuery.data?.promptTemplate ?? '';
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const re = new RegExp(PARAM_RE.source, 'g');
+  for (const m of tmpl.matchAll(re)) {
+    if (!seen.has(m[1])) {
+      seen.add(m[1]);
+      out.push(m[1]);
     }
-    return out;
+  }
+  return out;
+});
+
+// ── Param values (mutable form state) ─────────────────────────────────────
+
+let paramValues = $state<Record<string, string>>({});
+
+$effect(() => {
+  // Initialise new param keys to empty string; preserve existing values.
+  const next: Record<string, string> = {};
+  for (const name of paramNames) {
+    next[name] = paramValues[name] ?? '';
+  }
+  paramValues = next;
+});
+
+// ── Interpolation ──────────────────────────────────────────────────────────
+
+function interpolate(template: string): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => paramValues[key] ?? `{{${key}}}`);
+}
+
+const interpolatedSteps = $derived(steps.map(interpolate));
+const allFilled = $derived(paramNames.every((n) => paramValues[n]?.trim()));
+
+// ── Highlight {{param}} spans in a step for the preview ───────────────────
+
+function highlightParams(raw: string, filled: string): string {
+  // Show the filled version but mark positions that were params
+  // by diffing: replace filled value with a <mark> in the output.
+  // Simpler: highlight remaining {{...}} placeholders in the filled string.
+  return filled.replace(/\{\{(\w+)\}\}/g, '<mark class="wfp-ph">{{$1}}</mark>');
+}
+
+// ── Run action ─────────────────────────────────────────────────────────────
+
+function runWorkflow(): void {
+  const prompt = interpolatedSteps.join('\n\n');
+  const title = $entryQuery.data?.name ?? 'Workflow';
+  mosaicLayout.openPane({
+    id: crypto.randomUUID(),
+    kind: 'agent_conversation',
+    ref: 'new',
+    title,
+    config: { cwd: '~', initialPrompt: prompt },
   });
+}
 
-  // ── Param values (mutable form state) ─────────────────────────────────────
+// ── Loading / error helpers ────────────────────────────────────────────────
 
-  let paramValues = $state<Record<string, string>>({});
-
-  $effect(() => {
-    // Initialise new param keys to empty string; preserve existing values.
-    const next: Record<string, string> = {};
-    for (const name of paramNames) {
-      next[name] = paramValues[name] ?? '';
-    }
-    paramValues = next;
-  });
-
-  // ── Interpolation ──────────────────────────────────────────────────────────
-
-  function interpolate(template: string): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => paramValues[key] ?? `{{${key}}}`);
-  }
-
-  const interpolatedSteps = $derived(steps.map(interpolate));
-  const allFilled = $derived(paramNames.every((n) => paramValues[n]?.trim()));
-
-  // ── Highlight {{param}} spans in a step for the preview ───────────────────
-
-  function highlightParams(raw: string, filled: string): string {
-    // Show the filled version but mark positions that were params
-    // by diffing: replace filled value with a <mark> in the output.
-    // Simpler: highlight remaining {{...}} placeholders in the filled string.
-    return filled.replace(/\{\{(\w+)\}\}/g, '<mark class="wfp-ph">{{$1}}</mark>');
-  }
-
-  // ── Run action ─────────────────────────────────────────────────────────────
-
-  function runWorkflow(): void {
-    const prompt = interpolatedSteps.join('\n\n');
-    const title = $entryQuery.data?.name ?? 'Workflow';
-    mosaicLayout.openPane({
-      id: crypto.randomUUID(),
-      kind: 'agent_conversation',
-      ref: 'new',
-      title,
-      config: { cwd: '~', initialPrompt: prompt },
-    });
-  }
-
-  // ── Loading / error helpers ────────────────────────────────────────────────
-
-  const isLoading = $derived($entryQuery.isLoading || ($entryQuery.data && $rQuery.isLoading));
-  const notFound = $derived(!$entryQuery.isLoading && !$entryQuery.data);
-  const entry = $derived($entryQuery.data);
-  const routine = $derived($rQuery.data);
+const isLoading = $derived($entryQuery.isLoading || ($entryQuery.data && $rQuery.isLoading));
+const notFound = $derived(!$entryQuery.isLoading && !$entryQuery.data);
+const entry = $derived($entryQuery.data);
+const routine = $derived($rQuery.data);
 </script>
 
 <div class="wfp-root">

@@ -1405,7 +1405,8 @@ agent_templates = [
   %{
     slug: "tpl-code-reviewer",
     name: "Code Reviewer",
-    description: "Reviews pull requests and surfaces correctness, security, and maintainability issues.",
+    description:
+      "Reviews pull requests and surfaces correctness, security, and maintainability issues.",
     category: "engineering",
     icon: "🔍",
     color: "#374151",
@@ -1435,7 +1436,8 @@ agent_templates = [
   %{
     slug: "tpl-qa-engineer",
     name: "QA Engineer",
-    description: "Designs test plans, finds edge cases, and validates feature acceptance criteria.",
+    description:
+      "Designs test plans, finds edge cases, and validates feature acceptance criteria.",
     category: "engineering",
     icon: "🧪",
     color: "#374151",
@@ -1509,7 +1511,8 @@ agent_templates = [
   %{
     slug: "tpl-refactorer",
     name: "Refactorer",
-    description: "Improves code structure, removes duplication, and reduces complexity without changing behavior.",
+    description:
+      "Improves code structure, removes duplication, and reduces complexity without changing behavior.",
     category: "engineering",
     icon: "♻️",
     color: "#374151",
@@ -1557,7 +1560,8 @@ agent_templates = [
   %{
     slug: "tpl-api-designer",
     name: "API Designer",
-    description: "Designs REST and GraphQL APIs with clear contracts, versioning, and error semantics.",
+    description:
+      "Designs REST and GraphQL APIs with clear contracts, versioning, and error semantics.",
     category: "engineering",
     icon: "🔌",
     color: "#374151",
@@ -1604,7 +1608,8 @@ agent_templates = [
   %{
     slug: "tpl-database-specialist",
     name: "Database Specialist",
-    description: "Designs schemas, writes migrations, optimizes queries, and manages data integrity.",
+    description:
+      "Designs schemas, writes migrations, optimizes queries, and manages data integrity.",
     category: "engineering",
     icon: "🗄️",
     color: "#374151",
@@ -1650,7 +1655,8 @@ agent_templates = [
   %{
     slug: "tpl-backend-dev",
     name: "Backend Dev",
-    description: "Builds scalable APIs, background jobs, and data pipelines with production-grade reliability.",
+    description:
+      "Builds scalable APIs, background jobs, and data pipelines with production-grade reliability.",
     category: "engineering",
     icon: "🖥️",
     color: "#374151",
@@ -1676,7 +1682,8 @@ agent_templates = [
   %{
     slug: "tpl-product-manager",
     name: "Product Manager",
-    description: "Writes PRDs, prioritizes backlogs, and aligns engineering with business outcomes.",
+    description:
+      "Writes PRDs, prioritizes backlogs, and aligns engineering with business outcomes.",
     category: "product",
     icon: "📋",
     color: "#374151",
@@ -1698,7 +1705,8 @@ agent_templates = [
   %{
     slug: "tpl-product-researcher",
     name: "Product Researcher",
-    description: "Conducts user research, synthesizes interviews, and surfaces actionable insights.",
+    description:
+      "Conducts user research, synthesizes interviews, and surfaces actionable insights.",
     category: "product",
     icon: "🔬",
     color: "#374151",
@@ -1721,7 +1729,8 @@ agent_templates = [
   %{
     slug: "tpl-sales-writer",
     name: "Sales Writer",
-    description: "Writes outreach sequences, discovery scripts, and objection-handling playbooks.",
+    description:
+      "Writes outreach sequences, discovery scripts, and objection-handling playbooks.",
     category: "sales",
     icon: "✉️",
     color: "#374151",
@@ -1767,7 +1776,8 @@ agent_templates = [
   %{
     slug: "tpl-growth-hacker",
     name: "Growth Hacker",
-    description: "Identifies and runs growth experiments across acquisition, activation, and retention.",
+    description:
+      "Identifies and runs growth experiments across acquisition, activation, and retention.",
     category: "growth",
     icon: "📈",
     color: "#374151",
@@ -1790,7 +1800,8 @@ agent_templates = [
   %{
     slug: "tpl-community-manager",
     name: "Community Manager",
-    description: "Manages online communities, creates engagement programs, and surfaces member insights.",
+    description:
+      "Manages online communities, creates engagement programs, and surfaces member insights.",
     category: "marketing",
     icon: "👥",
     color: "#374151",
@@ -1815,7 +1826,8 @@ agent_templates = [
   %{
     slug: "tpl-project-orchestrator",
     name: "Project Orchestrator",
-    description: "Manages cross-functional projects, tracks dependencies, and unblocks execution.",
+    description:
+      "Manages cross-functional projects, tracks dependencies, and unblocks execution.",
     category: "operations",
     icon: "🗂️",
     color: "#374151",
@@ -1838,7 +1850,8 @@ agent_templates = [
   %{
     slug: "tpl-budget-watcher",
     name: "Budget Watcher",
-    description: "Monitors spend against budgets, flags overruns, and generates financial summaries.",
+    description:
+      "Monitors spend against budgets, flags overruns, and generates financial summaries.",
     category: "operations",
     icon: "💰",
     color: "#374151",
@@ -1861,7 +1874,8 @@ agent_templates = [
   %{
     slug: "tpl-compliance-auditor",
     name: "Compliance Auditor",
-    description: "Audits processes and systems against SOC 2, GDPR, HIPAA, and internal policies.",
+    description:
+      "Audits processes and systems against SOC 2, GDPR, HIPAA, and internal policies.",
     category: "operations",
     icon: "⚖️",
     color: "#374151",
@@ -1886,7 +1900,8 @@ agent_templates = [
   %{
     slug: "tpl-content-writer",
     name: "Content Writer",
-    description: "Creates blog posts, social content, and long-form articles with a strong editorial voice.",
+    description:
+      "Creates blog posts, social content, and long-form articles with a strong editorial voice.",
     category: "creative-content",
     icon: "✍️",
     color: "#374151",
@@ -1908,7 +1923,8 @@ agent_templates = [
   %{
     slug: "tpl-technical-writer",
     name: "Technical Writer",
-    description: "Writes developer docs, API guides, and onboarding tutorials for technical audiences.",
+    description:
+      "Writes developer docs, API guides, and onboarding tutorials for technical audiences.",
     category: "creative-content",
     icon: "📖",
     color: "#374151",

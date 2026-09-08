@@ -79,4 +79,4 @@ export interface RefreshResult {
 }
 
 /** Policy modes for the unverified-source gating. */
-export type UnverifiedPolicy = "block" | "prompt" | "allow";
+export type UnverifiedPolicy = 'block' | 'prompt' | 'allow';

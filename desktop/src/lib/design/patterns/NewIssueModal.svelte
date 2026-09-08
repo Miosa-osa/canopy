@@ -1,67 +1,67 @@
 <script lang="ts">
-  /**
-   * NewIssueModal — create-issue dialog with Cmd/Ctrl+Enter submit.
-   * CSS prefix: nim- (NewIssueModal)
-   * LOC target: ≤ 200.
-   */
-  import type { CreateIssueBody, IssuePriority, IssueStatus } from '$lib/domain/issues/types.js';
+/**
+ * NewIssueModal — create-issue dialog with Cmd/Ctrl+Enter submit.
+ * CSS prefix: nim- (NewIssueModal)
+ * LOC target: ≤ 200.
+ */
+import type { CreateIssueBody, IssuePriority, IssueStatus } from '$lib/domain/issues/types.js';
 
-  interface Props {
-    isPending?: boolean;
-    onSubmit: (body: CreateIssueBody) => void;
-    onClose: () => void;
+interface Props {
+  isPending?: boolean;
+  onSubmit: (body: CreateIssueBody) => void;
+  onClose: () => void;
+}
+
+let { isPending = false, onSubmit, onClose }: Props = $props();
+
+let title = $state('');
+let description = $state('');
+let priority = $state<IssuePriority>(0);
+let status = $state<IssueStatus>('open');
+let assigneeType = $state<'human' | 'agent' | ''>('');
+let assigneeId = $state('');
+let labelsRaw = $state('');
+let createError = $state<string | null>(null);
+
+function handleSubmit(e: SubmitEvent): void {
+  e.preventDefault();
+  if (!title.trim()) return;
+  createError = null;
+
+  const body: CreateIssueBody = {
+    title: title.trim(),
+    status,
+    priority,
+  };
+
+  if (description.trim()) body.description = description.trim();
+  if (assigneeType && assigneeId.trim()) {
+    body.assigneeType = assigneeType;
+    body.assigneeId = assigneeId.trim();
+  }
+  if (labelsRaw.trim()) {
+    body.labels = labelsRaw
+      .split(',')
+      .map((l) => l.trim())
+      .filter(Boolean);
   }
 
-  let { isPending = false, onSubmit, onClose }: Props = $props();
+  onSubmit(body);
+}
 
-  let title = $state('');
-  let description = $state('');
-  let priority = $state<IssuePriority>(0);
-  let status = $state<IssueStatus>('open');
-  let assigneeType = $state<'human' | 'agent' | ''>('');
-  let assigneeId = $state('');
-  let labelsRaw = $state('');
-  let createError = $state<string | null>(null);
-
-  function handleSubmit(e: SubmitEvent): void {
+function handleKeydown(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
     e.preventDefault();
-    if (!title.trim()) return;
-    createError = null;
-
-    const body: CreateIssueBody = {
-      title: title.trim(),
-      status,
-      priority,
-    };
-
-    if (description.trim()) body.description = description.trim();
-    if (assigneeType && assigneeId.trim()) {
-      body.assigneeType = assigneeType;
-      body.assigneeId = assigneeId.trim();
+    if (title.trim() && !isPending) {
+      handleSubmit(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
     }
-    if (labelsRaw.trim()) {
-      body.labels = labelsRaw
-        .split(',')
-        .map((l) => l.trim())
-        .filter(Boolean);
-    }
-
-    onSubmit(body);
   }
+  if (e.key === 'Escape') onClose();
+}
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      if (title.trim() && !isPending) {
-        handleSubmit(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
-      }
-    }
-    if (e.key === 'Escape') onClose();
-  }
-
-  function handleBackdropClick(e: MouseEvent): void {
-    if ((e.target as HTMLElement).classList.contains('nim-backdrop')) onClose();
-  }
+function handleBackdropClick(e: MouseEvent): void {
+  if ((e.target as HTMLElement).classList.contains('nim-backdrop')) onClose();
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

@@ -3,13 +3,8 @@
  * All fields camelCase; client.ts unwraps {data:...} envelopes.
  */
 
-export type GoalStatus =
-  | "proposed"
-  | "active"
-  | "blocked"
-  | "achieved"
-  | "cancelled";
-export type GoalPriority = "low" | "medium" | "high" | "critical";
+export type GoalStatus = 'proposed' | 'active' | 'blocked' | 'achieved' | 'cancelled';
+export type GoalPriority = 'low' | 'medium' | 'high' | 'critical';
 
 export interface Goal {
   id: string;

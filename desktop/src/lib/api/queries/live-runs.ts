@@ -11,18 +11,18 @@
  *   disconnect();  // clean close
  */
 
-import { readable, type Readable } from "svelte/store";
+import { type Readable, readable } from 'svelte/store';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type LiveRunEventKind =
-  | "run_started"
-  | "run_status"
-  | "run_log"
-  | "run_event"
-  | "run_tool_call"
-  | "run_tool_result"
-  | "run_finished";
+  | 'run_started'
+  | 'run_status'
+  | 'run_log'
+  | 'run_event'
+  | 'run_tool_call'
+  | 'run_tool_result'
+  | 'run_finished';
 
 export interface RunStartedPayload {
   runId: string;
@@ -37,7 +37,7 @@ export interface RunStatusPayload {
   runId: string;
   shortId: string;
   workspaceSlug: string;
-  status: "paused" | "running";
+  status: 'paused' | 'running';
   at: string;
 }
 
@@ -46,7 +46,7 @@ export interface RunLogPayload {
   shortId: string;
   workspaceSlug: string;
   seq: number;
-  kind: "stdout" | "stderr" | "event" | "tool_call" | "tool_result";
+  kind: 'stdout' | 'stderr' | 'event' | 'tool_call' | 'tool_result';
   data: string;
   at: string;
 }
@@ -104,17 +104,13 @@ export interface LiveRunEvent {
 
 // ── Scope helpers ─────────────────────────────────────────────────────────────
 
-type Scope =
-  | { workspace: string; run?: never }
-  | { run: string; workspace?: never }
-  | "all";
+type Scope = { workspace: string; run?: never } | { run: string; workspace?: never } | 'all';
 
 function topicFor(scope: Scope): string {
-  if (scope === "all") return "live_runs:all";
-  if ("run" in scope && scope.run) return `live_runs:run:${scope.run}`;
-  if ("workspace" in scope && scope.workspace)
-    return `live_runs:workspace:${scope.workspace}`;
-  return "live_runs:all";
+  if (scope === 'all') return 'live_runs:all';
+  if ('run' in scope && scope.run) return `live_runs:run:${scope.run}`;
+  if ('workspace' in scope && scope.workspace) return `live_runs:workspace:${scope.workspace}`;
+  return 'live_runs:all';
 }
 
 // ── Phoenix v2 frame codec ────────────────────────────────────────────────────
@@ -130,24 +126,12 @@ interface PhxFrame {
 }
 
 function encodeFrame(frame: PhxFrame): string {
-  return JSON.stringify([
-    frame.joinRef,
-    frame.ref,
-    frame.topic,
-    frame.event,
-    frame.payload,
-  ]);
+  return JSON.stringify([frame.joinRef, frame.ref, frame.topic, frame.event, frame.payload]);
 }
 
 function decodeFrame(raw: string): PhxFrame | null {
   try {
-    const arr = JSON.parse(raw) as [
-      string | null,
-      string | null,
-      string,
-      string,
-      unknown,
-    ];
+    const arr = JSON.parse(raw) as [string | null, string | null, string, string, unknown];
     if (!Array.isArray(arr) || arr.length < 5) return null;
     return {
       joinRef: arr[0],
@@ -173,7 +157,7 @@ function toCamel(obj: Record<string, unknown>): Record<string, unknown> {
 
 // ── WebSocket URL ─────────────────────────────────────────────────────────────
 
-const WS_BASE = "ws://localhost:9190/socket/websocket";
+const WS_BASE = 'ws://localhost:9190/socket/websocket';
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -201,12 +185,12 @@ export function subscribeLiveRuns(scope: Scope): {
       if (!ws || closed) return;
       ws.send(
         encodeFrame({
-          joinRef: "1",
+          joinRef: '1',
           ref: nextRef(),
           topic,
-          event: "phx_join",
+          event: 'phx_join',
           payload: {},
-        }),
+        })
       );
     };
 
@@ -214,12 +198,12 @@ export function subscribeLiveRuns(scope: Scope): {
       const frame = decodeFrame(e.data);
       if (!frame || frame.topic !== topic) return;
 
-      if (frame.event === "phx_reply") {
+      if (frame.event === 'phx_reply') {
         const resp = frame.payload as { status?: string };
-        if (resp.status === "ok") joined = true;
+        if (resp.status === 'ok') joined = true;
         return;
       }
-      if (frame.event === "phx_error" || frame.event === "phx_close") return;
+      if (frame.event === 'phx_error' || frame.event === 'phx_close') return;
 
       if (!joined) return;
 
@@ -252,14 +236,14 @@ export function subscribeLiveRuns(scope: Scope): {
         // Send phx_leave before closing
         ws.send(
           encodeFrame({
-            joinRef: "1",
+            joinRef: '1',
             ref: nextRef(),
             topic,
-            event: "phx_leave",
+            event: 'phx_leave',
             payload: {},
-          }),
+          })
         );
-        ws.close(1000, "disconnect");
+        ws.close(1000, 'disconnect');
       }
       ws = null;
     };

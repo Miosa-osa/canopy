@@ -6,9 +6,7 @@ import OnboardingWizard from '$lib/design/patterns/onboarding/OnboardingWizard.s
 
 const LS_KEY = 'canopy:onboarding.completed';
 
-let showOnboarding = $state(
-  typeof localStorage !== 'undefined' && !localStorage.getItem(LS_KEY)
-);
+let showOnboarding = $state(typeof localStorage !== 'undefined' && !localStorage.getItem(LS_KEY));
 
 let composerEl = $state<{ submitPrompt: (p: string) => void } | null>(null);
 

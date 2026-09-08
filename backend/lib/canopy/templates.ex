@@ -398,6 +398,7 @@ defmodule Canopy.Templates do
   defp map_keys_changed(_, _), do: []
 
   defp body_sha256(nil), do: nil
+
   defp body_sha256(body) when is_map(body) do
     body
     |> Jason.encode!()

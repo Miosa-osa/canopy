@@ -9,17 +9,17 @@
  * correctly — same engine as /sessions/[id], just smaller.
  */
 
+import { useQueryClient } from '@tanstack/svelte-query';
+import { FitAddon } from '@xterm/addon-fit';
+import { Terminal } from '@xterm/xterm';
+import { formatDistanceToNow } from 'date-fns';
+import { Bot, Box, Cpu, Terminal as TerminalIcon } from 'lucide-svelte';
 import { onMount } from 'svelte';
 import { goto } from '$app/navigation';
-import { useQueryClient } from '@tanstack/svelte-query';
-import { Bot, Terminal as TerminalIcon, Cpu, Box } from 'lucide-svelte';
-import { formatDistanceToNow } from 'date-fns';
-import type { Session, SessionStatus } from '$lib/domain/sessions/types.js';
-import { pauseSession, resumeSession } from '$lib/api/queries/sessions.js';
 import { fetchScrollback } from '$lib/api/queries/scrollback.js';
+import { pauseSession, resumeSession } from '$lib/api/queries/sessions.js';
+import type { Session, SessionStatus } from '$lib/domain/sessions/types.js';
 import { toasts } from '$lib/stores/toasts.svelte.js';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 
 interface Props {
@@ -29,10 +29,10 @@ interface Props {
 
 let { session, onPause }: Props = $props();
 
-let wsState       = $state<'connecting' | 'connected' | 'error' | 'paused'>('connecting');
-let isPaused      = $state(session.status === 'paused');
+let wsState = $state<'connecting' | 'connected' | 'error' | 'paused'>('connecting');
+let isPaused = $state(session.status === 'paused');
 let actionPending = $state(false);
-let containerEl   = $state<HTMLDivElement | undefined>();
+let containerEl = $state<HTMLDivElement | undefined>();
 
 const queryClient = useQueryClient();
 
@@ -98,7 +98,11 @@ function mountTerm(): void {
   fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
   term.open(containerEl);
-  try { fitAddon.fit(); } catch { /* container may be 0×0 in rare cases */ }
+  try {
+    fitAddon.fit();
+  } catch {
+    /* container may be 0×0 in rare cases */
+  }
 
   // Replay anything we buffered before mount so the tile catches up.
   if (pendingWrites.length > 0) {
@@ -109,18 +113,30 @@ function mountTerm(): void {
 
 function unmountTerm(): void {
   if (!term) return;
-  try { term.dispose(); } catch { /* ignore */ }
+  try {
+    term.dispose();
+  } catch {
+    /* ignore */
+  }
   term = null;
   fitAddon = null;
 }
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
-  running: 'running', pending: 'queued', paused: 'paused',
-  completed: 'done', cancelled: 'stopped', error: 'error',
+  running: 'running',
+  pending: 'queued',
+  paused: 'paused',
+  completed: 'done',
+  cancelled: 'stopped',
+  error: 'error',
 };
 const STATUS_CLASS: Record<SessionStatus, string> = {
-  running: 'ct-pill--running', pending: 'ct-pill--queued', paused: 'ct-pill--paused',
-  completed: 'ct-pill--done', cancelled: 'ct-pill--done', error: 'ct-pill--error',
+  running: 'ct-pill--running',
+  pending: 'ct-pill--queued',
+  paused: 'ct-pill--paused',
+  completed: 'ct-pill--done',
+  cancelled: 'ct-pill--done',
+  error: 'ct-pill--error',
 };
 
 type IconCmp = typeof Bot;
@@ -132,7 +148,9 @@ function runtimeIcon(rt: string): IconCmp {
 }
 
 const TileIcon = $derived(runtimeIcon(session.runtimeType));
-const timeAgo  = $derived(formatDistanceToNow(new Date(session.startedAt ?? session.insertedAt), { addSuffix: true }));
+const timeAgo = $derived(
+  formatDistanceToNow(new Date(session.startedAt ?? session.insertedAt), { addSuffix: true })
+);
 const isActive = $derived(session.status === 'running' || session.status === 'pending');
 
 const WS_URL = 'ws://localhost:9190/socket/websocket?vsn=2.0.0';
@@ -181,7 +199,7 @@ onMount(() => {
           // instant. dispose() only runs on component unmount.
         }
       },
-      { rootMargin: '120px' },
+      { rootMargin: '120px' }
     );
     observer.observe(containerEl);
   } else {
@@ -205,26 +223,52 @@ onMount(() => {
   ws.onmessage = (ev: MessageEvent<string>) => {
     if (destroyed) return;
     let frame: [string | null, string | null, string, string, unknown];
-    try { frame = JSON.parse(ev.data) as typeof frame; } catch { return; }
+    try {
+      frame = JSON.parse(ev.data) as typeof frame;
+    } catch {
+      return;
+    }
     const [, , topic, event, payload] = frame;
     if (topic !== TOPIC) return;
     switch (event) {
-      case 'phx_reply': wsState = (payload as { status?: string }).status === 'ok' ? 'connected' : 'error'; break;
-      case 'output':    { const d = (payload as { data?: string }).data; if (d) writeToTerm(d); break; }
-      case 'exit': case 'phx_error': case 'phx_close': wsState = 'error'; break;
+      case 'phx_reply':
+        wsState = (payload as { status?: string }).status === 'ok' ? 'connected' : 'error';
+        break;
+      case 'output': {
+        const d = (payload as { data?: string }).data;
+        if (d) writeToTerm(d);
+        break;
+      }
+      case 'exit':
+      case 'phx_error':
+      case 'phx_close':
+        wsState = 'error';
+        break;
     }
   };
-  ws.onerror = () => { if (!destroyed) wsState = 'error'; };
-  ws.onclose = () => { if (!destroyed && wsState === 'connecting') wsState = 'error'; };
+  ws.onerror = () => {
+    if (!destroyed) wsState = 'error';
+  };
+  ws.onclose = () => {
+    if (!destroyed && wsState === 'connecting') wsState = 'error';
+  };
 
   return () => {
     destroyed = true;
     if (observer) {
-      try { observer.disconnect(); } catch { /* ignore */ }
+      try {
+        observer.disconnect();
+      } catch {
+        /* ignore */
+      }
     }
     unmountTerm();
     if (ws?.readyState === WebSocket.OPEN) {
-      try { send('phx_leave', {}); } catch { /* ignore */ }
+      try {
+        send('phx_leave', {});
+      } catch {
+        /* ignore */
+      }
       ws.close();
     }
   };
@@ -262,7 +306,9 @@ function handleOpen(e: MouseEvent): void {
   e.stopPropagation();
   void goto(`/sessions/${session.id}`);
 }
-function handleTileClick(): void { void goto(`/sessions/${session.id}`); }
+function handleTileClick(): void {
+  void goto(`/sessions/${session.id}`);
+}
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->

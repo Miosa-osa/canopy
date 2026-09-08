@@ -38,6 +38,7 @@ defmodule Canopy.Workspaces.EngineTest do
     )
 
     File.write!(Path.join([workspace.root_path, ".canopy", "engine.yaml"]), manifest)
+    Canopy.EngineFixture.pin!(workspace.root_path)
   end
 
   defp default_manifest do
@@ -164,6 +165,71 @@ defmodule Canopy.Workspaces.EngineTest do
 
       assert {:error, :timeout_too_large} =
                Engine.run(workspace.slug, "impact", [], timeout_ms: 300_001)
+    end
+  end
+
+  describe "compatibility preflight" do
+    test "rejects a changed revision and reports unavailable" do
+      workspace = insert_workspace()
+      write_engine!(workspace)
+      dir = Path.join(workspace.root_path, "engine")
+
+      Canopy.EngineFixture.git!(dir, [
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--allow-empty",
+        "-qm",
+        "changed"
+      ])
+
+      assert {:error, {:engine_incompatible, :revision_mismatch}} =
+               Engine.run(workspace.slug, "impact")
+
+      assert {:ok, %{available: false}} = Engine.health(workspace.slug)
+    end
+
+    test "rejects a symlink pointing at a different engine checkout" do
+      workspace = insert_workspace()
+      write_engine!(workspace)
+      dir = Path.join(workspace.root_path, "engine")
+      target = Path.join(workspace.root_path, "other-engine")
+      File.rename!(dir, target)
+      File.ln_s!(target, dir)
+
+      assert {:error, {:engine_incompatible, :unexpected_checkout}} =
+               Engine.run(workspace.slug, "impact")
+    end
+
+    test "rejects dirty tracked code" do
+      workspace = insert_workspace()
+      write_engine!(workspace)
+      File.write!(Path.join([workspace.root_path, "engine", "mix.exs"]), "modified")
+
+      assert {:error, {:engine_incompatible, :dirty_checkout}} =
+               Engine.run(workspace.slug, "impact")
+    end
+
+    test "rejects missing pins, API drift, and missing capabilities" do
+      for {key, value} <- [
+            {"api_version", "v0"},
+            {"expected_migration", 61},
+            {"required_capabilities", ["imaginary"]},
+            {"version", ">= 9.0.0"}
+          ] do
+        workspace = insert_workspace()
+        write_engine!(workspace)
+        path = Path.join([workspace.root_path, ".canopy", "engine.yaml"])
+        {:ok, data} = YamlElixir.read_from_file(path)
+        data = put_in(data, ["compatibility", key], value)
+        File.write!(path, Jason.encode!(data))
+        assert {:error, {:engine_incompatible, _}} = Engine.run(workspace.slug, "impact")
+      end
+
+      workspace = insert_workspace()
+      write_engine!(workspace)
+      File.write!(Path.join([workspace.root_path, ".canopy", "engine.yaml"]), default_manifest())
+      assert {:error, {:engine_incompatible, :missing_pin}} = Engine.run(workspace.slug, "impact")
     end
   end
 end

@@ -1,34 +1,24 @@
 <script lang="ts" module>
-  /**
-   * Pure helpers — extracted so vitest can test them in a Node project.
-   */
-  import type { DriveEntry } from '$lib/api/queries/drive.js';
+/**
+ * Pure helpers — extracted so vitest can test them in a Node project.
+ */
+import type { DriveEntry } from '$lib/api/queries/drive.js';
 
-  /**
-   * Filter Drive entries to commandable kinds (workflow, prompt, notebook,
-   * mcp_server) and apply a substring match on `name + slug`. Folder /
-   * env_vars / rule are excluded — they don't render usefully as a picker
-   * row.
-   */
-  export function filterDriveEntries(
-    entries: readonly DriveEntry[],
-    query: string,
-  ): DriveEntry[] {
-    const COMMANDABLE = new Set([
-      'workflow',
-      'prompt',
-      'notebook',
-      'mcp_server',
-    ]);
-    const filtered = entries.filter((e) => COMMANDABLE.has(e.kind));
-    const q = query.trim().toLowerCase();
-    if (!q) return filtered;
-    return filtered.filter(
-      (e) =>
-        (e.name ?? '').toLowerCase().includes(q) ||
-        e.slug.toLowerCase().includes(q),
-    );
-  }
+/**
+ * Filter Drive entries to commandable kinds (workflow, prompt, notebook,
+ * mcp_server) and apply a substring match on `name + slug`. Folder /
+ * env_vars / rule are excluded — they don't render usefully as a picker
+ * row.
+ */
+export function filterDriveEntries(entries: readonly DriveEntry[], query: string): DriveEntry[] {
+  const COMMANDABLE = new Set(['workflow', 'prompt', 'notebook', 'mcp_server']);
+  const filtered = entries.filter((e) => COMMANDABLE.has(e.kind));
+  const q = query.trim().toLowerCase();
+  if (!q) return filtered;
+  return filtered.filter(
+    (e) => (e.name ?? '').toLowerCase().includes(q) || e.slug.toLowerCase().includes(q)
+  );
+}
 </script>
 
 <script lang="ts">
@@ -56,7 +46,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import { writable } from 'svelte/store';
   import { driveListQuery } from '$lib/api/queries/drive.js';
-  import type { DriveEntry } from '$lib/api/queries/drive.js';
+
 
   interface Props {
     /** Personal | team — defaults to personal. */
@@ -77,12 +67,12 @@
   // ── Drive listing ──────────────────────────────────────────────────────────
   const optsStore = writable(
     untrack(() =>
-      driveListQuery({ scope, archived: false, limit: 200 }) as CreateQueryOptions<DriveEntry[]>,
+      driveListQuery({ scope, archived: 'false', limit: 200 }) as CreateQueryOptions<DriveEntry[]>,
     ),
   );
   $effect(() => {
     optsStore.set(
-      driveListQuery({ scope, archived: false, limit: 200 }) as CreateQueryOptions<DriveEntry[]>,
+      driveListQuery({ scope, archived: 'false', limit: 200 }) as CreateQueryOptions<DriveEntry[]>,
     );
   });
   const listQ = createQuery<DriveEntry[]>(optsStore);

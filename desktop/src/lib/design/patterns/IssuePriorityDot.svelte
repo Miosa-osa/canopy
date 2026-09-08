@@ -1,27 +1,27 @@
 <script lang="ts">
-  /**
-   * IssuePriorityDot — small coloured priority indicator for issue rows.
-   * CSS prefix: ipd- (IssuePriorityDot)
-   * Priority 0=none 1=low 2=medium 3=high
-   */
-  import type { IssuePriority } from '$lib/domain/issues/types.js';
+/**
+ * IssuePriorityDot — small coloured priority indicator for issue rows.
+ * CSS prefix: ipd- (IssuePriorityDot)
+ * Priority 0=none 1=low 2=medium 3=high
+ */
+import type { IssuePriority } from '$lib/domain/issues/types.js';
 
-  interface Props {
-    priority: IssuePriority;
-  }
+interface Props {
+  priority: IssuePriority;
+}
 
-  let { priority }: Props = $props();
+let { priority }: Props = $props();
 
-  type DotMeta = { label: string; mod: string };
+type DotMeta = { label: string; mod: string };
 
-  const META: Record<IssuePriority, DotMeta> = {
-    0: { label: 'No priority', mod: 'ipd--none' },
-    1: { label: 'Low',         mod: 'ipd--low' },
-    2: { label: 'Medium',      mod: 'ipd--medium' },
-    3: { label: 'High',        mod: 'ipd--high' },
-  };
+const META: Record<IssuePriority, DotMeta> = {
+  0: { label: 'No priority', mod: 'ipd--none' },
+  1: { label: 'Low', mod: 'ipd--low' },
+  2: { label: 'Medium', mod: 'ipd--medium' },
+  3: { label: 'High', mod: 'ipd--high' },
+};
 
-  const meta = $derived(META[priority] ?? META[0]);
+const meta = $derived(META[priority] ?? META[0]);
 </script>
 
 <span class="ipd {meta.mod}" aria-label="{meta.label} priority" title="{meta.label}"></span>

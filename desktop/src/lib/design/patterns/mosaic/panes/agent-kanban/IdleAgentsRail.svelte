@@ -1,46 +1,46 @@
 <script lang="ts">
-  /**
-   * IdleAgentsRail — right-side rail showing hired agents with auto-pickup
-   * enabled. Each row is a drop target — dropping a task card on a row
-   * triggers a manual claim for that agent.
-   *
-   * CSS prefix: idle-
-   *
-   * The rail is data-driven by the `idleAgentsQuery` factory; the parent
-   * pane owns the click→claim mutation so this component stays a pure
-   * presentational + drop-target wrapper.
-   */
+/**
+ * IdleAgentsRail — right-side rail showing hired agents with auto-pickup
+ * enabled. Each row is a drop target — dropping a task card on a row
+ * triggers a manual claim for that agent.
+ *
+ * CSS prefix: idle-
+ *
+ * The rail is data-driven by the `idleAgentsQuery` factory; the parent
+ * pane owns the click→claim mutation so this component stays a pure
+ * presentational + drop-target wrapper.
+ */
 
-  import type { IdleAgent } from '$lib/domain/agent-kanban/types.js';
+import type { IdleAgent } from '$lib/domain/agent-kanban/types.js';
 
-  interface Props {
-    agents: IdleAgent[];
-    /** Currently-dragged task short_id, or null when nothing is being dragged. */
-    draggingTaskId?: string | null;
-    onClaim: (agentSlug: string, taskShortId: string) => void;
-  }
+interface Props {
+  agents: IdleAgent[];
+  /** Currently-dragged task short_id, or null when nothing is being dragged. */
+  draggingTaskId?: string | null;
+  onClaim: (agentSlug: string, taskShortId: string) => void;
+}
 
-  let { agents, draggingTaskId = null, onClaim }: Props = $props();
+let { agents, draggingTaskId = null, onClaim }: Props = $props();
 
-  let highlightSlug = $state<string | null>(null);
+let highlightSlug = $state<string | null>(null);
 
-  function handleDragOver(e: DragEvent, slug: string): void {
-    if (!draggingTaskId) return;
-    e.preventDefault();
-    highlightSlug = slug;
-  }
+function handleDragOver(e: DragEvent, slug: string): void {
+  if (!draggingTaskId) return;
+  e.preventDefault();
+  highlightSlug = slug;
+}
 
-  function handleDragLeave(slug: string): void {
-    if (highlightSlug === slug) highlightSlug = null;
-  }
+function handleDragLeave(slug: string): void {
+  if (highlightSlug === slug) highlightSlug = null;
+}
 
-  function handleDrop(e: DragEvent, slug: string): void {
-    e.preventDefault();
-    highlightSlug = null;
-    const taskId = e.dataTransfer?.getData('application/x-canopy-task-id');
-    const id = taskId || draggingTaskId;
-    if (id) onClaim(slug, id);
-  }
+function handleDrop(e: DragEvent, slug: string): void {
+  e.preventDefault();
+  highlightSlug = null;
+  const taskId = e.dataTransfer?.getData('application/x-canopy-task-id');
+  const id = taskId || draggingTaskId;
+  if (id) onClaim(slug, id);
+}
 </script>
 
 <aside class="idle" aria-label="Idle agents">

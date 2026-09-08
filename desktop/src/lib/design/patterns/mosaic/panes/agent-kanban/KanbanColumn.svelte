@@ -1,48 +1,46 @@
 <script lang="ts">
-  /**
-   * KanbanColumn — single column in the Agent Kanban pane.
-   * CSS prefix: akcol-
-   *
-   * Drag-drop is wired by the parent pane via `dndzone`. This component
-   * owns layout + the optional auto-pickup toggle in the column header.
-   * It does NOT depend on a specific column key — it's just a typed
-   * presentational wrapper around the DnD-zone div.
-   */
+/**
+ * KanbanColumn — single column in the Agent Kanban pane.
+ * CSS prefix: akcol-
+ *
+ * Drag-drop is wired by the parent pane via `dndzone`. This component
+ * owns layout + the optional auto-pickup toggle in the column header.
+ * It does NOT depend on a specific column key — it's just a typed
+ * presentational wrapper around the DnD-zone div.
+ */
 
-  import { SHADOW_PLACEHOLDER_ITEM_ID, dndzone } from 'svelte-dnd-action';
-  import type { DndEvent } from 'svelte-dnd-action';
-  import type { Task } from '$lib/domain/tasks/types.js';
-  import type { AgentKanbanColumn } from '$lib/domain/agent-kanban/types.js';
-  import AgentKanbanCard from './AgentKanbanCard.svelte';
+import type { DndEvent } from 'svelte-dnd-action';
+import { dndzone, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
+import type { AgentKanbanColumn } from '$lib/domain/agent-kanban/types.js';
+import type { Task } from '$lib/domain/tasks/types.js';
+import AgentKanbanCard from './AgentKanbanCard.svelte';
 
-  interface Props {
-    column: AgentKanbanColumn;
-    label: string;
-    items: Task[];
-    /** Optional auto-pickup toggle — only meaningful for `backlog`. */
-    showAutoPickupToggle?: boolean;
-    autoPickupOn?: boolean;
-    onAutoPickupToggle?: () => void;
-    onConsider: (e: CustomEvent<DndEvent<Task>>) => void;
-    onFinalize: (e: CustomEvent<DndEvent<Task>>) => void;
-  }
+interface Props {
+  column: AgentKanbanColumn;
+  label: string;
+  items: Task[];
+  /** Optional auto-pickup toggle — only meaningful for `backlog`. */
+  showAutoPickupToggle?: boolean;
+  autoPickupOn?: boolean;
+  onAutoPickupToggle?: () => void;
+  onConsider: (e: CustomEvent<DndEvent<Task>>) => void;
+  onFinalize: (e: CustomEvent<DndEvent<Task>>) => void;
+}
 
-  let {
-    column,
-    label,
-    items,
-    showAutoPickupToggle = false,
-    autoPickupOn = false,
-    onAutoPickupToggle,
-    onConsider,
-    onFinalize,
-  }: Props = $props();
+let {
+  column,
+  label,
+  items,
+  showAutoPickupToggle = false,
+  autoPickupOn = false,
+  onAutoPickupToggle,
+  onConsider,
+  onFinalize,
+}: Props = $props();
 
-  const visibleCount = $derived(
-    items.filter((t) => t.id !== SHADOW_PLACEHOLDER_ITEM_ID).length,
-  );
+const visibleCount = $derived(items.filter((t) => t.id !== SHADOW_PLACEHOLDER_ITEM_ID).length);
 
-  const FLIP_MS = 180;
+const FLIP_MS = 180;
 </script>
 
 <section class="akcol" aria-label={`${label} column`}>

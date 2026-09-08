@@ -8,12 +8,12 @@
  *   GET  /api/v1/hooks/status    — per-runtime install status + last 20 hook events
  */
 
-import { apiGet, apiPost } from "$lib/api/client.js";
+import { apiGet, apiPost } from '$lib/api/client.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface RuntimeStatus {
-  status: "ok" | "installed" | "not_installed" | "error";
+  status: 'ok' | 'installed' | 'not_installed' | 'error';
   reason?: string;
 }
 
@@ -40,13 +40,13 @@ export interface HooksActionResponse {
 // ── API calls ─────────────────────────────────────────────────────────────────
 
 export function getHooksStatus(): Promise<HooksStatusResponse> {
-  return apiGet<HooksStatusResponse>("/hooks/status");
+  return apiGet<HooksStatusResponse>('/hooks/status');
 }
 
 export function installHooks(): Promise<HooksActionResponse> {
-  return apiPost<HooksActionResponse>("/hooks/install", {});
+  return apiPost<HooksActionResponse>('/hooks/install', {});
 }
 
 export function uninstallHooks(): Promise<HooksActionResponse> {
-  return apiPost<HooksActionResponse>("/hooks/uninstall", {});
+  return apiPost<HooksActionResponse>('/hooks/uninstall', {});
 }

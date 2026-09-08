@@ -1,33 +1,33 @@
 <script lang="ts">
-  /**
-   * DirtyGuardModal — styled confirmation dialog for unsaved-changes guard.
-   *
-   * Replaces native window.confirm() in beforeNavigate handlers.
-   * Two actions: "Keep editing" (cancel) / "Discard changes" (discard).
-   *
-   * Props:
-   *   open      — controls dialog visibility (bindable)
-   *   onCancel  — called when user chooses to keep editing
-   *   onDiscard — called when user chooses to discard and navigate
-   *
-   * LOC target: ≤ 100.
-   */
+/**
+ * DirtyGuardModal — styled confirmation dialog for unsaved-changes guard.
+ *
+ * Replaces native window.confirm() in beforeNavigate handlers.
+ * Two actions: "Keep editing" (cancel) / "Discard changes" (discard).
+ *
+ * Props:
+ *   open      — controls dialog visibility (bindable)
+ *   onCancel  — called when user chooses to keep editing
+ *   onDiscard — called when user chooses to discard and navigate
+ *
+ * LOC target: ≤ 100.
+ */
 
-  interface Props {
-    open: boolean;
-    onCancel: () => void;
-    onDiscard: () => void;
+interface Props {
+  open: boolean;
+  onCancel: () => void;
+  onDiscard: () => void;
+}
+
+let { open, onCancel, onDiscard }: Props = $props();
+
+function handleKeydown(e: KeyboardEvent): void {
+  if (!open) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    onCancel();
   }
-
-  let { open, onCancel, onDiscard }: Props = $props();
-
-  function handleKeydown(e: KeyboardEvent): void {
-    if (!open) return;
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onCancel();
-    }
-  }
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

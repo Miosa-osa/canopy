@@ -1,175 +1,155 @@
 <script lang="ts">
-  /**
-   * /sandboxes-ng — Sandboxes super-module dashboard.
-   * Powered by the Sandbox Operator agent via /api/v1/sandboxes-ng/*.
-   *
-   * Sections:
-   *   1. 8-state lifecycle status grid (count per state)
-   *   2. Sandbox cards — current state of every sandbox
-   *   3. Ports tab — port forwards with visibility tier + URL
-   *   4. Snapshot timeline — kind, retention, lineage
-   *   5. Operator activity feed — recent lifecycle events
-   *
-   * CSS prefix: sn-
-   */
-  import {
-    type CreateQueryOptions,
-    createQuery,
-  } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import {
-    Activity,
-    Box,
-    Camera,
-    Globe,
-    Lock,
-    Network,
-    Pause,
-    Play,
-    PowerOff,
-    Settings,
-    ShieldAlert,
-    Snowflake,
-  } from "lucide-svelte";
-  import {
-    eventsQuery,
-    portsQuery,
-    sandboxStatesQuery,
-    snapshotsQuery,
-  } from "$lib/api/queries/sandboxes_ng.js";
-  import {
-    SANDBOX_STATE_ORDER,
-    type LifecycleEvent,
-    type PortForward,
-    type PortVisibility,
-    type SandboxState,
-    type SandboxStateRow,
-    type Snapshot,
-  } from "$lib/domain/sandboxes_ng/types.js";
+/**
+ * /sandboxes-ng — Sandboxes super-module dashboard.
+ * Powered by the Sandbox Operator agent via /api/v1/sandboxes-ng/*.
+ *
+ * Sections:
+ *   1. 8-state lifecycle status grid (count per state)
+ *   2. Sandbox cards — current state of every sandbox
+ *   3. Ports tab — port forwards with visibility tier + URL
+ *   4. Snapshot timeline — kind, retention, lineage
+ *   5. Operator activity feed — recent lifecycle events
+ *
+ * CSS prefix: sn-
+ */
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import {
+  Activity,
+  Box,
+  Camera,
+  Globe,
+  Lock,
+  Network,
+  Pause,
+  Play,
+  PowerOff,
+  Settings,
+  ShieldAlert,
+  Snowflake,
+} from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import {
+  eventsQuery,
+  portsQuery,
+  sandboxStatesQuery,
+  snapshotsQuery,
+} from '$lib/api/queries/sandboxes_ng.js';
+import {
+  type LifecycleEvent,
+  type PortForward,
+  type PortVisibility,
+  SANDBOX_STATE_ORDER,
+  type SandboxState,
+  type SandboxStateRow,
+  type Snapshot,
+} from '$lib/domain/sandboxes_ng/types.js';
 
-  // ── Queries ────────────────────────────────────────────────────────────────
+// ── Queries ────────────────────────────────────────────────────────────────
 
-  const statesStore = writable(
-    untrack(
-      () =>
-        sandboxStatesQuery() as CreateQueryOptions<SandboxStateRow[]>,
-    ),
-  );
-  const statesQ = createQuery<SandboxStateRow[]>(statesStore);
+const statesStore = writable(
+  untrack(() => sandboxStatesQuery() as CreateQueryOptions<SandboxStateRow[]>)
+);
+const statesQ = createQuery<SandboxStateRow[]>(statesStore);
 
-  const portsStore = writable(
-    untrack(
-      () =>
-        portsQuery({ openOnly: true, limit: 200 }) as CreateQueryOptions<
-          PortForward[]
-        >,
-    ),
-  );
-  const portsQ = createQuery<PortForward[]>(portsStore);
+const portsStore = writable(
+  untrack(() => portsQuery({ openOnly: true, limit: 200 }) as CreateQueryOptions<PortForward[]>)
+);
+const portsQ = createQuery<PortForward[]>(portsStore);
 
-  const snapshotsStore = writable(
-    untrack(
-      () =>
-        snapshotsQuery({
-          activeOnly: true,
-          limit: 50,
-        }) as CreateQueryOptions<Snapshot[]>,
-    ),
-  );
-  const snapshotsQ = createQuery<Snapshot[]>(snapshotsStore);
+const snapshotsStore = writable(
+  untrack(
+    () =>
+      snapshotsQuery({
+        activeOnly: true,
+        limit: 50,
+      }) as CreateQueryOptions<Snapshot[]>
+  )
+);
+const snapshotsQ = createQuery<Snapshot[]>(snapshotsStore);
 
-  const eventsStore = writable(
-    untrack(
-      () =>
-        eventsQuery({ limit: 25 }) as CreateQueryOptions<LifecycleEvent[]>,
-    ),
-  );
-  const eventsQ = createQuery<LifecycleEvent[]>(eventsStore);
+const eventsStore = writable(
+  untrack(() => eventsQuery({ limit: 25 }) as CreateQueryOptions<LifecycleEvent[]>)
+);
+const eventsQ = createQuery<LifecycleEvent[]>(eventsStore);
 
-  // ── Tabs ───────────────────────────────────────────────────────────────────
+// ── Tabs ───────────────────────────────────────────────────────────────────
 
-  type TabKey = "overview" | "ports" | "snapshots" | "events";
-  let activeTab = $state<TabKey>("overview");
+type TabKey = 'overview' | 'ports' | 'snapshots' | 'events';
+let activeTab = $state<TabKey>('overview');
 
-  // ── Derived: state grid ────────────────────────────────────────────────────
+// ── Derived: state grid ────────────────────────────────────────────────────
 
-  const states = $derived($statesQ.data ?? []);
-  const liveStates = $derived(
-    states.filter((s) => s.state !== "destroyed"),
-  );
+const states = $derived($statesQ.data ?? []);
+const liveStates = $derived(states.filter((s) => s.state !== 'destroyed'));
 
-  const stateCounts = $derived.by(() => {
-    const counts: Record<SandboxState, number> = {
-      provisioning: 0,
-      running: 0,
-      paused: 0,
-      snapshotting: 0,
-      resizing: 0,
-      archived: 0,
-      error: 0,
-      destroyed: 0,
-    };
-    for (const row of states) {
-      counts[row.state] += 1;
-    }
-    return counts;
-  });
-
-  // ── Derived: ports ─────────────────────────────────────────────────────────
-
-  const ports = $derived($portsQ.data ?? []);
-  const publicPorts = $derived(
-    ports.filter((p) => p.visibility === "public"),
-  );
-
-  // ── Derived: snapshots ─────────────────────────────────────────────────────
-
-  const snapshots = $derived($snapshotsQ.data ?? []);
-
-  // ── Derived: events ────────────────────────────────────────────────────────
-
-  const events = $derived($eventsQ.data ?? []);
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-
-  const STATE_ICON: Record<SandboxState, typeof Box> = {
-    provisioning: Box,
-    running: Play,
-    paused: Pause,
-    snapshotting: Camera,
-    resizing: Settings,
-    archived: Snowflake,
-    error: ShieldAlert,
-    destroyed: PowerOff,
+const stateCounts = $derived.by(() => {
+  const counts: Record<SandboxState, number> = {
+    provisioning: 0,
+    running: 0,
+    paused: 0,
+    snapshotting: 0,
+    resizing: 0,
+    archived: 0,
+    error: 0,
+    destroyed: 0,
   };
-
-  function fmtRelative(iso: string): string {
-    const ms = Date.now() - new Date(iso).getTime();
-    const s = Math.floor(ms / 1000);
-    if (s < 60) return `${s}s ago`;
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
+  for (const row of states) {
+    counts[row.state] += 1;
   }
+  return counts;
+});
 
-  function fmtBytes(n: number | null): string {
-    if (n === null) return "—";
-    if (n < 1024) return `${n} B`;
-    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
-    if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MiB`;
-    return `${(n / 1024 / 1024 / 1024).toFixed(2)} GiB`;
-  }
+// ── Derived: ports ─────────────────────────────────────────────────────────
 
-  function visibilityIcon(v: PortVisibility) {
-    if (v === "public") return Globe;
-    if (v === "token") return Network;
-    return Lock;
-  }
+const ports = $derived($portsQ.data ?? []);
+const publicPorts = $derived(ports.filter((p) => p.visibility === 'public'));
 
-  const isLoading = $derived(
-    $statesQ.isLoading || $portsQ.isLoading || $snapshotsQ.isLoading,
-  );
+// ── Derived: snapshots ─────────────────────────────────────────────────────
+
+const snapshots = $derived($snapshotsQ.data ?? []);
+
+// ── Derived: events ────────────────────────────────────────────────────────
+
+const events = $derived($eventsQ.data ?? []);
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const STATE_ICON: Record<SandboxState, typeof Box> = {
+  provisioning: Box,
+  running: Play,
+  paused: Pause,
+  snapshotting: Camera,
+  resizing: Settings,
+  archived: Snowflake,
+  error: ShieldAlert,
+  destroyed: PowerOff,
+};
+
+function fmtRelative(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+function fmtBytes(n: number | null): string {
+  if (n === null) return '—';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MiB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GiB`;
+}
+
+function visibilityIcon(v: PortVisibility) {
+  if (v === 'public') return Globe;
+  if (v === 'token') return Network;
+  return Lock;
+}
+
+const isLoading = $derived($statesQ.isLoading || $portsQ.isLoading || $snapshotsQ.isLoading);
 </script>
 
 <div class="sn-page">

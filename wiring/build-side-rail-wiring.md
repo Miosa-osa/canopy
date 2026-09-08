@@ -1,3 +1,7 @@
+> HISTORICAL EVIDENCE: This document records an earlier plan or assessment.
+> It does not establish current product scope, runtime readiness, or write authority.
+> Resolve current ownership through the repository root `agent-authority.json`.
+
 # Build Side Rail — wiring instructions
 
 Mounts the 4-section left rail (Tabs / Project Explorer / Search / Drive) inside the `/build` route. Apply by hand in the indicated shared files — the rail module is forbidden from editing them directly.

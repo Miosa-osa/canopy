@@ -1,344 +1,344 @@
 <script lang="ts">
-  /**
-   * /governance — Rules, Approvals, and Audit log.
-   * Tab state lives in ?tab=rules|approvals|audit (default: rules).
-   * CSS prefix: gov- (Governance)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { ChevronDown, ChevronRight, RefreshCw, Shield } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { goto } from '$app/navigation';
-  import { page } from '$app/state';
-  import {
-    approveApprovalMutation,
-    approvalsQuery,
-    auditQuery,
-    createRuleMutation,
-    deleteRuleMutation,
-    rejectApprovalMutation,
-    rulesQuery,
-    updateRuleMutation,
-  } from '$lib/api/queries/governance.js';
-  import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-  import type {
-    Approval,
-    ApprovalStatus,
-    AuditEntry,
-    AuditFilters,
-    CreateRuleBody,
-    Rule,
-    RuleAction,
-    RuleCondition,
-    RuleConditionType,
-    UpdateRuleBody,
-  } from '$lib/domain/governance/types.js';
-  import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
+/**
+ * /governance — Rules, Approvals, and Audit log.
+ * Tab state lives in ?tab=rules|approvals|audit (default: rules).
+ * CSS prefix: gov- (Governance)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { ChevronDown, ChevronRight, RefreshCw, Shield } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import {
+  approvalsQuery,
+  approveApprovalMutation,
+  auditQuery,
+  createRuleMutation,
+  deleteRuleMutation,
+  rejectApprovalMutation,
+  rulesQuery,
+  updateRuleMutation,
+} from '$lib/api/queries/governance.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+import type {
+  Approval,
+  ApprovalStatus,
+  AuditEntry,
+  AuditFilters,
+  CreateRuleBody,
+  Rule,
+  RuleAction,
+  RuleCondition,
+  RuleConditionType,
+  UpdateRuleBody,
+} from '$lib/domain/governance/types.js';
+import { useListKeyboard } from '$lib/utils/useListKeyboard.svelte.js';
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── Tab state (URL-driven) ────────────────────────────────────────────────────
+// ── Tab state (URL-driven) ────────────────────────────────────────────────────
 
-  type Tab = 'rules' | 'approvals' | 'audit';
+type Tab = 'rules' | 'approvals' | 'audit';
 
-  const activeTab = $derived<Tab>(
-    (() => {
-      const t = page.url.searchParams.get('tab');
-      return (t === 'approvals' || t === 'audit' ? t : 'rules') as Tab;
-    })()
-  );
+const activeTab = $derived<Tab>(
+  (() => {
+    const t = page.url.searchParams.get('tab');
+    return (t === 'approvals' || t === 'audit' ? t : 'rules') as Tab;
+  })()
+);
 
-  function setTab(tab: Tab) {
-    const u = new URL(page.url);
-    u.searchParams.set('tab', tab);
-    goto(u.toString(), { replaceState: true, noScroll: true });
-  }
+function setTab(tab: Tab) {
+  const u = new URL(page.url);
+  u.searchParams.set('tab', tab);
+  goto(u.toString(), { replaceState: true, noScroll: true });
+}
 
-  // ── RULES tab ─────────────────────────────────────────────────────────────────
+// ── RULES tab ─────────────────────────────────────────────────────────────────
 
-  const rulesOptsStore = writable(untrack(() => rulesQuery() as CreateQueryOptions<Rule[]>));
-  const rulesResult = createQuery<Rule[]>(rulesOptsStore);
+const rulesOptsStore = writable(untrack(() => rulesQuery() as CreateQueryOptions<Rule[]>));
+const rulesResult = createQuery<Rule[]>(rulesOptsStore);
 
-  const sortedRules = $derived(
-    [...($rulesResult.data ?? [])].sort((a, b) => b.priority - a.priority),
-  );
+const sortedRules = $derived(
+  [...($rulesResult.data ?? [])].sort((a, b) => b.priority - a.priority)
+);
 
-  // Inline edit state — one rule expanded at a time (null = none, 'new' = create form)
-  let expandedRuleId = $state<string | 'new' | null>(null);
+// Inline edit state — one rule expanded at a time (null = none, 'new' = create form)
+let expandedRuleId = $state<string | 'new' | null>(null);
 
-  // Draft state for the inline edit/create panel
-  interface RuleDraft {
-    name: string;
-    description: string;
-    priority: number;
-    action: RuleAction;
-    enabled: boolean;
-    conditions: RuleCondition[];
-  }
+// Draft state for the inline edit/create panel
+interface RuleDraft {
+  name: string;
+  description: string;
+  priority: number;
+  action: RuleAction;
+  enabled: boolean;
+  conditions: RuleCondition[];
+}
 
-  const BLANK_DRAFT: RuleDraft = {
-    name: '',
-    description: '',
-    priority: 10,
-    action: 'warn',
-    enabled: true,
-    conditions: [],
+const BLANK_DRAFT: RuleDraft = {
+  name: '',
+  description: '',
+  priority: 10,
+  action: 'warn',
+  enabled: true,
+  conditions: [],
+};
+
+let draft = $state<RuleDraft>({ ...BLANK_DRAFT });
+
+function openCreate() {
+  draft = { ...BLANK_DRAFT };
+  expandedRuleId = 'new';
+}
+
+function openEdit(rule: Rule) {
+  draft = {
+    name: rule.name,
+    description: rule.description ?? '',
+    priority: rule.priority,
+    action: rule.action,
+    enabled: rule.enabled,
+    conditions: rule.conditions.map((c) => ({ ...c })),
   };
+  expandedRuleId = rule.id;
+}
 
-  let draft = $state<RuleDraft>({ ...BLANK_DRAFT });
+function closePanel() {
+  expandedRuleId = null;
+}
 
-  function openCreate() {
-    draft = { ...BLANK_DRAFT };
-    expandedRuleId = 'new';
+// Condition builder helpers
+function addCondition() {
+  draft.conditions = [...draft.conditions, { type: 'runtime', value: '' }];
+}
+
+function removeCondition(index: number) {
+  draft.conditions = draft.conditions.filter((_, i) => i !== index);
+}
+
+function updateConditionType(index: number, type: RuleConditionType) {
+  draft.conditions = draft.conditions.map((c, i) => (i === index ? { ...c, type } : c));
+}
+
+function updateConditionValue(index: number, value: string) {
+  draft.conditions = draft.conditions.map((c, i) => (i === index ? { ...c, value } : c));
+}
+
+// Mutations
+const createRuleOptsStore = writable(
+  untrack(() => createRuleMutation() as CreateMutationOptions<Rule, Error, CreateRuleBody>)
+);
+const createRuleMut = createMutation<Rule, Error, CreateRuleBody>(createRuleOptsStore);
+
+const updateRuleOptsStore = writable(
+  untrack(
+    () =>
+      updateRuleMutation() as CreateMutationOptions<
+        Rule,
+        Error,
+        { id: string; body: UpdateRuleBody }
+      >
+  )
+);
+const updateRuleMut = createMutation<Rule, Error, { id: string; body: UpdateRuleBody }>(
+  updateRuleOptsStore
+);
+
+const deleteRuleOptsStore = writable(
+  untrack(() => deleteRuleMutation() as CreateMutationOptions<void, Error, string>)
+);
+const deleteRuleMut = createMutation<void, Error, string>(deleteRuleOptsStore);
+
+async function saveRule() {
+  const body: CreateRuleBody = {
+    name: draft.name,
+    description: draft.description || undefined,
+    enabled: draft.enabled,
+    priority: draft.priority,
+    action: draft.action,
+    conditions: draft.conditions,
+  };
+  if (expandedRuleId === 'new') {
+    await $createRuleMut.mutateAsync(body);
+  } else if (expandedRuleId) {
+    await $updateRuleMut.mutateAsync({ id: expandedRuleId, body });
   }
+  await queryClient.invalidateQueries({ queryKey: ['governance', 'rules'] });
+  closePanel();
+}
 
-  function openEdit(rule: Rule) {
-    draft = {
-      name: rule.name,
-      description: rule.description ?? '',
-      priority: rule.priority,
-      action: rule.action,
-      enabled: rule.enabled,
-      conditions: rule.conditions.map((c) => ({ ...c })),
-    };
-    expandedRuleId = rule.id;
+async function deleteRule(id: string) {
+  await $deleteRuleMut.mutateAsync(id);
+  await queryClient.invalidateQueries({ queryKey: ['governance', 'rules'] });
+  if (expandedRuleId === id) closePanel();
+}
+
+async function toggleRuleEnabled(rule: Rule) {
+  await $updateRuleMut.mutateAsync({ id: rule.id, body: { enabled: !rule.enabled } });
+  await queryClient.invalidateQueries({ queryKey: ['governance', 'rules'] });
+}
+
+// Keyboard nav for rules list
+const rulesKb = useListKeyboard({
+  items: () => sortedRules,
+  onSelect: (rule) => openEdit(rule),
+  onRefresh: () => queryClient.invalidateQueries({ queryKey: ['governance', 'rules'] }),
+});
+
+// ── APPROVALS tab ─────────────────────────────────────────────────────────────
+
+let approvalStatusFilter = $state<ApprovalStatus>('pending');
+
+const approvalsOptsStore = writable(
+  untrack(() => approvalsQuery(approvalStatusFilter) as CreateQueryOptions<Approval[]>)
+);
+
+$effect(() => {
+  approvalsOptsStore.set(approvalsQuery(approvalStatusFilter) as CreateQueryOptions<Approval[]>);
+});
+
+const approvalsResult = createQuery<Approval[]>(approvalsOptsStore);
+const approvals = $derived(($approvalsResult.data ?? []) as Approval[]);
+
+// Inline reason state — keyed by approval id
+let pendingDecision = $state<{
+  id: string;
+  kind: 'approve' | 'reject';
+  reason: string;
+} | null>(null);
+
+const approveOptsStore = writable(
+  untrack(
+    () =>
+      approveApprovalMutation() as CreateMutationOptions<
+        Approval,
+        Error,
+        { id: string; body?: { reason?: string; decided_by?: string } }
+      >
+  )
+);
+const approveMut = createMutation<
+  Approval,
+  Error,
+  { id: string; body?: { reason?: string; decided_by?: string } }
+>(approveOptsStore);
+
+const rejectOptsStore = writable(
+  untrack(
+    () =>
+      rejectApprovalMutation() as CreateMutationOptions<
+        Approval,
+        Error,
+        { id: string; body?: { reason?: string; decided_by?: string } }
+      >
+  )
+);
+const rejectMut = createMutation<
+  Approval,
+  Error,
+  { id: string; body?: { reason?: string; decided_by?: string } }
+>(rejectOptsStore);
+
+async function confirmDecision() {
+  if (!pendingDecision) return;
+  const { id, kind, reason } = pendingDecision;
+  const body = reason ? { reason } : {};
+  if (kind === 'approve') {
+    await $approveMut.mutateAsync({ id, body });
+  } else {
+    await $rejectMut.mutateAsync({ id, body });
   }
+  await queryClient.invalidateQueries({ queryKey: ['governance', 'approvals'] });
+  pendingDecision = null;
+}
 
-  function closePanel() {
-    expandedRuleId = null;
+// ── AUDIT tab ────────────────────────────────────────────────────────────────
+
+type DateRange = '24h' | '7d' | '30d' | 'custom';
+
+let auditEventType = $state('');
+let auditSessionId = $state('');
+let auditDateRange = $state<DateRange>('24h');
+let auditCustomAfter = $state('');
+let auditCustomBefore = $state('');
+let auditPage = $state(0); // cursor-based via before= param
+let expandedAuditId = $state<string | null>(null);
+
+const AUDIT_PAGE_SIZE = 50;
+
+function dateRangeToAfter(range: DateRange): string | undefined {
+  if (range === 'custom') return auditCustomAfter || undefined;
+  const now = Date.now();
+  const ms = { '24h': 86_400_000, '7d': 604_800_000, '30d': 2_592_000_000 }[range];
+  return new Date(now - ms).toISOString();
+}
+
+const auditFilters = $derived<AuditFilters>({
+  event_type: auditEventType || undefined,
+  session_id: auditSessionId || undefined,
+  after: dateRangeToAfter(auditDateRange),
+  before: auditDateRange === 'custom' ? auditCustomBefore || undefined : undefined,
+});
+
+const auditOptsStore = writable(
+  untrack(() => auditQuery(auditFilters) as CreateQueryOptions<AuditEntry[]>)
+);
+
+$effect(() => {
+  auditOptsStore.set(auditQuery(auditFilters) as CreateQueryOptions<AuditEntry[]>);
+});
+
+const auditResult = createQuery<AuditEntry[]>(auditOptsStore);
+const auditEntries = $derived(($auditResult.data ?? []) as AuditEntry[]);
+// Paginate client-side: show first (page+1)*AUDIT_PAGE_SIZE entries
+const visibleAudit = $derived(auditEntries.slice(0, (auditPage + 1) * AUDIT_PAGE_SIZE));
+const hasMoreAudit = $derived(visibleAudit.length < auditEntries.length);
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function actionColor(action: RuleAction): string {
+  switch (action) {
+    case 'block':
+      return 'var(--signal-error)';
+    case 'require_approval':
+    case 'warn':
+      return 'var(--signal-warn)';
+    case 'log':
+      return 'var(--fg-muted)';
   }
+}
 
-  // Condition builder helpers
-  function addCondition() {
-    draft.conditions = [...draft.conditions, { type: 'runtime', value: '' }];
-  }
+function formatRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
+}
 
-  function removeCondition(index: number) {
-    draft.conditions = draft.conditions.filter((_, i) => i !== index);
-  }
+const CONDITION_TYPES: { value: RuleConditionType; label: string }[] = [
+  { value: 'runtime', label: 'Runtime' },
+  { value: 'agent_slug', label: 'Agent slug' },
+  { value: 'workspace_slug', label: 'Workspace slug' },
+  { value: 'prompt_regex', label: 'Prompt regex' },
+  { value: 'cost_over', label: 'Cost over ($)' },
+];
 
-  function updateConditionType(index: number, type: RuleConditionType) {
-    draft.conditions = draft.conditions.map((c, i) => (i === index ? { ...c, type } : c));
-  }
-
-  function updateConditionValue(index: number, value: string) {
-    draft.conditions = draft.conditions.map((c, i) => (i === index ? { ...c, value } : c));
-  }
-
-  // Mutations
-  const createRuleOptsStore = writable(
-    untrack(() => createRuleMutation() as CreateMutationOptions<Rule, Error, CreateRuleBody>),
-  );
-  const createRuleMut = createMutation<Rule, Error, CreateRuleBody>(createRuleOptsStore);
-
-  const updateRuleOptsStore = writable(
-    untrack(
-      () =>
-        updateRuleMutation() as CreateMutationOptions<
-          Rule,
-          Error,
-          { id: string; body: UpdateRuleBody }
-        >,
-    ),
-  );
-  const updateRuleMut = createMutation<Rule, Error, { id: string; body: UpdateRuleBody }>(
-    updateRuleOptsStore,
-  );
-
-  const deleteRuleOptsStore = writable(
-    untrack(() => deleteRuleMutation() as CreateMutationOptions<void, Error, string>),
-  );
-  const deleteRuleMut = createMutation<void, Error, string>(deleteRuleOptsStore);
-
-  async function saveRule() {
-    const body: CreateRuleBody = {
-      name: draft.name,
-      description: draft.description || undefined,
-      enabled: draft.enabled,
-      priority: draft.priority,
-      action: draft.action,
-      conditions: draft.conditions,
-    };
-    if (expandedRuleId === 'new') {
-      await $createRuleMut.mutateAsync(body);
-    } else if (expandedRuleId) {
-      await $updateRuleMut.mutateAsync({ id: expandedRuleId, body });
-    }
-    await queryClient.invalidateQueries({ queryKey: ['governance', 'rules'] });
-    closePanel();
-  }
-
-  async function deleteRule(id: string) {
-    await $deleteRuleMut.mutateAsync(id);
-    await queryClient.invalidateQueries({ queryKey: ['governance', 'rules'] });
-    if (expandedRuleId === id) closePanel();
-  }
-
-  async function toggleRuleEnabled(rule: Rule) {
-    await $updateRuleMut.mutateAsync({ id: rule.id, body: { enabled: !rule.enabled } });
-    await queryClient.invalidateQueries({ queryKey: ['governance', 'rules'] });
-  }
-
-  // Keyboard nav for rules list
-  const rulesKb = useListKeyboard({
-    items: () => sortedRules,
-    onSelect: (rule) => openEdit(rule),
-    onRefresh: () => queryClient.invalidateQueries({ queryKey: ['governance', 'rules'] }),
-  });
-
-  // ── APPROVALS tab ─────────────────────────────────────────────────────────────
-
-  let approvalStatusFilter = $state<ApprovalStatus>('pending');
-
-  const approvalsOptsStore = writable(
-    untrack(() => approvalsQuery(approvalStatusFilter) as CreateQueryOptions<Approval[]>),
-  );
-
-  $effect(() => {
-    approvalsOptsStore.set(approvalsQuery(approvalStatusFilter) as CreateQueryOptions<Approval[]>);
-  });
-
-  const approvalsResult = createQuery<Approval[]>(approvalsOptsStore);
-  const approvals = $derived(($approvalsResult.data ?? []) as Approval[]);
-
-  // Inline reason state — keyed by approval id
-  let pendingDecision = $state<{
-    id: string;
-    kind: 'approve' | 'reject';
-    reason: string;
-  } | null>(null);
-
-  const approveOptsStore = writable(
-    untrack(
-      () =>
-        approveApprovalMutation() as CreateMutationOptions<
-          Approval,
-          Error,
-          { id: string; body?: { reason?: string; decided_by?: string } }
-        >,
-    ),
-  );
-  const approveMut = createMutation<
-    Approval,
-    Error,
-    { id: string; body?: { reason?: string; decided_by?: string } }
-  >(approveOptsStore);
-
-  const rejectOptsStore = writable(
-    untrack(
-      () =>
-        rejectApprovalMutation() as CreateMutationOptions<
-          Approval,
-          Error,
-          { id: string; body?: { reason?: string; decided_by?: string } }
-        >,
-    ),
-  );
-  const rejectMut = createMutation<
-    Approval,
-    Error,
-    { id: string; body?: { reason?: string; decided_by?: string } }
-  >(rejectOptsStore);
-
-  async function confirmDecision() {
-    if (!pendingDecision) return;
-    const { id, kind, reason } = pendingDecision;
-    const body = reason ? { reason } : {};
-    if (kind === 'approve') {
-      await $approveMut.mutateAsync({ id, body });
-    } else {
-      await $rejectMut.mutateAsync({ id, body });
-    }
-    await queryClient.invalidateQueries({ queryKey: ['governance', 'approvals'] });
-    pendingDecision = null;
-  }
-
-  // ── AUDIT tab ────────────────────────────────────────────────────────────────
-
-  type DateRange = '24h' | '7d' | '30d' | 'custom';
-
-  let auditEventType = $state('');
-  let auditSessionId = $state('');
-  let auditDateRange = $state<DateRange>('24h');
-  let auditCustomAfter = $state('');
-  let auditCustomBefore = $state('');
-  let auditPage = $state(0); // cursor-based via before= param
-  let expandedAuditId = $state<string | null>(null);
-
-  const AUDIT_PAGE_SIZE = 50;
-
-  function dateRangeToAfter(range: DateRange): string | undefined {
-    if (range === 'custom') return auditCustomAfter || undefined;
-    const now = Date.now();
-    const ms = { '24h': 86_400_000, '7d': 604_800_000, '30d': 2_592_000_000 }[range];
-    return new Date(now - ms).toISOString();
-  }
-
-  const auditFilters = $derived<AuditFilters>({
-    event_type: auditEventType || undefined,
-    session_id: auditSessionId || undefined,
-    after: dateRangeToAfter(auditDateRange),
-    before: auditDateRange === 'custom' ? auditCustomBefore || undefined : undefined,
-  });
-
-  const auditOptsStore = writable(
-    untrack(() => auditQuery(auditFilters) as CreateQueryOptions<AuditEntry[]>),
-  );
-
-  $effect(() => {
-    auditOptsStore.set(auditQuery(auditFilters) as CreateQueryOptions<AuditEntry[]>);
-  });
-
-  const auditResult = createQuery<AuditEntry[]>(auditOptsStore);
-  const auditEntries = $derived(($auditResult.data ?? []) as AuditEntry[]);
-  // Paginate client-side: show first (page+1)*AUDIT_PAGE_SIZE entries
-  const visibleAudit = $derived(auditEntries.slice(0, (auditPage + 1) * AUDIT_PAGE_SIZE));
-  const hasMoreAudit = $derived(visibleAudit.length < auditEntries.length);
-
-  // ── Shared helpers ────────────────────────────────────────────────────────────
-
-  function actionColor(action: RuleAction): string {
-    switch (action) {
-      case 'block':
-        return 'var(--signal-error)';
-      case 'require_approval':
-      case 'warn':
-        return 'var(--signal-warn)';
-      case 'log':
-        return 'var(--fg-muted)';
-    }
-  }
-
-  function formatRelative(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    if (diff < 60_000) return 'just now';
-    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-    return `${Math.floor(diff / 86_400_000)}d ago`;
-  }
-
-  const CONDITION_TYPES: { value: RuleConditionType; label: string }[] = [
-    { value: 'runtime', label: 'Runtime' },
-    { value: 'agent_slug', label: 'Agent slug' },
-    { value: 'workspace_slug', label: 'Workspace slug' },
-    { value: 'prompt_regex', label: 'Prompt regex' },
-    { value: 'cost_over', label: 'Cost over ($)' },
-  ];
-
-  const ACTION_OPTIONS: { value: RuleAction; label: string }[] = [
-    { value: 'block', label: 'Block' },
-    { value: 'require_approval', label: 'Require approval' },
-    { value: 'warn', label: 'Warn' },
-    { value: 'log', label: 'Log only' },
-  ];
+const ACTION_OPTIONS: { value: RuleAction; label: string }[] = [
+  { value: 'block', label: 'Block' },
+  { value: 'require_approval', label: 'Require approval' },
+  { value: 'warn', label: 'Warn' },
+  { value: 'log', label: 'Log only' },
+];
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

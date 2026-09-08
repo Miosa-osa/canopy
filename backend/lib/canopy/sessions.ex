@@ -34,6 +34,7 @@ defmodule Canopy.Sessions do
   alias Canopy.Repo
 
   alias Canopy.Sessions.{
+    Persistence,
     PtyBridge,
     Redaction,
     Resume,
@@ -484,6 +485,14 @@ defmodule Canopy.Sessions do
       {:ok, session}
     end
   end
+
+  @doc "Snapshot live sessions to disk. See `Canopy.Sessions.Persistence.save_state/0`."
+  @spec save_state() :: {:ok, Persistence.save_result()} | {:error, term()}
+  def save_state, do: Persistence.save_state()
+
+  @doc "Restore sessions from the on-disk snapshot. See `Canopy.Sessions.Persistence.restore_state/1`."
+  @spec restore_state(keyword()) :: {:ok, Persistence.restore_result()}
+  def restore_state(opts \\ []), do: Persistence.restore_state(opts)
 
   @doc """
   Kills the pty subprocess and marks the session `cancelled`.

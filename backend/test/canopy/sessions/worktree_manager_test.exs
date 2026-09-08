@@ -316,7 +316,13 @@ defmodule Canopy.Sessions.WorktreeManagerTest do
 
   describe "status/2" do
     test "returns exists: false and nil path when session has no worktree" do
-      st = WorktreeManager.status("irrelevant-id", %{worktree_path: nil, branch: nil, base_branch: nil})
+      st =
+        WorktreeManager.status("irrelevant-id", %{
+          worktree_path: nil,
+          branch: nil,
+          base_branch: nil
+        })
+
       assert st.exists == false
       assert is_nil(st.path)
       assert st.changes_count == 0
@@ -378,7 +384,8 @@ defmodule Canopy.Sessions.WorktreeManagerTest do
     end
 
     test "returns {:error, :no_worktree} when path does not exist" do
-      assert {:error, :no_worktree} = WorktreeManager.diff("no-such-session-#{System.unique_integer()}")
+      assert {:error, :no_worktree} =
+               WorktreeManager.diff("no-such-session-#{System.unique_integer()}")
     end
 
     test "caps output at max_bytes" do
@@ -466,12 +473,16 @@ defmodule Canopy.Sessions.WorktreeManagerTest do
         # Write conflicting change in the worktree branch
         File.write!(Path.join(path, "conflict.txt"), "session version\n")
         {_, 0} = System.cmd("git", ["add", "conflict.txt"], cd: path)
-        {_, 0} = System.cmd("git", ["commit", "-m", "session change"], cd: path, stderr_to_stdout: true)
+
+        {_, 0} =
+          System.cmd("git", ["commit", "-m", "session change"], cd: path, stderr_to_stdout: true)
 
         # Write conflicting change in the base branch
         File.write!(Path.join(repo, "conflict.txt"), "base version\n")
         {_, 0} = System.cmd("git", ["add", "conflict.txt"], cd: repo)
-        {_, 0} = System.cmd("git", ["commit", "-m", "base change"], cd: repo, stderr_to_stdout: true)
+
+        {_, 0} =
+          System.cmd("git", ["commit", "-m", "base change"], cd: repo, stderr_to_stdout: true)
 
         # Now merge — should conflict
         result = WorktreeManager.merge_to_base(session_id)
@@ -548,7 +559,9 @@ defmodule Canopy.Sessions.WorktreeManagerTest do
 
     test "returns no_worktree when worktree missing" do
       assert {:error, :no_worktree} =
-               WorktreeManager.stage("nonexistent-#{System.unique_integer([:positive])}", ["a.txt"])
+               WorktreeManager.stage("nonexistent-#{System.unique_integer([:positive])}", [
+                 "a.txt"
+               ])
     end
   end
 
@@ -570,7 +583,9 @@ defmodule Canopy.Sessions.WorktreeManagerTest do
         target = Path.join(worktree_path, "data.txt")
         File.write!(target, "line1\nline2\n")
         {_, 0} = System.cmd("git", ["add", "data.txt"], cd: worktree_path)
-        {_, 0} = System.cmd("git", ["commit", "-m", "seed"], cd: worktree_path, stderr_to_stdout: true)
+
+        {_, 0} =
+          System.cmd("git", ["commit", "-m", "seed"], cd: worktree_path, stderr_to_stdout: true)
 
         # Modify: append "line3"
         File.write!(target, "line1\nline2\nline3\n")

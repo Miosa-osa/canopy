@@ -54,6 +54,14 @@ defmodule Canopy.Sessions.PtyBridgeBatchingTest do
   # Helpers
   # ---------------------------------------------------------------------------
 
+  # Keep the ordinary interval flush from satisfying cap assertions.
+  defp hold_flush_timer(bridge_pid) do
+    timer = Process.send_after(bridge_pid, :flush_output, 60_000)
+    on_exit(fn -> Process.cancel_timer(timer) end)
+    :sys.replace_state(bridge_pid, &%{&1 | flush_timer: timer})
+    timer
+  end
+
   # Collect all {:pty_output, _} messages that arrive within `timeout` ms,
   # returning the count of distinct messages received.
   defp count_output_messages(timeout_ms) do
@@ -156,24 +164,17 @@ defmodule Canopy.Sessions.PtyBridgeBatchingTest do
       # 200KB — well over the 128KB cap.
       big_chunk = :binary.copy("Y", 200 * 1024)
 
-      t0 = System.monotonic_time(:millisecond)
+      timer = hold_flush_timer(bridge_pid)
       send(bridge_pid, {:stdout, os_pid, big_chunk})
 
-      # Should arrive well before the 32ms timer window closes.
-      msg =
-        receive do
-          {:pty_output, data} -> data
-        after
-          # Give 31ms — if it arrives within this window it was an immediate flush.
-          31 -> nil
-        end
-
-      elapsed = System.monotonic_time(:millisecond) - t0
-
-      assert msg != nil,
-             "Expected immediate flush for 200KB chunk (arrived after #{elapsed}ms)"
-
-      assert byte_size(msg) == byte_size(big_chunk)
+      # The state call is a mailbox barrier, not a wall-clock deadline.
+      # The normal timer cannot flush for 60s, so only the cap path can pass.
+      state = :sys.get_state(bridge_pid)
+      assert state.pending_bytes == 0
+      assert state.pending_output == []
+      assert state.flush_timer == nil
+      assert Process.read_timer(timer) == false
+      assert_received {:pty_output, ^big_chunk}
     end
 
     test "two chunks that together exceed 128KB trigger an immediate flush", %{
@@ -186,18 +187,21 @@ defmodule Canopy.Sessions.PtyBridgeBatchingTest do
       # 100KB each — individually under cap, together over.
       chunk = :binary.copy("Z", 100 * 1024)
 
+      timer = hold_flush_timer(bridge_pid)
       send(bridge_pid, {:stdout, os_pid, chunk})
+      state = :sys.get_state(bridge_pid)
+      assert state.pending_bytes == byte_size(chunk)
+      assert state.flush_timer == timer
+      refute_received {:pty_output, _}
+
       send(bridge_pid, {:stdout, os_pid, chunk})
-
-      msg =
-        receive do
-          {:pty_output, data} -> data
-        after
-          31 -> nil
-        end
-
-      assert msg != nil, "Expected immediate flush when combined size exceeds 128KB"
-      assert byte_size(msg) == 2 * byte_size(chunk)
+      state = :sys.get_state(bridge_pid)
+      assert state.pending_bytes == 0
+      assert state.pending_output == []
+      assert state.flush_timer == nil
+      assert Process.read_timer(timer) == false
+      expected = chunk <> chunk
+      assert_received {:pty_output, ^expected}
     end
   end
 
@@ -219,17 +223,19 @@ defmodule Canopy.Sessions.PtyBridgeBatchingTest do
         # Put a sentinel chunk in the queue so stdin_bytes stays elevated
         # even if the drain timer runs.
         padded_queue = :queue.in(:binary.copy("X", 8 * 1024 * 1024), s.stdin_queue)
-        %{s | stdin_queue: padded_queue, stdin_bytes: 8 * 1024 * 1024}
+        # Keep this watermark assertion independent of OS pipe throughput.
+        # Drain behavior is exercised separately below.
+        %{s | stdin_queue: padded_queue, stdin_bytes: 8 * 1024 * 1024, drain_timer: make_ref()}
       end)
 
       # Now cast 1 more byte — this should cross the high-watermark and set stdin_paused.
       GenServer.cast(bridge_pid, {:input, "!"})
 
       # Allow the cast to be processed. Use sync call to ensure it's through the mailbox.
-      :sys.get_state(bridge_pid)
-
       state = :sys.get_state(bridge_pid)
-      assert state.stdin_paused == true, "stdin_paused should be true after exceeding high-watermark"
+
+      assert state.stdin_paused == true,
+             "stdin_paused should be true after exceeding high-watermark"
     end
 
     test "queuing under the high-watermark leaves stdin_paused false", %{
@@ -262,6 +268,7 @@ defmodule Canopy.Sessions.PtyBridgeBatchingTest do
       Process.sleep(20)
 
       state_after = :sys.get_state(bridge_pid)
+
       assert state_after.stdin_bytes == bytes_before,
              "Hard limit: bytes should not increase past limit"
     end

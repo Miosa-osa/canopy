@@ -1,3 +1,7 @@
+> HISTORICAL EVIDENCE: This document records an earlier plan or assessment.
+> It does not establish current product scope, runtime readiness, or write authority.
+> Resolve current ownership through the repository root `agent-authority.json`.
+
 # Cross-Competitor Module Audit -- 2026-05-01
 
 > 14 competitors audited. 28 current sidebar modules. 127 distinct competitor features cataloged.

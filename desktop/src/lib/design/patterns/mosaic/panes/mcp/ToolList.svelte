@@ -1,71 +1,68 @@
 <script lang="ts">
-  /**
-   * ToolList — grouped, collapsible list of registered tools.
-   *
-   * Pulls from `Canopy.Tools.Registry` via `/api/v1/tools` (no parallel
-   * registry). Groups tools by their dot-prefix namespace ("analytics",
-   * "sandbox", etc.) — tools without a dot land in the "core" group.
-   *
-   * Reuses foundation primitives — does not introduce new buttons or icons.
-   *
-   * CSS prefix: tl-
-   */
-  import { ChevronDown, ChevronRight, Search } from 'lucide-svelte';
-  import Input from '$lib/design/foundation/input/Input.svelte';
-  import type { RegisteredTool, ToolGroup } from '$lib/domain/mcp/types.js';
+/**
+ * ToolList — grouped, collapsible list of registered tools.
+ *
+ * Pulls from `Canopy.Tools.Registry` via `/api/v1/tools` (no parallel
+ * registry). Groups tools by their dot-prefix namespace ("analytics",
+ * "sandbox", etc.) — tools without a dot land in the "core" group.
+ *
+ * Reuses foundation primitives — does not introduce new buttons or icons.
+ *
+ * CSS prefix: tl-
+ */
+import { ChevronDown, ChevronRight, Search } from 'lucide-svelte';
+import Input from '$lib/design/foundation/input/Input.svelte';
+import type { RegisteredTool, ToolGroup } from '$lib/domain/mcp/types.js';
 
-  interface Props {
-    tools: RegisteredTool[];
-    selectedName: string | null;
-    onSelect: (name: string) => void;
+interface Props {
+  tools: RegisteredTool[];
+  selectedName: string | null;
+  onSelect: (name: string) => void;
+}
+
+let { tools, selectedName, onSelect }: Props = $props();
+
+let query = $state('');
+let collapsed = $state<Record<string, boolean>>({});
+
+/** Splits tool name on the first dot. `"analytics.foo"` → `("analytics", "foo")`. */
+function namespaceOf(name: string): string {
+  const i = name.indexOf('.');
+  return i === -1 ? 'core' : name.slice(0, i);
+}
+
+const filtered = $derived(
+  query.trim() === ''
+    ? tools
+    : tools.filter((t) => {
+        const q = query.toLowerCase();
+        return t.name.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q);
+      })
+);
+
+const groups = $derived.by<ToolGroup[]>(() => {
+  const map = new Map<string, RegisteredTool[]>();
+  for (const t of filtered) {
+    const ns = namespaceOf(t.name);
+    const arr = map.get(ns);
+    if (arr) arr.push(t);
+    else map.set(ns, [t]);
   }
+  return [...map.entries()]
+    .map(([namespace, tools]) => ({
+      namespace,
+      tools: tools.toSorted((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .toSorted((a, b) => a.namespace.localeCompare(b.namespace));
+});
 
-  let { tools, selectedName, onSelect }: Props = $props();
+function toggle(ns: string): void {
+  collapsed = { ...collapsed, [ns]: !collapsed[ns] };
+}
 
-  let query = $state('');
-  let collapsed = $state<Record<string, boolean>>({});
-
-  /** Splits tool name on the first dot. `"analytics.foo"` → `("analytics", "foo")`. */
-  function namespaceOf(name: string): string {
-    const i = name.indexOf('.');
-    return i === -1 ? 'core' : name.slice(0, i);
-  }
-
-  const filtered = $derived(
-    query.trim() === ''
-      ? tools
-      : tools.filter((t) => {
-          const q = query.toLowerCase();
-          return (
-            t.name.toLowerCase().includes(q) ||
-            (t.description ?? '').toLowerCase().includes(q)
-          );
-        }),
-  );
-
-  const groups = $derived.by<ToolGroup[]>(() => {
-    const map = new Map<string, RegisteredTool[]>();
-    for (const t of filtered) {
-      const ns = namespaceOf(t.name);
-      const arr = map.get(ns);
-      if (arr) arr.push(t);
-      else map.set(ns, [t]);
-    }
-    return [...map.entries()]
-      .map(([namespace, tools]) => ({
-        namespace,
-        tools: tools.toSorted((a, b) => a.name.localeCompare(b.name)),
-      }))
-      .toSorted((a, b) => a.namespace.localeCompare(b.namespace));
-  });
-
-  function toggle(ns: string): void {
-    collapsed = { ...collapsed, [ns]: !collapsed[ns] };
-  }
-
-  function isCollapsed(ns: string): boolean {
-    return collapsed[ns] ?? false;
-  }
+function isCollapsed(ns: string): boolean {
+  return collapsed[ns] ?? false;
+}
 </script>
 
 <div class="tl-root">

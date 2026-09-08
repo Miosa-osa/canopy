@@ -7,12 +7,12 @@
  */
 
 export type SandboxStatus =
-  | "pending"
-  | "provisioning"
-  | "ready"
-  | "destroyed"
-  | "skipped"
-  | "failed";
+  | 'pending'
+  | 'provisioning'
+  | 'ready'
+  | 'destroyed'
+  | 'skipped'
+  | 'failed';
 
 export interface Sandbox {
   /** MIOSA-assigned sandbox ID */

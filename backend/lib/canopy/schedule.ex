@@ -192,8 +192,7 @@ defmodule Canopy.Schedule do
             select: %{
               bucket: fragment("date_trunc('hour', ?)", r.scheduled_at),
               total: count(r.id),
-              succeeded:
-                fragment("count(*) filter (where ? = 'completed')", r.status),
+              succeeded: fragment("count(*) filter (where ? = 'completed')", r.status),
               failed: fragment("count(*) filter (where ? = 'failed')", r.status),
               missed: fragment("count(*) filter (where ? = 'missed')", r.status),
               late: fragment("count(*) filter (where ? = 'late')", r.status)
@@ -206,8 +205,7 @@ defmodule Canopy.Schedule do
             select: %{
               bucket: fragment("date_trunc('day', ?)", r.scheduled_at),
               total: count(r.id),
-              succeeded:
-                fragment("count(*) filter (where ? = 'completed')", r.status),
+              succeeded: fragment("count(*) filter (where ? = 'completed')", r.status),
               failed: fragment("count(*) filter (where ? = 'failed')", r.status),
               missed: fragment("count(*) filter (where ? = 'missed')", r.status),
               late: fragment("count(*) filter (where ? = 'late')", r.status)
@@ -220,8 +218,7 @@ defmodule Canopy.Schedule do
             select: %{
               bucket: fragment("date_trunc('week', ?)", r.scheduled_at),
               total: count(r.id),
-              succeeded:
-                fragment("count(*) filter (where ? = 'completed')", r.status),
+              succeeded: fragment("count(*) filter (where ? = 'completed')", r.status),
               failed: fragment("count(*) filter (where ? = 'failed')", r.status),
               missed: fragment("count(*) filter (where ? = 'missed')", r.status),
               late: fragment("count(*) filter (where ? = 'late')", r.status)
@@ -234,8 +231,7 @@ defmodule Canopy.Schedule do
             select: %{
               bucket: fragment("date_trunc('month', ?)", r.scheduled_at),
               total: count(r.id),
-              succeeded:
-                fragment("count(*) filter (where ? = 'completed')", r.status),
+              succeeded: fragment("count(*) filter (where ? = 'completed')", r.status),
               failed: fragment("count(*) filter (where ? = 'failed')", r.status),
               missed: fragment("count(*) filter (where ? = 'missed')", r.status),
               late: fragment("count(*) filter (where ? = 'late')", r.status)
@@ -248,8 +244,7 @@ defmodule Canopy.Schedule do
             select: %{
               bucket: fragment("date_trunc('day', ?)", r.scheduled_at),
               total: count(r.id),
-              succeeded:
-                fragment("count(*) filter (where ? = 'completed')", r.status),
+              succeeded: fragment("count(*) filter (where ? = 'completed')", r.status),
               failed: fragment("count(*) filter (where ? = 'failed')", r.status),
               missed: fragment("count(*) filter (where ? = 'missed')", r.status),
               late: fragment("count(*) filter (where ? = 'late')", r.status)

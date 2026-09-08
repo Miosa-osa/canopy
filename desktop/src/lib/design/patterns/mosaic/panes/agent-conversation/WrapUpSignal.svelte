@@ -1,82 +1,86 @@
 <script lang="ts">
-  /**
-   * WrapUpSignal — slide-up card when the agent reaches a natural stop.
-   *
-   * Detection: the last block in the stream is `agent_message` with status
-   * `completed`, and its outputText contains a completion keyword phrase.
-   * Auto-dismisses after 30 s if the user takes no action.
-   *
-   * Action callbacks bubble up to AgentConversationPane:
-   *   onNewTask   → clear state, focus composer
-   *   onReview    → caller opens the diff pane
-   *   onDismiss   → hide the card
-   *
-   * CSS prefix: wus-
-   */
+/**
+ * WrapUpSignal — slide-up card when the agent reaches a natural stop.
+ *
+ * Detection: the last block in the stream is `agent_message` with status
+ * `completed`, and its outputText contains a completion keyword phrase.
+ * Auto-dismisses after 30 s if the user takes no action.
+ *
+ * Action callbacks bubble up to AgentConversationPane:
+ *   onNewTask   → clear state, focus composer
+ *   onReview    → caller opens the diff pane
+ *   onDismiss   → hide the card
+ *
+ * CSS prefix: wus-
+ */
 
-  import { fade, fly } from 'svelte/transition';
-  import type { Block } from '$lib/domain/blocks/types.js';
+import { fade, fly } from 'svelte/transition';
+import type { Block } from '$lib/domain/blocks/types.js';
 
-  interface Props {
-    blocks: Block[];
-    onNewTask?: () => void;
-    onReview?: () => void;
-    onDismiss?: () => void;
+interface Props {
+  blocks: Block[];
+  onNewTask?: () => void;
+  onReview?: () => void;
+  onDismiss?: () => void;
+}
+
+let { blocks, onNewTask, onReview, onDismiss }: Props = $props();
+
+const COMPLETION_SIGNALS = [
+  "i've completed",
+  'i have completed',
+  'done.',
+  'all changes applied',
+  'ready for review',
+  'task finished',
+  'task complete',
+  'finished.',
+  'completed.',
+  'all done',
+];
+
+function detectCompletion(blks: Block[]): string | null {
+  if (!blks.length) return null;
+  const last = blks[blks.length - 1];
+  if (last.kind !== 'agent_message' || last.status !== 'completed') return null;
+  const text = (last.outputText ?? '').toLowerCase();
+  const hit = COMPLETION_SIGNALS.some((s) => text.includes(s));
+  if (!hit) return null;
+  return (last.outputText ?? '').slice(0, 100);
+}
+
+const summary = $derived(detectCompletion(blocks));
+
+let dismissed = $state(false);
+let timer: ReturnType<typeof setTimeout> | null = null;
+
+$effect(() => {
+  if (summary && !dismissed) {
+    timer = setTimeout(() => {
+      dismissed = true;
+    }, 30_000);
   }
+  return () => {
+    if (timer) clearTimeout(timer);
+  };
+});
 
-  let { blocks, onNewTask, onReview, onDismiss }: Props = $props();
+const visible = $derived(!!summary && !dismissed);
 
-  const COMPLETION_SIGNALS = [
-    "i've completed",
-    "i have completed",
-    "done.",
-    "all changes applied",
-    "ready for review",
-    "task finished",
-    "task complete",
-    "finished.",
-    "completed.",
-    "all done",
-  ];
+function handleNewTask() {
+  dismissed = true;
+  onNewTask?.();
+}
 
-  function detectCompletion(blks: Block[]): string | null {
-    if (!blks.length) return null;
-    const last = blks[blks.length - 1];
-    if (last.kind !== 'agent_message' || last.status !== 'completed') return null;
-    const text = (last.outputText ?? '').toLowerCase();
-    const hit = COMPLETION_SIGNALS.some((s) => text.includes(s));
-    if (!hit) return null;
-    return (last.outputText ?? '').slice(0, 100);
-  }
+function handleReview() {
+  dismissed = true;
+  onReview?.();
+}
 
-  const summary = $derived(detectCompletion(blocks));
-
-  let dismissed = $state(false);
-  let timer: ReturnType<typeof setTimeout> | null = null;
-
-  $effect(() => {
-    if (summary && !dismissed) {
-      timer = setTimeout(() => { dismissed = true; }, 30_000);
-    }
-    return () => { if (timer) clearTimeout(timer); };
-  });
-
-  const visible = $derived(!!summary && !dismissed);
-
-  function handleNewTask() {
-    dismissed = true;
-    onNewTask?.();
-  }
-
-  function handleReview() {
-    dismissed = true;
-    onReview?.();
-  }
-
-  function handleDismiss() {
-    dismissed = true;
-    onDismiss?.();
-  }
+function handleDismiss() {
+  dismissed = true;
+  onDismiss?.();
+}
 </script>
 
 {#if visible}

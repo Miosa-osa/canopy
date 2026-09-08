@@ -1,3 +1,7 @@
+> HISTORICAL EVIDENCE: This document records an earlier plan or assessment.
+> It does not establish current product scope, runtime readiness, or write authority.
+> Resolve current ownership through the repository root `agent-authority.json`.
+
 # Agent Conversation Pane wiring
 
 This file documents the surgical edits and module-local additions that

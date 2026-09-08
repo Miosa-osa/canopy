@@ -1,28 +1,32 @@
 <script lang="ts">
-  /**
-   * IssueDetailSidebar — PushPanel content for the issue detail page.
-   * Renders the properties panel (status, priority, metadata).
-   * CSS prefix: id- (shared with /issues/[short_id] page).
-   */
-  import { ExternalLink } from 'lucide-svelte';
-  import PushPanel from '$lib/design/patterns/PushPanel.svelte';
-  import IssuePriorityDot from '$lib/design/patterns/IssuePriorityDot.svelte';
-  import type { Issue, IssueStatus, IssuePriority } from '$lib/domain/issues/types.js';
+/**
+ * IssueDetailSidebar — PushPanel content for the issue detail page.
+ * Renders the properties panel (status, priority, metadata).
+ * CSS prefix: id- (shared with /issues/[short_id] page).
+ */
+import { ExternalLink } from 'lucide-svelte';
+import IssuePriorityDot from '$lib/design/patterns/IssuePriorityDot.svelte';
+import PushPanel from '$lib/design/patterns/PushPanel.svelte';
+import type { Issue, IssuePriority, IssueStatus } from '$lib/domain/issues/types.js';
 
-  interface Props {
-    issue: Issue;
-    open: boolean;
-    onClose: () => void;
-    onUpdateStatus: (status: IssueStatus) => void;
-    onUpdatePriority: (priority: IssuePriority) => void;
-  }
+interface Props {
+  issue: Issue;
+  open: boolean;
+  onClose: () => void;
+  onUpdateStatus: (status: IssueStatus) => void;
+  onUpdatePriority: (priority: IssuePriority) => void;
+}
 
-  let { issue, open, onClose, onUpdateStatus, onUpdatePriority }: Props = $props();
+let { issue, open, onClose, onUpdateStatus, onUpdatePriority }: Props = $props();
 
-  function formatDate(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  }
+function formatDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 </script>
 
 <PushPanel {open} title="Properties" {onClose}>

@@ -1,596 +1,646 @@
 <script lang="ts">
-  /**
-   * /schedule — Schedule super-module dashboard.
-   * Powered by the Scheduling Agent via /api/v1/schedule/*.
-   *
-   * Sections:
-   *   1. Stat tiles — active specs, runs (24h), miss/late counts, open incidents
-   *   2. Scheduled Specs table — full spec list with create form + actions
-   *   3. Run timeline — vertical timeline of recent runs with status indicators
-   *   4. Overlap detection — pairs of runs that collided
-   *   5. Heartbeat overlay — active specs with next_fire_at
-   *   6. Incident banner — open alerts surface above the page
-   *
-   * CSS prefix: sc-
-   */
-  import {
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import {
-    AlertTriangle,
-    Archive,
-    ArrowLeft,
-    Calendar,
-    CheckCircle2,
-    Clock,
-    Pencil,
-    PauseCircle,
-    PlayCircle,
-    Plus,
-    Timer,
-    Trash2,
-    XCircle,
-    Zap,
-  } from "lucide-svelte";
-  import {
-    acknowledgeAlert,
-    alertsQuery,
-    archiveSpec,
-    createSpec,
-    overlapsQuery,
-    pauseSpec,
-    runAggregateQuery,
-    runsQuery,
-    specsQuery,
-    unpauseSpec,
-  } from "$lib/api/queries/schedule.js";
-  import { hiredAgentsQuery } from "$lib/api/queries/agents.js";
-  import { listWorkspaces } from "$lib/api/queries/workspaces.js";
-  import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
-  import type {
-    Alert,
-    Overlap,
-    OverlapPolicy,
-    Run,
-    RunBuckets,
-    Spec,
-    SpecCreate,
-  } from "$lib/domain/schedule/types.js";
-  import type { Agent } from "$lib/domain/agents/types.js";
-  import type { Workspace } from "$lib/domain/workspaces/types.js";
-  import { PROVIDERS } from "$lib/domain/runtimes/providers.js";
-  import { runtimesQuery } from "$lib/api/queries/runtimes.js";
-  import type { Runtime } from "$lib/domain/runtimes/types.js";
+/**
+ * /schedule — Schedule super-module dashboard.
+ * Powered by the Scheduling Agent via /api/v1/schedule/*.
+ *
+ * Sections:
+ *   1. Stat tiles — active specs, runs (24h), miss/late counts, open incidents
+ *   2. Scheduled Specs table — full spec list with create form + actions
+ *   3. Run timeline — vertical timeline of recent runs with status indicators
+ *   4. Overlap detection — pairs of runs that collided
+ *   5. Heartbeat overlay — active specs with next_fire_at
+ *   6. Incident banner — open alerts surface above the page
+ *
+ * CSS prefix: sc-
+ */
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import {
+  AlertTriangle,
+  Archive,
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  PauseCircle,
+  Pencil,
+  PlayCircle,
+  Plus,
+  Timer,
+  Trash2,
+  XCircle,
+  Zap,
+} from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { hiredAgentsQuery } from '$lib/api/queries/agents.js';
+import { runtimesQuery } from '$lib/api/queries/runtimes.js';
+import {
+  acknowledgeAlert,
+  alertsQuery,
+  archiveSpec,
+  createSpec,
+  overlapsQuery,
+  pauseSpec,
+  runAggregateQuery,
+  runsQuery,
+  specsQuery,
+  unpauseSpec,
+} from '$lib/api/queries/schedule.js';
+import { listWorkspaces } from '$lib/api/queries/workspaces.js';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Agent } from '$lib/domain/agents/types.js';
+import { PROVIDERS } from '$lib/domain/runtimes/providers.js';
+import type { Runtime } from '$lib/domain/runtimes/types.js';
+import type {
+  Alert,
+  Overlap,
+  OverlapPolicy,
+  Run,
+  RunBuckets,
+  Spec,
+  SpecCreate,
+} from '$lib/domain/schedule/types.js';
+import type { Workspace } from '$lib/domain/workspaces/types.js';
 
-  const qc = useQueryClient();
+const qc = useQueryClient();
 
-  // ── View state ─────────────────────────────────────────────────────────────
+// ── View state ─────────────────────────────────────────────────────────────
 
-  type MainTab = "list" | "calendar" | "timeline";
-  let activeTab = $state<MainTab>("list");
-  let showCreateModal = $state(false);
-  let selectedSpecSlug = $state<string | null>(null);
+type MainTab = 'list' | 'calendar' | 'timeline';
+let activeTab = $state<MainTab>('list');
+let showCreateModal = $state(false);
+let selectedSpecSlug = $state<string | null>(null);
 
-  // Sort for spec table
-  type SortKey = "nextFireAt" | "name" | "status";
-  let sortKey = $state<SortKey>("nextFireAt");
-  let sortAsc = $state(true);
+// Sort for spec table
+type SortKey = 'nextFireAt' | 'name' | 'status';
+let sortKey = $state<SortKey>('nextFireAt');
+let sortAsc = $state(true);
 
-  // ── Create modal form state ────────────────────────────────────────────────
+// ── Create modal form state ────────────────────────────────────────────────
 
-  type Frequency = "manual" | "hourly" | "daily" | "weekdays" | "weekly" | "monthly" | "custom";
+type Frequency = 'manual' | 'hourly' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom';
 
-  let formName = $state("");
-  let formDescription = $state("");
-  let formPrompt = $state("");
-  let formAgentSlug = $state("");
-  let formWorkspaceSlug = $state("");
-  let formPermissionMode = $state<"ask" | "auto">("ask");
-  let formModel = $state("sonnet-4");
-  let formFrequency = $state<Frequency>("daily");
-  let formCustomCron = $state("0 9 * * *");
-  let formError = $state<string | null>(null);
-  let formSubmitting = $state(false);
+let formName = $state('');
+let formDescription = $state('');
+let formPrompt = $state('');
+let formAgentSlug = $state('');
+let formWorkspaceSlug = $state('');
+let formPermissionMode = $state<'ask' | 'auto'>('ask');
+let formModel = $state('sonnet-4');
+let formFrequency = $state<Frequency>('daily');
+let formCustomCron = $state('0 9 * * *');
+let formError = $state<string | null>(null);
+let formSubmitting = $state(false);
 
+const FREQUENCY_CRONS: Record<Frequency, string[]> = {
+  manual: [],
+  hourly: ['0 * * * *'],
+  daily: ['0 9 * * *'],
+  weekdays: ['0 9 * * 1-5'],
+  weekly: ['0 9 * * 1'],
+  monthly: ['0 9 1 * *'],
+  custom: [],
+};
 
-  const FREQUENCY_CRONS: Record<Frequency, string[]> = {
-    manual: [],
-    hourly: ["0 * * * *"],
-    daily: ["0 9 * * *"],
-    weekdays: ["0 9 * * 1-5"],
-    weekly: ["0 9 * * 1"],
-    monthly: ["0 9 1 * *"],
-    custom: [],
+const FREQUENCY_LABELS: Record<Frequency, string> = {
+  manual: 'Manual (one-shot)',
+  hourly: 'Hourly',
+  daily: 'Daily',
+  weekdays: 'Weekdays',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  custom: 'Custom cron',
+};
+
+// All models across providers for the model picker
+const ALL_MODELS = $derived(
+  PROVIDERS.flatMap((p) => p.models.map((m) => ({ ...m, providerName: p.name })))
+);
+
+// Workspaces query for the workspace picker
+const workspacesStore = writable(
+  untrack(
+    () =>
+      ({
+        queryKey: ['workspaces'],
+        queryFn: () => listWorkspaces(),
+      }) as CreateQueryOptions<Workspace[]>
+  )
+);
+const workspacesQ = createQuery<Workspace[]>(workspacesStore);
+const workspaces = $derived($workspacesQ.data ?? []);
+
+const OVERLAP_OPTIONS: Array<{ value: OverlapPolicy; label: string; desc: string }> = [
+  { value: 'skip', label: 'Skip', desc: 'Drop the incoming run if one is already running' },
+  { value: 'buffer_one', label: 'Buffer one', desc: 'Queue up to one run behind the active one' },
+  {
+    value: 'cancel_other',
+    label: 'Cancel other',
+    desc: 'Cancel the running run and start the new one',
+  },
+  {
+    value: 'terminate_other',
+    label: 'Terminate other',
+    desc: 'Force-kill the running run and start fresh',
+  },
+];
+
+// ── Queries ────────────────────────────────────────────────────────────────
+
+const specsStore = writable(untrack(() => specsQuery({}) as CreateQueryOptions<Spec[]>));
+const specsQ = createQuery<Spec[]>(specsStore);
+
+const hiredAgentsStore = writable(untrack(() => hiredAgentsQuery() as CreateQueryOptions<Agent[]>));
+const hiredAgentsQ = createQuery<Agent[]>(hiredAgentsStore);
+
+const runsStore = writable(
+  untrack(
+    () =>
+      runsQuery({
+        since: twentyFourHoursAgo(),
+        limit: 200,
+      }) as CreateQueryOptions<Run[]>
+  )
+);
+const runsQ = createQuery<Run[]>(runsStore);
+
+const aggregateStore = writable(
+  untrack(
+    () =>
+      runAggregateQuery({
+        granularity: 'hour',
+        from: twentyFourHoursAgo(),
+      }) as CreateQueryOptions<RunBuckets>
+  )
+);
+const aggregateQ = createQuery<RunBuckets>(aggregateStore);
+
+const overlapsStore = writable(
+  untrack(
+    () =>
+      overlapsQuery({
+        since: twentyFourHoursAgo(),
+        toleranceSeconds: 60,
+      }) as CreateQueryOptions<Overlap[]>
+  )
+);
+const overlapsQ = createQuery<Overlap[]>(overlapsStore);
+
+const alertsStore = writable(
+  untrack(() => alertsQuery({ status: 'open' }) as CreateQueryOptions<Alert[]>)
+);
+const alertsQ = createQuery<Alert[]>(alertsStore);
+
+// ── Mutations ──────────────────────────────────────────────────────────────
+
+const ackMut = createMutation({
+  mutationFn: ({ slug }: { slug: string }) => acknowledgeAlert(slug, 'user'),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['schedule', 'alerts'] });
+  },
+});
+
+const pauseMut = createMutation({
+  mutationFn: ({ slug }: { slug: string }) => pauseSpec(slug, 'manual'),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['schedule', 'specs'] });
+  },
+});
+
+const unpauseMut = createMutation({
+  mutationFn: ({ slug }: { slug: string }) => unpauseSpec(slug),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['schedule', 'specs'] });
+  },
+});
+
+const archiveMut = createMutation({
+  mutationFn: ({ slug }: { slug: string }) => archiveSpec(slug),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['schedule', 'specs'] });
+  },
+});
+
+function handleAck(slug: string) {
+  $ackMut.mutate({ slug });
+}
+
+function handlePauseToggle(spec: Spec) {
+  if (spec.status === 'paused') {
+    $unpauseMut.mutate({ slug: spec.slug });
+  } else {
+    $pauseMut.mutate({ slug: spec.slug });
+  }
+}
+
+function handleArchive(spec: Spec) {
+  if (!confirm(`Archive "${spec.name}"? This cannot be undone.`)) return;
+  $archiveMut.mutate({ slug: spec.slug });
+}
+
+function frequencyHumanLabel(spec: Spec): string {
+  const crons = spec.model?.crons ?? [];
+  if (!crons.length) return 'Manual only';
+  const c = crons[0];
+  if (c === '0 * * * *') return 'Every hour';
+  if (c === '0 9 * * *') return 'Every day at 9am';
+  if (c === '0 9 * * 1-5') return 'Every weekday at 9am';
+  if (c === '0 9 * * 1') return 'Every Monday at 9am';
+  if (c === '0 9 1 * *') return '1st of month at 9am';
+  return crons.join(', ');
+}
+
+async function handleCreateSubmit() {
+  formError = null;
+  if (!formName.trim()) {
+    formError = 'Name is required';
+    return;
+  }
+  if (!formPrompt.trim()) {
+    formError = 'Prompt is required';
+    return;
+  }
+
+  const slug = slugifyName(formName);
+  let crons: string[] = FREQUENCY_CRONS[formFrequency];
+  if (formFrequency === 'custom') {
+    if (!formCustomCron.trim()) {
+      formError = 'Custom cron expression is required';
+      return;
+    }
+    crons = [formCustomCron.trim()];
+  }
+
+  const payload: SpecCreate = {
+    slug,
+    name: formName.trim(),
+    description: formDescription.trim() || undefined,
+    model: { crons },
+    overlapPolicy: 'skip',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    graceSeconds: 30,
+    jitterSeconds: 0,
+    agentSlug: formAgentSlug || 'conductor',
+    ...(formWorkspaceSlug ? { workspaceSlug: formWorkspaceSlug } : {}),
   };
 
-  const FREQUENCY_LABELS: Record<Frequency, string> = {
-    manual: "Manual (one-shot)",
-    hourly: "Hourly",
-    daily: "Daily",
-    weekdays: "Weekdays",
-    weekly: "Weekly",
-    monthly: "Monthly",
-    custom: "Custom cron",
-  };
-
-  // All models across providers for the model picker
-  const ALL_MODELS = $derived(
-    PROVIDERS.flatMap((p) => p.models.map((m) => ({ ...m, providerName: p.name }))),
-  );
-
-  // Workspaces query for the workspace picker
-  const workspacesStore = writable(
-    untrack(() => ({
-      queryKey: ["workspaces"],
-      queryFn: () => listWorkspaces(),
-    } as CreateQueryOptions<Workspace[]>)),
-  );
-  const workspacesQ = createQuery<Workspace[]>(workspacesStore);
-  const workspaces = $derived($workspacesQ.data ?? []);
-
-  const OVERLAP_OPTIONS: Array<{ value: OverlapPolicy; label: string; desc: string }> = [
-    { value: "skip", label: "Skip", desc: "Drop the incoming run if one is already running" },
-    { value: "buffer_one", label: "Buffer one", desc: "Queue up to one run behind the active one" },
-    { value: "cancel_other", label: "Cancel other", desc: "Cancel the running run and start the new one" },
-    { value: "terminate_other", label: "Terminate other", desc: "Force-kill the running run and start fresh" },
-  ];
-
-  // ── Queries ────────────────────────────────────────────────────────────────
-
-  const specsStore = writable(
-    untrack(() => specsQuery({}) as CreateQueryOptions<Spec[]>),
-  );
-  const specsQ = createQuery<Spec[]>(specsStore);
-
-  const hiredAgentsStore = writable(
-    untrack(() => hiredAgentsQuery() as CreateQueryOptions<Agent[]>),
-  );
-  const hiredAgentsQ = createQuery<Agent[]>(hiredAgentsStore);
-
-  const runsStore = writable(
-    untrack(
-      () =>
-        runsQuery({
-          since: twentyFourHoursAgo(),
-          limit: 200,
-        }) as CreateQueryOptions<Run[]>,
-    ),
-  );
-  const runsQ = createQuery<Run[]>(runsStore);
-
-  const aggregateStore = writable(
-    untrack(
-      () =>
-        runAggregateQuery({
-          granularity: "hour",
-          from: twentyFourHoursAgo(),
-        }) as CreateQueryOptions<RunBuckets>,
-    ),
-  );
-  const aggregateQ = createQuery<RunBuckets>(aggregateStore);
-
-  const overlapsStore = writable(
-    untrack(
-      () =>
-        overlapsQuery({
-          since: twentyFourHoursAgo(),
-          toleranceSeconds: 60,
-        }) as CreateQueryOptions<Overlap[]>,
-    ),
-  );
-  const overlapsQ = createQuery<Overlap[]>(overlapsStore);
-
-  const alertsStore = writable(
-    untrack(() => alertsQuery({ status: "open" }) as CreateQueryOptions<Alert[]>),
-  );
-  const alertsQ = createQuery<Alert[]>(alertsStore);
-
-  // ── Mutations ──────────────────────────────────────────────────────────────
-
-  const ackMut = createMutation({
-    mutationFn: ({ slug }: { slug: string }) => acknowledgeAlert(slug, "user"),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule", "alerts"] });
-    },
-  });
-
-  const pauseMut = createMutation({
-    mutationFn: ({ slug }: { slug: string }) => pauseSpec(slug, "manual"),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule", "specs"] });
-    },
-  });
-
-  const unpauseMut = createMutation({
-    mutationFn: ({ slug }: { slug: string }) => unpauseSpec(slug),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule", "specs"] });
-    },
-  });
-
-  const archiveMut = createMutation({
-    mutationFn: ({ slug }: { slug: string }) => archiveSpec(slug),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule", "specs"] });
-    },
-  });
-
-  function handleAck(slug: string) {
-    $ackMut.mutate({ slug });
-  }
-
-  function handlePauseToggle(spec: Spec) {
-    if (spec.status === "paused") {
-      $unpauseMut.mutate({ slug: spec.slug });
-    } else {
-      $pauseMut.mutate({ slug: spec.slug });
-    }
-  }
-
-  function handleArchive(spec: Spec) {
-    if (!confirm(`Archive "${spec.name}"? This cannot be undone.`)) return;
-    $archiveMut.mutate({ slug: spec.slug });
-  }
-
-  function frequencyHumanLabel(spec: Spec): string {
-    const crons = spec.model?.crons ?? [];
-    if (!crons.length) return "Manual only";
-    const c = crons[0];
-    if (c === "0 * * * *") return "Every hour";
-    if (c === "0 9 * * *") return "Every day at 9am";
-    if (c === "0 9 * * 1-5") return "Every weekday at 9am";
-    if (c === "0 9 * * 1") return "Every Monday at 9am";
-    if (c === "0 9 1 * *") return "1st of month at 9am";
-    return crons.join(", ");
-  }
-
-  async function handleCreateSubmit() {
-    formError = null;
-    if (!formName.trim()) { formError = "Name is required"; return; }
-    if (!formPrompt.trim()) { formError = "Prompt is required"; return; }
-
-    const slug = slugifyName(formName);
-    let crons: string[] = FREQUENCY_CRONS[formFrequency];
-    if (formFrequency === "custom") {
-      if (!formCustomCron.trim()) { formError = "Custom cron expression is required"; return; }
-      crons = [formCustomCron.trim()];
-    }
-
-    const payload: SpecCreate = {
-      slug,
-      name: formName.trim(),
-      description: formDescription.trim() || undefined,
-      model: { crons },
-      overlapPolicy: "skip",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      graceSeconds: 30,
-      jitterSeconds: 0,
-      agentSlug: formAgentSlug || "conductor",
-      ...(formWorkspaceSlug ? { workspaceSlug: formWorkspaceSlug } : {}),
-    };
-
-    formSubmitting = true;
-    try {
-      const created = await createSpec(payload);
-      qc.invalidateQueries({ queryKey: ["schedule", "specs"] });
-      showCreateModal = false;
-      resetForm();
-      // Navigate to detail view for the newly created spec
-      selectedSpecSlug = created.slug;
-    } catch (e: unknown) {
-      formError = e instanceof Error ? e.message : "Failed to create spec";
-    } finally {
-      formSubmitting = false;
-    }
-  }
-
-  function resetForm() {
-    formName = "";
-    formDescription = "";
-    formPrompt = "";
-    formAgentSlug = "";
-    formWorkspaceSlug = "";
-    formPermissionMode = "ask";
-    formModel = "sonnet-4";
-    formFrequency = "daily";
-    formCustomCron = "0 9 * * *";
-    formError = null;
-  }
-
-  function closeModal() {
+  formSubmitting = true;
+  try {
+    const created = await createSpec(payload);
+    qc.invalidateQueries({ queryKey: ['schedule', 'specs'] });
     showCreateModal = false;
     resetForm();
+    // Navigate to detail view for the newly created spec
+    selectedSpecSlug = created.slug;
+  } catch (e: unknown) {
+    formError = e instanceof Error ? e.message : 'Failed to create spec';
+  } finally {
+    formSubmitting = false;
   }
+}
 
-  function handleModalKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") closeModal();
-  }
+function resetForm() {
+  formName = '';
+  formDescription = '';
+  formPrompt = '';
+  formAgentSlug = '';
+  formWorkspaceSlug = '';
+  formPermissionMode = 'ask';
+  formModel = 'sonnet-4';
+  formFrequency = 'daily';
+  formCustomCron = '0 9 * * *';
+  formError = null;
+}
 
-  function slugifyName(name: string): string {
-    return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  }
+function closeModal() {
+  showCreateModal = false;
+  resetForm();
+}
 
-  function cronDescription(expr: string): string {
-    const parts = expr.trim().split(/\s+/);
-    if (parts.length !== 5) return "";
-    const [min, hr, , , dow] = parts;
-    if (expr === "* * * * *") return "Every minute";
-    if (min === "0" && hr === "*" && dow === "*") return "Every hour";
-    if (min === "0" && hr === "0" && dow === "*") return "Every day at midnight";
-    if (min === "0" && hr !== "*" && dow === "1-5") return `Weekdays at ${hr}:00`;
-    if (min === "0" && hr !== "*" && dow === "1") return `Mondays at ${hr}:00`;
-    return "";
-  }
+function handleModalKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeModal();
+}
 
-  // ── Derived ────────────────────────────────────────────────────────────────
+function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
 
-  const specs = $derived($specsQ.data ?? []);
-  const hiredAgents = $derived($hiredAgentsQ.data ?? []);
+function cronDescription(expr: string): string {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return '';
+  const [min, hr, , , dow] = parts;
+  if (expr === '* * * * *') return 'Every minute';
+  if (min === '0' && hr === '*' && dow === '*') return 'Every hour';
+  if (min === '0' && hr === '0' && dow === '*') return 'Every day at midnight';
+  if (min === '0' && hr !== '*' && dow === '1-5') return `Weekdays at ${hr}:00`;
+  if (min === '0' && hr !== '*' && dow === '1') return `Mondays at ${hr}:00`;
+  return '';
+}
 
-  const runtimesStore = writable(
-    untrack(() => runtimesQuery() as CreateQueryOptions<Runtime[]>),
-  );
-  const runtimesQ = createQuery<Runtime[]>(runtimesStore);
-  const installedRuntimes = $derived(
-    ($runtimesQ.data ?? []).filter((r: Runtime & { installed?: boolean }) =>
-      r.installed === true || r.status === 'installed'
-    ),
-  );
-  const runs = $derived($runsQ.data ?? []);
-  const overlaps = $derived($overlapsQ.data ?? []);
-  const alerts = $derived($alertsQ.data ?? []);
-  const aggregate = $derived($aggregateQ.data?.rows ?? []);
+// ── Derived ────────────────────────────────────────────────────────────────
 
-  const activeSpecs = $derived(specs.filter((s) => s.status === "active"));
-  const totalSpecs = $derived(activeSpecs.length);
-  const totalRuns24h = $derived(runs.length);
-  const missCount = $derived(runs.filter((r) => r.status === "missed").length);
-  const lateCount = $derived(runs.filter((r) => r.status === "late").length);
-  const failedCount = $derived(runs.filter((r) => r.status === "failed").length);
-  const succeededCount = $derived(
-    runs.filter((r) => r.status === "completed").length,
-  );
-  const openIncidents = $derived(alerts.length);
+const specs = $derived($specsQ.data ?? []);
+const hiredAgents = $derived($hiredAgentsQ.data ?? []);
 
-  // Sorted spec list (all statuses)
-  const sortedSpecs = $derived(
-    [...specs].sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === "name") cmp = a.name.localeCompare(b.name);
-      else if (sortKey === "status") cmp = a.status.localeCompare(b.status);
-      else {
-        const at = a.nextFireAt ? new Date(a.nextFireAt).getTime() : Infinity;
-        const bt = b.nextFireAt ? new Date(b.nextFireAt).getTime() : Infinity;
-        cmp = at - bt;
-      }
-      return sortAsc ? cmp : -cmp;
-    }),
-  );
+const runtimesStore = writable(untrack(() => runtimesQuery() as CreateQueryOptions<Runtime[]>));
+const runtimesQ = createQuery<Runtime[]>(runtimesStore);
+const installedRuntimes = $derived(
+  ($runtimesQ.data ?? []).filter(
+    (r: Runtime & { installed?: boolean }) => r.installed === true || r.status === 'installed'
+  )
+);
+const runs = $derived($runsQ.data ?? []);
+const overlaps = $derived($overlapsQ.data ?? []);
+const alerts = $derived($alertsQ.data ?? []);
+const aggregate = $derived($aggregateQ.data?.rows ?? []);
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) sortAsc = !sortAsc;
-    else { sortKey = key; sortAsc = true; }
-  }
+const activeSpecs = $derived(specs.filter((s) => s.status === 'active'));
+const totalSpecs = $derived(activeSpecs.length);
+const totalRuns24h = $derived(runs.length);
+const missCount = $derived(runs.filter((r) => r.status === 'missed').length);
+const lateCount = $derived(runs.filter((r) => r.status === 'late').length);
+const failedCount = $derived(runs.filter((r) => r.status === 'failed').length);
+const succeededCount = $derived(runs.filter((r) => r.status === 'completed').length);
+const openIncidents = $derived(alerts.length);
 
-  // Calendar month view
-  let calendarYear = $state(new Date().getFullYear());
-  let calendarMonth = $state(new Date().getMonth()); // 0-indexed
-
-  const calendarDays = $derived(buildCalendarDays(calendarYear, calendarMonth));
-  const calendarSpecDots = $derived(buildCalendarDots(specs, calendarYear, calendarMonth));
-
-  function buildCalendarDays(y: number, m: number): Array<{ date: Date | null; key: string }> {
-    const first = new Date(y, m, 1);
-    const last = new Date(y, m + 1, 0);
-    const startDow = first.getDay(); // 0=Sun
-    const days: Array<{ date: Date | null; key: string }> = [];
-    for (let i = 0; i < startDow; i++) days.push({ date: null, key: `pad-${i}` });
-    for (let d = 1; d <= last.getDate(); d++) {
-      days.push({ date: new Date(y, m, d), key: `${y}-${m}-${d}` });
+// Sorted spec list (all statuses)
+const sortedSpecs = $derived(
+  [...specs].sort((a, b) => {
+    let cmp = 0;
+    if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
+    else if (sortKey === 'status') cmp = a.status.localeCompare(b.status);
+    else {
+      const at = a.nextFireAt ? new Date(a.nextFireAt).getTime() : Infinity;
+      const bt = b.nextFireAt ? new Date(b.nextFireAt).getTime() : Infinity;
+      cmp = at - bt;
     }
-    return days;
+    return sortAsc ? cmp : -cmp;
+  })
+);
+
+function toggleSort(key: SortKey) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else {
+    sortKey = key;
+    sortAsc = true;
   }
+}
 
-  function buildCalendarDots(
-    specList: Spec[],
-    y: number,
-    m: number,
-  ): Map<string, string[]> {
-    const map = new Map<string, string[]>();
-    for (const spec of specList) {
-      if (spec.status === "archived") continue;
-      if (!spec.nextFireAt) continue;
-      const d = new Date(spec.nextFireAt);
-      if (d.getFullYear() === y && d.getMonth() === m) {
-        const key = `${y}-${m}-${d.getDate()}`;
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(spec.slug);
-      }
-    }
-    return map;
+// Calendar month view
+let calendarYear = $state(new Date().getFullYear());
+let calendarMonth = $state(new Date().getMonth()); // 0-indexed
+
+const calendarDays = $derived(buildCalendarDays(calendarYear, calendarMonth));
+const calendarSpecDots = $derived(buildCalendarDots(specs, calendarYear, calendarMonth));
+
+function buildCalendarDays(y: number, m: number): Array<{ date: Date | null; key: string }> {
+  const first = new Date(y, m, 1);
+  const last = new Date(y, m + 1, 0);
+  const startDow = first.getDay(); // 0=Sun
+  const days: Array<{ date: Date | null; key: string }> = [];
+  for (let i = 0; i < startDow; i++) days.push({ date: null, key: `pad-${i}` });
+  for (let d = 1; d <= last.getDate(); d++) {
+    days.push({ date: new Date(y, m, d), key: `${y}-${m}-${d}` });
   }
+  return days;
+}
 
-  function fmtCalendarMonth(y: number, m: number): string {
-    return new Date(y, m, 1).toLocaleString(undefined, { month: "long", year: "numeric" });
-  }
-
-  function prevMonth() {
-    if (calendarMonth === 0) { calendarMonth = 11; calendarYear -= 1; }
-    else calendarMonth -= 1;
-  }
-
-  function nextMonth() {
-    if (calendarMonth === 11) { calendarMonth = 0; calendarYear += 1; }
-    else calendarMonth += 1;
-  }
-
-  // Run timeline: group by spec_slug and show recent
-  const groupedRuns = $derived(groupRuns(runs));
-
-  function groupRuns(rows: Run[]): Array<{ slug: string; runs: Run[] }> {
-    const map = new Map<string, Run[]>();
-    for (const r of rows) {
-      const key = r.specSlug ?? "(unknown)";
+function buildCalendarDots(specList: Spec[], y: number, m: number): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const spec of specList) {
+    if (spec.status === 'archived') continue;
+    if (!spec.nextFireAt) continue;
+    const d = new Date(spec.nextFireAt);
+    if (d.getFullYear() === y && d.getMonth() === m) {
+      const key = `${y}-${m}-${d.getDate()}`;
       if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(r);
+      map.get(key)!.push(spec.slug);
     }
-    return Array.from(map.entries()).map(([slug, rs]) => ({ slug, runs: rs }));
   }
+  return map;
+}
 
-  const HEAT_W = 720;
-  const HEAT_H = 60;
+function fmtCalendarMonth(y: number, m: number): string {
+  return new Date(y, m, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' });
+}
 
-  const heatBars = $derived(
-    aggregate.map((b, i) => {
-      const max = Math.max(...aggregate.map((x) => x.total), 1);
-      const bw = HEAT_W / Math.max(aggregate.length, 1) - 2;
-      const bh = Math.round((b.total / max) * (HEAT_H - 4));
-      return {
-        x: i * (HEAT_W / Math.max(aggregate.length, 1)) + 1,
-        y: HEAT_H - bh,
-        w: bw,
-        h: bh,
-        bucket: b.bucket,
-        total: b.total,
-        succeeded: b.succeeded,
-        failed: b.failed,
-        missed: b.missed,
-        late: b.late,
-        bad: b.failed + b.missed + b.late > 0,
-      };
-    }),
-  );
+function prevMonth() {
+  if (calendarMonth === 0) {
+    calendarMonth = 11;
+    calendarYear -= 1;
+  } else calendarMonth -= 1;
+}
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+function nextMonth() {
+  if (calendarMonth === 11) {
+    calendarMonth = 0;
+    calendarYear += 1;
+  } else calendarMonth += 1;
+}
 
-  function fmtRelative(iso: string | null): string {
-    if (!iso) return "—";
-    const ms = Date.now() - new Date(iso).getTime();
-    const s = Math.floor(ms / 1000);
-    if (s < 60) return `${s}s ago`;
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return `${Math.floor(s / 86400)}d ago`;
+// Run timeline: group by spec_slug and show recent
+const groupedRuns = $derived(groupRuns(runs));
+
+function groupRuns(rows: Run[]): Array<{ slug: string; runs: Run[] }> {
+  const map = new Map<string, Run[]>();
+  for (const r of rows) {
+    const key = r.specSlug ?? '(unknown)';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(r);
   }
+  return Array.from(map.entries()).map(([slug, rs]) => ({ slug, runs: rs }));
+}
 
-  function fmtNextFire(iso: string | null): string {
-    if (!iso) return "—";
-    const ms = new Date(iso).getTime() - Date.now();
-    if (ms < 0) return "due now";
-    const s = Math.floor(ms / 1000);
-    if (s < 60) return `in ${s}s`;
-    if (s < 3600) return `in ${Math.floor(s / 60)}m`;
-    if (s < 86400) return `in ${Math.floor(s / 3600)}h`;
-    return `in ${Math.floor(s / 86400)}d`;
-  }
+const HEAT_W = 720;
+const HEAT_H = 60;
 
-  function fmtBucket(iso: string): string {
-    return new Date(iso).toLocaleString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
+const heatBars = $derived(
+  aggregate.map((b, i) => {
+    const max = Math.max(...aggregate.map((x) => x.total), 1);
+    const bw = HEAT_W / Math.max(aggregate.length, 1) - 2;
+    const bh = Math.round((b.total / max) * (HEAT_H - 4));
+    return {
+      x: i * (HEAT_W / Math.max(aggregate.length, 1)) + 1,
+      y: HEAT_H - bh,
+      w: bw,
+      h: bh,
+      bucket: b.bucket,
+      total: b.total,
+      succeeded: b.succeeded,
+      failed: b.failed,
+      missed: b.missed,
+      late: b.late,
+      bad: b.failed + b.missed + b.late > 0,
+    };
+  })
+);
 
-  function twentyFourHoursAgo(): string {
-    const d = new Date();
-    d.setHours(d.getHours() - 24);
-    return d.toISOString();
-  }
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-  function statusClass(status: string): string {
-    return `sc-st-${status.replace(/_/g, "-")}`;
-  }
+function fmtRelative(iso: string | null): string {
+  if (!iso) return '—';
+  const ms = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
 
-  function severityClass(severity: string): string {
-    return `sc-sev-${severity}`;
-  }
+function fmtNextFire(iso: string | null): string {
+  if (!iso) return '—';
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms < 0) return 'due now';
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `in ${s}s`;
+  if (s < 3600) return `in ${Math.floor(s / 60)}m`;
+  if (s < 86400) return `in ${Math.floor(s / 3600)}h`;
+  return `in ${Math.floor(s / 86400)}d`;
+}
 
-  const isLoading = $derived(
-    $specsQ.isLoading || $runsQ.isLoading || $alertsQ.isLoading,
-  );
+function fmtBucket(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
-  // ── Example seed data (shown when no real data) ────────────────────────────
+function twentyFourHoursAgo(): string {
+  const d = new Date();
+  d.setHours(d.getHours() - 24);
+  return d.toISOString();
+}
 
-  const EXAMPLE_SPECS: Spec[] = [
-    {
-      id: "ex-1",
-      slug: "daily-briefing",
-      name: "Daily Briefing",
-      description: "Summarize calendar, inbox, and project status",
-      status: "active",
-      agentSlug: "conductor",
-      overlapPolicy: "skip",
-      timezone: "UTC",
-      graceSeconds: 30,
-      jitterSeconds: 0,
-      model: { crons: ["0 9 * * 1-5"] },
-      nextFireAt: new Date(Date.now() + 3600000).toISOString(),
-      lastRunAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: "ex-2",
-      slug: "code-review-sweep",
-      name: "Code Review Sweep",
-      description: "Review all open PRs and flag issues",
-      status: "active",
-      agentSlug: "iris",
-      overlapPolicy: "skip",
-      timezone: "UTC",
-      graceSeconds: 30,
-      jitterSeconds: 0,
-      model: { crons: ["0 14 * * 1-5"] },
-      nextFireAt: new Date(Date.now() + 7200000).toISOString(),
-      lastRunAt: new Date(Date.now() - 172800000).toISOString(),
-    },
-    {
-      id: "ex-3",
-      slug: "weekly-cleanup",
-      name: "Weekly Cleanup",
-      description: "Archive stale branches and close old issues",
-      status: "active",
-      agentSlug: "forge",
-      overlapPolicy: "skip",
-      timezone: "UTC",
-      graceSeconds: 30,
-      jitterSeconds: 0,
-      model: { crons: ["0 17 * * 5"] },
-      nextFireAt: new Date(Date.now() + 259200000).toISOString(),
-      lastRunAt: new Date(Date.now() - 604800000).toISOString(),
-    },
-    {
-      id: "ex-4",
-      slug: "dependency-audit",
-      name: "Dependency Audit",
-      description: "Check for outdated packages and vulnerabilities",
-      status: "paused",
-      agentSlug: "conductor",
-      overlapPolicy: "skip",
-      timezone: "UTC",
-      graceSeconds: 30,
-      jitterSeconds: 0,
-      model: { crons: ["0 6 1 * *"] },
-      nextFireAt: null,
-      lastRunAt: new Date(Date.now() - 2592000000).toISOString(),
-    },
-  ] as unknown as Spec[];
+function statusClass(status: string): string {
+  return `sc-st-${status.replace(/_/g, '-')}`;
+}
 
-  const EXAMPLE_RUNS: Run[] = [
-    { id: "er-1", specSlug: "daily-briefing", status: "completed", scheduledAt: new Date(Date.now() - 86400000).toISOString(), durationMs: 12400, latenessMs: 0 },
-    { id: "er-2", specSlug: "daily-briefing", status: "completed", scheduledAt: new Date(Date.now() - 172800000).toISOString(), durationMs: 9800, latenessMs: 0 },
-    { id: "er-3", specSlug: "code-review-sweep", status: "completed", scheduledAt: new Date(Date.now() - 172800000).toISOString(), durationMs: 31200, latenessMs: 0 },
-    { id: "er-4", specSlug: "dependency-audit", status: "failed", scheduledAt: new Date(Date.now() - 2592000000).toISOString(), durationMs: 4200, latenessMs: 0 },
-    { id: "er-5", specSlug: "weekly-cleanup", status: "completed", scheduledAt: new Date(Date.now() - 604800000).toISOString(), durationMs: 18700, latenessMs: 0 },
-  ] as unknown as Run[];
+function severityClass(severity: string): string {
+  return `sc-sev-${severity}`;
+}
 
-  const isExample = $derived(specs.length === 0 && !$specsQ.isLoading);
-  const displaySpecs = $derived(isExample ? EXAMPLE_SPECS : sortedSpecs);
-  const displayRuns = $derived(isExample ? EXAMPLE_RUNS : runs);
-  const displayGroupedRuns = $derived(isExample ? groupRuns(EXAMPLE_RUNS) : groupedRuns);
+const isLoading = $derived($specsQ.isLoading || $runsQ.isLoading || $alertsQ.isLoading);
+
+// ── Example seed data (shown when no real data) ────────────────────────────
+
+const EXAMPLE_SPECS: Spec[] = [
+  {
+    id: 'ex-1',
+    slug: 'daily-briefing',
+    name: 'Daily Briefing',
+    description: 'Summarize calendar, inbox, and project status',
+    status: 'active',
+    agentSlug: 'conductor',
+    overlapPolicy: 'skip',
+    timezone: 'UTC',
+    graceSeconds: 30,
+    jitterSeconds: 0,
+    model: { crons: ['0 9 * * 1-5'] },
+    nextFireAt: new Date(Date.now() + 3600000).toISOString(),
+    lastRunAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: 'ex-2',
+    slug: 'code-review-sweep',
+    name: 'Code Review Sweep',
+    description: 'Review all open PRs and flag issues',
+    status: 'active',
+    agentSlug: 'iris',
+    overlapPolicy: 'skip',
+    timezone: 'UTC',
+    graceSeconds: 30,
+    jitterSeconds: 0,
+    model: { crons: ['0 14 * * 1-5'] },
+    nextFireAt: new Date(Date.now() + 7200000).toISOString(),
+    lastRunAt: new Date(Date.now() - 172800000).toISOString(),
+  },
+  {
+    id: 'ex-3',
+    slug: 'weekly-cleanup',
+    name: 'Weekly Cleanup',
+    description: 'Archive stale branches and close old issues',
+    status: 'active',
+    agentSlug: 'forge',
+    overlapPolicy: 'skip',
+    timezone: 'UTC',
+    graceSeconds: 30,
+    jitterSeconds: 0,
+    model: { crons: ['0 17 * * 5'] },
+    nextFireAt: new Date(Date.now() + 259200000).toISOString(),
+    lastRunAt: new Date(Date.now() - 604800000).toISOString(),
+  },
+  {
+    id: 'ex-4',
+    slug: 'dependency-audit',
+    name: 'Dependency Audit',
+    description: 'Check for outdated packages and vulnerabilities',
+    status: 'paused',
+    agentSlug: 'conductor',
+    overlapPolicy: 'skip',
+    timezone: 'UTC',
+    graceSeconds: 30,
+    jitterSeconds: 0,
+    model: { crons: ['0 6 1 * *'] },
+    nextFireAt: null,
+    lastRunAt: new Date(Date.now() - 2592000000).toISOString(),
+  },
+] as unknown as Spec[];
+
+const EXAMPLE_RUNS: Run[] = [
+  {
+    id: 'er-1',
+    specSlug: 'daily-briefing',
+    status: 'completed',
+    scheduledAt: new Date(Date.now() - 86400000).toISOString(),
+    durationMs: 12400,
+    latenessMs: 0,
+  },
+  {
+    id: 'er-2',
+    specSlug: 'daily-briefing',
+    status: 'completed',
+    scheduledAt: new Date(Date.now() - 172800000).toISOString(),
+    durationMs: 9800,
+    latenessMs: 0,
+  },
+  {
+    id: 'er-3',
+    specSlug: 'code-review-sweep',
+    status: 'completed',
+    scheduledAt: new Date(Date.now() - 172800000).toISOString(),
+    durationMs: 31200,
+    latenessMs: 0,
+  },
+  {
+    id: 'er-4',
+    specSlug: 'dependency-audit',
+    status: 'failed',
+    scheduledAt: new Date(Date.now() - 2592000000).toISOString(),
+    durationMs: 4200,
+    latenessMs: 0,
+  },
+  {
+    id: 'er-5',
+    specSlug: 'weekly-cleanup',
+    status: 'completed',
+    scheduledAt: new Date(Date.now() - 604800000).toISOString(),
+    durationMs: 18700,
+    latenessMs: 0,
+  },
+] as unknown as Run[];
+
+const isExample = $derived(specs.length === 0 && !$specsQ.isLoading);
+const displaySpecs = $derived(isExample ? EXAMPLE_SPECS : sortedSpecs);
+const displayRuns = $derived(isExample ? EXAMPLE_RUNS : runs);
+const displayGroupedRuns = $derived(isExample ? groupRuns(EXAMPLE_RUNS) : groupedRuns);
 </script>
 
 <div class="sc-page">

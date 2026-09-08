@@ -1,29 +1,27 @@
 <script lang="ts">
-  import { FileCode, FileText, X } from 'lucide-svelte';
-  import type { AttachedFile } from './types.js';
+import { FileCode, FileText, X } from 'lucide-svelte';
+import type { AttachedFile } from './types.js';
 
-  interface Props {
-    file: AttachedFile;
-    onRemove: (id: string) => void;
-  }
+interface Props {
+  file: AttachedFile;
+  onRemove: (id: string) => void;
+}
 
-  let { file, onRemove }: Props = $props();
+let { file, onRemove }: Props = $props();
 
-  const CODE_EXTS = new Set(['ts', 'tsx', 'js', 'jsx', 'svelte', 'py', 'go', 'ex', 'exs', 'json']);
+const CODE_EXTS = new Set(['ts', 'tsx', 'js', 'jsx', 'svelte', 'py', 'go', 'ex', 'exs', 'json']);
 
-  const ext = $derived(file.name.split('.').pop()?.toLowerCase() ?? '');
-  const isImage = $derived(file.mimeType.startsWith('image/'));
-  const isCode = $derived(CODE_EXTS.has(ext));
+const ext = $derived(file.name.split('.').pop()?.toLowerCase() ?? '');
+const isImage = $derived(file.mimeType.startsWith('image/'));
+const isCode = $derived(CODE_EXTS.has(ext));
 
-  const displayName = $derived(
-    file.name.length > 20 ? file.name.slice(0, 18) + '…' : file.name
-  );
+const displayName = $derived(file.name.length > 20 ? file.name.slice(0, 18) + '…' : file.name);
 
-  function formatSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  }
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
 </script>
 
 <div class="ach-chip" role="listitem">

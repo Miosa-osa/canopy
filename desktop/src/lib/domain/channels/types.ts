@@ -7,7 +7,7 @@
 // Channel
 // ---------------------------------------------------------------------------
 
-export type ChannelVisibility = "public" | "private";
+export type ChannelVisibility = 'public' | 'private';
 
 /** Summary row from GET /channels. */
 export interface Channel {
@@ -56,8 +56,8 @@ export interface UpdateChannelBody {
 // Member
 // ---------------------------------------------------------------------------
 
-export type ActorType = "user" | "agent";
-export type MemberRole = "member" | "admin";
+export type ActorType = 'user' | 'agent';
+export type MemberRole = 'member' | 'admin';
 
 export interface ChannelMember {
   id: string;
@@ -83,7 +83,7 @@ export interface AddMemberBody {
 // Message
 // ---------------------------------------------------------------------------
 
-export type MessageAuthorType = "user" | "agent" | "system";
+export type MessageAuthorType = 'user' | 'agent' | 'system';
 
 export interface ChannelMessage {
   id: string;

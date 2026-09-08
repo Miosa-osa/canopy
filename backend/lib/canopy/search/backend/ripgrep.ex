@@ -51,7 +51,7 @@ defmodule Canopy.Search.Backend.Ripgrep do
         try do
           # cd into root_path so paths in the JSON output are relative.
           {output, exit_code} =
-            System.cmd(rg_bin, args, cd: root_path, stderr_to_stdout: false)
+            System.cmd(rg_bin, args, cd: root_path, stderr_to_stdout: true)
 
           send(parent, {:rg_done, exit_code, output})
         rescue
@@ -165,8 +165,12 @@ defmodule Canopy.Search.Backend.Ripgrep do
   # Defence-in-depth: ensure rg-reported path stays under root_path.
   defp safe_path?(rel_path, root_path) when is_binary(rel_path) do
     cond do
-      String.starts_with?(rel_path, "/") -> false
-      String.contains?(rel_path, "..") -> false
+      String.starts_with?(rel_path, "/") ->
+        false
+
+      String.contains?(rel_path, "..") ->
+        false
+
       true ->
         abs_root = Path.expand(root_path)
         abs = Path.expand(Path.join(abs_root, rel_path))

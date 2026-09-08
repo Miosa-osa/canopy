@@ -14,20 +14,20 @@
  */
 
 import { createQuery } from '@tanstack/svelte-query';
+import { ChevronDown, ChevronRight, PauseCircle, Plus, Terminal, XCircle } from 'lucide-svelte';
+import { onDestroy, untrack } from 'svelte';
 import { writable } from 'svelte/store';
-import { untrack, onDestroy } from 'svelte';
-import { Terminal, Plus, ChevronDown, ChevronRight, PauseCircle, XCircle } from 'lucide-svelte';
 import { goto } from '$app/navigation';
-import { ui } from '$lib/stores/ui.svelte.js';
-import { sessionsQuery, bulkDeleteSessions } from '$lib/api/queries/sessions.js';
-import { subscribeLiveRuns } from '$lib/api/queries/live-runs.js';
 import type { LiveRunEvent } from '$lib/api/queries/live-runs.js';
+import { subscribeLiveRuns } from '$lib/api/queries/live-runs.js';
+import { bulkDeleteSessions, sessionsQuery } from '$lib/api/queries/sessions.js';
 import CommandTile from '$lib/design/patterns/command-center/CommandTile.svelte';
-import { GroupingState } from '$lib/design/patterns/command-center/useGrouping.svelte.js';
 import type { GroupBy } from '$lib/design/patterns/command-center/useGrouping.svelte.js';
-import type { Session } from '$lib/domain/sessions/types.js';
-import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import { GroupingState } from '$lib/design/patterns/command-center/useGrouping.svelte.js';
 import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import type { Session } from '$lib/domain/sessions/types.js';
+import { ui } from '$lib/stores/ui.svelte.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ const queryOpts = writable(
   untrack(() => ({
     ...sessionsQuery({}),
     refetchInterval: REFETCH_MS,
-  })),
+  }))
 );
 
 const sessionsQ = createQuery<Session[]>(queryOpts);
@@ -89,7 +89,8 @@ const allSessions = $derived(($sessionsQ.data ?? []) as Session[]);
 
 const filteredSessions = $derived(
   allSessions.filter((s) => {
-    if (filterRuntime && !s.runtimeType.toLowerCase().includes(filterRuntime.toLowerCase())) return false;
+    if (filterRuntime && !s.runtimeType.toLowerCase().includes(filterRuntime.toLowerCase()))
+      return false;
     if (filterWorkspace && s.workspaceSlug !== filterWorkspace) return false;
     if (filterStatus === 'active') {
       if (s.status !== 'running' && s.status !== 'pending' && s.status !== 'paused') return false;
@@ -97,16 +98,14 @@ const filteredSessions = $derived(
       if (s.status !== filterStatus) return false;
     }
     return true;
-  }),
+  })
 );
 
 const sessionGroups = $derived(grouping.groups(filteredSessions));
 
-const uniqueRuntimes = $derived(
-  [...new Set(allSessions.map((s) => s.runtimeType))].sort(),
-);
+const uniqueRuntimes = $derived([...new Set(allSessions.map((s) => s.runtimeType))].sort());
 const uniqueWorkspaces = $derived(
-  [...new Set(allSessions.map((s) => s.workspaceSlug).filter(Boolean) as string[])].sort(),
+  [...new Set(allSessions.map((s) => s.workspaceSlug).filter(Boolean) as string[])].sort()
 );
 
 const totalCount = $derived(allSessions.length);
@@ -176,8 +175,8 @@ let isDeleting = $state(false);
 
 const endedCount = $derived(allSessions.filter((s) => TERMINAL_STATUSES.has(s.status)).length);
 const oldDayCount = $derived(
-  allSessions.filter((s) =>
-    TERMINAL_STATUSES.has(s.status) && Date.now() - new Date(s.insertedAt).getTime() > DAY_MS
+  allSessions.filter(
+    (s) => TERMINAL_STATUSES.has(s.status) && Date.now() - new Date(s.insertedAt).getTime() > DAY_MS
   ).length
 );
 

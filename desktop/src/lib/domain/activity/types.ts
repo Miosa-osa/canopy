@@ -4,25 +4,25 @@
  */
 
 export type ActivityEventType =
-  | "session_started"
-  | "session_ended"
-  | "session_paused"
-  | "session_resumed"
-  | "session_cancelled"
-  | "session_error"
-  | "task_dispatched"
-  | "task_completed"
-  | "task_failed"
-  | "issue_opened"
-  | "issue_closed"
-  | "issue_updated"
-  | "agent_registered"
-  | "runtime_created"
-  | "runtime_deleted"
-  | "workspace_created"
-  | "workspace_updated";
+  | 'session_started'
+  | 'session_ended'
+  | 'session_paused'
+  | 'session_resumed'
+  | 'session_cancelled'
+  | 'session_error'
+  | 'task_dispatched'
+  | 'task_completed'
+  | 'task_failed'
+  | 'issue_opened'
+  | 'issue_closed'
+  | 'issue_updated'
+  | 'agent_registered'
+  | 'runtime_created'
+  | 'runtime_deleted'
+  | 'workspace_created'
+  | 'workspace_updated';
 
-export type ActorType = "agent" | "human" | "system";
+export type ActorType = 'agent' | 'human' | 'system';
 
 export interface ActivityEvent {
   id: string;

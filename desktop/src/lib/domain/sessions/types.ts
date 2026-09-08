@@ -3,21 +3,15 @@
  * Matches the Elixir backend structs served at /api/v1/sessions.
  */
 
-export type SessionStatus =
-  | "pending"
-  | "running"
-  | "paused"
-  | "completed"
-  | "cancelled"
-  | "error";
+export type SessionStatus = 'pending' | 'running' | 'paused' | 'completed' | 'cancelled' | 'error';
 
 /** Discriminated union of all transcript entry kinds */
 export type TranscriptEntry =
-  | { id: string; kind: "assistant"; text: string; createdAt: string }
-  | { id: string; kind: "thinking"; text: string; createdAt: string }
+  | { id: string; kind: 'assistant'; text: string; createdAt: string }
+  | { id: string; kind: 'thinking'; text: string; createdAt: string }
   | {
       id: string;
-      kind: "tool_call";
+      kind: 'tool_call';
       toolName: string;
       args: Record<string, unknown>;
       toolCallId: string;
@@ -25,7 +19,7 @@ export type TranscriptEntry =
     }
   | {
       id: string;
-      kind: "tool_result";
+      kind: 'tool_result';
       toolCallId: string;
       content: string;
       isError: boolean;
@@ -33,16 +27,16 @@ export type TranscriptEntry =
     }
   | {
       id: string;
-      kind: "diff";
+      kind: 'diff';
       filePath: string;
       patch: string;
       additions: number;
       deletions: number;
       createdAt: string;
     }
-  | { id: string; kind: "stdout"; text: string; createdAt: string }
-  | { id: string; kind: "stderr"; text: string; createdAt: string }
-  | { id: string; kind: "system"; text: string; createdAt: string };
+  | { id: string; kind: 'stdout'; text: string; createdAt: string }
+  | { id: string; kind: 'stderr'; text: string; createdAt: string }
+  | { id: string; kind: 'system'; text: string; createdAt: string };
 
 /**
  * Session summary — shown in list rows.
@@ -66,7 +60,7 @@ export type TranscriptEntry =
  * Rows created before the backend `kind` column shipped will surface as
  * `null`; consumers should treat that as "terminal" for legacy compatibility.
  */
-export type SessionKind = "terminal" | "agent_conversation";
+export type SessionKind = 'terminal' | 'agent_conversation';
 
 export interface Session {
   id: string;

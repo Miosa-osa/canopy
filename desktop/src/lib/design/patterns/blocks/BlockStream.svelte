@@ -1,240 +1,237 @@
 <script lang="ts">
-  /**
-   * BlockStream — vertical list of Block components for one session.
-   *
-   * Reads via TanStack Query (`blocksListQuery`) and renders each row
-   * through `<Block />`. Auto-scrolls to bottom unless the user has
-   * scrolled up >40px (matches TranscriptView's heuristic).
-   *
-   * No virtualization is applied directly here — the list is rendered as
-   * plain DOM since `@tanstack/svelte-virtual` is not yet a project dep.
-   * If/when added, swap the inner `{#each}` for a virtual-list variant
-   * without touching consumers of this component.
-   *
-   * Thin component — owns scroll heuristic + delegate-to-`<Block />`.
-   * State (data) lives in TanStack; mutations bubble via callback props.
-   *
-   * Keyboard navigation: ↑/↓ move focus, Escape deselects, c=copy,
-   * r=rerun, Enter=toggle-collapse on the focused block.
-   *
-   * CSS prefix: blkst-
-   */
+/**
+ * BlockStream — vertical list of Block components for one session.
+ *
+ * Reads via TanStack Query (`blocksListQuery`) and renders each row
+ * through `<Block />`. Auto-scrolls to bottom unless the user has
+ * scrolled up >40px (matches TranscriptView's heuristic).
+ *
+ * No virtualization is applied directly here — the list is rendered as
+ * plain DOM since `@tanstack/svelte-virtual` is not yet a project dep.
+ * If/when added, swap the inner `{#each}` for a virtual-list variant
+ * without touching consumers of this component.
+ *
+ * Thin component — owns scroll heuristic + delegate-to-`<Block />`.
+ * State (data) lives in TanStack; mutations bubble via callback props.
+ *
+ * Keyboard navigation: ↑/↓ move focus, Escape deselects, c=copy,
+ * r=rerun, Enter=toggle-collapse on the focused block.
+ *
+ * CSS prefix: blkst-
+ */
 
-  import { tick } from 'svelte';
-  import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { tick } from 'svelte';
 
-  import { apiDelete, apiPost } from '$lib/api/client.js';
-  import { blocksListQuery } from '$lib/api/queries/blocks.js';
-  import type { Block as BlockType, BlockListQuery } from '$lib/domain/blocks/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+import { apiDelete, apiPost } from '$lib/api/client.js';
+import { blocksListQuery } from '$lib/api/queries/blocks.js';
+import type { BlockListQuery, Block as BlockType } from '$lib/domain/blocks/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  import Block from './Block.svelte';
+import Block from './Block.svelte';
 
-  interface Props {
-    sessionId: string;
-    /** Optional filters passed through to the list query. */
-    filter?: BlockListQuery;
-    /** When true, applies a "running" affordance to the container. */
-    isStreaming?: boolean;
-    /** Per-block callbacks bubbled from `<Block />` components. */
-    onCopy?: (block: BlockType) => void;
-    onRerun?: (block: BlockType) => void;
-    onShare?: (block: BlockType) => void;
-    onPin?: (block: BlockType) => void;
-    onDelete?: (block: BlockType) => void;
+interface Props {
+  sessionId: string;
+  /** Optional filters passed through to the list query. */
+  filter?: BlockListQuery;
+  /** When true, applies a "running" affordance to the container. */
+  isStreaming?: boolean;
+  /** Per-block callbacks bubbled from `<Block />` components. */
+  onCopy?: (block: BlockType) => void;
+  onRerun?: (block: BlockType) => void;
+  onShare?: (block: BlockType) => void;
+  onPin?: (block: BlockType) => void;
+  onDelete?: (block: BlockType) => void;
+}
+
+let {
+  sessionId,
+  filter = {},
+  isStreaming = false,
+  onCopy: externalOnCopy,
+  onRerun: externalOnRerun,
+  onShare: externalOnShare,
+  onPin: externalOnPin,
+  onDelete: externalOnDelete,
+}: Props = $props();
+
+const queryClient = useQueryClient();
+
+const query = createQuery<BlockType[]>(
+  blocksListQuery(sessionId, filter) as CreateQueryOptions<BlockType[]>
+);
+
+const blocks = $derived<BlockType[]>(($query.data ?? []) as BlockType[]);
+
+// ── Pinned blocks (local set, persisted to localStorage) ─────────────────
+
+const PINNED_KEY = $derived(`canopy:pinned-blocks:${sessionId}`);
+
+function loadPinned(): Set<string> {
+  try {
+    const raw = localStorage.getItem(PINNED_KEY);
+    if (raw) return new Set<string>(JSON.parse(raw) as string[]);
+  } catch {
+    // ignore parse errors
   }
+  return new Set<string>();
+}
 
-  let {
-    sessionId,
-    filter = {},
-    isStreaming = false,
-    onCopy: externalOnCopy,
-    onRerun: externalOnRerun,
-    onShare: externalOnShare,
-    onPin: externalOnPin,
-    onDelete: externalOnDelete,
-  }: Props = $props();
+let pinnedBlocks = $state<Set<string>>(loadPinned());
 
-  const queryClient = useQueryClient();
+function savePinned() {
+  try {
+    localStorage.setItem(PINNED_KEY, JSON.stringify([...pinnedBlocks]));
+  } catch {
+    // ignore quota errors
+  }
+}
 
-  const query = createQuery<BlockType[]>(
-    blocksListQuery(sessionId, filter) as CreateQueryOptions<BlockType[]>,
+// ── Block action handlers ─────────────────────────────────────────────────
+
+function handleCopy(block: BlockType) {
+  const text = block.inputText ?? block.outputText ?? JSON.stringify(block);
+  navigator.clipboard.writeText(text).then(
+    () => toasts.success('Copied to clipboard'),
+    () => toasts.error('Failed to copy')
   );
+  externalOnCopy?.(block);
+}
 
-  const blocks = $derived<BlockType[]>(($query.data ?? []) as BlockType[]);
-
-  // ── Pinned blocks (local set, persisted to localStorage) ─────────────────
-
-  const PINNED_KEY = $derived(`canopy:pinned-blocks:${sessionId}`);
-
-  function loadPinned(): Set<string> {
-    try {
-      const raw = localStorage.getItem(PINNED_KEY);
-      if (raw) return new Set<string>(JSON.parse(raw) as string[]);
-    } catch {
-      // ignore parse errors
-    }
-    return new Set<string>();
-  }
-
-  let pinnedBlocks = $state<Set<string>>(loadPinned());
-
-  function savePinned() {
-    try {
-      localStorage.setItem(PINNED_KEY, JSON.stringify([...pinnedBlocks]));
-    } catch {
-      // ignore quota errors
-    }
-  }
-
-  // ── Block action handlers ─────────────────────────────────────────────────
-
-  function handleCopy(block: BlockType) {
-    const text =
-      block.inputText ??
-      block.outputText ??
-      JSON.stringify(block);
-    navigator.clipboard.writeText(text).then(
-      () => toasts.success('Copied to clipboard'),
-      () => toasts.error('Failed to copy'),
-    );
-    externalOnCopy?.(block);
-  }
-
-  function handleRerun(block: BlockType) {
-    if (block.kind !== 'command') {
-      toasts.info('Only commands can be rerun');
-      externalOnRerun?.(block);
-      return;
-    }
-    const command = block.inputText ?? '';
-    apiPost(`/sessions/${sessionId}/messages`, { content: command }).catch(() => {
-      toasts.error('Failed to rerun command');
-    });
+function handleRerun(block: BlockType) {
+  if (block.kind !== 'command') {
+    toasts.info('Only commands can be rerun');
     externalOnRerun?.(block);
+    return;
   }
-
-  function handleShare(block: BlockType) {
-    const link = `canopy://blocks/${block.id}`;
-    navigator.clipboard.writeText(link).then(
-      () => toasts.success('Block link copied'),
-      () => toasts.error('Failed to copy link'),
-    );
-    externalOnShare?.(block);
-  }
-
-  function handlePin(block: BlockType) {
-    const next = new Set(pinnedBlocks);
-    if (next.has(block.id)) {
-      next.delete(block.id);
-    } else {
-      next.add(block.id);
-    }
-    pinnedBlocks = next;
-    savePinned();
-    externalOnPin?.(block);
-  }
-
-  function handleDelete(block: BlockType) {
-    // Optimistically remove from local cache first
-    const listKey = ['blocks', sessionId, 'list', filter] as const;
-    queryClient.setQueryData<BlockType[]>(listKey, (old) =>
-      (old ?? []).filter((b) => b.id !== block.id),
-    );
-    // Best-effort server delete; restore on failure
-    apiDelete(`/sessions/${sessionId}/blocks/${block.id}`).catch(() => {
-      queryClient.invalidateQueries({ queryKey: ['blocks', sessionId] });
-      toasts.error('Failed to delete block');
-    });
-    externalOnDelete?.(block);
-  }
-
-  // ── Keyboard navigation ───────────────────────────────────────────────────
-
-  let focusedBlockIndex = $state(-1);
-
-  /** Refs to each rendered block article element, indexed by blocks array order. */
-  let blockEls: (HTMLElement | undefined)[] = $state([]);
-
-  $effect(() => {
-    // Resize the refs array whenever blocks changes
-    blockEls = Array(blocks.length).fill(undefined);
+  const command = block.inputText ?? '';
+  apiPost(`/sessions/${sessionId}/messages`, { content: command }).catch(() => {
+    toasts.error('Failed to rerun command');
   });
+  externalOnRerun?.(block);
+}
 
-  $effect(() => {
-    if (focusedBlockIndex < 0) return;
-    const el = blockEls[focusedBlockIndex];
-    if (el) {
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
+function handleShare(block: BlockType) {
+  const link = `canopy://blocks/${block.id}`;
+  navigator.clipboard.writeText(link).then(
+    () => toasts.success('Block link copied'),
+    () => toasts.error('Failed to copy link')
+  );
+  externalOnShare?.(block);
+}
+
+function handlePin(block: BlockType) {
+  const next = new Set(pinnedBlocks);
+  if (next.has(block.id)) {
+    next.delete(block.id);
+  } else {
+    next.add(block.id);
+  }
+  pinnedBlocks = next;
+  savePinned();
+  externalOnPin?.(block);
+}
+
+function handleDelete(block: BlockType) {
+  // Optimistically remove from local cache first
+  const listKey = ['blocks', sessionId, 'list', filter] as const;
+  queryClient.setQueryData<BlockType[]>(listKey, (old) =>
+    (old ?? []).filter((b) => b.id !== block.id)
+  );
+  // Best-effort server delete; restore on failure
+  apiDelete(`/sessions/${sessionId}/blocks/${block.id}`).catch(() => {
+    queryClient.invalidateQueries({ queryKey: ['blocks', sessionId] });
+    toasts.error('Failed to delete block');
   });
+  externalOnDelete?.(block);
+}
 
-  function handleKeydown(e: KeyboardEvent) {
-    // Only handle bare key presses (no Ctrl/Cmd/Alt modifier)
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+// ── Keyboard navigation ───────────────────────────────────────────────────
 
-    const len = blocks.length;
-    if (len === 0) return;
+let focusedBlockIndex = $state(-1);
 
-    switch (e.key) {
-      case 'ArrowDown':
+/** Refs to each rendered block article element, indexed by blocks array order. */
+let blockEls: (HTMLElement | undefined)[] = $state([]);
+
+$effect(() => {
+  // Resize the refs array whenever blocks changes
+  blockEls = Array(blocks.length).fill(undefined);
+});
+
+$effect(() => {
+  if (focusedBlockIndex < 0) return;
+  const el = blockEls[focusedBlockIndex];
+  if (el) {
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+});
+
+function handleKeydown(e: KeyboardEvent) {
+  // Only handle bare key presses (no Ctrl/Cmd/Alt modifier)
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  const len = blocks.length;
+  if (len === 0) return;
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      focusedBlockIndex = Math.min(focusedBlockIndex + 1, len - 1);
+      if (focusedBlockIndex < 0) focusedBlockIndex = 0;
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      focusedBlockIndex = Math.max(focusedBlockIndex - 1, 0);
+      break;
+    case 'Escape':
+      focusedBlockIndex = -1;
+      break;
+    case 'c':
+      if (focusedBlockIndex >= 0) {
         e.preventDefault();
-        focusedBlockIndex = Math.min(focusedBlockIndex + 1, len - 1);
-        if (focusedBlockIndex < 0) focusedBlockIndex = 0;
-        break;
-      case 'ArrowUp':
+        handleCopy(blocks[focusedBlockIndex]);
+      }
+      break;
+    case 'r':
+      if (focusedBlockIndex >= 0) {
         e.preventDefault();
-        focusedBlockIndex = Math.max(focusedBlockIndex - 1, 0);
-        break;
-      case 'Escape':
-        focusedBlockIndex = -1;
-        break;
-      case 'c':
-        if (focusedBlockIndex >= 0) {
-          e.preventDefault();
-          handleCopy(blocks[focusedBlockIndex]);
-        }
-        break;
-      case 'r':
-        if (focusedBlockIndex >= 0) {
-          e.preventDefault();
-          handleRerun(blocks[focusedBlockIndex]);
-        }
-        break;
-      case 'Enter':
-        // Toggle collapse is handled inside Block.svelte via its own toggle button;
-        // we programmatically click the toggle button of the focused block's article.
-        if (focusedBlockIndex >= 0) {
-          e.preventDefault();
-          const el = blockEls[focusedBlockIndex];
-          const toggle = el?.querySelector<HTMLButtonElement>('.blk-toggle');
-          toggle?.click();
-        }
-        break;
-    }
+        handleRerun(blocks[focusedBlockIndex]);
+      }
+      break;
+    case 'Enter':
+      // Toggle collapse is handled inside Block.svelte via its own toggle button;
+      // we programmatically click the toggle button of the focused block's article.
+      if (focusedBlockIndex >= 0) {
+        e.preventDefault();
+        const el = blockEls[focusedBlockIndex];
+        const toggle = el?.querySelector<HTMLButtonElement>('.blk-toggle');
+        toggle?.click();
+      }
+      break;
   }
+}
 
-  // ── Auto-scroll heuristic (mirrors TranscriptView) ────────────────────────
+// ── Auto-scroll heuristic (mirrors TranscriptView) ────────────────────────
 
-  let scrollEl: HTMLDivElement | undefined = $state();
-  let userScrolledUp = $state(false);
+let scrollEl: HTMLDivElement | undefined = $state();
+let userScrolledUp = $state(false);
 
-  function handleScroll() {
-    if (!scrollEl) return;
-    const { scrollTop, clientHeight, scrollHeight } = scrollEl;
-    userScrolledUp = scrollTop + clientHeight < scrollHeight - 40;
-  }
+function handleScroll() {
+  if (!scrollEl) return;
+  const { scrollTop, clientHeight, scrollHeight } = scrollEl;
+  userScrolledUp = scrollTop + clientHeight < scrollHeight - 40;
+}
 
-  async function scrollToBottom() {
-    await tick();
-    if (!scrollEl || userScrolledUp) return;
-    scrollEl.scrollTop = scrollEl.scrollHeight;
-  }
+async function scrollToBottom() {
+  await tick();
+  if (!scrollEl || userScrolledUp) return;
+  scrollEl.scrollTop = scrollEl.scrollHeight;
+}
 
-  $effect(() => {
-    void blocks.length;
-    void scrollToBottom();
-  });
+$effect(() => {
+  void blocks.length;
+  void scrollToBottom();
+});
 </script>
 
 <div

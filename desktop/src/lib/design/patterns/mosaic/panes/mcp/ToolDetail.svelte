@@ -1,29 +1,27 @@
 <script lang="ts">
-  /**
-   * ToolDetail — header card for a selected tool.
-   *
-   * Renders name, description, capability requirements, MCP/prompt exposure,
-   * and a collapsible parameters JSON-Schema block. Test invocation is
-   * delegated to ToolInvoker — this component is purely descriptive.
-   *
-   * CSS prefix: td-
-   */
-  import { ChevronDown, ChevronRight, Play } from 'lucide-svelte';
-  import Button from '$lib/design/foundation/button/Button.svelte';
-  import type { RegisteredTool } from '$lib/domain/mcp/types.js';
+/**
+ * ToolDetail — header card for a selected tool.
+ *
+ * Renders name, description, capability requirements, MCP/prompt exposure,
+ * and a collapsible parameters JSON-Schema block. Test invocation is
+ * delegated to ToolInvoker — this component is purely descriptive.
+ *
+ * CSS prefix: td-
+ */
+import { ChevronDown, ChevronRight, Play } from 'lucide-svelte';
+import Button from '$lib/design/foundation/button/Button.svelte';
+import type { RegisteredTool } from '$lib/domain/mcp/types.js';
 
-  interface Props {
-    tool: RegisteredTool;
-    onTest: () => void;
-  }
+interface Props {
+  tool: RegisteredTool;
+  onTest: () => void;
+}
 
-  let { tool, onTest }: Props = $props();
+let { tool, onTest }: Props = $props();
 
-  let schemaOpen = $state(false);
+let schemaOpen = $state(false);
 
-  const schemaJson = $derived(
-    tool.parameters ? JSON.stringify(tool.parameters, null, 2) : null,
-  );
+const schemaJson = $derived(tool.parameters ? JSON.stringify(tool.parameters, null, 2) : null);
 </script>
 
 <section class="td-root" aria-labelledby="td-name">

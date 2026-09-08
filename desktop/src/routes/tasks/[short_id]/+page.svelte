@@ -1,241 +1,261 @@
 <script lang="ts">
-  /**
-   * /tasks/[short_id] — Task detail: inline title edit + description + metadata panel.
-   * CSS prefix: td- (TaskDetail)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { page } from '$app/state';
-  import { Trash2 } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { beforeNavigate, goto } from '$app/navigation';
-  import {
-    assignTaskMutation,
-    completeTaskMutation,
-    deleteTaskMutation,
-    reopenTaskMutation,
-    taskQuery,
-    updateTaskMutation,
-  } from '$lib/api/queries/tasks.js';
-  import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
-  import PushPanel from '$lib/design/patterns/PushPanel.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-  import type { AssignBody, Task, TaskStatus, UpdateTaskBody } from '$lib/domain/tasks/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * /tasks/[short_id] — Task detail: inline title edit + description + metadata panel.
+ * CSS prefix: td- (TaskDetail)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { Trash2 } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { beforeNavigate, goto } from '$app/navigation';
+import { page } from '$app/state';
+import {
+  assignTaskMutation,
+  completeTaskMutation,
+  deleteTaskMutation,
+  reopenTaskMutation,
+  taskQuery,
+  updateTaskMutation,
+} from '$lib/api/queries/tasks.js';
+import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
+import PushPanel from '$lib/design/patterns/PushPanel.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+import type { AssignBody, Task, TaskStatus, UpdateTaskBody } from '$lib/domain/tasks/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  const shortId = $derived(page.params.short_id ?? '');
-  const queryClient = useQueryClient();
+const shortId = $derived(page.params.short_id ?? '');
+const queryClient = useQueryClient();
 
-  // ── Query ────────────────────────────────────────────────────────────────────
+// ── Query ────────────────────────────────────────────────────────────────────
 
-  const queryOptsStore = writable(
-    untrack(() => taskQuery(shortId) as CreateQueryOptions<Task>),
-  );
-  $effect(() => {
-    queryOptsStore.set(taskQuery(shortId) as CreateQueryOptions<Task>);
-  });
-  const query = createQuery<Task>(queryOptsStore);
-  const task = $derived($query.data as Task | undefined);
+const queryOptsStore = writable(untrack(() => taskQuery(shortId) as CreateQueryOptions<Task>));
+$effect(() => {
+  queryOptsStore.set(taskQuery(shortId) as CreateQueryOptions<Task>);
+});
+const query = createQuery<Task>(queryOptsStore);
+const task = $derived($query.data as Task | undefined);
 
-  // ── Local edit state ─────────────────────────────────────────────────────────
+// ── Local edit state ─────────────────────────────────────────────────────────
 
-  let localTitle = $state('');
-  let localDesc = $state('');
-  let titleDirty = $state(false);
-  let descDirty = $state(false);
-  let panelOpen = $state(true);
+let localTitle = $state('');
+let localDesc = $state('');
+let titleDirty = $state(false);
+let descDirty = $state(false);
+let panelOpen = $state(true);
 
-  // Seed local state once task loads (only seed if not dirty)
-  $effect(() => {
-    if (task && !titleDirty && !descDirty) {
-      localTitle = task.title;
-      localDesc = task.description ?? '';
-    }
-  });
-
-  const isDirty = $derived(titleDirty || descDirty);
-
-  // ── Guard modal ──────────────────────────────────────────────────────────────
-
-  let guardOpen = $state(false);
-  let pendingUrl = $state('');
-  let allowNavigation = $state(false);
-
-  beforeNavigate(({ to, cancel }) => {
-    if (isDirty && !allowNavigation) {
-      cancel();
-      pendingUrl = to?.url.pathname ?? '/tasks';
-      guardOpen = true;
-    }
-  });
-
-  function handleGuardCancel(): void {
-    guardOpen = false;
-    pendingUrl = '';
+// Seed local state once task loads (only seed if not dirty)
+$effect(() => {
+  if (task && !titleDirty && !descDirty) {
+    localTitle = task.title;
+    localDesc = task.description ?? '';
   }
+});
 
-  function handleGuardDiscard(): void {
-    allowNavigation = true;
-    guardOpen = false;
-    goto(pendingUrl || '/tasks');
+const isDirty = $derived(titleDirty || descDirty);
+
+// ── Guard modal ──────────────────────────────────────────────────────────────
+
+let guardOpen = $state(false);
+let pendingUrl = $state('');
+let allowNavigation = $state(false);
+
+beforeNavigate(({ to, cancel }) => {
+  if (isDirty && !allowNavigation) {
+    cancel();
+    pendingUrl = to?.url.pathname ?? '/tasks';
+    guardOpen = true;
   }
+});
 
-  // ── Mutations ────────────────────────────────────────────────────────────────
+function handleGuardCancel(): void {
+  guardOpen = false;
+  pendingUrl = '';
+}
 
-  const updateMut = createMutation<Task, Error, { shortId: string; body: UpdateTaskBody }>(
-    updateTaskMutation() as CreateMutationOptions<Task, Error, { shortId: string; body: UpdateTaskBody }>,
-  );
+function handleGuardDiscard(): void {
+  allowNavigation = true;
+  guardOpen = false;
+  goto(pendingUrl || '/tasks');
+}
 
-  const completeMut = createMutation<Task, Error, string>(
-    completeTaskMutation() as CreateMutationOptions<Task, Error, string>,
-  );
+// ── Mutations ────────────────────────────────────────────────────────────────
 
-  const reopenMut = createMutation<Task, Error, string>(
-    reopenTaskMutation() as CreateMutationOptions<Task, Error, string>,
-  );
+const updateMut = createMutation<Task, Error, { shortId: string; body: UpdateTaskBody }>(
+  updateTaskMutation() as CreateMutationOptions<
+    Task,
+    Error,
+    { shortId: string; body: UpdateTaskBody }
+  >
+);
 
-  const assignMut = createMutation<Task, Error, { shortId: string; body: AssignBody }>(
-    assignTaskMutation() as CreateMutationOptions<Task, Error, { shortId: string; body: AssignBody }>,
-  );
+const completeMut = createMutation<Task, Error, string>(
+  completeTaskMutation() as CreateMutationOptions<Task, Error, string>
+);
 
-  const deleteMut = createMutation<void, Error, string>(
-    deleteTaskMutation() as CreateMutationOptions<void, Error, string>,
-  );
+const reopenMut = createMutation<Task, Error, string>(
+  reopenTaskMutation() as CreateMutationOptions<Task, Error, string>
+);
 
-  function invalidate(): void {
-    queryClient.invalidateQueries({ queryKey: ['tasks', shortId] });
-    queryClient.invalidateQueries({ queryKey: ['tasks'] });
-  }
+const assignMut = createMutation<Task, Error, { shortId: string; body: AssignBody }>(
+  assignTaskMutation() as CreateMutationOptions<Task, Error, { shortId: string; body: AssignBody }>
+);
 
-  function saveDescription(): void {
-    if (!task || !descDirty) return;
-    $updateMut.mutate(
-      { shortId, body: { description: localDesc } },
-      {
-        onSuccess: () => {
-          descDirty = false;
-          invalidate();
-          toasts.success('Description saved');
-        },
-        onError: (err: Error) => {
-          toasts.error(`Save failed: ${err.message}`);
-        },
-      },
-    );
-  }
+const deleteMut = createMutation<void, Error, string>(
+  deleteTaskMutation() as CreateMutationOptions<void, Error, string>
+);
 
-  function saveTitle(): void {
-    if (!task || !titleDirty || !localTitle.trim()) return;
-    $updateMut.mutate(
-      { shortId, body: { title: localTitle.trim() } },
-      {
-        onSuccess: () => {
-          titleDirty = false;
-          invalidate();
-          toasts.success('Title saved');
-        },
-        onError: (err: Error) => {
-          toasts.error(`Save failed: ${err.message}`);
-        },
-      },
-    );
-  }
+function invalidate(): void {
+  queryClient.invalidateQueries({ queryKey: ['tasks', shortId] });
+  queryClient.invalidateQueries({ queryKey: ['tasks'] });
+}
 
-  function handleTitleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      saveTitle();
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault();
-      saveTitle();
-    }
-  }
-
-  function handleDescKeydown(e: KeyboardEvent): void {
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault();
-      saveDescription();
-    }
-  }
-
-  function handleComplete(): void {
-    if (!task) return;
-    $completeMut.mutate(shortId, { onSuccess: () => { invalidate(); toasts.success('Task completed'); } });
-  }
-
-  function handleReopen(): void {
-    if (!task) return;
-    $reopenMut.mutate(shortId, { onSuccess: () => { invalidate(); toasts.success('Task reopened'); } });
-  }
-
-  // ── Assign form ──────────────────────────────────────────────────────────────
-
-  let assignType = $state('agent');
-  let assignId = $state('');
-
-  function handleAssign(e: SubmitEvent): void {
-    e.preventDefault();
-    if (!assignId.trim()) return;
-    $assignMut.mutate(
-      { shortId, body: { assigneeType: assignType, assigneeId: assignId.trim() } },
-      {
-        onSuccess: () => {
-          assignId = '';
-          invalidate();
-          toasts.success('Task assigned');
-        },
-        onError: (err: Error) => {
-          toasts.error(`Assign failed: ${err.message}`);
-        },
-      },
-    );
-  }
-
-  // ── Delete ────────────────────────────────────────────────────────────────────
-
-  let deleteConfirm = $state(false);
-
-  function handleDelete(): void {
-    $deleteMut.mutate(shortId, {
+function saveDescription(): void {
+  if (!task || !descDirty) return;
+  $updateMut.mutate(
+    { shortId, body: { description: localDesc } },
+    {
       onSuccess: () => {
-        allowNavigation = true;
-        toasts.success('Task deleted');
-        goto('/tasks');
+        descDirty = false;
+        invalidate();
+        toasts.success('Description saved');
       },
       onError: (err: Error) => {
-        toasts.error(`Delete failed: ${err.message}`);
-        deleteConfirm = false;
+        toasts.error(`Save failed: ${err.message}`);
       },
-    });
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-
-  function statusDotColor(s: TaskStatus): 'green' | 'amber' | 'grey' | 'red' {
-    switch (s) {
-      case 'in_progress': return 'green';
-      case 'todo': return 'amber';
-      case 'done': return 'grey';
-      case 'cancelled': return 'red';
     }
-  }
+  );
+}
 
-  function priorityLabel(p: number): string {
-    return ['None', 'Low', 'Medium', 'High'][Math.max(0, Math.min(p, 3))];
-  }
+function saveTitle(): void {
+  if (!task || !titleDirty || !localTitle.trim()) return;
+  $updateMut.mutate(
+    { shortId, body: { title: localTitle.trim() } },
+    {
+      onSuccess: () => {
+        titleDirty = false;
+        invalidate();
+        toasts.success('Title saved');
+      },
+      onError: (err: Error) => {
+        toasts.error(`Save failed: ${err.message}`);
+      },
+    }
+  );
+}
 
-  function formatDate(iso: string | null): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+function handleTitleKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    saveTitle();
   }
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    saveTitle();
+  }
+}
+
+function handleDescKeydown(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    saveDescription();
+  }
+}
+
+function handleComplete(): void {
+  if (!task) return;
+  $completeMut.mutate(shortId, {
+    onSuccess: () => {
+      invalidate();
+      toasts.success('Task completed');
+    },
+  });
+}
+
+function handleReopen(): void {
+  if (!task) return;
+  $reopenMut.mutate(shortId, {
+    onSuccess: () => {
+      invalidate();
+      toasts.success('Task reopened');
+    },
+  });
+}
+
+// ── Assign form ──────────────────────────────────────────────────────────────
+
+let assignType = $state('agent');
+let assignId = $state('');
+
+function handleAssign(e: SubmitEvent): void {
+  e.preventDefault();
+  if (!assignId.trim()) return;
+  $assignMut.mutate(
+    { shortId, body: { assigneeType: assignType, assigneeId: assignId.trim() } },
+    {
+      onSuccess: () => {
+        assignId = '';
+        invalidate();
+        toasts.success('Task assigned');
+      },
+      onError: (err: Error) => {
+        toasts.error(`Assign failed: ${err.message}`);
+      },
+    }
+  );
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+let deleteConfirm = $state(false);
+
+function handleDelete(): void {
+  $deleteMut.mutate(shortId, {
+    onSuccess: () => {
+      allowNavigation = true;
+      toasts.success('Task deleted');
+      goto('/tasks');
+    },
+    onError: (err: Error) => {
+      toasts.error(`Delete failed: ${err.message}`);
+      deleteConfirm = false;
+    },
+  });
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function statusDotColor(s: TaskStatus): 'green' | 'amber' | 'grey' | 'red' {
+  switch (s) {
+    case 'in_progress':
+      return 'green';
+    case 'todo':
+      return 'amber';
+    case 'done':
+      return 'grey';
+    case 'cancelled':
+      return 'red';
+  }
+}
+
+function priorityLabel(p: number): string {
+  return ['None', 'Low', 'Medium', 'High'][Math.max(0, Math.min(p, 3))];
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 </script>
 
 <svelte:window

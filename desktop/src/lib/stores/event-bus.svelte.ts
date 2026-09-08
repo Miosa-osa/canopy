@@ -17,13 +17,13 @@ const RING_BUFFER_SIZE = 200;
 
 /** Simple glob match: supports leading/trailing/middle `*` wildcard. */
 function matchPattern(pattern: string, channel: string): boolean {
-  if (pattern === "*") return true;
+  if (pattern === '*') return true;
   if (pattern === channel) return true;
-  if (pattern.endsWith(":*")) {
+  if (pattern.endsWith(':*')) {
     const prefix = pattern.slice(0, -1); // "tile:" from "tile:*"
     return channel.startsWith(prefix);
   }
-  if (pattern.startsWith("*:")) {
+  if (pattern.startsWith('*:')) {
     const suffix = pattern.slice(2); // "output" from "*:output"
     return channel.endsWith(`:${suffix}`);
   }
@@ -40,7 +40,7 @@ class EventBusStore {
 
   /** Subscribe to events. Supports wildcards: "tile:*", "*". Returns unsubscribe fn. */
   on(pattern: string, handler: Handler): () => void {
-    const isWildcard = pattern.includes("*");
+    const isWildcard = pattern.includes('*');
     const bucket = isWildcard ? this.#wildcards : this.#exact;
 
     if (!bucket.has(pattern)) bucket.set(pattern, new Set());
@@ -59,19 +59,21 @@ class EventBusStore {
     // Append to ring buffer (circular overwrite at RING_BUFFER_SIZE)
     const current = this.#history.get(channel) ?? [];
     const next =
-      current.length >= RING_BUFFER_SIZE
-        ? [...current.slice(1), event]
-        : [...current, event];
+      current.length >= RING_BUFFER_SIZE ? [...current.slice(1), event] : [...current, event];
     // Reassign to trigger Svelte reactivity
     this.#history = new Map(this.#history).set(channel, next);
 
     // Dispatch to exact subscribers
-    this.#exact.get(channel)?.forEach((h) => h(event));
+    this.#exact.get(channel)?.forEach((h) => {
+      h(event);
+    });
 
     // Dispatch to matching wildcard subscribers
     this.#wildcards.forEach((handlers, pattern) => {
       if (matchPattern(pattern, channel)) {
-        handlers.forEach((h) => h(event));
+        handlers.forEach((h) => {
+          h(event);
+        });
       }
     });
   }

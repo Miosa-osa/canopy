@@ -1,103 +1,90 @@
 <script lang="ts">
-  /**
-   * PinnedPanel — sidebar panel showing pinned items for a workspace.
-   * Drag-to-reorder via svelte-dnd-action.
-   * CSS prefix: pp-
-   *
-   * Props:
-   *   workspaceSlug — the workspace to show/manage pins for
-   */
-  import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
-  import { dndzone, type DndEvent } from 'svelte-dnd-action';
-  import { Pin, X, GripVertical } from 'lucide-svelte';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import { apiDelete, apiGet, apiPost, apiPut } from '$lib/api/client.js';
+/**
+ * PinnedPanel — sidebar panel showing pinned items for a workspace.
+ * Drag-to-reorder via svelte-dnd-action.
+ * CSS prefix: pp-
+ *
+ * Props:
+ *   workspaceSlug — the workspace to show/manage pins for
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { GripVertical, Pin, X } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { type DndEvent, dndzone } from 'svelte-dnd-action';
+import { apiDelete, apiPost, apiPut } from '$lib/api/client.js';
+import { type PinnedItem, workspacePinsQuery } from '$lib/api/queries/pins.js';
 
-  interface PinnedItem {
-    id: string;
-    workspaceSlug: string;
-    itemType: string;
-    itemRef: string;
-    position: number;
-  }
+interface Props {
+  workspaceSlug: string;
+}
 
-  interface Props {
-    workspaceSlug: string;
-  }
+let { workspaceSlug }: Props = $props();
 
-  let { workspaceSlug }: Props = $props();
+// ── Query ─────────────────────────────────────────────────────────────────
 
-  // ── Query ─────────────────────────────────────────────────────────────────
+const FLIP_MS = 160;
 
-  const FLIP_MS = 160;
+function pinsQueryKey(slug: string) {
+  return ['workspaces', slug, 'pins'] as const;
+}
 
-  function pinsQueryKey(slug: string) {
-    return ['workspaces', slug, 'pins'] as const;
-  }
+const queryOptsStore = writable(untrack(() => workspacePinsQuery(workspaceSlug)));
 
-  const queryOptsStore = writable(
-    untrack(() => ({
-      queryKey: pinsQueryKey(workspaceSlug),
-      queryFn: () => apiGet<{ data: PinnedItem[] }>(`/workspaces/${workspaceSlug}/pins`).then((r) => r.data),
-    }))
-  );
+$effect(() => {
+  queryOptsStore.set(workspacePinsQuery(workspaceSlug));
+});
 
-  $effect(() => {
-    queryOptsStore.set({
-      queryKey: pinsQueryKey(workspaceSlug),
-      queryFn: () => apiGet<{ data: PinnedItem[] }>(`/workspaces/${workspaceSlug}/pins`).then((r) => r.data),
-    });
-  });
+const pinsQ = createQuery<PinnedItem[]>(queryOptsStore);
+const queryClient = useQueryClient();
 
-  const pinsQ = createQuery<PinnedItem[]>(queryOptsStore);
-  const queryClient = useQueryClient();
+// Local optimistic copy — frozen during drag so remote refetches don't reorder DOM mid-gesture.
+let localPins = $state<PinnedItem[]>([]);
+let isDragging = false;
 
-  // Local optimistic copy — frozen during drag so remote refetches don't reorder DOM mid-gesture.
-  let localPins = $state<PinnedItem[]>([]);
-  let isDragging = false;
+$effect(() => {
+  if (!isDragging) localPins = $pinsQ.data ?? [];
+});
 
-  $effect(() => {
-    if (!isDragging) localPins = $pinsQ.data ?? [];
-  });
+// ── Delete mutation ────────────────────────────────────────────────────────
 
-  // ── Delete mutation ────────────────────────────────────────────────────────
+const deleteMut = createMutation({
+  mutationFn: ({ type, ref }: { type: string; ref: string }) =>
+    apiDelete(
+      `/workspaces/${workspaceSlug}/pins/${encodeURIComponent(type)}/${encodeURIComponent(ref)}`
+    ),
+  onSuccess: () => {
+    void queryClient.invalidateQueries({ queryKey: pinsQueryKey(workspaceSlug) });
+  },
+});
 
-  const deleteMut = createMutation({
-    mutationFn: ({ type, ref }: { type: string; ref: string }) =>
-      apiDelete(`/workspaces/${workspaceSlug}/pins/${encodeURIComponent(type)}/${encodeURIComponent(ref)}`),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: pinsQueryKey(workspaceSlug) });
-    },
-  });
+// ── Reorder mutation ───────────────────────────────────────────────────────
 
-  // ── Reorder mutation ───────────────────────────────────────────────────────
+const reorderMut = createMutation({
+  mutationFn: (items: PinnedItem[]) =>
+    apiPut(`/workspaces/${workspaceSlug}/pins/reorder`, {
+      items: items.map((p) => ({ id: p.id })),
+    }),
+});
 
-  const reorderMut = createMutation({
-    mutationFn: (items: PinnedItem[]) =>
-      apiPut(`/workspaces/${workspaceSlug}/pins/reorder`, {
-        items: items.map((p) => ({ id: p.id })),
-      }),
-  });
+// ── DnD handlers ──────────────────────────────────────────────────────────
 
-  // ── DnD handlers ──────────────────────────────────────────────────────────
+function handleConsider(e: CustomEvent<DndEvent<PinnedItem>>) {
+  isDragging = true;
+  localPins = e.detail.items;
+}
 
-  function handleConsider(e: CustomEvent<DndEvent<PinnedItem>>) {
-    isDragging = true;
-    localPins = e.detail.items;
-  }
+function handleFinalize(e: CustomEvent<DndEvent<PinnedItem>>) {
+  isDragging = false;
+  localPins = e.detail.items;
+  $reorderMut.mutate(localPins);
+}
 
-  function handleFinalize(e: CustomEvent<DndEvent<PinnedItem>>) {
-    isDragging = false;
-    localPins = e.detail.items;
-    $reorderMut.mutate(localPins);
-  }
+// ── Label helper ──────────────────────────────────────────────────────────
 
-  // ── Label helper ──────────────────────────────────────────────────────────
-
-  function itemLabel(pin: PinnedItem): string {
-    return `${pin.itemType}:${pin.itemRef}`;
-  }
+function itemLabel(pin: PinnedItem): string {
+  return `${pin.itemType}:${pin.itemRef}`;
+}
 </script>
 
 <aside class="pp-panel" aria-label="Pinned items">

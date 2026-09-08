@@ -1,51 +1,49 @@
 <script lang="ts">
-  /**
-   * StatTile — value + delta % + tiny 7-bar sparkline.
-   * Canonical stat primitive.
-   * CSS prefix: st-
-   *
-   * Props:
-   *   label    — metric label
-   *   value    — current value (number or formatted string)
-   *   delta    — % change vs previous period (positive = up)
-   *   trend    — array of 7 numbers for the mini sparkline
-   *   onDrill  — optional click handler for drill-down
-   */
+/**
+ * StatTile — value + delta % + tiny 7-bar sparkline.
+ * Canonical stat primitive.
+ * CSS prefix: st-
+ *
+ * Props:
+ *   label    — metric label
+ *   value    — current value (number or formatted string)
+ *   delta    — % change vs previous period (positive = up)
+ *   trend    — array of 7 numbers for the mini sparkline
+ *   onDrill  — optional click handler for drill-down
+ */
 
-  interface Props {
-    label: string;
-    value: string | number;
-    delta?: number | null;
-    trend?: number[];
-    onDrill?: () => void;
-  }
+interface Props {
+  label: string;
+  value: string | number;
+  delta?: number | null;
+  trend?: number[];
+  onDrill?: () => void;
+}
 
-  let { label, value, delta = null, trend = [], onDrill }: Props = $props();
+let { label, value, delta = null, trend = [], onDrill }: Props = $props();
 
-  // Sparkline geometry
-  const BAR_COUNT = 7;
-  const BAR_W = 4;
-  const BAR_GAP = 2;
-  const SVG_H = 20;
-  const SVG_W = BAR_COUNT * BAR_W + (BAR_COUNT - 1) * BAR_GAP;
+// Sparkline geometry
+const BAR_COUNT = 7;
+const BAR_W = 4;
+const BAR_GAP = 2;
+const SVG_H = 20;
+const SVG_W = BAR_COUNT * BAR_W + (BAR_COUNT - 1) * BAR_GAP;
 
-  const bars = $derived(
-    trend.length >= BAR_COUNT
-      ? trend.slice(-BAR_COUNT)
-      : [...Array<number>(BAR_COUNT - trend.length).fill(0), ...trend]
-  );
+const bars = $derived(
+  trend.length >= BAR_COUNT
+    ? trend.slice(-BAR_COUNT)
+    : [...Array<number>(BAR_COUNT - trend.length).fill(0), ...trend]
+);
 
-  const maxVal = $derived(Math.max(...bars, 1));
+const maxVal = $derived(Math.max(...bars, 1));
 
-  function bh(v: number): number {
-    return Math.max(2, Math.round((v / maxVal) * SVG_H));
-  }
+function bh(v: number): number {
+  return Math.max(2, Math.round((v / maxVal) * SVG_H));
+}
 
-  const deltaLabel = $derived(
-    delta === null ? '' : `${delta >= 0 ? '+' : ''}${delta}%`
-  );
+const deltaLabel = $derived(delta === null ? '' : `${delta >= 0 ? '+' : ''}${delta}%`);
 
-  const hasTrend = $derived(bars.some((b) => b > 0));
+const hasTrend = $derived(bars.some((b) => b > 0));
 </script>
 
 <!-- Single root element avoids Svelte structural {#if} block issues -->

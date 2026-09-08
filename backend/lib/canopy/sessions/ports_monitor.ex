@@ -32,7 +32,7 @@ defmodule Canopy.Sessions.PortsMonitor do
   Looks up the os_pid via PtyBridge state, then calls lsof.
   """
   @spec scan(Canopy.Sessions.PtyBridge.session_id()) ::
-          {:ok, [port_entry()]} | {:error, :no_process | :lsof_unavailable}
+          {:ok, [port_entry()]}
   def scan(session_id) do
     case os_pid_for_session(session_id) do
       nil ->

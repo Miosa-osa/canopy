@@ -1,103 +1,98 @@
 <script lang="ts">
-  /**
-   * IssueDetailActions — header action bar for the issue detail page.
-   * Owns dispatch / complete / reopen / delete / properties-panel mutations
-   * and the two-step delete confirmation UI.
-   * CSS prefix: id- (shared with /issues/[short_id] page).
-   */
-  import {
-    type CreateMutationOptions,
-    createMutation,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { Trash2 } from 'lucide-svelte';
-  import { goto } from '$app/navigation';
-  import {
-    completeIssueMutation,
-    deleteIssueMutation,
-    dispatchIssueMutation,
-    reopenIssueMutation,
-  } from '$lib/api/queries/issues.js';
-  import IssueStatusPill from '$lib/design/patterns/IssueStatusPill.svelte';
-  import type { Issue } from '$lib/domain/issues/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * IssueDetailActions — header action bar for the issue detail page.
+ * Owns dispatch / complete / reopen / delete / properties-panel mutations
+ * and the two-step delete confirmation UI.
+ * CSS prefix: id- (shared with /issues/[short_id] page).
+ */
+import { type CreateMutationOptions, createMutation, useQueryClient } from '@tanstack/svelte-query';
+import { Trash2 } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import {
+  completeIssueMutation,
+  deleteIssueMutation,
+  dispatchIssueMutation,
+  reopenIssueMutation,
+} from '$lib/api/queries/issues.js';
+import IssueStatusPill from '$lib/design/patterns/IssueStatusPill.svelte';
+import type { Issue } from '$lib/domain/issues/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  interface Props {
-    issue: Issue;
-    shortId: string;
-    panelOpen: boolean;
-    onPanelToggle: () => void;
-    onInvalidate: () => void;
-    onAllowNavigation: () => void;
-  }
+interface Props {
+  issue: Issue;
+  shortId: string;
+  panelOpen: boolean;
+  onPanelToggle: () => void;
+  onInvalidate: () => void;
+  onAllowNavigation: () => void;
+}
 
-  let {
-    issue,
-    shortId,
-    panelOpen,
-    onPanelToggle,
-    onInvalidate,
-    onAllowNavigation,
-  }: Props = $props();
+let { issue, shortId, panelOpen, onPanelToggle, onInvalidate, onAllowNavigation }: Props = $props();
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  const completeMut = createMutation<Issue, Error, string>(
-    completeIssueMutation() as CreateMutationOptions<Issue, Error, string>,
-  );
-  const reopenMut = createMutation<Issue, Error, string>(
-    reopenIssueMutation() as CreateMutationOptions<Issue, Error, string>,
-  );
-  const deleteMut = createMutation<void, Error, string>(
-    deleteIssueMutation() as CreateMutationOptions<void, Error, string>,
-  );
-  const dispatchMut = createMutation<Issue, Error, string>(
-    dispatchIssueMutation() as CreateMutationOptions<Issue, Error, string>,
-  );
+const completeMut = createMutation<Issue, Error, string>(
+  completeIssueMutation() as CreateMutationOptions<Issue, Error, string>
+);
+const reopenMut = createMutation<Issue, Error, string>(
+  reopenIssueMutation() as CreateMutationOptions<Issue, Error, string>
+);
+const deleteMut = createMutation<void, Error, string>(
+  deleteIssueMutation() as CreateMutationOptions<void, Error, string>
+);
+const dispatchMut = createMutation<Issue, Error, string>(
+  dispatchIssueMutation() as CreateMutationOptions<Issue, Error, string>
+);
 
-  // suppress unused-variable warning — queryClient used via invalidateQueries
-  void queryClient;
+// suppress unused-variable warning — queryClient used via invalidateQueries
+void queryClient;
 
-  let deleteConfirm = $state(false);
+let deleteConfirm = $state(false);
 
-  const isTerminal = $derived(issue.status === 'closed');
+const isTerminal = $derived(issue.status === 'closed');
 
-  function handleComplete(): void {
-    $completeMut.mutate(shortId, {
-      onSuccess: () => { onInvalidate(); toasts.success('Issue closed'); },
-    });
-  }
+function handleComplete(): void {
+  $completeMut.mutate(shortId, {
+    onSuccess: () => {
+      onInvalidate();
+      toasts.success('Issue closed');
+    },
+  });
+}
 
-  function handleReopen(): void {
-    $reopenMut.mutate(shortId, {
-      onSuccess: () => { onInvalidate(); toasts.success('Issue reopened'); },
-    });
-  }
+function handleReopen(): void {
+  $reopenMut.mutate(shortId, {
+    onSuccess: () => {
+      onInvalidate();
+      toasts.success('Issue reopened');
+    },
+  });
+}
 
-  function handleDispatch(): void {
-    $dispatchMut.mutate(shortId, {
-      onSuccess: (result) => {
-        onInvalidate();
-        toasts.success('Issue dispatched');
-        if (result.sessionId) goto(`/sessions/${result.sessionId}`);
-      },
-      onError: (err: Error) => toasts.error(`Dispatch failed: ${err.message}`),
-    });
-  }
+function handleDispatch(): void {
+  $dispatchMut.mutate(shortId, {
+    onSuccess: (result) => {
+      onInvalidate();
+      toasts.success('Issue dispatched');
+      if (result.sessionId) goto(`/sessions/${result.sessionId}`);
+    },
+    onError: (err: Error) => toasts.error(`Dispatch failed: ${err.message}`),
+  });
+}
 
-  function handleDelete(): void {
-    $deleteMut.mutate(shortId, {
-      onSuccess: () => {
-        onAllowNavigation();
-        toasts.success('Issue deleted');
-        goto('/issues');
-      },
-      onError: (err: Error) => {
-        toasts.error(`Delete failed: ${err.message}`);
-        deleteConfirm = false;
-      },
-    });
-  }
+function handleDelete(): void {
+  $deleteMut.mutate(shortId, {
+    onSuccess: () => {
+      onAllowNavigation();
+      toasts.success('Issue deleted');
+      goto('/issues');
+    },
+    onError: (err: Error) => {
+      toasts.error(`Delete failed: ${err.message}`);
+      deleteConfirm = false;
+    },
+  });
+}
 </script>
 
 <div class="id-actions">

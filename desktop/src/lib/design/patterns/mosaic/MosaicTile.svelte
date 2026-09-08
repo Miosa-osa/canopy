@@ -1,299 +1,328 @@
 <script lang="ts">
-  /**
-   * MosaicTile — tab-bar + pane body for a single mosaic tile.
-   * Supports HTML5 drag-and-drop for tab movement + edge-drop splitting +
-   * intra-tile reorder. Reads `mosaic-prefs` via context for density,
-   * title format, and hover-card visibility.
-   *
-   * CSS prefix: mt-
-   * LOC target: ≤ 280.
-   */
-  import { getContext } from 'svelte';
-  import {
-    Bot,
-    FileText,
-    FolderOpen,
-    FolderKanban,
-    BookOpen,
-    CheckSquare,
-    CircleDot,
-    GitPullRequest,
-    History,
-    Terminal,
-    Workflow,
-    BookMarked,
-    Plus,
-    X,
-    Pin,
-  } from 'lucide-svelte';
-  import { mosaicLayout, type Tile, type Pane, type PaneKind } from '$lib/stores/mosaic-layout.svelte.js';
-  import type { MosaicTitleFormat } from '$lib/stores/mosaic-prefs.svelte.js';
-  import PaneContent from './PaneContent.svelte';
-  import PanePicker from './PanePicker.svelte';
-  import TabHoverCard from './TabHoverCard.svelte';
+/**
+ * MosaicTile — tab-bar + pane body for a single mosaic tile.
+ * Supports HTML5 drag-and-drop for tab movement + edge-drop splitting +
+ * intra-tile reorder. Reads `mosaic-prefs` via context for density,
+ * title format, and hover-card visibility.
+ *
+ * CSS prefix: mt-
+ * LOC target: ≤ 280.
+ */
 
-  interface Props {
-    tile: Tile;
-  }
+import {
+  BookMarked,
+  BookOpen,
+  Bot,
+  CheckSquare,
+  CircleDot,
+  FileText,
+  FolderKanban,
+  FolderOpen,
+  GitPullRequest,
+  History,
+  Pin,
+  Plus,
+  Terminal,
+  Workflow,
+  X,
+} from 'lucide-svelte';
+import { getContext } from 'svelte';
+import {
+  mosaicLayout,
+  type Pane,
+  type PaneKind,
+  type Tile,
+} from '$lib/stores/mosaic-layout.svelte.js';
+import type { MosaicTitleFormat } from '$lib/stores/mosaic-prefs.svelte.js';
+import PaneContent from './PaneContent.svelte';
+import PanePicker from './PanePicker.svelte';
+import TabHoverCard from './TabHoverCard.svelte';
 
-  let { tile }: Props = $props();
+interface Props {
+  tile: Tile;
+}
 
-  // ── Prefs (via context, falls back to defaults if unmounted standalone) ─────
+let { tile }: Props = $props();
 
-  type PrefsCtx = {
-    prefs: {
-      view_mode: 'panes' | 'tabs';
-      density: 'compact' | 'comfortable' | 'roomy';
-      pane_title_format: MosaicTitleFormat;
-      metadata_fields: string[];
-      show_details_on_hover: boolean;
-    };
+// ── Prefs (via context, falls back to defaults if unmounted standalone) ─────
+
+type PrefsCtx = {
+  prefs: {
+    view_mode: 'panes' | 'tabs';
+    density: 'compact' | 'comfortable' | 'roomy';
+    pane_title_format: MosaicTitleFormat;
+    metadata_fields: string[];
+    show_details_on_hover: boolean;
   };
-  const prefs = getContext<PrefsCtx | undefined>('mosaic-prefs');
+};
+const prefs = getContext<PrefsCtx | undefined>('mosaic-prefs');
 
-  let pickerOpen = $state(false);
-  let dropZone = $state<'none' | 'top' | 'bottom' | 'left' | 'right' | 'tab'>('none');
+let pickerOpen = $state(false);
+let dropZone = $state<'none' | 'top' | 'bottom' | 'left' | 'right' | 'tab'>('none');
 
-  // ── Tab context menu ────────────────────────────────────────────────────────
-  let contextMenu = $state<{ paneId: string; x: number; y: number } | null>(null);
+// ── Tab context menu ────────────────────────────────────────────────────────
+let contextMenu = $state<{ paneId: string; x: number; y: number } | null>(null);
 
-  function openContextMenu(e: MouseEvent, paneId: string): void {
-    e.preventDefault();
-    e.stopPropagation();
-    contextMenu = { paneId, x: e.clientX, y: e.clientY };
-  }
+function openContextMenu(e: MouseEvent, paneId: string): void {
+  e.preventDefault();
+  e.stopPropagation();
+  contextMenu = { paneId, x: e.clientX, y: e.clientY };
+}
 
-  function closeContextMenu(): void {
-    contextMenu = null;
-  }
+function closeContextMenu(): void {
+  contextMenu = null;
+}
 
-  function ctxNewTab(): void {
-    closeContextMenu();
-    mosaicLayout.setActiveTile(tile.id);
-    pickerOpen = true;
-  }
+function ctxNewTab(): void {
+  closeContextMenu();
+  mosaicLayout.setActiveTile(tile.id);
+  pickerOpen = true;
+}
 
-  function ctxSplitRight(): void {
-    closeContextMenu();
-    mosaicLayout.splitTile(tile.id, 'vertical');
-  }
+function ctxSplitRight(): void {
+  closeContextMenu();
+  mosaicLayout.splitTile(tile.id, 'vertical');
+}
 
-  function ctxSplitDown(): void {
-    closeContextMenu();
-    mosaicLayout.splitTile(tile.id, 'horizontal');
-  }
+function ctxSplitDown(): void {
+  closeContextMenu();
+  mosaicLayout.splitTile(tile.id, 'horizontal');
+}
 
-  function ctxClosePane(paneId: string): void {
-    closeContextMenu();
-    mosaicLayout.closePane(tile.id, paneId);
-  }
+function ctxClosePane(paneId: string): void {
+  closeContextMenu();
+  mosaicLayout.closePane(tile.id, paneId);
+}
 
-  function ctxPinPane(paneId: string): void {
-    closeContextMenu();
-    mosaicLayout.pinPane(tile.id, paneId);
-  }
+function ctxPinPane(paneId: string): void {
+  closeContextMenu();
+  mosaicLayout.pinPane(tile.id, paneId);
+}
 
-  function ctxCloseTile(): void {
-    closeContextMenu();
-    mosaicLayout.closeTile(tile.id);
-  }
-  let isActive = $derived(mosaicLayout.activeTileId === tile.id);
+function ctxCloseTile(): void {
+  closeContextMenu();
+  mosaicLayout.closeTile(tile.id);
+}
+let isActive = $derived(mosaicLayout.activeTileId === tile.id);
 
-  /** Whether the pane currently targeted by the context menu is pinned. */
-  let ctxPaneIsPinned = $derived(
-    contextMenu !== null
-      ? (tile.panes.find((p) => p.id === (contextMenu as NonNullable<typeof contextMenu>).paneId)?.pinned ?? false)
-      : false,
-  );
+/** Whether the pane currently targeted by the context menu is pinned. */
+let ctxPaneIsPinned = $derived(
+  contextMenu !== null
+    ? (tile.panes.find((p) => p.id === (contextMenu as NonNullable<typeof contextMenu>).paneId)
+        ?.pinned ?? false)
+    : false
+);
 
-  $effect(() => {
-    const id = tile.activePaneId;
-    if (!id) return;
-    const el = document.querySelector(`[data-pane-id="${id}"]`);
-    el?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
-  });
+$effect(() => {
+  const id = tile.activePaneId;
+  if (!id) return;
+  const el = document.querySelector(`[data-pane-id="${id}"]`);
+  el?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+});
 
-  // Hover card lifecycle.
-  let hoveredPaneId = $state<string | null>(null);
-  let hoverCardStyle = $state<string>('');
-  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
-  const HOVER_DELAY_MS = 350;
+// Hover card lifecycle.
+let hoveredPaneId = $state<string | null>(null);
+let hoverCardStyle = $state<string>('');
+let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+const HOVER_DELAY_MS = 350;
 
-  // ── Icon lookup ─────────────────────────────────────────────────────────────
+// ── Icon lookup ─────────────────────────────────────────────────────────────
 
-  type IconComp = unknown;
-  const KIND_ICONS: Record<PaneKind, IconComp> = {
-    session:   Terminal as IconComp,
-    issue:     CircleDot as IconComp,
-    task:      CheckSquare as IconComp,
-    doc:       FileText as IconComp,
-    file:      FolderOpen as IconComp,
-    terminal:  Terminal as IconComp,
-    changes:   GitPullRequest as IconComp,
-    knowledge: BookOpen as IconComp,
-    agent_conversation: Bot as IconComp,
-    agent_kanban: FolderKanban as IconComp,
-    block_stream: Terminal as IconComp,
-    workflow: Workflow as IconComp,
-    notebook: BookMarked as IconComp,
-    history: History as IconComp,
-  };
+type IconComp = unknown;
+const KIND_ICONS: Record<PaneKind, IconComp> = {
+  session: Terminal as IconComp,
+  issue: CircleDot as IconComp,
+  task: CheckSquare as IconComp,
+  doc: FileText as IconComp,
+  file: FolderOpen as IconComp,
+  terminal: Terminal as IconComp,
+  changes: GitPullRequest as IconComp,
+  knowledge: BookOpen as IconComp,
+  agent_conversation: Bot as IconComp,
+  agent_kanban: FolderKanban as IconComp,
+  block_stream: Terminal as IconComp,
+  workflow: Workflow as IconComp,
+  notebook: BookMarked as IconComp,
+  history: History as IconComp,
+};
 
-  // ── Title formatting ────────────────────────────────────────────────────────
+// ── Title formatting ────────────────────────────────────────────────────────
 
-  function paneTitle(pane: Pane): string {
-    const fmt = prefs?.prefs.pane_title_format ?? 'command';
-    const cfg = (pane.config ?? {}) as Record<string, unknown>;
-    const command = typeof cfg.command === 'string' ? cfg.command : null;
-    const cwd = typeof cfg.cwd === 'string' ? cfg.cwd : (typeof cfg.working_directory === 'string' ? cfg.working_directory : null);
-    const branch = typeof cfg.branch === 'string' ? cfg.branch : null;
+function paneTitle(pane: Pane): string {
+  const fmt = prefs?.prefs.pane_title_format ?? 'command';
+  const cfg = (pane.config ?? {}) as Record<string, unknown>;
+  const command = typeof cfg.command === 'string' ? cfg.command : null;
+  const cwd =
+    typeof cfg.cwd === 'string'
+      ? cfg.cwd
+      : typeof cfg.working_directory === 'string'
+        ? cfg.working_directory
+        : null;
+  const branch = typeof cfg.branch === 'string' ? cfg.branch : null;
 
-    if (fmt === 'working_directory' && cwd) return cwd.split('/').pop() || cwd;
-    if (fmt === 'branch' && branch) return branch;
-    return command || pane.title;
-  }
+  if (fmt === 'working_directory' && cwd) return cwd.split('/').pop() || cwd;
+  if (fmt === 'branch' && branch) return branch;
+  return command || pane.title;
+}
 
-  // ── Metadata badges ─────────────────────────────────────────────────────────
+// ── Metadata badges ─────────────────────────────────────────────────────────
 
-  /** Returns the display value for a given metadata field on a pane, or null if absent. */
-  function metaBadgeValue(pane: Pane, field: string): string | null {
-    const cfg = (pane.config ?? {}) as Record<string, unknown>;
-    switch (field) {
-      case 'branch':
-        return typeof cfg.branch === 'string' ? cfg.branch : null;
-      case 'working_directory': {
-        const cwd = typeof cfg.cwd === 'string' ? cfg.cwd : (typeof cfg.working_directory === 'string' ? cfg.working_directory : null);
-        return cwd ? (cwd.split('/').pop() || cwd) : null;
-      }
-      case 'agent':
-        return typeof cfg.agent === 'string' ? cfg.agent : (typeof cfg.agent_slug === 'string' ? cfg.agent_slug : null);
-      case 'runtime':
-        return typeof cfg.runtime === 'string' ? cfg.runtime : null;
-      case 'model':
-        return typeof cfg.model === 'string' ? cfg.model : null;
-      default:
-        return null;
+/** Returns the display value for a given metadata field on a pane, or null if absent. */
+function metaBadgeValue(pane: Pane, field: string): string | null {
+  const cfg = (pane.config ?? {}) as Record<string, unknown>;
+  switch (field) {
+    case 'branch':
+      return typeof cfg.branch === 'string' ? cfg.branch : null;
+    case 'working_directory': {
+      const cwd =
+        typeof cfg.cwd === 'string'
+          ? cfg.cwd
+          : typeof cfg.working_directory === 'string'
+            ? cfg.working_directory
+            : null;
+      return cwd ? cwd.split('/').pop() || cwd : null;
     }
+    case 'agent':
+      return typeof cfg.agent === 'string'
+        ? cfg.agent
+        : typeof cfg.agent_slug === 'string'
+          ? cfg.agent_slug
+          : null;
+    case 'runtime':
+      return typeof cfg.runtime === 'string' ? cfg.runtime : null;
+    case 'model':
+      return typeof cfg.model === 'string' ? cfg.model : null;
+    default:
+      return null;
   }
+}
 
-  // ── Drag-and-drop ───────────────────────────────────────────────────────────
+// ── Drag-and-drop ───────────────────────────────────────────────────────────
 
-  interface DragPayload { fromTile: string; paneId: string; }
+interface DragPayload {
+  fromTile: string;
+  paneId: string;
+}
 
-  function onTabDragStart(e: DragEvent, paneId: string): void {
-    if (!e.dataTransfer) return;
-    const payload: DragPayload = { fromTile: tile.id, paneId };
-    e.dataTransfer.setData('application/x-canopy-pane', JSON.stringify(payload));
-    e.dataTransfer.effectAllowed = 'move';
-    cancelHover();
+function onTabDragStart(e: DragEvent, paneId: string): void {
+  if (!e.dataTransfer) return;
+  const payload: DragPayload = { fromTile: tile.id, paneId };
+  e.dataTransfer.setData('application/x-canopy-pane', JSON.stringify(payload));
+  e.dataTransfer.effectAllowed = 'move';
+  cancelHover();
+}
+
+function onTileDragOver(e: DragEvent): void {
+  if (!e.dataTransfer?.types.includes('application/x-canopy-pane')) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const edgeThreshold = Math.min(rect.width, rect.height) * 0.25;
+  if (y < edgeThreshold) dropZone = 'top';
+  else if (y > rect.height - edgeThreshold) dropZone = 'bottom';
+  else if (x < edgeThreshold) dropZone = 'left';
+  else if (x > rect.width - edgeThreshold) dropZone = 'right';
+  else dropZone = 'tab';
+}
+
+function onTabBarDragOver(e: DragEvent): void {
+  if (!e.dataTransfer?.types.includes('application/x-canopy-pane')) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  dropZone = 'tab';
+}
+
+/** Compute insertion index from clientX over the tab strip. */
+function computeReorderIndex(e: DragEvent): number {
+  const tabsEl = (e.currentTarget as HTMLElement).querySelector('.mt-tabs');
+  if (!tabsEl) return tile.panes.length;
+  const tabs = Array.from(tabsEl.querySelectorAll<HTMLElement>('.mt-tab'));
+  for (let i = 0; i < tabs.length; i++) {
+    const r = tabs[i].getBoundingClientRect();
+    if (e.clientX < r.left + r.width / 2) return i;
   }
+  return tabs.length;
+}
 
-  function onTileDragOver(e: DragEvent): void {
-    if (!e.dataTransfer?.types.includes('application/x-canopy-pane')) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const edgeThreshold = Math.min(rect.width, rect.height) * 0.25;
-    if (y < edgeThreshold)         dropZone = 'top';
-    else if (y > rect.height - edgeThreshold) dropZone = 'bottom';
-    else if (x < edgeThreshold)   dropZone = 'left';
-    else if (x > rect.width - edgeThreshold)  dropZone = 'right';
-    else                           dropZone = 'tab';
-  }
-
-  function onTabBarDragOver(e: DragEvent): void {
-    if (!e.dataTransfer?.types.includes('application/x-canopy-pane')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'move';
-    dropZone = 'tab';
-  }
-
-  /** Compute insertion index from clientX over the tab strip. */
-  function computeReorderIndex(e: DragEvent): number {
-    const tabsEl = (e.currentTarget as HTMLElement).querySelector('.mt-tabs');
-    if (!tabsEl) return tile.panes.length;
-    const tabs = Array.from(tabsEl.querySelectorAll<HTMLElement>('.mt-tab'));
-    for (let i = 0; i < tabs.length; i++) {
-      const r = tabs[i].getBoundingClientRect();
-      if (e.clientX < r.left + r.width / 2) return i;
-    }
-    return tabs.length;
-  }
-
-  function onDrop(e: DragEvent): void {
-    e.preventDefault();
-    const raw = e.dataTransfer?.getData('application/x-canopy-pane');
-    if (!raw) { dropZone = 'none'; return; }
-    const { fromTile, paneId } = JSON.parse(raw) as DragPayload;
-    const zone = dropZone;
+function onDrop(e: DragEvent): void {
+  e.preventDefault();
+  const raw = e.dataTransfer?.getData('application/x-canopy-pane');
+  if (!raw) {
     dropZone = 'none';
+    return;
+  }
+  const { fromTile, paneId } = JSON.parse(raw) as DragPayload;
+  const zone = dropZone;
+  dropZone = 'none';
 
-    if (zone === 'tab') {
-      // Tab-bar drop: cross-tile move OR intra-tile reorder.
-      const insertAt = computeReorderIndex(e);
-      if (fromTile === tile.id) {
-        const currentIdx = tile.panes.findIndex((p) => p.id === paneId);
-        if (currentIdx === -1 || currentIdx === insertAt || currentIdx + 1 === insertAt) return;
-        // Adjust insert idx to compensate for the removed item.
-        const adjusted = insertAt > currentIdx ? insertAt - 1 : insertAt;
-        mosaicLayout.movePane(fromTile, paneId, tile.id, adjusted);
-      } else {
-        mosaicLayout.movePane(fromTile, paneId, tile.id, insertAt);
-      }
-    } else if (zone === 'top' || zone === 'bottom' || zone === 'left' || zone === 'right') {
-      // Edge drop → split
-      const orientation = (zone === 'left' || zone === 'right') ? 'vertical' : 'horizontal';
-      mosaicLayout.splitTile(tile.id, orientation);
-      const tiles = mosaicLayout.allTiles();
-      const newTile = tiles[tiles.length - 1];
-      if (newTile && fromTile !== newTile.id) {
-        mosaicLayout.movePane(fromTile, paneId, newTile.id);
-      }
+  if (zone === 'tab') {
+    // Tab-bar drop: cross-tile move OR intra-tile reorder.
+    const insertAt = computeReorderIndex(e);
+    if (fromTile === tile.id) {
+      const currentIdx = tile.panes.findIndex((p) => p.id === paneId);
+      if (currentIdx === -1 || currentIdx === insertAt || currentIdx + 1 === insertAt) return;
+      // Adjust insert idx to compensate for the removed item.
+      const adjusted = insertAt > currentIdx ? insertAt - 1 : insertAt;
+      mosaicLayout.movePane(fromTile, paneId, tile.id, adjusted);
+    } else {
+      mosaicLayout.movePane(fromTile, paneId, tile.id, insertAt);
+    }
+  } else if (zone === 'top' || zone === 'bottom' || zone === 'left' || zone === 'right') {
+    // Edge drop → split
+    const orientation = zone === 'left' || zone === 'right' ? 'vertical' : 'horizontal';
+    mosaicLayout.splitTile(tile.id, orientation);
+    const tiles = mosaicLayout.allTiles();
+    const newTile = tiles[tiles.length - 1];
+    if (newTile && fromTile !== newTile.id) {
+      mosaicLayout.movePane(fromTile, paneId, newTile.id);
     }
   }
+}
 
-  function onDragLeave(e: DragEvent): void {
-    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as HTMLElement)) {
-      dropZone = 'none';
-    }
+function onDragLeave(e: DragEvent): void {
+  if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as HTMLElement)) {
+    dropZone = 'none';
   }
+}
 
-  // ── Hover card ──────────────────────────────────────────────────────────────
+// ── Hover card ──────────────────────────────────────────────────────────────
 
-  function cancelHover(): void {
-    if (hoverTimer) {
-      clearTimeout(hoverTimer);
-      hoverTimer = null;
-    }
-    hoveredPaneId = null;
+function cancelHover(): void {
+  if (hoverTimer) {
+    clearTimeout(hoverTimer);
+    hoverTimer = null;
   }
+  hoveredPaneId = null;
+}
 
-  function onTabPointerEnter(e: PointerEvent, paneId: string): void {
-    if (!prefs?.prefs.show_details_on_hover) return;
-    const tab = e.currentTarget as HTMLElement;
-    const tileEl = tab.closest('.mt-tile') as HTMLElement | null;
-    if (!tileEl) return;
-    const tabRect = tab.getBoundingClientRect();
-    const tileRect = tileEl.getBoundingClientRect();
-    const top = tabRect.bottom - tileRect.top + 4;
-    const left = Math.max(4, Math.min(tabRect.left - tileRect.left, tileRect.width - 320));
-    hoverCardStyle = `top: ${top}px; left: ${left}px;`;
-    if (hoverTimer) clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => { hoveredPaneId = paneId; }, HOVER_DELAY_MS);
-  }
+function onTabPointerEnter(e: PointerEvent, paneId: string): void {
+  if (!prefs?.prefs.show_details_on_hover) return;
+  const tab = e.currentTarget as HTMLElement;
+  const tileEl = tab.closest('.mt-tile') as HTMLElement | null;
+  if (!tileEl) return;
+  const tabRect = tab.getBoundingClientRect();
+  const tileRect = tileEl.getBoundingClientRect();
+  const top = tabRect.bottom - tileRect.top + 4;
+  const left = Math.max(4, Math.min(tabRect.left - tileRect.left, tileRect.width - 320));
+  hoverCardStyle = `top: ${top}px; left: ${left}px;`;
+  if (hoverTimer) clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => {
+    hoveredPaneId = paneId;
+  }, HOVER_DELAY_MS);
+}
 
-  function onTabPointerLeave(): void {
-    cancelHover();
-  }
+function onTabPointerLeave(): void {
+  cancelHover();
+}
 
-  const hoveredPane = $derived(
-    hoveredPaneId ? tile.panes.find((p) => p.id === hoveredPaneId) ?? null : null,
-  );
+const hoveredPane = $derived(
+  hoveredPaneId ? (tile.panes.find((p) => p.id === hoveredPaneId) ?? null) : null
+);
 
-  const isPanesView = $derived(prefs?.prefs.view_mode === 'panes');
+const isPanesView = $derived(prefs?.prefs.view_mode === 'panes');
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

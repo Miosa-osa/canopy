@@ -1,11 +1,18 @@
 <script lang="ts">
-import { onMount, onDestroy } from 'svelte';
+import { onDestroy, onMount } from 'svelte';
 import { profile } from '$lib/stores/profile.svelte.js';
 
 const userName = $derived(profile.displayName || 'you');
 
 const GREETINGS: ((name: string) => string)[] = [
-  (n) => { const h = new Date().getHours(); return h < 12 ? `Good morning, ${n}.` : h < 17 ? `Good afternoon, ${n}.` : `Good evening, ${n}.`; },
+  (n) => {
+    const h = new Date().getHours();
+    return h < 12
+      ? `Good morning, ${n}.`
+      : h < 17
+        ? `Good afternoon, ${n}.`
+        : `Good evening, ${n}.`;
+  },
   (n) => `Look who's back, ${n}.`,
   (n) => `${n} is back for more.`,
   (n) => `Welcome back, ${n}.`,
@@ -23,26 +30,18 @@ const GREETINGS: ((name: string) => string)[] = [
 ];
 
 const SPARKS = [
-  "I was just looking at your recent sessions — want to pick up where you left off?",
-  "You've got 3 agents idle right now. Want to put them to work?",
-  "What if we automated that thing you keep doing manually?",
-  "I noticed some failing tests in your last session. Want me to take a look?",
-  "Your codebase has grown 12% this week. Need a refactor pass?",
-  "Got a wild idea? Type it out — worst case we learn something.",
-  "Want me to review what changed since yesterday?",
-  "I can run your test suite in the background while you think.",
-  "Any fires to put out, or are we building something new?",
-  "Ship something small today. Momentum compounds.",
-  "What's the one thing that would make tomorrow easier?",
-  "I'm warmed up and ready. What's first?",
-  "Sketch it out in words — I'll turn it into code.",
-  "Want to pair on something? I'll drive.",
-  "Tell me about the ugliest part of your codebase. Let's fix it.",
-  "What would you build if you had zero meetings today?",
-  "Describe your ideal outcome for today in one sentence.",
-  "I just checked — your deploy pipeline is green. Time to push something.",
-  "Want to explore a new architecture? I'll prototype it.",
-  "Let's make something you'll be proud of.",
+  'Want to pick up a previous session?',
+  'Which workspace are we working in today?',
+  'What would you like to automate?',
+  'Any tests you want to investigate?',
+  'Is there a part of the codebase you want to improve?',
+  'Got an idea? Start with the outcome you want.',
+  'What changed since your last session?',
+  'What should we focus on first?',
+  'Any fires to put out today?',
+  'Ready to start a new session?',
+  'Sketch out what you want to build.',
+  'What would make today a productive day?',
 ];
 
 function pick<T>(arr: T[]): T {
@@ -76,8 +75,12 @@ onMount(() => {
     if (i >= text.length) {
       clearInterval(typeInterval);
       doneTyping = true;
-      setTimeout(() => { showCursor = false; }, 600);
-      setTimeout(() => { sparkVisible = true; }, 300);
+      setTimeout(() => {
+        showCursor = false;
+      }, 600);
+      setTimeout(() => {
+        sparkVisible = true;
+      }, 300);
 
       sparkInterval = setInterval(() => {
         sparkVisible = false;

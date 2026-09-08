@@ -6,6 +6,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule LifecycleEvent do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -29,6 +30,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule LifecycleEventList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -40,6 +42,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule SandboxState do
     @moduledoc "Most-recent state row for a sandbox."
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -58,6 +61,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule SandboxStateList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -69,6 +73,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule Snapshot do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -95,6 +100,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule SnapshotList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -106,6 +112,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule SnapshotCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -124,6 +131,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule PortForward do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -149,6 +157,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule PortForwardList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -160,6 +169,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule PortForwardCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -178,6 +188,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule Alert do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -204,6 +215,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule AlertList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -215,6 +227,7 @@ defmodule CanopyWeb.Schemas.SandboxesNgSchema do
   defmodule AlertCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{

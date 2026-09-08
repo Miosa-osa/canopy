@@ -1,36 +1,35 @@
 <script lang="ts">
-  /**
-   * TasksWidget — Kanban snapshot: task counts per status column.
-   * CSS prefix: tw- (TasksWidget)
-   */
-  import { createQuery } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import { untrack } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { tasksQuery } from '$lib/api/queries/tasks.js';
-  import type { Task, TaskStatus } from '$lib/domain/tasks/types.js';
-  import type { CreateQueryOptions } from '@tanstack/svelte-query';
+/**
+ * TasksWidget — Kanban snapshot: task counts per status column.
+ * CSS prefix: tw- (TasksWidget)
+ */
 
-  const optsStore = writable(
-    untrack(() => tasksQuery() as CreateQueryOptions<Task[]>),
-  );
-  const query = createQuery<Task[]>(optsStore);
+import type { CreateQueryOptions } from '@tanstack/svelte-query';
+import { createQuery } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { tasksQuery } from '$lib/api/queries/tasks.js';
+import type { Task, TaskStatus } from '$lib/domain/tasks/types.js';
 
-  const STATUSES: { status: TaskStatus; label: string }[] = [
-    { status: 'todo', label: 'Todo' },
-    { status: 'in_progress', label: 'In Progress' },
-    { status: 'done', label: 'Done' },
-    { status: 'cancelled', label: 'Cancelled' },
-  ];
+const optsStore = writable(untrack(() => tasksQuery() as CreateQueryOptions<Task[]>));
+const query = createQuery<Task[]>(optsStore);
 
-  const allTasks = $derived(($query.data ?? []) as Task[]);
+const STATUSES: { status: TaskStatus; label: string }[] = [
+  { status: 'todo', label: 'Todo' },
+  { status: 'in_progress', label: 'In Progress' },
+  { status: 'done', label: 'Done' },
+  { status: 'cancelled', label: 'Cancelled' },
+];
 
-  const counts = $derived<Record<TaskStatus, number>>({
-    todo: allTasks.filter((t) => t.status === 'todo').length,
-    in_progress: allTasks.filter((t) => t.status === 'in_progress').length,
-    done: allTasks.filter((t) => t.status === 'done').length,
-    cancelled: allTasks.filter((t) => t.status === 'cancelled').length,
-  });
+const allTasks = $derived(($query.data ?? []) as Task[]);
+
+const counts = $derived<Record<TaskStatus, number>>({
+  todo: allTasks.filter((t) => t.status === 'todo').length,
+  in_progress: allTasks.filter((t) => t.status === 'in_progress').length,
+  done: allTasks.filter((t) => t.status === 'done').length,
+  cancelled: allTasks.filter((t) => t.status === 'cancelled').length,
+});
 </script>
 
 <div class="tw-widget">

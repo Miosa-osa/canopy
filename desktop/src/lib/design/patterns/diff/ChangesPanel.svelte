@@ -1,95 +1,93 @@
 <script lang="ts">
-  /**
-   * ChangesPanel — composes ChangesFileList + DiffViewer for a session worktree.
-   * CSS prefix: chp-
-   * LOC target: ≤ 180.
-   */
-  import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { worktreeDiffQuery, worktreeStatusQuery } from '$lib/api/queries/sessions.js';
-  import { isTruncated, parseDiff } from '$lib/utils/parse-diff.js';
-  import type { DiffFile } from '$lib/utils/parse-diff.js';
-  import type { WorktreeStatus } from '$lib/api/queries/sessions.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
-  import ChangesFileList from './ChangesFileList.svelte';
-  import CommitModal from './CommitModal.svelte';
-  import DiffViewer from './DiffViewer.svelte';
+/**
+ * ChangesPanel — composes ChangesFileList + DiffViewer for a session worktree.
+ * CSS prefix: chp-
+ * LOC target: ≤ 180.
+ */
+import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import type { WorktreeStatus } from '$lib/api/queries/sessions.js';
+import { worktreeDiffQuery, worktreeStatusQuery } from '$lib/api/queries/sessions.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import type { DiffFile } from '$lib/utils/parse-diff.js';
+import { isTruncated, parseDiff } from '$lib/utils/parse-diff.js';
+import ChangesFileList from './ChangesFileList.svelte';
+import CommitModal from './CommitModal.svelte';
+import DiffViewer from './DiffViewer.svelte';
 
-  interface Props {
-    sessionId: string;
-  }
+interface Props {
+  sessionId: string;
+}
 
-  let { sessionId }: Props = $props();
+let { sessionId }: Props = $props();
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  // ── Worktree status ───────────────────────────────────────────────────────────
+// ── Worktree status ───────────────────────────────────────────────────────────
 
-  const statusOptsStore = writable(
-    untrack(() => worktreeStatusQuery(sessionId) as CreateQueryOptions<WorktreeStatus>),
-  );
-  $effect(() => {
-    statusOptsStore.set(worktreeStatusQuery(sessionId) as CreateQueryOptions<WorktreeStatus>);
-  });
-  const statusQuery = createQuery<WorktreeStatus>(statusOptsStore);
+const statusOptsStore = writable(
+  untrack(() => worktreeStatusQuery(sessionId) as CreateQueryOptions<WorktreeStatus>)
+);
+$effect(() => {
+  statusOptsStore.set(worktreeStatusQuery(sessionId) as CreateQueryOptions<WorktreeStatus>);
+});
+const statusQuery = createQuery<WorktreeStatus>(statusOptsStore);
 
-  const hasWorktree = $derived(Boolean($statusQuery.data?.path));
-  const changesCount = $derived($statusQuery.data?.changesCount ?? 0);
+const hasWorktree = $derived(Boolean($statusQuery.data?.path));
+const changesCount = $derived($statusQuery.data?.changesCount ?? 0);
 
-  // ── Diff fetch ────────────────────────────────────────────────────────────────
+// ── Diff fetch ────────────────────────────────────────────────────────────────
 
-  const diffOptsStore = writable(
-    untrack(
-      () =>
-        worktreeDiffQuery(sessionId, false) as CreateQueryOptions<{
-          raw: string;
-          truncated: boolean;
-        }>,
-    ),
-  );
-  $effect(() => {
-    diffOptsStore.set(
-      worktreeDiffQuery(sessionId, hasWorktree && changesCount > 0) as CreateQueryOptions<{
+const diffOptsStore = writable(
+  untrack(
+    () =>
+      worktreeDiffQuery(sessionId, false) as CreateQueryOptions<{
         raw: string;
         truncated: boolean;
-      }>,
-    );
-  });
-  const diffQuery = createQuery<{ raw: string; truncated: boolean }>(diffOptsStore);
-
-  // ── Parsed files ──────────────────────────────────────────────────────────────
-
-  const files = $derived<DiffFile[]>(
-    $diffQuery.data?.raw ? parseDiff($diffQuery.data.raw) : [],
+      }>
+  )
+);
+$effect(() => {
+  diffOptsStore.set(
+    worktreeDiffQuery(sessionId, hasWorktree && changesCount > 0) as CreateQueryOptions<{
+      raw: string;
+      truncated: boolean;
+    }>
   );
+});
+const diffQuery = createQuery<{ raw: string; truncated: boolean }>(diffOptsStore);
 
-  const showTruncationBanner = $derived(
-    Boolean($diffQuery.data?.truncated) ||
-      Boolean($diffQuery.data?.raw && isTruncated($diffQuery.data.raw)),
-  );
+// ── Parsed files ──────────────────────────────────────────────────────────────
 
-  // ── UI state ──────────────────────────────────────────────────────────────────
+const files = $derived<DiffFile[]>($diffQuery.data?.raw ? parseDiff($diffQuery.data.raw) : []);
 
-  let selectedFile = $state<DiffFile | null>(null);
-  let commitOpen = $state(false);
+const showTruncationBanner = $derived(
+  Boolean($diffQuery.data?.truncated) ||
+    Boolean($diffQuery.data?.raw && isTruncated($diffQuery.data.raw))
+);
 
-  // Auto-select first file when list loads
-  $effect(() => {
-    const first = files[0] ?? null;
-    if (first && !selectedFile) selectedFile = first;
-    // If selected file is no longer in list, clear it
-    if (selectedFile && !files.find((f) => f.path === selectedFile?.path)) {
-      selectedFile = files[0] ?? null;
-    }
-  });
+// ── UI state ──────────────────────────────────────────────────────────────────
 
-  function handleCommitSuccess(): void {
-    toasts.success('Committed successfully');
-    queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'worktree'] });
-    queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'worktree', 'diff'] });
-    selectedFile = null;
+let selectedFile = $state<DiffFile | null>(null);
+let commitOpen = $state(false);
+
+// Auto-select first file when list loads
+$effect(() => {
+  const first = files[0] ?? null;
+  if (first && !selectedFile) selectedFile = first;
+  // If selected file is no longer in list, clear it
+  if (selectedFile && !files.find((f) => f.path === selectedFile?.path)) {
+    selectedFile = files[0] ?? null;
   }
+});
+
+function handleCommitSuccess(): void {
+  toasts.success('Committed successfully');
+  queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'worktree'] });
+  queryClient.invalidateQueries({ queryKey: ['sessions', sessionId, 'worktree', 'diff'] });
+  selectedFile = null;
+}
 </script>
 
 <div class="chp-root">

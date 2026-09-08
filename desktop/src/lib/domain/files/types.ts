@@ -5,16 +5,10 @@
  */
 
 /** Actor types for ownership attribution. */
-export type ActorType = "user" | "agent" | "system";
+export type ActorType = 'user' | 'agent' | 'system';
 
 /** Activity action types recorded per file event. */
-export type FileActivityAction =
-  | "created"
-  | "updated"
-  | "read"
-  | "deleted"
-  | "renamed"
-  | "tagged";
+export type FileActivityAction = 'created' | 'updated' | 'read' | 'deleted' | 'renamed' | 'tagged';
 
 /** File metadata record — one row from the `files` index table. */
 export interface FileRecord {

@@ -1,35 +1,36 @@
 <script lang="ts">
-  /**
-   * ChannelList — left pane channel navigator.
-   * CSS prefix: cl- (ChannelList)
-   * LOC target: ≤180
-   */
-  import { Hash, Lock, Plus, Search } from 'lucide-svelte';
-  import type { Channel } from '$lib/domain/channels/types.js';
+/**
+ * ChannelList — left pane channel navigator.
+ * CSS prefix: cl- (ChannelList)
+ * LOC target: ≤180
+ */
+import { Hash, Lock, Plus, Search } from 'lucide-svelte';
+import type { Channel } from '$lib/domain/channels/types.js';
 
-  interface Props {
-    channels: Channel[];
-    activeId?: string;
-    isLoading?: boolean;
-    onSelect: (channel: Channel) => void;
-    onNew: () => void;
-  }
+interface Props {
+  channels: Channel[];
+  activeId?: string;
+  isLoading?: boolean;
+  onSelect: (channel: Channel) => void;
+  onNew: () => void;
+}
 
-  let { channels, activeId, isLoading = false, onSelect, onNew }: Props = $props();
+let { channels, activeId, isLoading = false, onSelect, onNew }: Props = $props();
 
-  let filterText = $state('');
+let filterText = $state('');
 
-  const filtered = $derived(
-    filterText.trim()
-      ? channels.filter((c) =>
+const filtered = $derived(
+  filterText.trim()
+    ? channels.filter(
+        (c) =>
           c.name.toLowerCase().includes(filterText.trim().toLowerCase()) ||
-          c.slug.toLowerCase().includes(filterText.trim().toLowerCase()),
-        )
-      : channels,
-  );
+          c.slug.toLowerCase().includes(filterText.trim().toLowerCase())
+      )
+    : channels
+);
 
-  const pinned = $derived(filtered.filter((c) => c.color === 'pinned'));
-  const rest = $derived(filtered.filter((c) => c.color !== 'pinned'));
+const pinned = $derived(filtered.filter((c) => c.color === 'pinned'));
+const rest = $derived(filtered.filter((c) => c.color !== 'pinned'));
 </script>
 
 <div class="cl-shell">

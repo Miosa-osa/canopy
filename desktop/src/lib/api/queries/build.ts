@@ -3,14 +3,14 @@
  * Endpoints under /api/v1/build/*.
  */
 
-import { apiDelete, apiGet, apiPatch, apiPost } from "$lib/api/client.js";
+import { apiDelete, apiGet, apiPatch, apiPost } from '$lib/api/client.js';
 import type {
   BuildLayout,
   BuildLayoutCreate,
   BuildLayoutScope,
   BuildLayoutUpdate,
   BuildSuggestionResult,
-} from "$lib/domain/build/types.js";
+} from '$lib/domain/build/types.js';
 
 // ── Layouts ──────────────────────────────────────────────────────────────────
 
@@ -25,11 +25,8 @@ export interface LayoutsQuery {
 export function layoutsQuery(opts: LayoutsQuery = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["build", "layouts", opts],
-    queryFn: () =>
-      apiGet<{ data: BuildLayout[] }>(`/build/layouts${qs}`).then(
-        (r) => r.data,
-      ),
+    queryKey: ['build', 'layouts', opts],
+    queryFn: () => apiGet<{ data: BuildLayout[] }>(`/build/layouts${qs}`).then((r) => r.data),
   };
 }
 
@@ -41,22 +38,17 @@ export interface LayoutQueryOpts {
 export function layoutQuery(slug: string, opts: LayoutQueryOpts = {}) {
   const qs = buildQuery(opts);
   return {
-    queryKey: ["build", "layout", slug, opts],
+    queryKey: ['build', 'layout', slug, opts],
     queryFn: () => apiGet<BuildLayout>(`/build/layouts/${slug}${qs}`),
     enabled: Boolean(slug),
   } as const;
 }
 
-export async function createLayout(
-  body: BuildLayoutCreate,
-): Promise<BuildLayout> {
-  return apiPost<BuildLayout>("/build/layouts", body);
+export async function createLayout(body: BuildLayoutCreate): Promise<BuildLayout> {
+  return apiPost<BuildLayout>('/build/layouts', body);
 }
 
-export async function updateLayout(
-  slug: string,
-  body: BuildLayoutUpdate,
-): Promise<BuildLayout> {
+export async function updateLayout(slug: string, body: BuildLayoutUpdate): Promise<BuildLayout> {
   return apiPatch<BuildLayout>(`/build/layouts/${slug}`, body);
 }
 
@@ -73,29 +65,24 @@ export interface SuggestInput {
   workspaceSlug?: string;
 }
 
-export async function suggestLayout(
-  input: SuggestInput,
-): Promise<BuildSuggestionResult> {
-  return apiPost<BuildSuggestionResult>("/build/suggest", input);
+export async function suggestLayout(input: SuggestInput): Promise<BuildSuggestionResult> {
+  return apiPost<BuildSuggestionResult>('/build/suggest', input);
 }
 
 // ── Default layout per workspace ─────────────────────────────────────────────
 
 export function defaultLayoutQuery(workspaceSlug: string) {
   return {
-    queryKey: ["build", "default", workspaceSlug],
+    queryKey: ['build', 'default', workspaceSlug],
     queryFn: () =>
       apiGet<{ data: BuildLayout | null }>(
-        `/build/default?workspace_slug=${encodeURIComponent(workspaceSlug)}`,
+        `/build/default?workspace_slug=${encodeURIComponent(workspaceSlug)}`
       ).then((r) => r.data),
     enabled: Boolean(workspaceSlug),
   } as const;
 }
 
-export async function setDefaultLayout(
-  slug: string,
-  workspaceSlug: string,
-): Promise<BuildLayout> {
+export async function setDefaultLayout(slug: string, workspaceSlug: string): Promise<BuildLayout> {
   return apiPost<BuildLayout>(`/build/layouts/${slug}/set-default`, {
     workspace_slug: workspaceSlug,
   });
@@ -105,9 +92,9 @@ export async function setDefaultLayout(
 
 function buildQuery(opts: object): string {
   const entries = Object.entries(opts as Record<string, unknown>).filter(
-    ([, v]) => v !== undefined && v !== null && v !== "",
+    ([, v]) => v !== undefined && v !== null && v !== ''
   );
-  if (entries.length === 0) return "";
+  if (entries.length === 0) return '';
 
   const params = new URLSearchParams();
   for (const [key, value] of entries) {
@@ -123,4 +110,4 @@ export type {
   BuildLayoutScope,
   BuildLayoutUpdate,
   BuildSuggestionResult,
-} from "$lib/domain/build/types.js";
+} from '$lib/domain/build/types.js';

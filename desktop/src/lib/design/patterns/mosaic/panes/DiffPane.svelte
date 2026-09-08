@@ -1,159 +1,157 @@
 <script lang="ts">
-  /**
-   * DiffPane — Mosaic pane for inspecting a git diff.
-   *
-   * Two modes:
-   *   1. Session mode (sessionId) → live worktree diff with hunk-level
-   *      Keep / Discard / Stage and Commit. Backed by the Phase-5
-   *      ChangesPanel (FileList + DiffViewer + CommitModal) wrapped here
-   *      with hunk actions via FileDiff.
-   *   2. Ref mode (fromRef + toRef) → arbitrary diff between two refs.
-   *      Read-only — no commit, no discard.
-   *
-   * Reuses (no duplication):
-   *   - ChangesFileList (via ./diff/FileList wrapper)
-   *   - DiffViewer       (via ./diff/FileDiff wrapper)
-   *   - CommitModal      (via ./diff/CommitComposer wrapper)
-   *   - parse-diff       (for ref-mode parsing)
-   *   - worktreeStatusQuery / worktreeDiffQuery (via queries/diff.ts)
-   *
-   * CSS prefix: dp-
-   * LOC target: ≤ 260.
-   */
-  import { type CreateQueryOptions, createQuery } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import { useWorktreeDiff, useWorktreeStatus } from "$lib/api/queries/diff.js";
-  import type { WorktreeStatus } from "$lib/api/queries/sessions.js";
-  import { isTruncated, parseDiff } from "$lib/utils/parse-diff.js";
-  import type {
-    DiffFile,
-    DiffPaneOptions,
-    DiffViewMode,
-  } from "$lib/domain/diff/types.js";
-  import CommitComposer from "./diff/CommitComposer.svelte";
-  import FileDiff from "./diff/FileDiff.svelte";
-  import FileList from "./diff/FileList.svelte";
+/**
+ * DiffPane — Mosaic pane for inspecting a git diff.
+ *
+ * Two modes:
+ *   1. Session mode (sessionId) → live worktree diff with hunk-level
+ *      Keep / Discard / Stage and Commit. Backed by the Phase-5
+ *      ChangesPanel (FileList + DiffViewer + CommitModal) wrapped here
+ *      with hunk actions via FileDiff.
+ *   2. Ref mode (fromRef + toRef) → arbitrary diff between two refs.
+ *      Read-only — no commit, no discard.
+ *
+ * Reuses (no duplication):
+ *   - ChangesFileList (via ./diff/FileList wrapper)
+ *   - DiffViewer       (via ./diff/FileDiff wrapper)
+ *   - CommitModal      (via ./diff/CommitComposer wrapper)
+ *   - parse-diff       (for ref-mode parsing)
+ *   - worktreeStatusQuery / worktreeDiffQuery (via queries/diff.ts)
+ *
+ * CSS prefix: dp-
+ * LOC target: ≤ 260.
+ */
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { useWorktreeDiff, useWorktreeStatus } from '$lib/api/queries/diff.js';
+import type { WorktreeStatus } from '$lib/api/queries/sessions.js';
+import type { DiffFile, DiffPaneOptions, DiffViewMode } from '$lib/domain/diff/types.js';
+import { isTruncated, parseDiff } from '$lib/utils/parse-diff.js';
+import CommitComposer from './diff/CommitComposer.svelte';
+import FileDiff from './diff/FileDiff.svelte';
+import FileList from './diff/FileList.svelte';
 
-  interface Props {
-    /** When set, the pane shows the live worktree diff for this session. */
-    sessionId?: string;
-    /** Optional ref-mode diff (read-only). Reserved for future use. */
-    fromRef?: string;
-    toRef?: string;
-    workspaceSlug: string;
+interface Props {
+  /** When set, the pane shows the live worktree diff for this session. */
+  sessionId?: string;
+  /** Optional ref-mode diff (read-only). Reserved for future use. */
+  fromRef?: string;
+  toRef?: string;
+  workspaceSlug: string;
+}
+
+let { sessionId, fromRef, toRef, workspaceSlug: _ws }: Props = $props();
+
+const inSessionMode = $derived(Boolean(sessionId));
+const inRefMode = $derived(!sessionId && Boolean(fromRef && toRef));
+
+// ── Pane-level toggles ───────────────────────────────────────────────────────
+
+const VIEW_KEY = 'canopy.diff.view_mode';
+const WS_KEY = 'canopy.diff.ignore_whitespace';
+
+let opts = $state<DiffPaneOptions>({
+  viewMode:
+    typeof localStorage !== 'undefined'
+      ? ((localStorage.getItem(VIEW_KEY) as DiffViewMode) ?? 'inline')
+      : 'inline',
+  ignoreWhitespace:
+    typeof localStorage !== 'undefined' ? localStorage.getItem(WS_KEY) === '1' : false,
+});
+
+function setViewMode(m: DiffViewMode): void {
+  opts.viewMode = m;
+  if (typeof localStorage !== 'undefined') localStorage.setItem(VIEW_KEY, m);
+}
+
+function toggleWhitespace(): void {
+  opts.ignoreWhitespace = !opts.ignoreWhitespace;
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(WS_KEY, opts.ignoreWhitespace ? '1' : '0');
   }
+}
 
-  let { sessionId, fromRef, toRef, workspaceSlug: _ws }: Props = $props();
+// ── Session-mode queries ─────────────────────────────────────────────────────
 
-  const inSessionMode = $derived(Boolean(sessionId));
-  const inRefMode = $derived(!sessionId && Boolean(fromRef && toRef));
-
-  // ── Pane-level toggles ───────────────────────────────────────────────────────
-
-  const VIEW_KEY = "canopy.diff.view_mode";
-  const WS_KEY = "canopy.diff.ignore_whitespace";
-
-  let opts = $state<DiffPaneOptions>({
-    viewMode:
-      typeof localStorage !== "undefined"
-        ? ((localStorage.getItem(VIEW_KEY) as DiffViewMode) ?? "inline")
-        : "inline",
-    ignoreWhitespace:
-      typeof localStorage !== "undefined"
-        ? localStorage.getItem(WS_KEY) === "1"
-        : false,
-  });
-
-  function setViewMode(m: DiffViewMode): void {
-    opts.viewMode = m;
-    if (typeof localStorage !== "undefined") localStorage.setItem(VIEW_KEY, m);
-  }
-
-  function toggleWhitespace(): void {
-    opts.ignoreWhitespace = !opts.ignoreWhitespace;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(WS_KEY, opts.ignoreWhitespace ? "1" : "0");
-    }
-  }
-
-  // ── Session-mode queries ─────────────────────────────────────────────────────
-
-  const statusOptsStore = writable(
-    untrack(
-      () =>
-        (sessionId
-          ? useWorktreeStatus(sessionId)
-          : { queryKey: ["sessions", "none", "worktree"], queryFn: () => null, enabled: false }) as
-          CreateQueryOptions<WorktreeStatus | null>,
-    ),
-  );
-  $effect(() => {
-    statusOptsStore.set(
+const statusOptsStore = writable(
+  untrack(
+    () =>
       (sessionId
         ? useWorktreeStatus(sessionId)
-        : { queryKey: ["sessions", "none", "worktree"], queryFn: () => null, enabled: false }) as
-        CreateQueryOptions<WorktreeStatus | null>,
-    );
-  });
-  const statusQuery = createQuery<WorktreeStatus | null>(statusOptsStore);
-
-  const hasWorktree = $derived(Boolean($statusQuery.data?.path));
-  const changesCount = $derived($statusQuery.data?.changesCount ?? 0);
-
-  const diffOptsStore = writable(
-    untrack(
-      () =>
-        (sessionId
-          ? useWorktreeDiff(sessionId, false)
-          : {
-              queryKey: ["sessions", "none", "worktree", "diff"],
-              queryFn: () => ({ raw: "", truncated: false }),
-              enabled: false,
-            }) as CreateQueryOptions<{ raw: string; truncated: boolean }>,
-    ),
-  );
-  $effect(() => {
-    diffOptsStore.set(
-      (sessionId
-        ? useWorktreeDiff(sessionId, hasWorktree && changesCount > 0)
         : {
-            queryKey: ["sessions", "none", "worktree", "diff"],
-            queryFn: () => ({ raw: "", truncated: false }),
+            queryKey: ['sessions', 'none', 'worktree'],
+            queryFn: () => null,
             enabled: false,
-          }) as CreateQueryOptions<{ raw: string; truncated: boolean }>,
-    );
-  });
-  const diffQuery = createQuery<{ raw: string; truncated: boolean }>(diffOptsStore);
-
-  // ── Parsed files ─────────────────────────────────────────────────────────────
-
-  const files = $derived<DiffFile[]>(
-    $diffQuery.data?.raw ? parseDiff($diffQuery.data.raw) : [],
+          }) as CreateQueryOptions<WorktreeStatus | null>
+  )
+);
+$effect(() => {
+  statusOptsStore.set(
+    (sessionId
+      ? useWorktreeStatus(sessionId)
+      : {
+          queryKey: ['sessions', 'none', 'worktree'],
+          queryFn: () => null,
+          enabled: false,
+        }) as CreateQueryOptions<WorktreeStatus | null>
   );
+});
+const statusQuery = createQuery<WorktreeStatus | null>(statusOptsStore);
 
-  const showTruncationBanner = $derived(
-    Boolean($diffQuery.data?.truncated) ||
-      Boolean($diffQuery.data?.raw && isTruncated($diffQuery.data.raw)),
+const hasWorktree = $derived(Boolean($statusQuery.data?.path));
+const changesCount = $derived($statusQuery.data?.changesCount ?? 0);
+
+const diffOptsStore = writable(
+  untrack(
+    () =>
+      (sessionId
+        ? useWorktreeDiff(sessionId, false)
+        : {
+            queryKey: ['sessions', 'none', 'worktree', 'diff'],
+            queryFn: () => ({ raw: '', truncated: false }),
+            enabled: false,
+          }) as CreateQueryOptions<{ raw: string; truncated: boolean }>
+  )
+);
+$effect(() => {
+  diffOptsStore.set(
+    (sessionId
+      ? useWorktreeDiff(sessionId, hasWorktree && changesCount > 0)
+      : {
+          queryKey: ['sessions', 'none', 'worktree', 'diff'],
+          queryFn: () => ({ raw: '', truncated: false }),
+          enabled: false,
+        }) as CreateQueryOptions<{ raw: string; truncated: boolean }>
   );
+});
+const diffQuery = createQuery<{ raw: string; truncated: boolean }>(diffOptsStore);
 
-  // ── UI state ─────────────────────────────────────────────────────────────────
+// ── Parsed files ─────────────────────────────────────────────────────────────
 
-  let selectedFile = $state<DiffFile | null>(null);
-  let commitOpen = $state(false);
+const files = $derived<DiffFile[]>($diffQuery.data?.raw ? parseDiff($diffQuery.data.raw) : []);
 
-  $effect(() => {
-    const first = files[0] ?? null;
-    if (first && !selectedFile) selectedFile = first;
-    if (selectedFile && !files.find((f) => f.path === selectedFile?.path)) {
-      selectedFile = files[0] ?? null;
-    }
-  });
+const showTruncationBanner = $derived(
+  Boolean($diffQuery.data?.truncated) ||
+    Boolean($diffQuery.data?.raw && isTruncated($diffQuery.data.raw))
+);
 
-  function handleCommitSuccess(): void {
-    selectedFile = null;
-    commitOpen = false;
+// ── UI state ─────────────────────────────────────────────────────────────────
+
+let selectedFile = $state<DiffFile | null>(null);
+let commitOpen = $state(false);
+
+$effect(() => {
+  const first = files[0] ?? null;
+  if (first && !selectedFile) selectedFile = first;
+  if (selectedFile && !files.find((f) => f.path === selectedFile?.path)) {
+    selectedFile = files[0] ?? null;
   }
+});
+
+function handleCommitSuccess(): void {
+  selectedFile = null;
+  commitOpen = false;
+}
 </script>
 
 <div class="dp-root">

@@ -1,200 +1,214 @@
 <script lang="ts">
-  /**
-   * /docs/[id] — Document detail: Tiptap rich editor + metadata panel.
-   * CSS prefix: dd- (DocDetail)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { page } from '$app/state';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { beforeNavigate, goto } from '$app/navigation';
-  import {
-    archiveDocumentMutation,
-    deleteDocumentMutation,
-    documentQuery,
-    publishDocumentMutation,
-    unpublishDocumentMutation,
-    updateDocumentMutation,
-  } from '$lib/api/queries/docs.js';
-  import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
-  import PushPanel from '$lib/design/patterns/PushPanel.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import TiptapEditor from '$lib/design/patterns/TiptapEditor.svelte';
-  import type { Document, ProseMirrorDoc, UpdateDocumentBody } from '$lib/domain/docs/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * /docs/[id] — Document detail: Tiptap rich editor + metadata panel.
+ * CSS prefix: dd- (DocDetail)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { beforeNavigate, goto } from '$app/navigation';
+import { page } from '$app/state';
+import {
+  archiveDocumentMutation,
+  deleteDocumentMutation,
+  documentQuery,
+  publishDocumentMutation,
+  unpublishDocumentMutation,
+  updateDocumentMutation,
+} from '$lib/api/queries/docs.js';
+import DirtyGuardModal from '$lib/design/patterns/DirtyGuardModal.svelte';
+import PushPanel from '$lib/design/patterns/PushPanel.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import TiptapEditor from '$lib/design/patterns/TiptapEditor.svelte';
+import type { Document, ProseMirrorDoc, UpdateDocumentBody } from '$lib/domain/docs/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  const docId = $derived(page.params.id ?? '');
-  const queryClient = useQueryClient();
+const docId = $derived(page.params.id ?? '');
+const queryClient = useQueryClient();
 
-  // ── Query ────────────────────────────────────────────────────────────────────
+// ── Query ────────────────────────────────────────────────────────────────────
 
-  const queryOptsStore = writable(
-    untrack(() => documentQuery(docId) as CreateQueryOptions<Document>),
-  );
-  $effect(() => {
-    queryOptsStore.set(documentQuery(docId) as CreateQueryOptions<Document>);
-  });
-  const query = createQuery<Document>(queryOptsStore);
-  const doc = $derived($query.data as Document | undefined);
+const queryOptsStore = writable(
+  untrack(() => documentQuery(docId) as CreateQueryOptions<Document>)
+);
+$effect(() => {
+  queryOptsStore.set(documentQuery(docId) as CreateQueryOptions<Document>);
+});
+const query = createQuery<Document>(queryOptsStore);
+const doc = $derived($query.data as Document | undefined);
 
-  // ── Local state ───────────────────────────────────────────────────────────────
+// ── Local state ───────────────────────────────────────────────────────────────
 
-  let localTitle = $state('');
-  let dirtyBodyJson = $state<ProseMirrorDoc | null>(null);
-  let dirtyBodyText = $state('');
-  let titleDirty = $state(false);
-  let bodyDirty = $state(false);
-  let panelOpen = $state(true);
+let localTitle = $state('');
+let dirtyBodyJson = $state<ProseMirrorDoc | null>(null);
+let dirtyBodyText = $state('');
+let titleDirty = $state(false);
+let bodyDirty = $state(false);
+let panelOpen = $state(true);
 
-  $effect(() => {
-    if (doc && !titleDirty && !bodyDirty) {
-      localTitle = doc.title ?? '';
-      dirtyBodyJson = null;
-      dirtyBodyText = '';
-    }
-  });
-
-  const isDirty = $derived(titleDirty || bodyDirty);
-
-  // ── Dirty guard ───────────────────────────────────────────────────────────────
-
-  let guardOpen = $state(false);
-  let pendingUrl = $state('');
-  let allowNavigation = $state(false);
-
-  beforeNavigate(({ to, cancel }) => {
-    if (isDirty && !allowNavigation) {
-      cancel();
-      pendingUrl = to?.url.pathname ?? '/docs';
-      guardOpen = true;
-    }
-  });
-
-  function handleGuardCancel(): void {
-    guardOpen = false;
-    pendingUrl = '';
+$effect(() => {
+  if (doc && !titleDirty && !bodyDirty) {
+    localTitle = doc.title ?? '';
+    dirtyBodyJson = null;
+    dirtyBodyText = '';
   }
+});
 
-  function handleGuardDiscard(): void {
-    allowNavigation = true;
-    guardOpen = false;
-    goto(pendingUrl || '/docs');
+const isDirty = $derived(titleDirty || bodyDirty);
+
+// ── Dirty guard ───────────────────────────────────────────────────────────────
+
+let guardOpen = $state(false);
+let pendingUrl = $state('');
+let allowNavigation = $state(false);
+
+beforeNavigate(({ to, cancel }) => {
+  if (isDirty && !allowNavigation) {
+    cancel();
+    pendingUrl = to?.url.pathname ?? '/docs';
+    guardOpen = true;
   }
+});
 
-  // ── Mutations ─────────────────────────────────────────────────────────────────
+function handleGuardCancel(): void {
+  guardOpen = false;
+  pendingUrl = '';
+}
 
-  const updateMut = createMutation<Document, Error, { id: string; body: UpdateDocumentBody }>(
-    updateDocumentMutation() as CreateMutationOptions<Document, Error, { id: string; body: UpdateDocumentBody }>,
-  );
+function handleGuardDiscard(): void {
+  allowNavigation = true;
+  guardOpen = false;
+  goto(pendingUrl || '/docs');
+}
 
-  const publishMut = createMutation<Document, Error, string>(
-    publishDocumentMutation() as CreateMutationOptions<Document, Error, string>,
-  );
+// ── Mutations ─────────────────────────────────────────────────────────────────
 
-  const unpublishMut = createMutation<Document, Error, string>(
-    unpublishDocumentMutation() as CreateMutationOptions<Document, Error, string>,
-  );
+const updateMut = createMutation<Document, Error, { id: string; body: UpdateDocumentBody }>(
+  updateDocumentMutation() as CreateMutationOptions<
+    Document,
+    Error,
+    { id: string; body: UpdateDocumentBody }
+  >
+);
 
-  const archiveMut = createMutation<Document, Error, string>(
-    archiveDocumentMutation() as CreateMutationOptions<Document, Error, string>,
-  );
+const publishMut = createMutation<Document, Error, string>(
+  publishDocumentMutation() as CreateMutationOptions<Document, Error, string>
+);
 
-  const deleteMut = createMutation<void, Error, string>(
-    deleteDocumentMutation() as CreateMutationOptions<void, Error, string>,
-  );
+const unpublishMut = createMutation<Document, Error, string>(
+  unpublishDocumentMutation() as CreateMutationOptions<Document, Error, string>
+);
 
-  function invalidate(): void {
-    queryClient.invalidateQueries({ queryKey: ['docs', docId] });
-    queryClient.invalidateQueries({ queryKey: ['docs'] });
+const archiveMut = createMutation<Document, Error, string>(
+  archiveDocumentMutation() as CreateMutationOptions<Document, Error, string>
+);
+
+const deleteMut = createMutation<void, Error, string>(
+  deleteDocumentMutation() as CreateMutationOptions<void, Error, string>
+);
+
+function invalidate(): void {
+  queryClient.invalidateQueries({ queryKey: ['docs', docId] });
+  queryClient.invalidateQueries({ queryKey: ['docs'] });
+}
+
+function save(): void {
+  if (!doc || (!titleDirty && !bodyDirty)) return;
+  const body: UpdateDocumentBody = {};
+  if (titleDirty) body.title = localTitle.trim();
+  if (bodyDirty && dirtyBodyJson) {
+    body.bodyJson = dirtyBodyJson;
+    body.bodyText = dirtyBodyText;
   }
-
-  function save(): void {
-    if (!doc || (!titleDirty && !bodyDirty)) return;
-    const body: UpdateDocumentBody = {};
-    if (titleDirty) body.title = localTitle.trim();
-    if (bodyDirty && dirtyBodyJson) {
-      body.bodyJson = dirtyBodyJson;
-      body.bodyText = dirtyBodyText;
-    }
-    $updateMut.mutate(
-      { id: docId, body },
-      {
-        onSuccess: () => {
-          titleDirty = false;
-          bodyDirty = false;
-          invalidate();
-          toasts.success('Document saved');
-        },
-        onError: (err: Error) => {
-          toasts.error(`Save failed: ${err.message}`);
-        },
+  $updateMut.mutate(
+    { id: docId, body },
+    {
+      onSuccess: () => {
+        titleDirty = false;
+        bodyDirty = false;
+        invalidate();
+        toasts.success('Document saved');
       },
-    );
-  }
-
-  function handleKeydown(e: KeyboardEvent): void {
-    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-      e.preventDefault();
-      save();
+      onError: (err: Error) => {
+        toasts.error(`Save failed: ${err.message}`);
+      },
     }
+  );
+}
+
+function handleKeydown(e: KeyboardEvent): void {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    save();
   }
+}
 
-  function handlePublishToggle(): void {
-    if (!doc) return;
-    if (doc.published) {
-      $unpublishMut.mutate(docId, { onSuccess: () => { invalidate(); toasts.success('Unpublished'); } });
-    } else {
-      $publishMut.mutate(docId, { onSuccess: () => { invalidate(); toasts.success('Published'); } });
-    }
-  }
-
-  let archiveConfirm = $state(false);
-  let deleteConfirm = $state(false);
-
-  function handleArchive(): void {
-    $archiveMut.mutate(docId, {
+function handlePublishToggle(): void {
+  if (!doc) return;
+  if (doc.published) {
+    $unpublishMut.mutate(docId, {
       onSuccess: () => {
         invalidate();
-        toasts.success('Archived');
-        archiveConfirm = false;
-      },
-      onError: (err: Error) => {
-        toasts.error(`Archive failed: ${err.message}`);
-        archiveConfirm = false;
+        toasts.success('Unpublished');
       },
     });
-  }
-
-  function handleDelete(): void {
-    $deleteMut.mutate(docId, {
+  } else {
+    $publishMut.mutate(docId, {
       onSuccess: () => {
-        allowNavigation = true;
-        toasts.success('Document deleted');
-        goto('/docs');
-      },
-      onError: (err: Error) => {
-        toasts.error(`Delete failed: ${err.message}`);
-        deleteConfirm = false;
+        invalidate();
+        toasts.success('Published');
       },
     });
   }
+}
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+let archiveConfirm = $state(false);
+let deleteConfirm = $state(false);
 
-  function formatDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  }
+function handleArchive(): void {
+  $archiveMut.mutate(docId, {
+    onSuccess: () => {
+      invalidate();
+      toasts.success('Archived');
+      archiveConfirm = false;
+    },
+    onError: (err: Error) => {
+      toasts.error(`Archive failed: ${err.message}`);
+      archiveConfirm = false;
+    },
+  });
+}
+
+function handleDelete(): void {
+  $deleteMut.mutate(docId, {
+    onSuccess: () => {
+      allowNavigation = true;
+      toasts.success('Document deleted');
+      goto('/docs');
+    },
+    onError: (err: Error) => {
+      toasts.error(`Delete failed: ${err.message}`);
+      deleteConfirm = false;
+    },
+  });
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

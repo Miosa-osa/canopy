@@ -56,8 +56,7 @@ defmodule Canopy.Tools.Schedule do
         "workspace_slug" => %{"type" => "string"},
         "model" => %{
           "type" => "object",
-          "description" =>
-            "ScheduleSpec model: %{crons, intervals, calendars, skips}"
+          "description" => "ScheduleSpec model: %{crons, intervals, calendars, skips}"
         },
         "timezone" => %{"type" => "string"},
         "overlap_policy" => %{
@@ -117,8 +116,7 @@ defmodule Canopy.Tools.Schedule do
   )
 
   tool("schedule.delete_routine",
-    description:
-      "Soft-delete a spec by archiving. Past runs retained for audit.",
+    description: "Soft-delete a spec by archiving. Past runs retained for audit.",
     parameters: %{
       "type" => "object",
       "properties" => %{"slug" => %{"type" => "string"}},
@@ -246,8 +244,7 @@ defmodule Canopy.Tools.Schedule do
   # ---------------------------------------------------------------------------
 
   tool("calendar.fetch_events",
-    description:
-      "Pull calendar events from the local mirror. Read-only, fast, paginated.",
+    description: "Pull calendar events from the local mirror. Read-only, fast, paginated.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -326,8 +323,7 @@ defmodule Canopy.Tools.Schedule do
   )
 
   tool("heartbeat.snooze",
-    description:
-      "Skip the next N fires; resume after `until_at`. Records on the spec.",
+    description: "Skip the next N fires; resume after `until_at`. Records on the spec.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -445,8 +441,7 @@ defmodule Canopy.Tools.Schedule do
 
     with {:ok, spec} <- fetch_spec(slug),
          {:ok, updated} <- Schedule.update_spec(spec, patch) do
-      {:ok,
-       %{spec_id: updated.id, slug: updated.slug, next_fire_at: updated.next_fire_at}}
+      {:ok, %{spec_id: updated.id, slug: updated.slug, next_fire_at: updated.next_fire_at}}
     end
   end
 
@@ -462,8 +457,7 @@ defmodule Canopy.Tools.Schedule do
   def unpause_routine(args) do
     with {:ok, spec} <- fetch_spec(args["slug"]),
          {:ok, resumed} <- Schedule.unpause_spec(spec) do
-      {:ok,
-       %{slug: resumed.slug, status: resumed.status, next_fire_at: resumed.next_fire_at}}
+      {:ok, %{slug: resumed.slug, status: resumed.status, next_fire_at: resumed.next_fire_at}}
     end
   end
 
@@ -686,8 +680,7 @@ defmodule Canopy.Tools.Schedule do
              paused_reason: "snoozed_until_#{DateTime.to_iso8601(until_at)}",
              next_fire_at: until_at
            }) do
-      {:ok,
-       %{slug: paused.slug, next_fire_at: paused.next_fire_at, status: paused.status}}
+      {:ok, %{slug: paused.slug, next_fire_at: paused.next_fire_at, status: paused.status}}
     end
   end
 
@@ -825,7 +818,7 @@ defmodule Canopy.Tools.Schedule do
     }
   end
 
-  defp first_gap([], after_at, _before_at, _duration_seconds), do: nil
+  defp first_gap([], _after_at, _before_at, _duration_seconds), do: nil
 
   defp first_gap(busy, after_at, before_at, duration_seconds) do
     cursor = after_at

@@ -1,106 +1,101 @@
 <script lang="ts">
-  /**
-   * /team — People + org chart.
-   * Two tabs: Grid (agent card grid) and Org (CSS tree grouped by category).
-   * Reads from GET /api/v1/agents (336 seeded agents).
-   * svelte-flow is not installed — org chart uses CSS flex layout.
-   * CSS prefix: tm- (team)
-   */
-  import {
-    type CreateQueryOptions,
-    createQuery,
-  } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import { goto } from "$app/navigation";
-  import { Search, Users } from "lucide-svelte";
-  import { agentsQuery } from "$lib/api/queries/agents.js";
-  import EmptyState from "$lib/design/patterns/EmptyState.svelte";
-  import SkeletonList from "$lib/design/patterns/SkeletonList.svelte";
-  import type { Agent, AgentCategory } from "$lib/domain/agents/types.js";
+/**
+ * /team — People + org chart.
+ * Two tabs: Grid (agent card grid) and Org (CSS tree grouped by category).
+ * Reads from GET /api/v1/agents (336 seeded agents).
+ * svelte-flow is not installed — org chart uses CSS flex layout.
+ * CSS prefix: tm- (team)
+ */
+import { type CreateQueryOptions, createQuery } from '@tanstack/svelte-query';
+import { Search, Users } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { agentsQuery } from '$lib/api/queries/agents.js';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Agent, AgentCategory } from '$lib/domain/agents/types.js';
 
-  // ── Query ──────────────────────────────────────────────────────────────────
+// ── Query ──────────────────────────────────────────────────────────────────
 
-  const agentOptsStore = writable(
-    untrack(() => agentsQuery() as CreateQueryOptions<Agent[]>)
-  );
-  const agentsQ = createQuery<Agent[]>(agentOptsStore);
-  const agents = $derived(($agentsQ.data ?? []) as Agent[]);
+const agentOptsStore = writable(untrack(() => agentsQuery() as CreateQueryOptions<Agent[]>));
+const agentsQ = createQuery<Agent[]>(agentOptsStore);
+const agents = $derived(($agentsQ.data ?? []) as Agent[]);
 
-  // ── Tabs ───────────────────────────────────────────────────────────────────
+// ── Tabs ───────────────────────────────────────────────────────────────────
 
-  type Tab = "grid" | "org";
-  let activeTab = $state<Tab>("grid");
+type Tab = 'grid' | 'org';
+let activeTab = $state<Tab>('grid');
 
-  // ── Search ─────────────────────────────────────────────────────────────────
+// ── Search ─────────────────────────────────────────────────────────────────
 
-  let search = $state("");
+let search = $state('');
 
-  const filteredAgents = $derived(
-    search.trim() === ""
-      ? agents
-      : agents.filter(
-          (a) =>
-            a.name.toLowerCase().includes(search.toLowerCase()) ||
-            a.category.toLowerCase().includes(search.toLowerCase())
-        )
-  );
+const filteredAgents = $derived(
+  search.trim() === ''
+    ? agents
+    : agents.filter(
+        (a) =>
+          a.name.toLowerCase().includes(search.toLowerCase()) ||
+          a.category.toLowerCase().includes(search.toLowerCase())
+      )
+);
 
-  // ── Org chart grouping ─────────────────────────────────────────────────────
+// ── Org chart grouping ─────────────────────────────────────────────────────
 
-  interface CategoryGroup {
-    category: AgentCategory;
-    label: string;
-    members: Agent[];
-  }
+interface CategoryGroup {
+  category: AgentCategory;
+  label: string;
+  members: Agent[];
+}
 
-  const CATEGORY_LABELS: Record<AgentCategory, string> = {
-    academic: "Academic",
-    "creative-content": "Creative & Content",
-    design: "Design",
-    engineering: "Engineering",
-    executive: "Executive",
-    "game-development": "Game Dev",
-    growth: "Growth",
-    marketing: "Marketing",
-    operations: "Operations",
-    "paid-media": "Paid Media",
-    product: "Product",
-    "project-management": "Project Mgmt",
-    revenue: "Revenue",
-    sales: "Sales",
-    "spatial-computing": "Spatial",
-    specialized: "Specialized",
-    support: "Support",
-    technology: "Technology",
-    testing: "Testing",
-  };
+const CATEGORY_LABELS: Record<AgentCategory, string> = {
+  academic: 'Academic',
+  'creative-content': 'Creative & Content',
+  design: 'Design',
+  engineering: 'Engineering',
+  executive: 'Executive',
+  'game-development': 'Game Dev',
+  growth: 'Growth',
+  marketing: 'Marketing',
+  operations: 'Operations',
+  'paid-media': 'Paid Media',
+  product: 'Product',
+  'project-management': 'Project Mgmt',
+  revenue: 'Revenue',
+  sales: 'Sales',
+  'spatial-computing': 'Spatial',
+  specialized: 'Specialized',
+  support: 'Support',
+  technology: 'Technology',
+  testing: 'Testing',
+};
 
-  const categoryGroups = $derived(
-    Object.entries(
-      filteredAgents.reduce<Partial<Record<AgentCategory, Agent[]>>>((acc, agent) => {
-        const cat = agent.category;
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat]!.push(agent);
-        return acc;
-      }, {})
-    )
-      .map(([cat, members]) => ({
-        category: cat as AgentCategory,
-        label: CATEGORY_LABELS[cat as AgentCategory] ?? cat,
-        members: members ?? [],
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label))
-  );
+const categoryGroups = $derived(
+  Object.entries(
+    filteredAgents.reduce<Partial<Record<AgentCategory, Agent[]>>>((acc, agent) => {
+      const cat = agent.category;
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat]!.push(agent);
+      return acc;
+    }, {})
+  )
+    .map(([cat, members]) => ({
+      category: cat as AgentCategory,
+      label: CATEGORY_LABELS[cat as AgentCategory] ?? cat,
+      members: members ?? [],
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+);
 
-  function initials(name: string): string {
-    return name
-      .split(" ")
-      .slice(0, 2)
-      .map((w) => w[0] ?? "")
-      .join("")
-      .toUpperCase();
-  }
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .slice(0, 2)
+    .map((w) => w[0] ?? '')
+    .join('')
+    .toUpperCase();
+}
 </script>
 
 <div class="tm-page">

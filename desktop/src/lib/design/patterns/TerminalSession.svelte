@@ -19,10 +19,10 @@
  * CSS prefix: ts-
  */
 
-import { onMount } from 'svelte';
-import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { Terminal } from '@xterm/xterm';
+import { onMount } from 'svelte';
 import '@xterm/xterm/css/xterm.css';
 import { fetchScrollback } from '$lib/api/queries/scrollback.js';
 import { themeRegistry } from '$lib/stores/theme-registry.svelte.js';
@@ -61,18 +61,19 @@ function cssVar(name: string, fallback = ''): string {
 function isTransparentBackground(value: string | undefined): boolean {
   if (!value) return true;
   const normalized = value.trim().toLowerCase();
-  return normalized === 'transparent' || normalized === 'rgba(0, 0, 0, 0)' || normalized.endsWith('/ 0)');
+  return (
+    normalized === 'transparent' || normalized === 'rgba(0, 0, 0, 0)' || normalized.endsWith('/ 0)')
+  );
 }
 
 function terminalTheme() {
   const palette = themeRegistry.activeTheme.terminal;
   const cssBg = cssVar('--term-bg', FALLBACK_TERM_BG);
-  const background =
-    !isTransparentBackground(palette.background)
-      ? palette.background
-      : !isTransparentBackground(cssBg)
-        ? cssBg
-        : FALLBACK_TERM_BG;
+  const background = !isTransparentBackground(palette.background)
+    ? palette.background
+    : !isTransparentBackground(cssBg)
+      ? cssBg
+      : FALLBACK_TERM_BG;
   terminalBg = background;
 
   return {
@@ -246,7 +247,10 @@ onMount(() => {
           const ex = payload as { code?: number };
           exitCode = ex.code ?? null;
           channelState = 'exited';
-          term.write(`\r\n\x1b[90m[process exited with code ${exitCode ?? '?'}]\x1b[0m\r\n`, fitAndRefresh);
+          term.write(
+            `\r\n\x1b[90m[process exited with code ${exitCode ?? '?'}]\x1b[0m\r\n`,
+            fitAndRefresh
+          );
           break;
         }
         case 'phx_error':

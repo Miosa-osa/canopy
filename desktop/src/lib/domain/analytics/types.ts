@@ -20,7 +20,7 @@ export interface TelemetryEvent {
   insertedAt: string;
 }
 
-export type Granularity = "hour" | "day" | "week" | "month";
+export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
 export interface CostBucket {
   bucket: string;
@@ -34,15 +34,15 @@ export interface CostBuckets {
 }
 
 export type BreadcrumbType =
-  | "tool_call"
-  | "http"
-  | "db"
-  | "governance"
-  | "navigation"
-  | "user"
-  | "system";
+  | 'tool_call'
+  | 'http'
+  | 'db'
+  | 'governance'
+  | 'navigation'
+  | 'user'
+  | 'system';
 
-export type BreadcrumbLevel = "debug" | "info" | "warning" | "error" | "fatal";
+export type BreadcrumbLevel = 'debug' | 'info' | 'warning' | 'error' | 'fatal';
 
 export interface Breadcrumb {
   id: string;
@@ -63,15 +63,9 @@ export interface BreadcrumbList {
   data: Breadcrumb[];
 }
 
-export type InsightSeverity = "info" | "medium" | "high" | "critical";
-export type InsightKind =
-  | "anomaly"
-  | "trend"
-  | "correlation"
-  | "pattern"
-  | "saved"
-  | "forecast";
-export type InsightFeedback = "true_positive" | "false_positive" | "unverified";
+export type InsightSeverity = 'info' | 'medium' | 'high' | 'critical';
+export type InsightKind = 'anomaly' | 'trend' | 'correlation' | 'pattern' | 'saved' | 'forecast';
+export type InsightFeedback = 'true_positive' | 'false_positive' | 'unverified';
 
 export interface Insight {
   id: string;
@@ -99,7 +93,7 @@ export interface Insight {
   updatedAt: string;
 }
 
-export type AlertType = "threshold" | "anomaly" | "composite";
+export type AlertType = 'threshold' | 'anomaly' | 'composite';
 
 export interface Alert {
   id: string;

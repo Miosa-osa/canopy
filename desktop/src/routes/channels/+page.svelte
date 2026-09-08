@@ -1,95 +1,93 @@
 <script lang="ts">
-  /**
-   * /channels — Two-pane layout: channel list (left) + empty-state hero (right).
-   * Redirects to /channels/<first-id> when channels exist.
-   * CSS prefix: cp- (ChannelsPage)
-   * LOC target: ≤200
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { goto } from '$app/navigation';
-  import { MessageSquare } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { channelsQuery, createChannelMutation } from '$lib/api/queries/channels.js';
-  import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-  import ChannelList from '$lib/design/patterns/channels/ChannelList.svelte';
-  import type { Channel, CreateChannelBody } from '$lib/domain/channels/types.js';
-  import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
-  import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+/**
+ * /channels — Two-pane layout: channel list (left) + empty-state hero (right).
+ * Redirects to /channels/<first-id> when channels exist.
+ * CSS prefix: cp- (ChannelsPage)
+ * LOC target: ≤200
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { MessageSquare } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { channelsQuery, createChannelMutation } from '$lib/api/queries/channels.js';
+import ChannelList from '$lib/design/patterns/channels/ChannelList.svelte';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
+import type { Channel, CreateChannelBody } from '$lib/domain/channels/types.js';
 
-  const queryClient = useQueryClient();
+const queryClient = useQueryClient();
 
-  const chOptsStore = writable(
-    untrack(() => channelsQuery() as CreateQueryOptions<Channel[]>),
-  );
-  const chQ = createQuery<Channel[]>(chOptsStore);
-  const channels = $derived(($chQ.data ?? []) as Channel[]);
+const chOptsStore = writable(untrack(() => channelsQuery() as CreateQueryOptions<Channel[]>));
+const chQ = createQuery<Channel[]>(chOptsStore);
+const channels = $derived(($chQ.data ?? []) as Channel[]);
 
-  // Redirect to first channel when list loads
-  $effect(() => {
-    if (!$chQ.isLoading && channels.length > 0) {
-      goto(`/channels/${channels[0].id}`, { replaceState: true });
-    }
-  });
-
-  // ── New channel form ──────────────────────────────────────────────────────────
-  let formOpen = $state(false);
-  let newName = $state('');
-  let newSlug = $state('');
-  let newVisibility = $state<'public' | 'private'>('public');
-  let creating = $state(false);
-
-  function slugify(name: string): string {
-    return name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
-      .slice(0, 64);
+// Redirect to first channel when list loads
+$effect(() => {
+  if (!$chQ.isLoading && channels.length > 0) {
+    goto(`/channels/${channels[0].id}`, { replaceState: true });
   }
+});
 
-  $effect(() => {
-    if (newName && !newSlug) {
-      newSlug = slugify(newName);
-    }
-  });
+// ── New channel form ──────────────────────────────────────────────────────────
+let formOpen = $state(false);
+let newName = $state('');
+let newSlug = $state('');
+let newVisibility = $state<'public' | 'private'>('public');
+let creating = $state(false);
 
-  const createMut = createMutation<Channel, Error, CreateChannelBody>(
-    createChannelMutation() as CreateMutationOptions<Channel, Error, CreateChannelBody>,
-  );
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .slice(0, 64);
+}
 
-  function handleCreate(): void {
-    if (!newName.trim() || !newSlug.trim()) return;
-    creating = true;
-    $createMut.mutate(
-      { name: newName.trim(), slug: newSlug.trim(), visibility: newVisibility },
-      {
-        onSuccess: (ch) => {
-          queryClient.invalidateQueries({ queryKey: ['channels'] });
-          formOpen = false;
-          newName = '';
-          newSlug = '';
-          newVisibility = 'public';
-          creating = false;
-          void goto(`/channels/${ch.id}`);
-        },
-        onError: () => {
-          creating = false;
-        },
+$effect(() => {
+  if (newName && !newSlug) {
+    newSlug = slugify(newName);
+  }
+});
+
+const createMut = createMutation<Channel, Error, CreateChannelBody>(
+  createChannelMutation() as CreateMutationOptions<Channel, Error, CreateChannelBody>
+);
+
+function handleCreate(): void {
+  if (!newName.trim() || !newSlug.trim()) return;
+  creating = true;
+  $createMut.mutate(
+    { name: newName.trim(), slug: newSlug.trim(), visibility: newVisibility },
+    {
+      onSuccess: (ch) => {
+        queryClient.invalidateQueries({ queryKey: ['channels'] });
+        formOpen = false;
+        newName = '';
+        newSlug = '';
+        newVisibility = 'public';
+        creating = false;
+        void goto(`/channels/${ch.id}`);
       },
-    );
-  }
+      onError: () => {
+        creating = false;
+      },
+    }
+  );
+}
 
-  function handleSelect(ch: Channel): void {
-    void goto(`/channels/${ch.id}`);
-  }
+function handleSelect(ch: Channel): void {
+  void goto(`/channels/${ch.id}`);
+}
 
-  let view = $state<ViewState>({ layout: 'list', density: 'comfortable', sort: 'recent' });
+let view = $state<ViewState>({ layout: 'list', density: 'comfortable', sort: 'recent' });
 </script>
 
 <div class="cp-shell">

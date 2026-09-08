@@ -1,0 +1,721 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "id": "canopy-boot",
+      "path": "CLAUDE.md",
+      "kind": "normative",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [
+        "agent-operation"
+      ],
+      "requires": [
+        "current-product",
+        "workspace-engine",
+        "review-queue",
+        "control-plane"
+      ]
+    },
+    {
+      "id": "contributing",
+      "path": "CONTRIBUTING.md",
+      "kind": "reference",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "notice",
+      "path": "NOTICE.md",
+      "kind": "reference",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "readme",
+      "path": "README.md",
+      "kind": "reference",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-01-foundation",
+      "path": "docs/01-foundation.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-02-frontend-design",
+      "path": "docs/02-frontend-design.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-05-operations",
+      "path": "docs/05-operations.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-06-audit",
+      "path": "docs/06-audit.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-07-day1-report",
+      "path": "docs/07-day1-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-08-week1-plan",
+      "path": "docs/08-week1-plan.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-09-foundation-migration",
+      "path": "docs/09-foundation-migration.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-10-naming-ontology-audit",
+      "path": "docs/10-naming-ontology-audit.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-11-weeks-2-20-roadmap",
+      "path": "docs/11-weeks-2-20-roadmap.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-12-week2-report",
+      "path": "docs/12-week2-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-13-week3-report",
+      "path": "docs/13-week3-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-14-architecture-audit",
+      "path": "docs/14-architecture-audit.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-15-phase2-report",
+      "path": "docs/15-phase2-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-16-phase3-report",
+      "path": "docs/16-phase3-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-17-phase4-report",
+      "path": "docs/17-phase4-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-18-wiring-audit",
+      "path": "docs/18-wiring-audit.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-19-runtime-e2e-trace",
+      "path": "docs/19-runtime-e2e-trace.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "docs-23-runtime-e2e-matrix",
+      "path": "docs/23-runtime-e2e-matrix.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "workspace-engine",
+      "path": "docs/24-workspace-engine.md",
+      "kind": "contract",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [
+        "workspace-engine-execution"
+      ]
+    },
+    {
+      "id": "review-queue",
+      "path": "docs/25-review-queue.md",
+      "kind": "contract",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [
+        "operational-review"
+      ]
+    },
+    {
+      "id": "docs-readme",
+      "path": "docs/README.md",
+      "kind": "reference",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "control-plane",
+      "path": "docs/agent-control-plane.md",
+      "kind": "contract",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [
+        "document-authority"
+      ]
+    },
+    {
+      "id": "current-product",
+      "path": "docs/current-product-contract.md",
+      "kind": "contract",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [
+        "product-scope"
+      ]
+    },
+    {
+      "id": "wiring-active-workspace-wiring",
+      "path": "wiring/active-workspace-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-agent-conversation-pane-wiring",
+      "path": "wiring/agent-conversation-pane-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-agent-conversations-section-wiring",
+      "path": "wiring/agent-conversations-section-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-agent-kanban-wiring",
+      "path": "wiring/agent-kanban-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-blocks-wiring",
+      "path": "wiring/blocks-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-build-module-integration-wiring",
+      "path": "wiring/build-module-integration-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-build-side-rail-wiring",
+      "path": "wiring/build-side-rail-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-build-wiring",
+      "path": "wiring/build-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-cabinet-home-steal-report",
+      "path": "wiring/cabinet-home-steal-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-code-editor-wiring",
+      "path": "wiring/code-editor-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-codesurf-steal-report",
+      "path": "wiring/codesurf-steal-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-conductor-bootstrap-wiring",
+      "path": "wiring/conductor-bootstrap-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-cross-competitor-module-audit",
+      "path": "wiring/cross-competitor-module-audit.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-diff-wiring",
+      "path": "wiring/diff-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-drive-starter-wiring",
+      "path": "wiring/drive-starter-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-drive-wiring",
+      "path": "wiring/drive-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-embedded-runtime-wiring",
+      "path": "wiring/embedded-runtime-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-file-viewer-wiring",
+      "path": "wiring/file-viewer-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-files-explorer-rebuild-wiring",
+      "path": "wiring/files-explorer-rebuild-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-iris-bootstrap-wiring",
+      "path": "wiring/iris-bootstrap-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-mcp-wiring",
+      "path": "wiring/mcp-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-mosaic-polish-finish-wiring",
+      "path": "wiring/mosaic-polish-finish-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-optimal-engine-integration",
+      "path": "wiring/optimal-engine-integration.md",
+      "kind": "historical",
+      "status": "superseded",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [],
+      "superseded_by": "workspace-engine"
+    },
+    {
+      "id": "wiring-oss-deep-steal-report",
+      "path": "wiring/oss-deep-steal-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-per-workspace-state-applied-wiring",
+      "path": "wiring/per-workspace-state-applied-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-sandboxes-wiring",
+      "path": "wiring/sandboxes-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-schedule-wiring",
+      "path": "wiring/schedule-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-search-wiring",
+      "path": "wiring/search-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-session-rich-input-audit",
+      "path": "wiring/session-rich-input-audit.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-skills-curator-wiring",
+      "path": "wiring/skills-curator-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-stacks-steal-report",
+      "path": "wiring/stacks-steal-report.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-templates-wiring",
+      "path": "wiring/templates-wiring.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-warp-parity-audit",
+      "path": "wiring/warp-parity-audit.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "wiring-warp-parity-checklist",
+      "path": "wiring/warp-parity-checklist.md",
+      "kind": "historical",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    },
+    {
+      "id": "notes",
+      "path": "NOTES.md",
+      "kind": "reference",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    }
+  ],
+  "inventory": [
+    "*.md",
+    "docs/**/*.md",
+    "wiring/**/*.md"
+  ],
+  "required_paths": [
+    "Makefile",
+    "backend/lib/canopy/workspaces/engine.ex",
+    ".tool-versions"
+  ],
+  "permissions": {
+    "fact_creation": "Engine evidence and authorized Claim review required",
+    "topology_modification": "explicit authorized actor and scope required",
+    "workspace_access": "explicit workspace boundary required",
+    "tool_execution": "registered allowlist and runtime authorization required",
+    "documentation": "cannot expand runtime permissions"
+  }
+}

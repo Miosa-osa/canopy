@@ -192,7 +192,11 @@ defmodule Canopy.Runtimes.Auth.Detector do
         # timeout option. If the subprocess hangs longer, we kill the task.
         task =
           Task.async(fn ->
-            System.cmd(resolved, args, stderr_to_stdout: true)
+            try do
+              System.cmd(resolved, args, stderr_to_stdout: true)
+            rescue
+              _ -> :error
+            end
           end)
 
         case Task.yield(task, 2_000) || Task.shutdown(task, :brutal_kill) do

@@ -3,8 +3,9 @@
  * TestConnectionButton — runs POST /test, shows latency or error inline.
  * CSS prefix: tcb-
  */
-import { testRuntime } from '$lib/queries/runtime-auth.js';
+
 import type { TestRuntimeResponse } from '$lib/queries/runtime-auth.js';
+import { testRuntime } from '$lib/queries/runtime-auth.js';
 
 interface Props {
   runtimeId: string;

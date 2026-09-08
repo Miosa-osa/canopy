@@ -1,117 +1,133 @@
 <script lang="ts">
-  /**
-   * DiffViewer — renders a single DiffFile with hunk collapsing and syntax highlighting.
-   * Uses shiki for highlighting (confirmed installed at ^4.0.2).
-   * CSS prefix: dv-
-   * LOC target: ≤ 260.
-   */
-  import { Copy } from 'lucide-svelte';
-  import { onMount } from 'svelte';
-  import type { DiffFile, DiffHunk, DiffLine } from '$lib/utils/parse-diff.js';
+/**
+ * DiffViewer — renders a single DiffFile with hunk collapsing and syntax highlighting.
+ * Uses shiki for highlighting (confirmed installed at ^4.0.2).
+ * CSS prefix: dv-
+ * LOC target: ≤ 260.
+ */
+import { Copy } from 'lucide-svelte';
+import { onMount } from 'svelte';
+import type { DiffFile, DiffHunk, DiffLine } from '$lib/utils/parse-diff.js';
 
-  interface Props {
-    file: DiffFile;
-  }
+interface Props {
+  file: DiffFile;
+}
 
-  let { file }: Props = $props();
+let { file }: Props = $props();
 
-  // ── View mode ────────────────────────────────────────────────────────────────
+// ── View mode ────────────────────────────────────────────────────────────────
 
-  const STORAGE_KEY = 'canopy.diff.view_mode';
-  let viewMode = $state<'inline' | 'side-by-side'>(
-    typeof localStorage !== 'undefined'
-      ? ((localStorage.getItem(STORAGE_KEY) as 'inline' | 'side-by-side') ?? 'inline')
-      : 'inline',
-  );
+const STORAGE_KEY = 'canopy.diff.view_mode';
+let viewMode = $state<'inline' | 'side-by-side'>(
+  typeof localStorage !== 'undefined'
+    ? ((localStorage.getItem(STORAGE_KEY) as 'inline' | 'side-by-side') ?? 'inline')
+    : 'inline'
+);
 
-  function setViewMode(m: 'inline' | 'side-by-side'): void {
-    viewMode = m;
-    if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, m);
-  }
+function setViewMode(m: 'inline' | 'side-by-side'): void {
+  viewMode = m;
+  if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, m);
+}
 
-  // ── Hunk collapse ─────────────────────────────────────────────────────────────
+// ── Hunk collapse ─────────────────────────────────────────────────────────────
 
-  let collapsedHunks = $state<Set<number>>(new Set());
-  function toggleHunk(i: number): void {
-    const next = new Set(collapsedHunks);
-    if (next.has(i)) next.delete(i);
-    else next.add(i);
-    collapsedHunks = next;
-  }
+let collapsedHunks = $state<Set<number>>(new Set());
+function toggleHunk(i: number): void {
+  const next = new Set(collapsedHunks);
+  if (next.has(i)) next.delete(i);
+  else next.add(i);
+  collapsedHunks = next;
+}
 
-  // ── Shiki highlight ──────────────────────────────────────────────────────────
+// ── Shiki highlight ──────────────────────────────────────────────────────────
 
-  // Map file extension → shiki language id
-  function langFromPath(path: string): string {
-    const ext = path.split('.').pop()?.toLowerCase() ?? '';
-    const map: Record<string, string> = {
-      ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
-      svelte: 'svelte', css: 'css', html: 'html', json: 'json',
-      md: 'markdown', ex: 'elixir', exs: 'elixir', rs: 'rust',
-      go: 'go', py: 'python', sh: 'bash', yaml: 'yaml', yml: 'yaml',
-      toml: 'toml', sql: 'sql',
-    };
-    return map[ext] ?? 'text';
-  }
+// Map file extension → shiki language id
+function langFromPath(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  const map: Record<string, string> = {
+    ts: 'typescript',
+    tsx: 'tsx',
+    js: 'javascript',
+    jsx: 'jsx',
+    svelte: 'svelte',
+    css: 'css',
+    html: 'html',
+    json: 'json',
+    md: 'markdown',
+    ex: 'elixir',
+    exs: 'elixir',
+    rs: 'rust',
+    go: 'go',
+    py: 'python',
+    sh: 'bash',
+    yaml: 'yaml',
+    yml: 'yaml',
+    toml: 'toml',
+    sql: 'sql',
+  };
+  return map[ext] ?? 'text';
+}
 
-  // Highlighted line cache: hunk index → line index → html string
-  let highlightedLines = $state<Map<string, string>>(new Map());
-  let shikiReady = $state(false);
+// Highlighted line cache: hunk index → line index → html string
+let highlightedLines = $state<Map<string, string>>(new Map());
+let shikiReady = $state(false);
 
-  onMount(async () => {
-    try {
-      const { createHighlighter } = await import('shiki');
-      const hl = await createHighlighter({
-        themes: ['github-dark-dimmed'],
-        langs: [langFromPath(file.path)],
-      });
-      const lang = langFromPath(file.path);
+onMount(async () => {
+  try {
+    const { createHighlighter } = await import('shiki');
+    const hl = await createHighlighter({
+      themes: ['github-dark-dimmed'],
+      langs: [langFromPath(file.path)],
+    });
+    const lang = langFromPath(file.path);
 
-      // Collect all content lines to highlight
-      const next = new Map<string, string>();
-      for (let hi = 0; hi < file.hunks.length; hi++) {
-        const hunk = file.hunks[hi];
-        if (!hunk) continue;
-        for (let li = 0; li < hunk.lines.length; li++) {
-          const dl = hunk.lines[li];
-          if (!dl || dl.type === 'hunk_header') continue;
-          const key = `${hi}:${li}`;
-          const tokens = hl.codeToHtml(dl.content, { lang, theme: 'github-dark-dimmed' });
-          // Extract just the inner code span from shiki output
-          const inner = tokens.replace(/^<pre[^>]*><code[^>]*>([\s\S]*)<\/code><\/pre>$/, '$1');
-          next.set(key, inner);
-        }
+    // Collect all content lines to highlight
+    const next = new Map<string, string>();
+    for (let hi = 0; hi < file.hunks.length; hi++) {
+      const hunk = file.hunks[hi];
+      if (!hunk) continue;
+      for (let li = 0; li < hunk.lines.length; li++) {
+        const dl = hunk.lines[li];
+        if (!dl || dl.type === 'hunk_header') continue;
+        const key = `${hi}:${li}`;
+        const tokens = hl.codeToHtml(dl.content, { lang, theme: 'github-dark-dimmed' });
+        // Extract just the inner code span from shiki output
+        const inner = tokens.replace(/^<pre[^>]*><code[^>]*>([\s\S]*)<\/code><\/pre>$/, '$1');
+        next.set(key, inner);
       }
-      highlightedLines = next;
-      shikiReady = true;
-    } catch {
-      // shiki failed — fallback to mono text, shikiReady stays false
     }
-  });
-
-  function lineHtml(hunkIdx: number, lineIdx: number, content: string): string {
-    const key = `${hunkIdx}:${lineIdx}`;
-    return highlightedLines.get(key) ?? escapeHtml(content);
+    highlightedLines = next;
+    shikiReady = true;
+  } catch {
+    // shiki failed — fallback to mono text, shikiReady stays false
   }
+});
 
-  function escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
+function lineHtml(hunkIdx: number, lineIdx: number, content: string): string {
+  const key = `${hunkIdx}:${lineIdx}`;
+  return highlightedLines.get(key) ?? escapeHtml(content);
+}
 
-  // ── Copy hunk ─────────────────────────────────────────────────────────────────
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
-  function copyHunk(hunk: DiffHunk): void {
-    const text = hunk.lines.map((l) => l.content).join('\n');
-    void navigator.clipboard.writeText(text);
-  }
+// ── Copy hunk ─────────────────────────────────────────────────────────────────
 
-  // ── Line bg ───────────────────────────────────────────────────────────────────
+function copyHunk(hunk: DiffHunk): void {
+  const text = hunk.lines.map((l) => l.content).join('\n');
+  void navigator.clipboard.writeText(text);
+}
 
-  function lineBg(type: DiffLine['type']): string {
-    if (type === 'add') return 'color-mix(in oklch, var(--success, oklch(0.72 0.18 145)) 15%, transparent)';
-    if (type === 'del') return 'color-mix(in oklch, var(--destructive, oklch(0.65 0.22 25)) 15%, transparent)';
-    return 'transparent';
-  }
+// ── Line bg ───────────────────────────────────────────────────────────────────
+
+function lineBg(type: DiffLine['type']): string {
+  if (type === 'add')
+    return 'color-mix(in oklch, var(--success, oklch(0.72 0.18 145)) 15%, transparent)';
+  if (type === 'del')
+    return 'color-mix(in oklch, var(--destructive, oklch(0.65 0.22 25)) 15%, transparent)';
+  return 'transparent';
+}
 </script>
 
 <!-- Toolbar -->

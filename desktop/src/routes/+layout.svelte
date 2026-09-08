@@ -119,11 +119,11 @@ function handleKeydown(e: KeyboardEvent): void {
   // ⌘1–5 — section jumps
   if (e.metaKey && !e.shiftKey) {
     const sectionMap: Record<string, string> = {
-      '1': '/home',
-      '2': '/runtimes',
-      '3': '/sessions',
-      '4': '/agents',
-      '5': '/workspaces',
+      1: '/home',
+      2: '/runtimes',
+      3: '/sessions',
+      4: '/agents',
+      5: '/workspaces',
     };
     const target = sectionMap[e.key];
     if (target) {
@@ -172,12 +172,8 @@ function handleKeydown(e: KeyboardEvent): void {
 
       <div class="sidebar-footer" aria-label="Sidebar footer">
         <div class="sidebar-footer__spend" aria-hidden={ui.sidebarCollapsed}>
-          <!-- Spend bar placeholder — wires to budget data in Week 2 -->
-          <div class="spend-bar">
-            <div class="spend-bar__fill" style="width: 24%;"></div>
-          </div>
           {#if !ui.sidebarCollapsed}
-            <span class="spend-label">$24 / $100 this month</span>
+            <span class="spend-label">Usage data not connected</span>
           {/if}
         </div>
 
@@ -301,20 +297,6 @@ function handleKeydown(e: KeyboardEvent): void {
     display: flex;
     flex-direction: column;
     gap: 4px;
-  }
-
-  .spend-bar {
-    height: 3px;
-    background: color-mix(in oklch, var(--fg) 10%, transparent 90%);
-    border-radius: 9999px;
-    overflow: hidden;
-  }
-
-  .spend-bar__fill {
-    height: 100%;
-    background: var(--cnp-accent);
-    border-radius: 9999px;
-    transition: width var(--dur-normal) var(--ease-io);
   }
 
   .spend-label {

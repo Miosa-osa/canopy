@@ -6,7 +6,7 @@
  * stage / discard-hunk / commit endpoints exposed by Canopy.Sessions.WorktreeManager.
  */
 
-import type { DiffFile, DiffHunk, DiffLine } from "$lib/utils/parse-diff.js";
+import type { DiffFile, DiffHunk, DiffLine } from '$lib/utils/parse-diff.js';
 
 export type { DiffFile, DiffHunk, DiffLine };
 
@@ -44,7 +44,7 @@ export interface DiscardHunkResult {
 
 // ── View-mode toggles owned by the pane ──────────────────────────────────────
 
-export type DiffViewMode = "inline" | "side-by-side";
+export type DiffViewMode = 'inline' | 'side-by-side';
 
 export interface DiffPaneOptions {
   viewMode: DiffViewMode;

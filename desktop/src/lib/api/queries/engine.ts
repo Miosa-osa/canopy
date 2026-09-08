@@ -1,38 +1,31 @@
-import { apiGet, apiPost } from "$lib/api/client.js";
+import { apiGet, apiPost } from '$lib/api/client.js';
 import type {
   WorkspaceEngineCommandsResponse,
   WorkspaceEngineHealth,
   WorkspaceEngineRunBody,
   WorkspaceEngineRunResult,
-} from "$lib/domain/engine/types.js";
+} from '$lib/domain/engine/types.js';
 
-export function getWorkspaceEngineHealth(
-  slug: string,
-): Promise<WorkspaceEngineHealth> {
+export function getWorkspaceEngineHealth(slug: string): Promise<WorkspaceEngineHealth> {
   return apiGet<WorkspaceEngineHealth>(`/workspaces/${slug}/engine/health`);
 }
 
 export function listWorkspaceEngineCommands(
-  slug: string,
+  slug: string
 ): Promise<WorkspaceEngineCommandsResponse> {
-  return apiGet<WorkspaceEngineCommandsResponse>(
-    `/workspaces/${slug}/engine/commands`,
-  );
+  return apiGet<WorkspaceEngineCommandsResponse>(`/workspaces/${slug}/engine/commands`);
 }
 
 export function runWorkspaceEngineCommand(
   slug: string,
-  body: WorkspaceEngineRunBody,
+  body: WorkspaceEngineRunBody
 ): Promise<WorkspaceEngineRunResult> {
-  return apiPost<WorkspaceEngineRunResult>(
-    `/workspaces/${slug}/engine/run`,
-    body,
-  );
+  return apiPost<WorkspaceEngineRunResult>(`/workspaces/${slug}/engine/run`, body);
 }
 
 export function workspaceEngineHealthQuery(slug: string) {
   return {
-    queryKey: ["workspaces", slug, "engine", "health"] as const,
+    queryKey: ['workspaces', slug, 'engine', 'health'] as const,
     queryFn: () => getWorkspaceEngineHealth(slug),
     staleTime: 10_000,
     enabled: Boolean(slug),
@@ -41,7 +34,7 @@ export function workspaceEngineHealthQuery(slug: string) {
 
 export function workspaceEngineCommandsQuery(slug: string) {
   return {
-    queryKey: ["workspaces", slug, "engine", "commands"] as const,
+    queryKey: ['workspaces', slug, 'engine', 'commands'] as const,
     queryFn: () => listWorkspaceEngineCommands(slug),
     staleTime: 10_000,
     enabled: Boolean(slug),
@@ -51,8 +44,7 @@ export function workspaceEngineCommandsQuery(slug: string) {
 
 export function runWorkspaceEngineCommandMutation(slug: string) {
   return {
-    mutationKey: ["workspaces", slug, "engine", "run"] as const,
-    mutationFn: (body: WorkspaceEngineRunBody) =>
-      runWorkspaceEngineCommand(slug, body),
+    mutationKey: ['workspaces', slug, 'engine', 'run'] as const,
+    mutationFn: (body: WorkspaceEngineRunBody) => runWorkspaceEngineCommand(slug, body),
   };
 }

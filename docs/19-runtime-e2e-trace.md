@@ -1,3 +1,7 @@
+> HISTORICAL EVIDENCE: This document records an earlier plan or assessment.
+> It does not establish current product scope, runtime readiness, or write authority.
+> Resolve current ownership through the repository root `agent-authority.json`.
+
 # 19 — Runtime Adapter End-to-End Trace
 
 **Track #117 | Phase 6 | 2026-04-18**

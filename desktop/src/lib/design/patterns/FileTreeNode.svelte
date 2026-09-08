@@ -20,15 +20,7 @@ interface Props {
   expandedPaths: Set<string>;
 }
 
-let {
-  node,
-  depth,
-  selectedPath,
-  focusedPath,
-  onSelect,
-  onToggle,
-  expandedPaths,
-}: Props = $props();
+let { node, depth, selectedPath, focusedPath, onSelect, onToggle, expandedPaths }: Props = $props();
 
 const isExpanded = $derived(expandedPaths.has(node.path));
 const isSelected = $derived(selectedPath === node.path);

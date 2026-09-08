@@ -73,6 +73,9 @@ defmodule Canopy.Runtimes.Auth.ClaudeCode do
       {:error, {:binary_path_not_allowed, path}} ->
         {:ok, %{ok: false, model: nil, latency_ms: 0, error: "binary path not allowed: #{path}"}}
     end
+  rescue
+    error in ErlangError ->
+      {:ok, %{ok: false, model: nil, latency_ms: 0, error: Exception.message(error)}}
   end
 
   @spec timed((-> result)) :: {result, non_neg_integer()} when result: term()

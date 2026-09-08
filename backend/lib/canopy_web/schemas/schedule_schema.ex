@@ -6,6 +6,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule Spec do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -43,6 +44,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule SpecList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{data: %Schema{type: :array, items: Spec}}
@@ -52,6 +54,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule SpecCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -80,6 +83,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule SpecUpdate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -99,6 +103,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule Run do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -127,6 +132,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule RunList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{data: %Schema{type: :array, items: Run}}
@@ -136,6 +142,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule RunBucket do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -152,6 +159,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule RunBuckets do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -164,6 +172,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule Overlap do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -180,6 +189,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule OverlapList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{data: %Schema{type: :array, items: Overlap}}
@@ -189,6 +199,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule Alert do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -219,6 +230,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule AlertList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{data: %Schema{type: :array, items: Alert}}
@@ -228,6 +240,7 @@ defmodule CanopyWeb.Schemas.ScheduleSchema do
   defmodule AlertCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{

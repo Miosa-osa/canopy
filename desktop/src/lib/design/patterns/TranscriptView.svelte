@@ -15,8 +15,8 @@
 import { Activity, Brain, FilePlus, FileText, Search, Terminal, Wrench } from 'lucide-svelte';
 import { tick } from 'svelte';
 import type { TranscriptEntry } from '$lib/domain/sessions/types.js';
-import { groupTranscript } from '$lib/utils/transcript-grouping.js';
 import type { GroupedEntry } from '$lib/utils/transcript-grouping.js';
+import { groupTranscript } from '$lib/utils/transcript-grouping.js';
 
 // ── Icon mapping ─────────────────────────────────────────────────────────────
 // Maps cleaned tool names to Lucide icons.

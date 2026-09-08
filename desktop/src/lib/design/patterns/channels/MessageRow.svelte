@@ -1,31 +1,31 @@
 <script lang="ts">
-  /**
-   * MessageRow — single message in a channel thread.
-   * Groups consecutive same-sender messages (no repeat avatar).
-   * CSS prefix: mr- (MessageRow)
-   * LOC target: ≤120
-   */
-  import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
-  import { renderMarkdown } from '$lib/utils/markdown.js';
-  import type { ChannelMessage } from '$lib/domain/channels/types.js';
+/**
+ * MessageRow — single message in a channel thread.
+ * Groups consecutive same-sender messages (no repeat avatar).
+ * CSS prefix: mr- (MessageRow)
+ * LOC target: ≤120
+ */
+import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
+import type { ChannelMessage } from '$lib/domain/channels/types.js';
+import { renderMarkdown } from '$lib/utils/markdown.js';
 
-  interface Props {
-    message: ChannelMessage;
-    /** True when this message immediately follows one from the same author. */
-    grouped?: boolean;
-    isDeleted?: boolean;
-  }
+interface Props {
+  message: ChannelMessage;
+  /** True when this message immediately follows one from the same author. */
+  grouped?: boolean;
+  isDeleted?: boolean;
+}
 
-  let { message, grouped = false, isDeleted = false }: Props = $props();
+let { message, grouped = false, isDeleted = false }: Props = $props();
 
-  function displayName(msg: ChannelMessage): string {
-    if (msg.authorType === 'system') return 'System';
-    return msg.authorId ?? (msg.authorType === 'agent' ? 'Agent' : 'User');
-  }
+function displayName(msg: ChannelMessage): string {
+  if (msg.authorType === 'system') return 'System';
+  return msg.authorId ?? (msg.authorType === 'agent' ? 'Agent' : 'User');
+}
 
-  function formatTime(iso: string): string {
-    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 </script>
 
 <div

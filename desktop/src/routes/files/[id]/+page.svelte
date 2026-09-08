@@ -1,150 +1,156 @@
 <script lang="ts">
-  /**
-   * /files/[id] — File detail: metadata + tag editor + activity feed.
-   * CSS prefix: fd- (FileDetail)
-   */
-  import {
-    type CreateMutationOptions,
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from '@tanstack/svelte-query';
-  import { page } from '$app/state';
-  import { Archive, Download } from 'lucide-svelte';
-  import { untrack } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { goto } from '$app/navigation';
-  import { API_BASE } from '$lib/api/client.js';
-  import {
-    archiveFileMutation,
-    fileActivityQuery,
-    fileQuery,
-    formatBytes,
-    updateTagsMutation,
-  } from '$lib/api/queries/files.js';
-  import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
-  import FilePreview from '$lib/design/patterns/FilePreview.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import type { FileActivity, FileRecord, UpdateTagsBody } from '$lib/domain/files/types.js';
-  import { toasts } from '$lib/stores/toasts.svelte.js';
+/**
+ * /files/[id] — File detail: metadata + tag editor + activity feed.
+ * CSS prefix: fd- (FileDetail)
+ */
+import {
+  type CreateMutationOptions,
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import { Archive, Download } from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import { API_BASE } from '$lib/api/client.js';
+import {
+  archiveFileMutation,
+  fileActivityQuery,
+  fileQuery,
+  formatBytes,
+  updateTagsMutation,
+} from '$lib/api/queries/files.js';
+import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
+import FilePreview from '$lib/design/patterns/FilePreview.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { FileActivity, FileRecord, UpdateTagsBody } from '$lib/domain/files/types.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
 
-  const fileId = $derived(page.params.id ?? '');
-  const queryClient = useQueryClient();
+const fileId = $derived(page.params.id ?? '');
+const queryClient = useQueryClient();
 
-  // ── Queries ──────────────────────────────────────────────────────────────────
+// ── Queries ──────────────────────────────────────────────────────────────────
 
-  const fileOptsStore = writable(
-    untrack(() => fileQuery(fileId) as CreateQueryOptions<FileRecord>),
-  );
-  $effect(() => {
-    fileOptsStore.set(fileQuery(fileId) as CreateQueryOptions<FileRecord>);
-  });
-  const fileQ = createQuery<FileRecord>(fileOptsStore);
-  const file = $derived($fileQ.data as FileRecord | undefined);
+const fileOptsStore = writable(untrack(() => fileQuery(fileId) as CreateQueryOptions<FileRecord>));
+$effect(() => {
+  fileOptsStore.set(fileQuery(fileId) as CreateQueryOptions<FileRecord>);
+});
+const fileQ = createQuery<FileRecord>(fileOptsStore);
+const file = $derived($fileQ.data as FileRecord | undefined);
 
-  const activityOptsStore = writable(
-    untrack(() => fileActivityQuery(fileId) as CreateQueryOptions<FileActivity[]>),
-  );
-  $effect(() => {
-    activityOptsStore.set(fileActivityQuery(fileId) as CreateQueryOptions<FileActivity[]>);
-  });
-  const activityQ = createQuery<FileActivity[]>(activityOptsStore);
-  const activities = $derived(($activityQ.data ?? []) as FileActivity[]);
+const activityOptsStore = writable(
+  untrack(() => fileActivityQuery(fileId) as CreateQueryOptions<FileActivity[]>)
+);
+$effect(() => {
+  activityOptsStore.set(fileActivityQuery(fileId) as CreateQueryOptions<FileActivity[]>);
+});
+const activityQ = createQuery<FileActivity[]>(activityOptsStore);
+const activities = $derived(($activityQ.data ?? []) as FileActivity[]);
 
-  // ── Tag editor ────────────────────────────────────────────────────────────────
+// ── Tag editor ────────────────────────────────────────────────────────────────
 
-  let tagInput = $state('');
+let tagInput = $state('');
 
-  $effect(() => {
-    if (file && !tagInput) {
-      tagInput = file.tags.join(', ');
-    }
-  });
-
-  const tagsMut = createMutation<FileRecord, Error, { id: string; body: UpdateTagsBody }>(
-    updateTagsMutation() as CreateMutationOptions<FileRecord, Error, { id: string; body: UpdateTagsBody }>,
-  );
-
-  function saveTags(): void {
-    const tags = tagInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-    $tagsMut.mutate(
-      { id: fileId, body: { tags } },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['files', fileId] });
-          toasts.success('Tags updated');
-        },
-        onError: (err: Error) => {
-          toasts.error(`Tags update failed: ${err.message}`);
-        },
-      },
-    );
+$effect(() => {
+  if (file && !tagInput) {
+    tagInput = file.tags.join(', ');
   }
+});
 
-  function handleTagKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      saveTags();
-    }
-  }
+const tagsMut = createMutation<FileRecord, Error, { id: string; body: UpdateTagsBody }>(
+  updateTagsMutation() as CreateMutationOptions<
+    FileRecord,
+    Error,
+    { id: string; body: UpdateTagsBody }
+  >
+);
 
-  // ── Archive ───────────────────────────────────────────────────────────────────
-
-  const archiveMut = createMutation<FileRecord, Error, string>(
-    archiveFileMutation() as CreateMutationOptions<FileRecord, Error, string>,
-  );
-
-  let archiveConfirm = $state(false);
-
-  function handleArchive(): void {
-    $archiveMut.mutate(fileId, {
+function saveTags(): void {
+  const tags = tagInput
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  $tagsMut.mutate(
+    { id: fileId, body: { tags } },
+    {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['files'] });
-        toasts.success('File archived');
-        goto('/files');
+        queryClient.invalidateQueries({ queryKey: ['files', fileId] });
+        toasts.success('Tags updated');
       },
       onError: (err: Error) => {
-        toasts.error(`Archive failed: ${err.message}`);
-        archiveConfirm = false;
+        toasts.error(`Tags update failed: ${err.message}`);
       },
-    });
+    }
+  );
+}
+
+function handleTagKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    saveTags();
   }
+}
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Archive ───────────────────────────────────────────────────────────────────
 
-  function formatDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  }
+const archiveMut = createMutation<FileRecord, Error, string>(
+  archiveFileMutation() as CreateMutationOptions<FileRecord, Error, string>
+);
 
-  function relativeTime(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d ago`;
-  }
+let archiveConfirm = $state(false);
 
-  function actionLabel(action: string): string {
-    const map: Record<string, string> = {
-      created: 'Created',
-      updated: 'Updated',
-      read: 'Read',
-      deleted: 'Deleted',
-      renamed: 'Renamed',
-      tagged: 'Tagged',
-    };
-    return map[action] ?? action;
-  }
+function handleArchive(): void {
+  $archiveMut.mutate(fileId, {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+      toasts.success('File archived');
+      goto('/files');
+    },
+    onError: (err: Error) => {
+      toasts.error(`Archive failed: ${err.message}`);
+      archiveConfirm = false;
+    },
+  });
+}
 
-  const downloadUrl = $derived(`${API_BASE}/files/${fileId}/content`);
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function actionLabel(action: string): string {
+  const map: Record<string, string> = {
+    created: 'Created',
+    updated: 'Updated',
+    read: 'Read',
+    deleted: 'Deleted',
+    renamed: 'Renamed',
+    tagged: 'Tagged',
+  };
+  return map[action] ?? action;
+}
+
+const downloadUrl = $derived(`${API_BASE}/files/${fileId}/content`);
 </script>
 
 <div class="fd-shell">

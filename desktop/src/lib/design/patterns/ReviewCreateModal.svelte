@@ -1,80 +1,76 @@
 <script lang="ts">
-  import type {
-    ArtifactType,
-    CreateReviewBody,
-    ReviewKind,
-  } from '$lib/domain/reviews/types.js';
+import type { ArtifactType, CreateReviewBody, ReviewKind } from '$lib/domain/reviews/types.js';
 
-  interface Props {
-    isPending?: boolean;
-    onCreate: (body: CreateReviewBody) => void;
-    onClose: () => void;
+interface Props {
+  isPending?: boolean;
+  onCreate: (body: CreateReviewBody) => void;
+  onClose: () => void;
+}
+
+let { isPending = false, onCreate, onClose }: Props = $props();
+
+let kind = $state<Exclude<ReviewKind, 'hire_agent'>>('artifact');
+let workspaceSlug = $state('default');
+let agentId = $state('');
+let artifactType = $state<ArtifactType>('doc');
+let artifactId = $state('');
+let artifactPreview = $state('');
+let toolName = $state('');
+let toolArgs = $state('{\n  \n}');
+let sessionId = $state('');
+let error = $state<string | null>(null);
+
+function closeOnEscape(e: KeyboardEvent): void {
+  if (e.key === 'Escape') onClose();
+}
+
+function handleBackdropClick(e: MouseEvent): void {
+  if ((e.target as HTMLElement).classList.contains('rcm-backdrop')) onClose();
+}
+
+function parseToolArgs(): Record<string, unknown> {
+  const trimmed = toolArgs.trim();
+  if (!trimmed) return {};
+  const parsed = JSON.parse(trimmed) as unknown;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Tool args must be a JSON object.');
   }
+  return parsed as Record<string, unknown>;
+}
 
-  let { isPending = false, onCreate, onClose }: Props = $props();
+function submit(): void {
+  error = null;
 
-  let kind = $state<Exclude<ReviewKind, 'hire_agent'>>('artifact');
-  let workspaceSlug = $state('default');
-  let agentId = $state('');
-  let artifactType = $state<ArtifactType>('doc');
-  let artifactId = $state('');
-  let artifactPreview = $state('');
-  let toolName = $state('');
-  let toolArgs = $state('{\n  \n}');
-  let sessionId = $state('');
-  let error = $state<string | null>(null);
-
-  function closeOnEscape(e: KeyboardEvent): void {
-    if (e.key === 'Escape') onClose();
-  }
-
-  function handleBackdropClick(e: MouseEvent): void {
-    if ((e.target as HTMLElement).classList.contains('rcm-backdrop')) onClose();
-  }
-
-  function parseToolArgs(): Record<string, unknown> {
-    const trimmed = toolArgs.trim();
-    if (!trimmed) return {};
-    const parsed = JSON.parse(trimmed) as unknown;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('Tool args must be a JSON object.');
-    }
-    return parsed as Record<string, unknown>;
-  }
-
-  function submit(): void {
-    error = null;
-
-    try {
-      if (kind === 'artifact') {
-        onCreate({
-          kind: 'artifact',
-          workspaceSlug: workspaceSlug.trim() || undefined,
-          artifactType,
-          artifactId: artifactId.trim() || undefined,
-          artifactPreview: artifactPreview.trim() || undefined,
-          agentId: agentId.trim() || undefined,
-        });
-        return;
-      }
-
-      if (!toolName.trim()) {
-        error = 'Tool name is required.';
-        return;
-      }
-
+  try {
+    if (kind === 'artifact') {
       onCreate({
-        kind: 'tool_call',
+        kind: 'artifact',
         workspaceSlug: workspaceSlug.trim() || undefined,
-        toolName: toolName.trim(),
-        toolArgs: parseToolArgs(),
-        sessionId: sessionId.trim() || undefined,
+        artifactType,
+        artifactId: artifactId.trim() || undefined,
+        artifactPreview: artifactPreview.trim() || undefined,
         agentId: agentId.trim() || undefined,
       });
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Invalid review request.';
+      return;
     }
+
+    if (!toolName.trim()) {
+      error = 'Tool name is required.';
+      return;
+    }
+
+    onCreate({
+      kind: 'tool_call',
+      workspaceSlug: workspaceSlug.trim() || undefined,
+      toolName: toolName.trim(),
+      toolArgs: parseToolArgs(),
+      sessionId: sessionId.trim() || undefined,
+      agentId: agentId.trim() || undefined,
+    });
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'Invalid review request.';
   }
+}
 </script>
 
 <svelte:window onkeydown={closeOnEscape} />

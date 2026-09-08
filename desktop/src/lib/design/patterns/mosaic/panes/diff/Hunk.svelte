@@ -1,47 +1,47 @@
 <script lang="ts">
-  /**
-   * Hunk — action toolbar for a single hunk.
-   *
-   * Pure UI: renders the hunk header label and Keep / Discard / Stage buttons.
-   * Mutations (discardHunk / stageFile) are wired by the parent — this stays
-   * dumb so it can be reused for either session-worktree or future ref-mode diffs.
-   *
-   * Line-by-line rendering is delegated to the upstream DiffViewer. This file
-   * only owns the action bar; it does not duplicate hunk parsing or rendering.
-   *
-   * CSS prefix: hk-
-   * LOC target: ≤ 180.
-   */
-  import type { DiffHunk } from "$lib/domain/diff/types.js";
-  import { changedLineCount } from "./parse-hunks.js";
+/**
+ * Hunk — action toolbar for a single hunk.
+ *
+ * Pure UI: renders the hunk header label and Keep / Discard / Stage buttons.
+ * Mutations (discardHunk / stageFile) are wired by the parent — this stays
+ * dumb so it can be reused for either session-worktree or future ref-mode diffs.
+ *
+ * Line-by-line rendering is delegated to the upstream DiffViewer. This file
+ * only owns the action bar; it does not duplicate hunk parsing or rendering.
+ *
+ * CSS prefix: hk-
+ * LOC target: ≤ 180.
+ */
+import type { DiffHunk } from '$lib/domain/diff/types.js';
+import { changedLineCount } from './parse-hunks.js';
 
-  interface Props {
-    hunk: DiffHunk;
-    /** When true, Discard is disabled and shows a spinner. */
-    isDiscarding?: boolean;
-    /** When true, Stage is disabled and shows a spinner. */
-    isStaging?: boolean;
-    /** When true, this hunk is "kept" (UI hint). */
-    isKept?: boolean;
-    /** Hide Stage button when not in a context that supports per-file staging. */
-    showStage?: boolean;
-    onKeep: (hunk: DiffHunk) => void;
-    onDiscard: (hunk: DiffHunk) => void;
-    onStage: (hunk: DiffHunk) => void;
-  }
+interface Props {
+  hunk: DiffHunk;
+  /** When true, Discard is disabled and shows a spinner. */
+  isDiscarding?: boolean;
+  /** When true, Stage is disabled and shows a spinner. */
+  isStaging?: boolean;
+  /** When true, this hunk is "kept" (UI hint). */
+  isKept?: boolean;
+  /** Hide Stage button when not in a context that supports per-file staging. */
+  showStage?: boolean;
+  onKeep: (hunk: DiffHunk) => void;
+  onDiscard: (hunk: DiffHunk) => void;
+  onStage: (hunk: DiffHunk) => void;
+}
 
-  let {
-    hunk,
-    isDiscarding = false,
-    isStaging = false,
-    isKept = false,
-    showStage = true,
-    onKeep,
-    onDiscard,
-    onStage,
-  }: Props = $props();
+let {
+  hunk,
+  isDiscarding = false,
+  isStaging = false,
+  isKept = false,
+  showStage = true,
+  onKeep,
+  onDiscard,
+  onStage,
+}: Props = $props();
 
-  const lineCount = $derived(changedLineCount(hunk));
+const lineCount = $derived(changedLineCount(hunk));
 </script>
 
 <div class="hk-bar" class:hk-bar--kept={isKept}>

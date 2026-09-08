@@ -7,11 +7,11 @@
 
 /** Condition types that a rule can evaluate. */
 export type RuleConditionType =
-  | "runtime"
-  | "agent_slug"
-  | "workspace_slug"
-  | "prompt_regex"
-  | "cost_over";
+  | 'runtime'
+  | 'agent_slug'
+  | 'workspace_slug'
+  | 'prompt_regex'
+  | 'cost_over';
 
 /** A single condition within a rule. */
 export interface RuleCondition {
@@ -20,7 +20,7 @@ export interface RuleCondition {
 }
 
 /** What the rule does when its conditions are met. */
-export type RuleAction = "block" | "require_approval" | "warn" | "log";
+export type RuleAction = 'block' | 'require_approval' | 'warn' | 'log';
 
 /** Governance rule — controls which sessions require approval, warn, or block. */
 export interface Rule {
@@ -38,7 +38,7 @@ export interface Rule {
 
 // ── Approval ─────────────────────────────────────────────────────────────────
 
-export type ApprovalStatus = "pending" | "approved" | "rejected";
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 /** A session that triggered a require_approval rule and awaits a decision. */
 export interface Approval {

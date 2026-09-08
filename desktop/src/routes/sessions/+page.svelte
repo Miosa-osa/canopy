@@ -12,21 +12,20 @@
  * LOC target: ≤ 380
  */
 import { type CreateQueryOptions, createQuery, useQueryClient } from '@tanstack/svelte-query';
-import { Clock, Plus, RefreshCw, ChevronDown, Trash2 } from 'lucide-svelte';
+import { ChevronDown, Clock, Plus, RefreshCw, Trash2 } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
-import { page } from '$app/state';
-import { sessionsQuery } from '$lib/api/queries/sessions.js';
-import { bulkDeleteSessions } from '$lib/api/queries/sessions.js';
-import { workspacesQuery } from '$lib/api/queries/workspaces.js';
 import { goto } from '$app/navigation';
+import { page } from '$app/state';
+import { bulkDeleteSessions, sessionsQuery } from '$lib/api/queries/sessions.js';
+import { workspacesQuery } from '$lib/api/queries/workspaces.js';
 import Select from '$lib/design/foundation/select/Select.svelte';
 import { Table, TableHeader } from '$lib/design/foundation/table/index.js';
 import EmptyState from '$lib/design/patterns/EmptyState.svelte';
 import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
 import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
 import type { ViewState } from '$lib/design/primitives/ViewPicker.svelte';
+import ViewPicker from '$lib/design/primitives/ViewPicker.svelte';
 import type { Session, SessionStatus } from '$lib/domain/sessions/types.js';
 import type { Workspace } from '$lib/domain/workspaces/types.js';
 import { ui } from '$lib/stores/ui.svelte.js';
@@ -116,9 +115,7 @@ const allSessions = $derived(($query.data ?? []) as Session[]);
 const TERMINAL_STATUSES = new Set<string>(['completed', 'cancelled', 'failed', 'ended']);
 
 const sessions = $derived(
-  showEnded
-    ? allSessions
-    : allSessions.filter((s) => !TERMINAL_STATUSES.has(s.status as string))
+  showEnded ? allSessions : allSessions.filter((s) => !TERMINAL_STATUSES.has(s.status as string))
 );
 
 const hiddenCount = $derived(allSessions.length - sessions.length);
@@ -129,7 +126,9 @@ function sortSessions(list: Session[], sort: string): Session[] {
   const copy = [...list];
   switch (sort) {
     case 'oldest':
-      return copy.sort((a, b) => new Date(a.insertedAt).getTime() - new Date(b.insertedAt).getTime());
+      return copy.sort(
+        (a, b) => new Date(a.insertedAt).getTime() - new Date(b.insertedAt).getTime()
+      );
     case 'name_asc':
       return copy.sort((a, b) => (a.prompt ?? '').localeCompare(b.prompt ?? ''));
     case 'name_desc':
@@ -137,7 +136,9 @@ function sortSessions(list: Session[], sort: string): Session[] {
     case 'status':
       return copy.sort((a, b) => a.status.localeCompare(b.status));
     default: // recent
-      return copy.sort((a, b) => new Date(b.insertedAt).getTime() - new Date(a.insertedAt).getTime());
+      return copy.sort(
+        (a, b) => new Date(b.insertedAt).getTime() - new Date(a.insertedAt).getTime()
+      );
   }
 }
 
@@ -149,9 +150,7 @@ interface SessionGroup {
   sessions: Session[];
 }
 
-const sessionGroups = $derived<SessionGroup[]>(
-  buildGroups(sortSessions(sessions, view.sort))
-);
+const sessionGroups = $derived<SessionGroup[]>(buildGroups(sortSessions(sessions, view.sort)));
 
 function buildGroups(list: Session[]): SessionGroup[] {
   const map = new Map<string, Session[]>();
@@ -178,9 +177,11 @@ function toggleGroup(key: string): void {
 // ── Density helpers ───────────────────────────────────────────────────────────
 
 const rowPad = $derived(
-  view.density === 'compact' ? 'var(--space-1) var(--space-2)'
-  : view.density === 'roomy' ? 'var(--space-4) var(--space-3)'
-  : 'var(--space-2) var(--space-3)'
+  view.density === 'compact'
+    ? 'var(--space-1) var(--space-2)'
+    : view.density === 'roomy'
+      ? 'var(--space-4) var(--space-3)'
+      : 'var(--space-2) var(--space-3)'
 );
 
 // ── Cleanup actions ───────────────────────────────────────────────────────────
@@ -218,16 +219,22 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
 // Precompute counts for confirmation labels
-const endedCount = $derived(allSessions.filter((s) => TERMINAL_STATUSES.has(s.status as string)).length);
+const endedCount = $derived(
+  allSessions.filter((s) => TERMINAL_STATUSES.has(s.status as string)).length
+);
 const failedCount = $derived(allSessions.filter((s) => (s.status as string) === 'failed').length);
 const oldHourCount = $derived(
-  allSessions.filter((s) =>
-    TERMINAL_STATUSES.has(s.status as string) && Date.now() - new Date(s.insertedAt).getTime() > HOUR_MS
+  allSessions.filter(
+    (s) =>
+      TERMINAL_STATUSES.has(s.status as string) &&
+      Date.now() - new Date(s.insertedAt).getTime() > HOUR_MS
   ).length
 );
 const oldDayCount = $derived(
-  allSessions.filter((s) =>
-    TERMINAL_STATUSES.has(s.status as string) && Date.now() - new Date(s.insertedAt).getTime() > DAY_MS
+  allSessions.filter(
+    (s) =>
+      TERMINAL_STATUSES.has(s.status as string) &&
+      Date.now() - new Date(s.insertedAt).getTime() > DAY_MS
   ).length
 );
 
@@ -248,11 +255,16 @@ const kb = useListKeyboard({
 
 function dotColor(status: SessionStatus): 'green' | 'amber' | 'red' | 'grey' {
   switch (status) {
-    case 'running': return 'green';
-    case 'error': return 'red';
-    case 'paused': return 'amber';
-    case 'pending': return 'amber';
-    default: return 'grey';
+    case 'running':
+      return 'green';
+    case 'error':
+      return 'red';
+    case 'paused':
+      return 'amber';
+    case 'pending':
+      return 'amber';
+    default:
+      return 'grey';
   }
 }
 

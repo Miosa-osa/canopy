@@ -1,149 +1,234 @@
 <script lang="ts">
-  /**
-   * PanePicker — keyboard-driven modal for opening a new pane.
-   * CSS prefix: pp-
-   * LOC target: ≤ 200.
-   */
-  import { onMount } from 'svelte';
-  import { X } from 'lucide-svelte';
-  import { createQuery } from '@tanstack/svelte-query';
-  import { mosaicLayout, type PaneKind, type Pane } from '$lib/stores/mosaic-layout.svelte.js';
-  import { sessionsQuery } from '$lib/api/queries/sessions.js';
-  import { issuesQuery } from '$lib/api/queries/issues.js';
+/**
+ * PanePicker — keyboard-driven modal for opening a new pane.
+ * CSS prefix: pp-
+ * LOC target: ≤ 200.
+ */
 
-  interface Props {
-    targetTileId: string | null;
-    onClose: () => void;
-  }
+import { createQuery } from '@tanstack/svelte-query';
+import { X } from 'lucide-svelte';
+import { onMount } from 'svelte';
+import { issuesQuery } from '$lib/api/queries/issues.js';
+import { sessionsQuery } from '$lib/api/queries/sessions.js';
+import { mosaicLayout, type Pane, type PaneKind } from '$lib/stores/mosaic-layout.svelte.js';
 
-  let { targetTileId, onClose }: Props = $props();
+interface Props {
+  targetTileId: string | null;
+  onClose: () => void;
+}
 
-  interface PickerItem {
-    id: string;
-    kind: PaneKind;
-    ref: string;
-    title: string;
-    description: string;
-    group: 'quick' | 'sessions' | 'issues' | 'other';
-  }
+let { targetTileId, onClose }: Props = $props();
 
-  // ── Live queries ──────────────────────────────────────────────────────────
-  const sessionsResult = createQuery(sessionsQuery({ limit: 5 }));
-  const issuesResult = createQuery(issuesQuery());
+interface PickerItem {
+  id: string;
+  kind: PaneKind;
+  ref: string;
+  title: string;
+  description: string;
+  group: 'quick' | 'sessions' | 'issues' | 'other';
+}
 
-  // ── Quick actions (always static, always at top) ──────────────────────────
-  const QUICK_ACTIONS: PickerItem[] = [
-    { id: 'static-agent_conversation', kind: 'agent_conversation', ref: 'new', title: 'New conversation', description: 'Start a new agent conversation', group: 'quick' },
-    { id: 'static-terminal', kind: 'terminal', ref: 'local', title: 'Terminal', description: 'Open a local shell', group: 'quick' },
-    { id: 'static-agent_kanban', kind: 'agent_kanban', ref: 'default', title: 'Agent Kanban', description: 'Agent task board (open in Agent Control)', group: 'quick' },
-  ];
+// ── Live queries ──────────────────────────────────────────────────────────
+const sessionsResult = createQuery(sessionsQuery({ limit: 5 }));
+const issuesResult = createQuery(issuesQuery());
 
-  // ── Static fallbacks for less common kinds ────────────────────────────────
-  const STATIC_OTHER: PickerItem[] = [
-    { id: 'static-task',         kind: 'task',         ref: 'task',      title: 'Task',         description: 'Open a task',          group: 'other' },
-    { id: 'static-doc',          kind: 'doc',          ref: 'doc',       title: 'Doc',          description: 'Open a document',      group: 'other' },
-    { id: 'static-file',         kind: 'file',         ref: 'file',      title: 'File',         description: 'Open a file',          group: 'other' },
-    { id: 'static-knowledge',    kind: 'knowledge',    ref: 'kb-root',   title: 'Knowledge base', description: 'Browse knowledge',  group: 'other' },
-    { id: 'static-block_stream', kind: 'block_stream', ref: 'stream',    title: 'Block stream', description: 'Live block output',    group: 'other' },
-    { id: 'static-workflow',     kind: 'workflow',     ref: 'workflow',  title: 'Workflow',     description: 'Open a workflow',      group: 'other' },
-    { id: 'static-notebook',     kind: 'notebook',     ref: 'notebook',  title: 'Notebook',     description: 'Open a notebook',      group: 'other' },
-    { id: 'static-history',      kind: 'history',      ref: 'history',   title: 'History',      description: 'Cross-session block history', group: 'other' },
-  ];
+// ── Quick actions (always static, always at top) ──────────────────────────
+const QUICK_ACTIONS: PickerItem[] = [
+  {
+    id: 'static-agent_conversation',
+    kind: 'agent_conversation',
+    ref: 'new',
+    title: 'New conversation',
+    description: 'Start a new agent conversation',
+    group: 'quick',
+  },
+  {
+    id: 'static-terminal',
+    kind: 'terminal',
+    ref: 'local',
+    title: 'Terminal',
+    description: 'Open a local shell',
+    group: 'quick',
+  },
+  {
+    id: 'static-agent_kanban',
+    kind: 'agent_kanban',
+    ref: 'default',
+    title: 'Agent Kanban',
+    description: 'Agent task board (open in Agent Control)',
+    group: 'quick',
+  },
+];
 
-  // ── Derived catalog: quick + live sessions + live issues + fallbacks ──────
-  const catalog = $derived.by<PickerItem[]>(() => {
-    const sessions = ($sessionsResult.data ?? []).slice(0, 5).map((s) => ({
-      id: `live-session-${s.id}`,
-      kind: 'session' as PaneKind,
-      ref: s.id,
-      title: (s as { title?: string }).title || `Session ${s.id.slice(0, 6)}`,
-      description: (s as { runtimeType?: string }).runtimeType || 'Session',
-      group: 'sessions' as const,
-    }));
+// ── Static fallbacks for less common kinds ────────────────────────────────
+const STATIC_OTHER: PickerItem[] = [
+  {
+    id: 'static-task',
+    kind: 'task',
+    ref: 'task',
+    title: 'Task',
+    description: 'Open a task',
+    group: 'other',
+  },
+  {
+    id: 'static-doc',
+    kind: 'doc',
+    ref: 'doc',
+    title: 'Doc',
+    description: 'Open a document',
+    group: 'other',
+  },
+  {
+    id: 'static-file',
+    kind: 'file',
+    ref: 'file',
+    title: 'File',
+    description: 'Open a file',
+    group: 'other',
+  },
+  {
+    id: 'static-knowledge',
+    kind: 'knowledge',
+    ref: 'kb-root',
+    title: 'Knowledge base',
+    description: 'Browse knowledge',
+    group: 'other',
+  },
+  {
+    id: 'static-block_stream',
+    kind: 'block_stream',
+    ref: 'stream',
+    title: 'Block stream',
+    description: 'Live block output',
+    group: 'other',
+  },
+  {
+    id: 'static-workflow',
+    kind: 'workflow',
+    ref: 'workflow',
+    title: 'Workflow',
+    description: 'Open a workflow',
+    group: 'other',
+  },
+  {
+    id: 'static-notebook',
+    kind: 'notebook',
+    ref: 'notebook',
+    title: 'Notebook',
+    description: 'Open a notebook',
+    group: 'other',
+  },
+  {
+    id: 'static-history',
+    kind: 'history',
+    ref: 'history',
+    title: 'History',
+    description: 'Cross-session block history',
+    group: 'other',
+  },
+];
 
-    const issues = ($issuesResult.data ?? []).slice(0, 5).map((iss) => ({
-      id: `live-issue-${(iss as { shortId?: string }).shortId ?? iss.id}`,
-      kind: 'issue' as PaneKind,
-      ref: (iss as { shortId?: string }).shortId ?? iss.id,
-      title: iss.title,
-      description: 'Issue',
-      group: 'issues' as const,
-    }));
+// ── Derived catalog: quick + live sessions + live issues + fallbacks ──────
+const catalog = $derived.by<PickerItem[]>(() => {
+  const sessions = ($sessionsResult.data ?? []).slice(0, 5).map((s) => ({
+    id: `live-session-${s.id}`,
+    kind: 'session' as PaneKind,
+    ref: s.id,
+    title: (s as { title?: string }).title || `Session ${s.id.slice(0, 6)}`,
+    description: (s as { runtimeType?: string }).runtimeType || 'Session',
+    group: 'sessions' as const,
+  }));
 
-    return [...QUICK_ACTIONS, ...sessions, ...issues, ...STATIC_OTHER];
-  });
+  const issues = ($issuesResult.data ?? []).slice(0, 5).map((iss) => ({
+    id: `live-issue-${(iss as { shortId?: string }).shortId ?? iss.id}`,
+    kind: 'issue' as PaneKind,
+    ref: (iss as { shortId?: string }).shortId ?? iss.id,
+    title: iss.title,
+    description: 'Issue',
+    group: 'issues' as const,
+  }));
 
-  let query = $state('');
-  let selectedIdx = $state(0);
-  let inputEl = $state<HTMLInputElement | undefined>();
+  return [...QUICK_ACTIONS, ...sessions, ...issues, ...STATIC_OTHER];
+});
 
-  const filtered = $derived(
-    query.trim() === ''
-      ? catalog
-      : catalog.filter(
-          (item) =>
-            item.title.toLowerCase().includes(query.toLowerCase()) ||
-            item.description.toLowerCase().includes(query.toLowerCase()),
-        ),
-  );
+let query = $state('');
+let selectedIdx = $state(0);
+let inputEl = $state<HTMLInputElement | undefined>();
 
-  $effect(() => {
-    // Reset selection when filtered list changes
-    selectedIdx = 0;
-  });
+const filtered = $derived(
+  query.trim() === ''
+    ? catalog
+    : catalog.filter(
+        (item) =>
+          item.title.toLowerCase().includes(query.toLowerCase()) ||
+          item.description.toLowerCase().includes(query.toLowerCase())
+      )
+);
 
-  onMount(() => {
-    inputEl?.focus();
-  });
+$effect(() => {
+  // Reset selection when filtered list changes
+  selectedIdx = 0;
+});
 
-  function openItem(item: PickerItem): void {
-    const pane: Pane = {
-      id: Math.random().toString(36).slice(2, 9),
-      kind: item.kind,
-      ref: item.ref,
-      title: item.title,
-    };
-    mosaicLayout.openPane(pane, targetTileId ?? undefined);
+onMount(() => {
+  inputEl?.focus();
+});
+
+function openItem(item: PickerItem): void {
+  const pane: Pane = {
+    id: Math.random().toString(36).slice(2, 9),
+    kind: item.kind,
+    ref: item.ref,
+    title: item.title,
+  };
+  mosaicLayout.openPane(pane, targetTileId ?? undefined);
+  onClose();
+}
+
+function handleKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') {
     onClose();
+    return;
   }
-
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') { onClose(); return; }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      selectedIdx = Math.min(selectedIdx + 1, filtered.length - 1);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      selectedIdx = Math.max(selectedIdx - 1, 0);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const item = filtered[selectedIdx];
-      if (item) openItem(item);
-    }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedIdx = Math.min(selectedIdx + 1, filtered.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedIdx = Math.max(selectedIdx - 1, 0);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const item = filtered[selectedIdx];
+    if (item) openItem(item);
   }
+}
 
-  const KIND_LABELS: Record<PaneKind, string> = {
-    session: 'Session', issue: 'Issue', task: 'Task', doc: 'Doc',
-    file: 'File', terminal: 'Terminal', changes: 'Changes', knowledge: 'Knowledge',
-    agent_conversation: 'Conversation',
-    agent_kanban: 'Kanban',
-    block_stream: 'Blocks',
-    workflow: 'Workflow',
-    notebook: 'Notebook',
-    history: 'History',
-  };
+const KIND_LABELS: Record<PaneKind, string> = {
+  session: 'Session',
+  issue: 'Issue',
+  task: 'Task',
+  doc: 'Doc',
+  file: 'File',
+  terminal: 'Terminal',
+  changes: 'Changes',
+  knowledge: 'Knowledge',
+  agent_conversation: 'Conversation',
+  agent_kanban: 'Kanban',
+  block_stream: 'Blocks',
+  workflow: 'Workflow',
+  notebook: 'Notebook',
+  history: 'History',
+};
 
-  const GROUP_LABELS: Record<string, string> = {
-    quick: 'Quick Actions',
-    sessions: 'Recent Sessions',
-    issues: 'Recent Issues',
-    other: 'Other',
-  };
+const GROUP_LABELS: Record<string, string> = {
+  quick: 'Quick Actions',
+  sessions: 'Recent Sessions',
+  issues: 'Recent Issues',
+  other: 'Other',
+};
 
-  // Compute visible group headers from the filtered list
-  const visibleGroups = $derived(
-    [...new Set(filtered.map((item) => item.group))]
-  );
+// Compute visible group headers from the filtered list
+const visibleGroups = $derived([...new Set(filtered.map((item) => item.group))]);
 </script>
 
 <!-- Backdrop -->

@@ -1,115 +1,108 @@
 <script lang="ts">
-  /**
-   * Settings › Schedule — Scheduling Agent settings + spec defaults.
-   * Reads /api/v1/schedule/specs. Surfaces overlap policy + miss alerting defaults.
-   * CSS prefix: ss-
-   */
-  import {
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { Calendar, Plus } from "lucide-svelte";
-  import {
-    archiveSpec,
-    createSpec,
-    pauseSpec,
-    specsQuery,
-    unpauseSpec,
-  } from "$lib/api/queries/schedule.js";
-  import type {
-    OverlapPolicy,
-    SpecCreate,
-  } from "$lib/domain/schedule/types.js";
+/**
+ * Settings › Schedule — Scheduling Agent settings + spec defaults.
+ * Reads /api/v1/schedule/specs. Surfaces overlap policy + miss alerting defaults.
+ * CSS prefix: ss-
+ */
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { Calendar, Plus } from 'lucide-svelte';
+import {
+  archiveSpec,
+  createSpec,
+  pauseSpec,
+  specsQuery,
+  unpauseSpec,
+} from '$lib/api/queries/schedule.js';
+import type { OverlapPolicy, SpecCreate } from '$lib/domain/schedule/types.js';
 
-  const qc = useQueryClient();
-  const specsResult = createQuery(specsQuery());
+const qc = useQueryClient();
+const specsResult = createQuery(specsQuery());
 
-  // ── Form state ─────────────────────────────────────────────────────────────
+// ── Form state ─────────────────────────────────────────────────────────────
 
-  let creating = $state(false);
-  let formSlug = $state("");
-  let formName = $state("");
-  let formCron = $state("0 9 * * *");
-  let formTimezone = $state("UTC");
-  let formOverlapPolicy = $state<OverlapPolicy>("skip");
-  let formJitterSeconds = $state(0);
-  let formGraceSeconds = $state(30);
-  let formFailureThreshold = $state(5);
-  let formAgentSlug = $state("");
-  let formError = $state<string | null>(null);
+let creating = $state(false);
+let formSlug = $state('');
+let formName = $state('');
+let formCron = $state('0 9 * * *');
+let formTimezone = $state('UTC');
+let formOverlapPolicy = $state<OverlapPolicy>('skip');
+let formJitterSeconds = $state(0);
+let formGraceSeconds = $state(30);
+let formFailureThreshold = $state(5);
+let formAgentSlug = $state('');
+let formError = $state<string | null>(null);
 
-  function resetForm() {
-    formSlug = "";
-    formName = "";
-    formCron = "0 9 * * *";
-    formTimezone = "UTC";
-    formOverlapPolicy = "skip";
-    formJitterSeconds = 0;
-    formGraceSeconds = 30;
-    formFailureThreshold = 5;
-    formAgentSlug = "";
-    formError = null;
+function resetForm() {
+  formSlug = '';
+  formName = '';
+  formCron = '0 9 * * *';
+  formTimezone = 'UTC';
+  formOverlapPolicy = 'skip';
+  formJitterSeconds = 0;
+  formGraceSeconds = 30;
+  formFailureThreshold = 5;
+  formAgentSlug = '';
+  formError = null;
+}
+
+const createMut = createMutation({
+  mutationFn: (body: SpecCreate) => createSpec(body),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['schedule', 'specs'] });
+    creating = false;
+    resetForm();
+  },
+  onError: (err: Error) => {
+    formError = err.message;
+  },
+});
+
+const pauseMut = createMutation({
+  mutationFn: ({ slug }: { slug: string }) => pauseSpec(slug, 'manual'),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['schedule', 'specs'] });
+  },
+});
+
+const unpauseMut = createMutation({
+  mutationFn: ({ slug }: { slug: string }) => unpauseSpec(slug),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['schedule', 'specs'] });
+  },
+});
+
+const archiveMut = createMutation({
+  mutationFn: ({ slug }: { slug: string }) => archiveSpec(slug),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['schedule', 'specs'] });
+  },
+});
+
+function submitCreate(e: Event) {
+  e.preventDefault();
+  formError = null;
+  if (!formSlug.trim() || !formName.trim()) {
+    formError = 'Slug and name are required.';
+    return;
   }
-
-  const createMut = createMutation({
-    mutationFn: (body: SpecCreate) => createSpec(body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule", "specs"] });
-      creating = false;
-      resetForm();
-    },
-    onError: (err: Error) => {
-      formError = err.message;
-    },
-  });
-
-  const pauseMut = createMutation({
-    mutationFn: ({ slug }: { slug: string }) => pauseSpec(slug, "manual"),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule", "specs"] });
-    },
-  });
-
-  const unpauseMut = createMutation({
-    mutationFn: ({ slug }: { slug: string }) => unpauseSpec(slug),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule", "specs"] });
-    },
-  });
-
-  const archiveMut = createMutation({
-    mutationFn: ({ slug }: { slug: string }) => archiveSpec(slug),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["schedule", "specs"] });
-    },
-  });
-
-  function submitCreate(e: Event) {
-    e.preventDefault();
-    formError = null;
-    if (!formSlug.trim() || !formName.trim()) {
-      formError = "Slug and name are required.";
-      return;
-    }
-    if (!formCron.trim()) {
-      formError = "Cron expression is required.";
-      return;
-    }
-    $createMut.mutate({
-      slug: formSlug.trim(),
-      name: formName.trim(),
-      timezone: formTimezone,
-      overlapPolicy: formOverlapPolicy,
-      jitterSeconds: formJitterSeconds,
-      graceSeconds: formGraceSeconds,
-      failureThreshold: formFailureThreshold,
-      agentSlug: formAgentSlug.trim() || undefined,
-      model: { crons: [formCron.trim()] },
-    });
+  if (!formCron.trim()) {
+    formError = 'Cron expression is required.';
+    return;
   }
+  $createMut.mutate({
+    slug: formSlug.trim(),
+    name: formName.trim(),
+    timezone: formTimezone,
+    overlapPolicy: formOverlapPolicy,
+    jitterSeconds: formJitterSeconds,
+    graceSeconds: formGraceSeconds,
+    failureThreshold: formFailureThreshold,
+    agentSlug: formAgentSlug.trim() || undefined,
+    model: { crons: [formCron.trim()] },
+  });
+}
 
-  const specs = $derived($specsResult.data ?? []);
+const specs = $derived($specsResult.data ?? []);
 </script>
 
 <div class="ss-page">

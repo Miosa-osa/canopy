@@ -4,7 +4,7 @@
  * Read by GreetingHeadline and anywhere else that needs the user's name.
  */
 
-const LS_KEY = "canopy:profile";
+const LS_KEY = 'canopy:profile';
 
 interface ProfileData {
   displayName: string;
@@ -12,18 +12,17 @@ interface ProfileData {
 }
 
 function loadFromStorage(): ProfileData {
-  if (typeof localStorage === "undefined")
-    return { displayName: "", email: "" };
+  if (typeof localStorage === 'undefined') return { displayName: '', email: '' };
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return { displayName: "", email: "" };
+    if (!raw) return { displayName: '', email: '' };
     const parsed = JSON.parse(raw) as Partial<ProfileData>;
     return {
-      displayName: parsed.displayName ?? "",
-      email: parsed.email ?? "",
+      displayName: parsed.displayName ?? '',
+      email: parsed.email ?? '',
     };
   } catch {
-    return { displayName: "", email: "" };
+    return { displayName: '', email: '' };
   }
 }
 
@@ -49,7 +48,7 @@ class ProfileStore {
   }
 
   #persist(): void {
-    if (typeof localStorage === "undefined") return;
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(LS_KEY, JSON.stringify(this.#data));
   }
 }

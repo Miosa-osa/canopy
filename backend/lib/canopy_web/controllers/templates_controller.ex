@@ -37,8 +37,7 @@ defmodule CanopyWeb.TemplatesController do
 
   operation :index,
     summary: "List templates",
-    description:
-      "Returns templates ordered by popularity. Filter by kind, verified, search.",
+    description: "Returns templates ordered by popularity. Filter by kind, verified, search.",
     parameters: [
       kind: [in: :query, type: :string, required: false],
       verified: [in: :query, type: :string, required: false],
@@ -203,8 +202,7 @@ defmodule CanopyWeb.TemplatesController do
   operation :instantiate,
     summary: "Instantiate a template into a workspace",
     parameters: [slug: [in: :path, type: :string, required: true]],
-    request_body:
-      {"Instantiate body", "application/json", TemplatesSchema.InstantiateRequest},
+    request_body: {"Instantiate body", "application/json", TemplatesSchema.InstantiateRequest},
     responses: [
       ok: {"Instantiation", "application/json", TemplatesSchema.Instantiation},
       bad_request: "Invalid params",

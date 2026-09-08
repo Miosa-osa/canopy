@@ -1,245 +1,260 @@
 <script lang="ts">
-  /**
-   * /drive — Drive super-module main page.
-   * Powered by Vault (the Drive Curator) via /api/v1/drive/*.
-   *
-   * Layout:
-   *   - Top bar: Personal | Team scope toggle, search, "+ New" entry button
-   *   - Left:    Tree view (collapsible folders, kind-iconed leaves)
-   *   - Right:   Detail pane — kind-specific renderer for selected entry
-   *
-   * CSS prefix: dr-
-   */
-  import {
-    type CreateQueryOptions,
-    createMutation,
-    createQuery,
-    useQueryClient,
-  } from "@tanstack/svelte-query";
-  import { untrack } from "svelte";
-  import { writable } from "svelte/store";
-  import {
-    Archive,
-    BookOpen,
-    ChevronDown,
-    ChevronRight,
-    FileText,
-    Folder,
-    KeyRound,
-    MessageSquareCode,
-    Notebook,
-    Plug,
-    Plus,
-    Search,
-    Shield,
-    Workflow,
-  } from "lucide-svelte";
-  import {
-    archiveDriveEntry,
-    createDriveEntry,
-    driveSearchQuery,
-    driveTreeQuery,
-  } from "$lib/api/queries/drive.js";
-  import type {
-    DriveEntry,
-    DriveEntryCreate,
-    DriveKind,
-    DriveScope,
-    DriveTree,
-    DriveTreeNode,
-  } from "$lib/domain/drive/types.js";
-  import { Button, Input, Modal } from "$lib/design/foundation";
+/**
+ * /drive — Drive super-module main page.
+ * Powered by Vault (the Drive Curator) via /api/v1/drive/*.
+ *
+ * Layout:
+ *   - Top bar: Personal | Team scope toggle, search, "+ New" entry button
+ *   - Left:    Tree view (collapsible folders, kind-iconed leaves)
+ *   - Right:   Detail pane — kind-specific renderer for selected entry
+ *
+ * CSS prefix: dr-
+ */
+import {
+  type CreateQueryOptions,
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from '@tanstack/svelte-query';
+import {
+  Archive,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Folder,
+  KeyRound,
+  MessageSquareCode,
+  Notebook,
+  Plug,
+  Plus,
+  Search,
+  Shield,
+  Workflow,
+} from 'lucide-svelte';
+import { untrack } from 'svelte';
+import { writable } from 'svelte/store';
+import {
+  archiveDriveEntry,
+  createDriveEntry,
+  driveSearchQuery,
+  driveTreeQuery,
+} from '$lib/api/queries/drive.js';
+import { Button, Input, Modal } from '$lib/design/foundation';
+import type {
+  DriveEntry,
+  DriveEntryCreate,
+  DriveKind,
+  DriveScope,
+  DriveTree,
+  DriveTreeNode,
+} from '$lib/domain/drive/types.js';
 
-  const qc = useQueryClient();
+const qc = useQueryClient();
 
-  // ── State ────────────────────────────────────────────────────────────────
+// ── State ────────────────────────────────────────────────────────────────
 
-  let scope = $state<DriveScope>("personal");
-  let selectedId = $state<string | null>(null);
-  let expandedIds = $state<Set<string>>(new Set());
-  let searchTerm = $state("");
-  let creating = $state(false);
-  let createKind = $state<DriveKind>("folder");
-  let createSlug = $state("");
-  let createName = $state("");
-  let createBody = $state("");
-  let createError = $state<string | null>(null);
+let scope = $state<DriveScope>('personal');
+let selectedId = $state<string | null>(null);
+let expandedIds = $state<Set<string>>(new Set());
+let searchTerm = $state('');
+let creating = $state(false);
+let createKind = $state<DriveKind>('folder');
+let createSlug = $state('');
+let createName = $state('');
+let createBody = $state('');
+let createError = $state<string | null>(null);
 
-  // ── Tree query (reactive on scope) ───────────────────────────────────────
+// ── Tree query (reactive on scope) ───────────────────────────────────────
 
-  const treeStore = writable(
-    untrack(() => driveTreeQuery(scope) as CreateQueryOptions<DriveTree>),
-  );
-  $effect(() => {
-    treeStore.set(driveTreeQuery(scope) as CreateQueryOptions<DriveTree>);
-  });
-  const treeQ = createQuery<DriveTree>(treeStore);
+const treeStore = writable(untrack(() => driveTreeQuery(scope) as CreateQueryOptions<DriveTree>));
+$effect(() => {
+  treeStore.set(driveTreeQuery(scope) as CreateQueryOptions<DriveTree>);
+});
+const treeQ = createQuery<DriveTree>(treeStore);
 
-  // ── Search query (only when term set) ────────────────────────────────────
+// ── Search query (only when term set) ────────────────────────────────────
 
-  const searchStore = writable(
-    untrack(
-      () =>
-        driveSearchQuery("", { scope }) as CreateQueryOptions<DriveEntry[]>,
-    ),
-  );
-  $effect(() => {
-    searchStore.set(
-      driveSearchQuery(searchTerm, { scope }) as CreateQueryOptions<
-        DriveEntry[]
-      >,
-    );
-  });
-  const searchQ = createQuery<DriveEntry[]>(searchStore);
+const searchStore = writable(
+  untrack(() => driveSearchQuery('', { scope }) as CreateQueryOptions<DriveEntry[]>)
+);
+$effect(() => {
+  searchStore.set(driveSearchQuery(searchTerm, { scope }) as CreateQueryOptions<DriveEntry[]>);
+});
+const searchQ = createQuery<DriveEntry[]>(searchStore);
 
-  // ── Mutations ────────────────────────────────────────────────────────────
+// ── Mutations ────────────────────────────────────────────────────────────
 
-  const createMut = createMutation({
-    mutationFn: (entry: DriveEntryCreate) => createDriveEntry(entry),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["drive"] });
-      creating = false;
-      createSlug = "";
-      createName = "";
-      createBody = "";
-      createError = null;
-    },
-    onError: (err: Error) => {
-      createError = err.message;
-    },
-  });
-
-  const archiveMut = createMutation({
-    mutationFn: (id: string) => archiveDriveEntry(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["drive"] });
-    },
-  });
-
-  // ── Seed data (shown when tree is empty) ─────────────────────────────────
-
-  const SEED_ENTRIES: DriveEntry[] = [
-    {
-      id: "seed-1", slug: "deploy-checklist", name: "Deploy Checklist",
-      kind: "workflow", scope: "team", parentId: null,
-      body: { routine_id: "example-routine" }, ownerId: null,
-      tags: [], position: 0, archivedAt: null,
-      insertedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: "seed-2", slug: "code-review-template", name: "Code Review Template",
-      kind: "prompt", scope: "team", parentId: null,
-      body: { body: "Review the following code for correctness, performance, and style.\n\n{{code}}" },
-      ownerId: null, tags: [], position: 1, archivedAt: null,
-      insertedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-    {
-      id: "seed-3", slug: "onboarding-runbook", name: "Onboarding Runbook",
-      kind: "notebook", scope: "team", parentId: null,
-      body: { session_id: "example-session", block_ids: [] }, ownerId: null,
-      tags: [], position: 2, archivedAt: null,
-      insertedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    },
-  ];
-
-  const SEED_NODES: DriveTreeNode[] = SEED_ENTRIES.map((e) => ({ entry: e, children: [] }));
-
-  // ── Derived ──────────────────────────────────────────────────────────────
-
-  const treeNodes = $derived($treeQ.data?.data ?? []);
-  const flatEntries = $derived(flatten(treeNodes));
-  const selectedEntry = $derived(
-    selectedId
-      ? (flatEntries.find((e) => e.id === selectedId) ?? null)
-      : null,
-  );
-  const showSearch = $derived(searchTerm.trim().length > 0);
-  const searchResults = $derived($searchQ.data ?? []);
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
-  function flatten(nodes: DriveTreeNode[]): DriveEntry[] {
-    const out: DriveEntry[] = [];
-    for (const n of nodes) {
-      out.push(n.entry);
-      out.push(...flatten(n.children));
-    }
-    return out;
-  }
-
-  function toggle(id: string) {
-    const next = new Set(expandedIds);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    expandedIds = next;
-  }
-
-  function select(id: string) {
-    selectedId = id;
-  }
-
-  function setScope(s: DriveScope) {
-    scope = s;
-    selectedId = null;
-  }
-
-  function iconFor(kind: DriveKind) {
-    switch (kind) {
-      case "folder":
-        return Folder;
-      case "workflow":
-        return Workflow;
-      case "prompt":
-        return MessageSquareCode;
-      case "notebook":
-        return Notebook;
-      case "env_vars":
-        return KeyRound;
-      case "mcp_server":
-        return Plug;
-      case "rule":
-        return Shield;
-      default:
-        return FileText;
-    }
-  }
-
-  function submitCreate(e: Event) {
-    e.preventDefault();
+const createMut = createMutation({
+  mutationFn: (entry: DriveEntryCreate) => createDriveEntry(entry),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['drive'] });
+    creating = false;
+    createSlug = '';
+    createName = '';
+    createBody = '';
     createError = null;
-    if (!createSlug.trim() || !createName.trim()) {
-      createError = "Slug and name are required.";
+  },
+  onError: (err: Error) => {
+    createError = err.message;
+  },
+});
+
+const archiveMut = createMutation({
+  mutationFn: (id: string) => archiveDriveEntry(id),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['drive'] });
+  },
+});
+
+// ── Seed data (shown when tree is empty) ─────────────────────────────────
+
+const SEED_ENTRIES: DriveEntry[] = [
+  {
+    id: 'seed-1',
+    slug: 'deploy-checklist',
+    name: 'Deploy Checklist',
+    kind: 'workflow',
+    scope: 'team',
+    parentId: null,
+    body: { routine_id: 'example-routine' },
+    ownerId: null,
+    tags: [],
+    position: 0,
+    archivedAt: null,
+    insertedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'seed-2',
+    slug: 'code-review-template',
+    name: 'Code Review Template',
+    kind: 'prompt',
+    scope: 'team',
+    parentId: null,
+    body: {
+      body: 'Review the following code for correctness, performance, and style.\n\n{{code}}',
+    },
+    ownerId: null,
+    tags: [],
+    position: 1,
+    archivedAt: null,
+    insertedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'seed-3',
+    slug: 'onboarding-runbook',
+    name: 'Onboarding Runbook',
+    kind: 'notebook',
+    scope: 'team',
+    parentId: null,
+    body: { session_id: 'example-session', block_ids: [] },
+    ownerId: null,
+    tags: [],
+    position: 2,
+    archivedAt: null,
+    insertedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+const SEED_NODES: DriveTreeNode[] = SEED_ENTRIES.map((e) => ({ entry: e, children: [] }));
+
+// ── Derived ──────────────────────────────────────────────────────────────
+
+const treeNodes = $derived($treeQ.data?.data ?? []);
+const flatEntries = $derived(flatten(treeNodes));
+const selectedEntry = $derived(
+  selectedId ? (flatEntries.find((e) => e.id === selectedId) ?? null) : null
+);
+const showSearch = $derived(searchTerm.trim().length > 0);
+const searchResults = $derived($searchQ.data ?? []);
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function flatten(nodes: DriveTreeNode[]): DriveEntry[] {
+  const out: DriveEntry[] = [];
+  for (const n of nodes) {
+    out.push(n.entry);
+    out.push(...flatten(n.children));
+  }
+  return out;
+}
+
+function toggle(id: string) {
+  const next = new Set(expandedIds);
+  if (next.has(id)) {
+    next.delete(id);
+  } else {
+    next.add(id);
+  }
+  expandedIds = next;
+}
+
+function select(id: string) {
+  selectedId = id;
+}
+
+function setScope(s: DriveScope) {
+  scope = s;
+  selectedId = null;
+}
+
+function iconFor(kind: DriveKind) {
+  switch (kind) {
+    case 'folder':
+      return Folder;
+    case 'workflow':
+      return Workflow;
+    case 'prompt':
+      return MessageSquareCode;
+    case 'notebook':
+      return Notebook;
+    case 'env_vars':
+      return KeyRound;
+    case 'mcp_server':
+      return Plug;
+    case 'rule':
+      return Shield;
+    default:
+      return FileText;
+  }
+}
+
+function submitCreate(e: Event) {
+  e.preventDefault();
+  createError = null;
+  if (!createSlug.trim() || !createName.trim()) {
+    createError = 'Slug and name are required.';
+    return;
+  }
+
+  let body: Record<string, unknown> = {};
+  if (createBody.trim()) {
+    try {
+      body = JSON.parse(createBody);
+    } catch {
+      createError = 'Body must be valid JSON.';
       return;
     }
-
-    let body: Record<string, unknown> = {};
-    if (createBody.trim()) {
-      try {
-        body = JSON.parse(createBody);
-      } catch {
-        createError = "Body must be valid JSON.";
-        return;
-      }
-    }
-
-    $createMut.mutate({
-      slug: createSlug.trim(),
-      name: createName.trim(),
-      kind: createKind,
-      scope,
-      body,
-    });
   }
 
-  function handleArchive(id: string) {
-    if (confirm("Archive this entry?")) {
-      $archiveMut.mutate(id);
-      if (selectedId === id) selectedId = null;
-    }
+  $createMut.mutate({
+    slug: createSlug.trim(),
+    name: createName.trim(),
+    kind: createKind,
+    scope,
+    body,
+  });
+}
+
+function handleArchive(id: string) {
+  if (confirm('Archive this entry?')) {
+    $archiveMut.mutate(id);
+    if (selectedId === id) selectedId = null;
   }
+}
 </script>
 
 <div class="dr-page">

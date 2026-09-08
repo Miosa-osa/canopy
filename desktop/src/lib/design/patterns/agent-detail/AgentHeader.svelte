@@ -1,33 +1,25 @@
 <script lang="ts">
-  /**
-   * AgentHeader — avatar, name, status pill, quick stats row.
-   * CSS prefix: adh- (AgentDetailHeader)
-   */
-  import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
-  import StatusDot from '$lib/design/patterns/StatusDot.svelte';
-  import type { AgentDetail } from '$lib/domain/agents/types.js';
+/**
+ * AgentHeader — avatar, name, status pill, quick stats row.
+ * CSS prefix: adh- (AgentDetailHeader)
+ */
+import ActorAvatar from '$lib/design/patterns/ActorAvatar.svelte';
+import StatusDot from '$lib/design/patterns/StatusDot.svelte';
+import type { AgentDetail } from '$lib/domain/agents/types.js';
 
-  interface Props {
-    agent: AgentDetail;
-    hired: boolean;
-    onHire: () => void;
-    onFire: () => void;
-    onRun: () => void;
-    onKanban: () => void;
-    hireIsPending: boolean;
-    fireIsPending: boolean;
-  }
+interface Props {
+  agent: AgentDetail;
+  hired: boolean;
+  onHire: () => void;
+  onFire: () => void;
+  onRun: () => void;
+  onKanban: () => void;
+  hireIsPending: boolean;
+  fireIsPending: boolean;
+}
 
-  let {
-    agent,
-    hired,
-    onHire,
-    onFire,
-    onRun,
-    onKanban,
-    hireIsPending,
-    fireIsPending,
-  }: Props = $props();
+let { agent, hired, onHire, onFire, onRun, onKanban, hireIsPending, fireIsPending }: Props =
+  $props();
 </script>
 
 <div class="adh-root">

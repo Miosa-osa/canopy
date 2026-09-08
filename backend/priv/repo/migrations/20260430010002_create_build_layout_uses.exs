@@ -4,8 +4,10 @@ defmodule Canopy.Repo.Migrations.CreateBuildLayoutUses do
   def change do
     create table(:build_layout_uses, primary_key: false) do
       add :id, :binary_id, primary_key: true, null: false
+
       add :layout_id, references(:build_layouts, type: :binary_id, on_delete: :delete_all),
         null: false
+
       add :user_id, :binary_id
       add :workspace_slug, :string, size: 128
       add :intent, :string, size: 256

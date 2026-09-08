@@ -17,7 +17,7 @@
  * as the last opts argument to apiGet / apiPost / apiPut / apiPatch.
  */
 
-export const API_BASE = "http://localhost:9190/api/v1";
+export const API_BASE = 'http://localhost:9190/api/v1';
 
 /** Non-2xx response from the Phoenix API. */
 export class ApiError extends Error {
@@ -25,7 +25,7 @@ export class ApiError extends Error {
 
   constructor(status: number, message: string) {
     super(message);
-    this.name = "ApiError";
+    this.name = 'ApiError';
     this.status = status;
   }
 }
@@ -35,24 +35,24 @@ export class ApiError extends Error {
  * Add any free-form jsonb column key here to preserve its internal structure.
  */
 export const CONVERSION_SKIP_KEYS = new Set([
-  "auth_profile",
-  "authProfile",
-  "config",
-  "meta",
-  "metadata",
-  "tool_args",
-  "toolArgs",
-  "params",
-  "values",
-  "body_json",
-  "bodyJson",
-  "content",
+  'auth_profile',
+  'authProfile',
+  'config',
+  'meta',
+  'metadata',
+  'tool_args',
+  'toolArgs',
+  'params',
+  'values',
+  'body_json',
+  'bodyJson',
+  'content',
 ]);
 
 type PlainObj = Record<string, unknown>;
 
 function isPlainObject(v: unknown): v is PlainObj {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 /** toCamel with skip-key protection for free-form jsonb fields. */
@@ -63,9 +63,7 @@ function toCamelSafe(value: unknown, depth = 0): unknown {
   if (isPlainObject(value)) {
     const out: PlainObj = {};
     for (const [k, v] of Object.entries(value)) {
-      const camelKey = k.replace(/_([a-z])/g, (_, c: string) =>
-        c.toUpperCase(),
-      );
+      const camelKey = k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
       // Preserve the value verbatim if this key is on the blocklist
       out[camelKey] =
         CONVERSION_SKIP_KEYS.has(k) || CONVERSION_SKIP_KEYS.has(camelKey)
@@ -97,7 +95,7 @@ function toSnakeSafe(value: unknown, depth = 0): unknown {
   return value;
 }
 
-type FetchOpts = Omit<RequestInit, "method"> & { rawKeys?: boolean };
+type FetchOpts = Omit<RequestInit, 'method'> & { rawKeys?: boolean };
 
 async function handleResponse<T>(res: Response, rawKeys = false): Promise<T> {
   if (!res.ok) {
@@ -121,8 +119,8 @@ async function handleResponse<T>(res: Response, rawKeys = false): Promise<T> {
   // Unwrap Phoenix `{data: ...}` envelope if present
   let payload: unknown =
     json !== null &&
-    typeof json === "object" &&
-    "data" in json &&
+    typeof json === 'object' &&
+    'data' in json &&
     (json as { data?: unknown }).data !== undefined
       ? (json as { data: unknown }).data
       : json;
@@ -138,27 +136,21 @@ async function handleResponse<T>(res: Response, rawKeys = false): Promise<T> {
 export async function apiGet<T>(path: string, opts?: FetchOpts): Promise<T> {
   const { rawKeys, ...fetchOpts } = opts ?? {};
   const res = await fetch(`${API_BASE}${path}`, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
     ...fetchOpts,
   });
   return handleResponse<T>(res, rawKeys);
 }
 
 /** POST /api/v1/:path */
-export async function apiPost<T>(
-  path: string,
-  body?: unknown,
-  opts?: FetchOpts,
-): Promise<T> {
+export async function apiPost<T>(path: string, body?: unknown, opts?: FetchOpts): Promise<T> {
   const { rawKeys, ...fetchOpts } = opts ?? {};
   const serialized =
-    body !== undefined
-      ? JSON.stringify(rawKeys ? body : toSnakeSafe(body))
-      : undefined;
+    body !== undefined ? JSON.stringify(rawKeys ? body : toSnakeSafe(body)) : undefined;
   const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: serialized,
     ...fetchOpts,
   });
@@ -166,19 +158,13 @@ export async function apiPost<T>(
 }
 
 /** PUT /api/v1/:path */
-export async function apiPut<T>(
-  path: string,
-  body?: unknown,
-  opts?: FetchOpts,
-): Promise<T> {
+export async function apiPut<T>(path: string, body?: unknown, opts?: FetchOpts): Promise<T> {
   const { rawKeys, ...fetchOpts } = opts ?? {};
   const serialized =
-    body !== undefined
-      ? JSON.stringify(rawKeys ? body : toSnakeSafe(body))
-      : undefined;
+    body !== undefined ? JSON.stringify(rawKeys ? body : toSnakeSafe(body)) : undefined;
   const res = await fetch(`${API_BASE}${path}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: serialized,
     ...fetchOpts,
   });
@@ -186,19 +172,13 @@ export async function apiPut<T>(
 }
 
 /** PATCH /api/v1/:path */
-export async function apiPatch<T>(
-  path: string,
-  body?: unknown,
-  opts?: FetchOpts,
-): Promise<T> {
+export async function apiPatch<T>(path: string, body?: unknown, opts?: FetchOpts): Promise<T> {
   const { rawKeys, ...fetchOpts } = opts ?? {};
   const serialized =
-    body !== undefined
-      ? JSON.stringify(rawKeys ? body : toSnakeSafe(body))
-      : undefined;
+    body !== undefined ? JSON.stringify(rawKeys ? body : toSnakeSafe(body)) : undefined;
   const res = await fetch(`${API_BASE}${path}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: serialized,
     ...fetchOpts,
   });
@@ -206,14 +186,11 @@ export async function apiPatch<T>(
 }
 
 /** DELETE /api/v1/:path */
-export async function apiDelete<T = void>(
-  path: string,
-  opts?: FetchOpts,
-): Promise<T> {
+export async function apiDelete<T = void>(path: string, opts?: FetchOpts): Promise<T> {
   const { rawKeys, ...fetchOpts } = opts ?? {};
   const res = await fetch(`${API_BASE}${path}`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
     ...fetchOpts,
   });
   return handleResponse<T>(res, rawKeys);

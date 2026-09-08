@@ -5,25 +5,25 @@
 
 /** 19 canonical categories from the agents directory. */
 export type AgentCategory =
-  | "academic"
-  | "creative-content"
-  | "design"
-  | "engineering"
-  | "executive"
-  | "game-development"
-  | "growth"
-  | "marketing"
-  | "operations"
-  | "paid-media"
-  | "product"
-  | "project-management"
-  | "revenue"
-  | "sales"
-  | "spatial-computing"
-  | "specialized"
-  | "support"
-  | "technology"
-  | "testing";
+  | 'academic'
+  | 'creative-content'
+  | 'design'
+  | 'engineering'
+  | 'executive'
+  | 'game-development'
+  | 'growth'
+  | 'marketing'
+  | 'operations'
+  | 'paid-media'
+  | 'product'
+  | 'project-management'
+  | 'revenue'
+  | 'sales'
+  | 'spatial-computing'
+  | 'specialized'
+  | 'support'
+  | 'technology'
+  | 'testing';
 
 /** Agent summary for the library grid. Matches backend /api/v1/agents shape. */
 export interface Agent {
@@ -51,7 +51,7 @@ export interface Agent {
 export interface AgentDetail extends Agent {
   personaMarkdown: string;
   skills?: string[];
-  contextTier?: "l0" | "l1" | "l2";
+  contextTier?: 'l0' | 'l1' | 'l2';
 }
 
 export interface WorkspaceAgentSyncResult {

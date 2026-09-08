@@ -8,12 +8,13 @@
  *
  * CSS prefix: obw- (onboarding wizard)
  */
+
+import AgentStep from './AgentStep.svelte';
+import CompleteStep from './CompleteStep.svelte';
+import RuntimeStep from './RuntimeStep.svelte';
+import ThemeStep from './ThemeStep.svelte';
 import WelcomeStep from './WelcomeStep.svelte';
 import WorkspaceStep from './WorkspaceStep.svelte';
-import RuntimeStep from './RuntimeStep.svelte';
-import AgentStep from './AgentStep.svelte';
-import ThemeStep from './ThemeStep.svelte';
-import CompleteStep from './CompleteStep.svelte';
 
 interface Props {
   onComplete: () => void;
@@ -24,9 +25,15 @@ let { onComplete }: Props = $props();
 const TOTAL = 6;
 let step = $state(0);
 
-function next(): void  { if (step < TOTAL - 1) step += 1; }
-function back(): void  { if (step > 0) step -= 1; }
-function skip(): void  { if (step < TOTAL - 1) step += 1; }
+function next(): void {
+  if (step < TOTAL - 1) step += 1;
+}
+function back(): void {
+  if (step > 0) step -= 1;
+}
+function skip(): void {
+  if (step < TOTAL - 1) step += 1;
+}
 
 function finish(): void {
   if (typeof localStorage !== 'undefined') {

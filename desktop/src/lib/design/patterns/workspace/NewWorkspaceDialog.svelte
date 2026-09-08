@@ -17,15 +17,13 @@
  * Vitest (which runs without a Tauri runtime).
  */
 
-import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-import { X } from "lucide-svelte";
-import { createWorkspace } from "$lib/api/queries/workspaces.js";
-import { activeWorkspace } from "$lib/stores/active-workspace.svelte.js";
-import { toasts } from "$lib/stores/toasts.svelte.js";
-import type {
-  CreateWorkspaceBody,
-  Workspace,
-} from "$lib/domain/workspaces/types.js";
+import { createMutation, useQueryClient } from '@tanstack/svelte-query';
+import { X } from 'lucide-svelte';
+import { createWorkspace } from '$lib/api/queries/workspaces.js';
+import type { CreateWorkspaceBody, Workspace } from '$lib/domain/workspaces/types.js';
+import { activeWorkspace } from '$lib/stores/active-workspace.svelte.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import { slugify } from './slugify.js';
 
 interface Props {
   open: boolean;
@@ -38,7 +36,7 @@ const queryClient = useQueryClient();
 
 // ── Form state ──────────────────────────────────────────────────────────────
 
-let workspaceName = $state("");
+let workspaceName = $state('');
 let selectedPath = $state<string | null>(null);
 let pickError = $state<string | null>(null);
 let formError = $state<string | null>(null);
@@ -47,15 +45,6 @@ const slug = $derived(slugify(workspaceName));
 
 // ── Slug derivation ─────────────────────────────────────────────────────────
 
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 128);
-}
-
 // ── Tauri folder picker ─────────────────────────────────────────────────────
 
 async function pickFolder(): Promise<void> {
@@ -63,21 +52,18 @@ async function pickFolder(): Promise<void> {
   try {
     // Dynamic import: keeps the component testable in environments without
     // a Tauri runtime (Vitest / SvelteKit dev SSR).
-    const { open: openDialog } = await import("@tauri-apps/plugin-dialog");
+    const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
     const result = await openDialog({
       directory: true,
       multiple: false,
-      title: "Choose workspace folder",
+      title: 'Choose workspace folder',
     });
 
-    if (typeof result === "string" && result.length > 0) {
+    if (typeof result === 'string' && result.length > 0) {
       selectedPath = result;
     }
   } catch (err) {
-    pickError =
-      err instanceof Error
-        ? err.message
-        : "Could not open the folder picker.";
+    pickError = err instanceof Error ? err.message : 'Could not open the folder picker.';
   }
 }
 
@@ -86,11 +72,12 @@ async function pickFolder(): Promise<void> {
 const createMut = createMutation({
   mutationFn: (body: CreateWorkspaceBody) => createWorkspace(body),
   onSuccess: async (workspace: Workspace) => {
-    await queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+    await queryClient.invalidateQueries({ queryKey: ['workspaces'] });
     // Sync the active-workspace store with the freshly-fetched pool so
     // setActive() can resolve the new slug.
-    const pool = (queryClient.getQueryData<Workspace[]>(["workspaces", {}]) ??
-      [workspace]) as Workspace[];
+    const pool = (queryClient.getQueryData<Workspace[]>(['workspaces', {}]) ?? [
+      workspace,
+    ]) as Workspace[];
     activeWorkspace.syncPool(pool);
     activeWorkspace.setActive(workspace.slug);
     toasts.success(`Workspace ${workspace.name} created.`);
@@ -98,7 +85,7 @@ const createMut = createMutation({
     onClose();
   },
   onError: (err: Error) => {
-    formError = err.message ?? "Failed to create workspace.";
+    formError = err.message ?? 'Failed to create workspace.';
   },
 });
 
@@ -106,15 +93,15 @@ function handleSubmit(): void {
   formError = null;
 
   if (workspaceName.trim().length === 0) {
-    formError = "Workspace name is required.";
+    formError = 'Workspace name is required.';
     return;
   }
   if (slug.length === 0) {
-    formError = "Workspace name must contain at least one letter or digit.";
+    formError = 'Workspace name must contain at least one letter or digit.';
     return;
   }
   if (selectedPath === null || selectedPath.trim().length === 0) {
-    formError = "Choose a folder to bind this workspace to.";
+    formError = 'Choose a folder to bind this workspace to.';
     return;
   }
 
@@ -126,7 +113,7 @@ function handleSubmit(): void {
 }
 
 function reset(): void {
-  workspaceName = "";
+  workspaceName = '';
   selectedPath = null;
   pickError = null;
   formError = null;
@@ -134,11 +121,11 @@ function reset(): void {
 
 function handleKeydown(e: KeyboardEvent): void {
   if (!open) return;
-  if (e.key === "Escape") {
+  if (e.key === 'Escape') {
     e.preventDefault();
     onClose();
   }
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
     e.preventDefault();
     handleSubmit();
   }

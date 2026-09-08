@@ -220,7 +220,9 @@ defmodule Canopy.Analytics.Iris do
     |> Agent.changeset(%{config: new_config})
     |> Repo.update()
     |> case do
-      {:ok, _} -> :ok
+      {:ok, _} ->
+        :ok
+
       {:error, cs} ->
         Logger.warning(
           "[Canopy.Analytics.Iris] Failed to mark announced_online: #{inspect(cs.errors)}"

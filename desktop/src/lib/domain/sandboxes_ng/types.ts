@@ -9,14 +9,14 @@
  */
 
 export type SandboxState =
-  | "provisioning"
-  | "running"
-  | "paused"
-  | "snapshotting"
-  | "archived"
-  | "resizing"
-  | "error"
-  | "destroyed";
+  | 'provisioning'
+  | 'running'
+  | 'paused'
+  | 'snapshotting'
+  | 'archived'
+  | 'resizing'
+  | 'error'
+  | 'destroyed';
 
 export interface LifecycleEvent {
   id: string;
@@ -44,7 +44,7 @@ export interface SandboxStateRow {
   payload: Record<string, unknown>;
 }
 
-export type SnapshotKind = "filesystem" | "directory" | "memory";
+export type SnapshotKind = 'filesystem' | 'directory' | 'memory';
 
 export interface Snapshot {
   id: string;
@@ -75,8 +75,8 @@ export interface SnapshotCreate {
   workspaceSlug?: string;
 }
 
-export type PortProtocol = "http" | "https" | "tcp";
-export type PortVisibility = "private" | "token" | "public";
+export type PortProtocol = 'http' | 'https' | 'tcp';
+export type PortVisibility = 'private' | 'token' | 'public';
 
 export interface PortForward {
   id: string;
@@ -106,8 +106,8 @@ export interface PortForwardCreate {
   workspaceSlug?: string;
 }
 
-export type AlertType = "threshold" | "composite";
-export type AlertSeverity = "info" | "medium" | "high" | "critical";
+export type AlertType = 'threshold' | 'composite';
+export type AlertSeverity = 'info' | 'medium' | 'high' | 'critical';
 
 export interface SandboxAlert {
   id: string;
@@ -143,12 +143,12 @@ export interface SandboxAlertCreate {
 
 /** All eight states in display order, used by lifecycle status grids. */
 export const SANDBOX_STATE_ORDER: readonly SandboxState[] = [
-  "provisioning",
-  "running",
-  "paused",
-  "snapshotting",
-  "resizing",
-  "archived",
-  "error",
-  "destroyed",
+  'provisioning',
+  'running',
+  'paused',
+  'snapshotting',
+  'resizing',
+  'archived',
+  'error',
+  'destroyed',
 ] as const;

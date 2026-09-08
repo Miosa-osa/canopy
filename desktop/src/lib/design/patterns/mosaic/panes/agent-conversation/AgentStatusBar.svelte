@@ -1,85 +1,83 @@
 <script lang="ts">
-  /**
-   * AgentStatusBar — thin strip above the composer showing live agent state.
-   *
-   * Derives status from the latest block in the session:
-   *   tool_call  + running          → "Running {tool}..."
-   *   agent_message + running       → "Thinking..."
-   *   approval  + pending_approval  → "Waiting for approval..."
-   *   error     + failed            → "Error: {message}"
-   *   anything else                 → idle (hidden)
-   *
-   * CSS prefix: asb-
-   */
+/**
+ * AgentStatusBar — thin strip above the composer showing live agent state.
+ *
+ * Derives status from the latest block in the session:
+ *   tool_call  + running          → "Running {tool}..."
+ *   agent_message + running       → "Thinking..."
+ *   approval  + pending_approval  → "Waiting for approval..."
+ *   error     + failed            → "Error: {message}"
+ *   anything else                 → idle (hidden)
+ *
+ * CSS prefix: asb-
+ */
 
-  import { createQuery } from '@tanstack/svelte-query';
-  import { writable } from 'svelte/store';
-  import type { CreateQueryOptions } from '@tanstack/svelte-query';
-  import { Wrench, Shield, AlertCircle } from 'lucide-svelte';
-  import { blocksListQuery } from '$lib/api/queries/blocks.js';
-  import type { Block, BlockList } from '$lib/domain/blocks/types.js';
+import type { CreateQueryOptions } from '@tanstack/svelte-query';
+import { createQuery } from '@tanstack/svelte-query';
+import { AlertCircle, Shield, Wrench } from 'lucide-svelte';
+import { writable } from 'svelte/store';
+import { blocksListQuery } from '$lib/api/queries/blocks.js';
+import type { Block, BlockList } from '$lib/domain/blocks/types.js';
 
-  interface Props {
-    sessionId: string;
-  }
+interface Props {
+  sessionId: string;
+}
 
-  let { sessionId }: Props = $props();
+let { sessionId }: Props = $props();
 
-  // ── Data — writable store pattern required by tanstack-svelte-query ────────
+// ── Data — writable store pattern required by tanstack-svelte-query ────────
 
-  const qOptsStore = writable<CreateQueryOptions<Block[]>>(
-    blocksListQuery(sessionId, { limit: 20 }) as CreateQueryOptions<Block[]>
-  );
+const qOptsStore = writable<CreateQueryOptions<Block[]>>(
+  blocksListQuery(sessionId, { limit: 20 }) as CreateQueryOptions<Block[]>
+);
 
-  $effect(() => {
-    qOptsStore.set(
-      blocksListQuery(sessionId, { limit: 20 }) as CreateQueryOptions<Block[]>
-    );
-  });
+$effect(() => {
+  qOptsStore.set(blocksListQuery(sessionId, { limit: 20 }) as CreateQueryOptions<Block[]>);
+});
 
-  const blocksQuery = createQuery<Block[]>(qOptsStore);
+const blocksQuery = createQuery<Block[]>(qOptsStore);
 
-  // ── Derived status ────────────────────────────────────────────────────────
+// ── Derived status ────────────────────────────────────────────────────────
 
-  type StatusState =
-    | { state: 'thinking' }
-    | { state: 'tool_call'; tool: string }
-    | { state: 'approval' }
-    | { state: 'error'; message: string }
-    | null;
+type StatusState =
+  | { state: 'thinking' }
+  | { state: 'tool_call'; tool: string }
+  | { state: 'approval' }
+  | { state: 'error'; message: string }
+  | null;
 
-  function toolNameFromBlock(block: Block): string {
-    const meta = block.metadata as Record<string, unknown>;
-    if (typeof meta?.toolName === 'string') return meta.toolName;
-    if (typeof meta?.tool_name === 'string') return meta.tool_name;
-    if (typeof meta?.name === 'string') return meta.name;
-    return 'tool';
-  }
+function toolNameFromBlock(block: Block): string {
+  const meta = block.metadata as Record<string, unknown>;
+  if (typeof meta?.toolName === 'string') return meta.toolName;
+  if (typeof meta?.tool_name === 'string') return meta.tool_name;
+  if (typeof meta?.name === 'string') return meta.name;
+  return 'tool';
+}
 
-  const status = $derived.by((): StatusState => {
-    const blocks: Block[] = $blocksQuery.data ?? [];
-    if (!blocks.length) return null;
+const status = $derived.by((): StatusState => {
+  const blocks: Block[] = $blocksQuery.data ?? [];
+  if (!blocks.length) return null;
 
-    // Walk from the end to find the last relevant in-flight block
-    for (let i = blocks.length - 1; i >= 0; i--) {
-      const b = blocks[i];
-      if (b.kind === 'tool_call' && b.status === 'running') {
-        return { state: 'tool_call', tool: toolNameFromBlock(b) };
-      }
-      if (b.kind === 'agent_message' && b.status === 'running') {
-        return { state: 'thinking' };
-      }
-      if (b.kind === 'approval' && b.status === 'pending_approval') {
-        return { state: 'approval' };
-      }
-      if (b.kind === 'error' && (b.status === 'failed' || b.status === 'running')) {
-        return { state: 'error', message: b.outputText ?? b.inputText ?? 'Unknown error' };
-      }
-      // A completed block terminates the walk — nothing in-flight
-      if (b.status === 'completed' || b.status === 'cancelled') break;
+  // Walk from the end to find the last relevant in-flight block
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const b = blocks[i];
+    if (b.kind === 'tool_call' && b.status === 'running') {
+      return { state: 'tool_call', tool: toolNameFromBlock(b) };
     }
-    return null;
-  });
+    if (b.kind === 'agent_message' && b.status === 'running') {
+      return { state: 'thinking' };
+    }
+    if (b.kind === 'approval' && b.status === 'pending_approval') {
+      return { state: 'approval' };
+    }
+    if (b.kind === 'error' && (b.status === 'failed' || b.status === 'running')) {
+      return { state: 'error', message: b.outputText ?? b.inputText ?? 'Unknown error' };
+    }
+    // A completed block terminates the walk — nothing in-flight
+    if (b.status === 'completed' || b.status === 'cancelled') break;
+  }
+  return null;
+});
 </script>
 
 {#if status !== null}

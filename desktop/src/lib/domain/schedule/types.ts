@@ -3,13 +3,9 @@
  * Keys arrive camelCased via the client conversion layer.
  */
 
-export type SpecStatus = "active" | "paused" | "archived";
+export type SpecStatus = 'active' | 'paused' | 'archived';
 
-export type OverlapPolicy =
-  | "skip"
-  | "buffer_one"
-  | "cancel_other"
-  | "terminate_other";
+export type OverlapPolicy = 'skip' | 'buffer_one' | 'cancel_other' | 'terminate_other';
 
 export interface SpecModel {
   crons?: string[];
@@ -52,14 +48,14 @@ export interface Spec {
 }
 
 export type RunStatus =
-  | "enqueued"
-  | "running"
-  | "completed"
-  | "failed"
-  | "skipped_overlap"
-  | "late"
-  | "missed"
-  | "cancelled";
+  | 'enqueued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'skipped_overlap'
+  | 'late'
+  | 'missed'
+  | 'cancelled';
 
 export interface Run {
   id: string;
@@ -82,7 +78,7 @@ export interface Run {
   insertedAt: string;
 }
 
-export type Granularity = "hour" | "day" | "week" | "month";
+export type Granularity = 'hour' | 'day' | 'week' | 'month';
 
 export interface RunBucket {
   bucket: string;
@@ -108,17 +104,17 @@ export interface Overlap {
 }
 
 export type AlertCategory =
-  | "miss"
-  | "late"
-  | "failure"
-  | "circuit_breaker"
-  | "overlap"
-  | "calendar_sync"
-  | "schedule_conflict";
+  | 'miss'
+  | 'late'
+  | 'failure'
+  | 'circuit_breaker'
+  | 'overlap'
+  | 'calendar_sync'
+  | 'schedule_conflict';
 
-export type AlertSeverity = "info" | "medium" | "high" | "critical";
+export type AlertSeverity = 'info' | 'medium' | 'high' | 'critical';
 
-export type AlertStatus = "open" | "acknowledged" | "closed";
+export type AlertStatus = 'open' | 'acknowledged' | 'closed';
 
 export interface Alert {
   id: string;

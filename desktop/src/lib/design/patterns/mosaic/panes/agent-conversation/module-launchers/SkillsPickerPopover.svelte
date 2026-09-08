@@ -1,23 +1,20 @@
 <script lang="ts" module>
-  import type { Skill } from '$lib/domain/skills/types.js';
+import type { Skill } from '$lib/domain/skills/types.js';
 
-  /**
-   * Filter to enabled skills with substring match on name + slug + tags.
-   */
-  export function filterSkills(
-    skills: readonly Skill[],
-    query: string,
-  ): Skill[] {
-    const enabled = skills.filter((s) => s.enabled !== false);
-    const q = query.trim().toLowerCase();
-    if (!q) return enabled;
-    return enabled.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.slug.toLowerCase().includes(q) ||
-        (s.tags ?? []).some((t) => t.toLowerCase().includes(q)),
-    );
-  }
+/**
+ * Filter to enabled skills with substring match on name + slug + tags.
+ */
+export function filterSkills(skills: readonly Skill[], query: string): Skill[] {
+  const enabled = skills.filter((s) => s.enabled !== false);
+  const q = query.trim().toLowerCase();
+  if (!q) return enabled;
+  return enabled.filter(
+    (s) =>
+      s.name.toLowerCase().includes(q) ||
+      s.slug.toLowerCase().includes(q) ||
+      (s.tags ?? []).some((t) => t.toLowerCase().includes(q))
+  );
+}
 </script>
 
 <script lang="ts">
@@ -35,7 +32,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import { writable } from 'svelte/store';
   import { skillsQuery } from '$lib/api/queries/skills.js';
-  import type { Skill } from '$lib/domain/skills/types.js';
+
 
   interface Props {
     onPick: (skill: Skill) => void;

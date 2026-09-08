@@ -1,113 +1,109 @@
 <script lang="ts">
-  /**
-   * OpenInEditorButton — opens a filesystem path in the user's preferred editor.
-   * CSS prefix: oeb-
-   * Uses @tauri-apps/plugin-shell Command if available; falls back to clipboard.
-   * LOC target: ≤ 110.
-   */
+/**
+ * OpenInEditorButton — opens a filesystem path in the user's preferred editor.
+ * CSS prefix: oeb-
+ * Uses @tauri-apps/plugin-shell Command if available; falls back to clipboard.
+ * LOC target: ≤ 110.
+ */
 
-  interface EditorOption {
-    command: string;
-    name: string;
-    /** Deep-link URI scheme, e.g. vscode://file/{path} — used when Tauri shell fails */
-    deepLink?: (path: string) => string;
+interface EditorOption {
+  command: string;
+  name: string;
+  /** Deep-link URI scheme, e.g. vscode://file/{path} — used when Tauri shell fails */
+  deepLink?: (path: string) => string;
+}
+
+interface Props {
+  path: string;
+  class?: string;
+}
+
+let { path, class: className = '' }: Props = $props();
+
+const STORAGE_KEY = 'canopy.default_editor';
+
+const EDITORS: EditorOption[] = [
+  {
+    command: 'code',
+    name: 'VS Code',
+    deepLink: (p) => `vscode://file/${encodeURIComponent(p)}`,
+  },
+  {
+    command: 'cursor',
+    name: 'Cursor',
+    deepLink: (p) => `cursor://file/${encodeURIComponent(p)}`,
+  },
+  {
+    command: 'webstorm',
+    name: 'WebStorm',
+    deepLink: (p) =>
+      `jetbrains://web-storm/navigate/reference?project=canopy&path=${encodeURIComponent(p)}`,
+  },
+  {
+    command: 'idea',
+    name: 'IDEA',
+    deepLink: (p) =>
+      `jetbrains://idea/navigate/reference?project=canopy&path=${encodeURIComponent(p)}`,
+  },
+  { command: 'subl', name: 'Sublime Text' },
+  { command: 'vim', name: 'Vim' },
+];
+
+// ── State ───────────────────────────────────────────────────────────────────
+
+let dropdownOpen = $state(false);
+let copied = $state(false);
+
+let defaultEditor = $state<string>(
+  typeof localStorage !== 'undefined' ? (localStorage.getItem(STORAGE_KEY) ?? 'code') : 'code'
+);
+
+const currentEditor = $derived(EDITORS.find((e) => e.command === defaultEditor) ?? EDITORS[0]);
+
+function setDefaultEditor(command: string): void {
+  defaultEditor = command;
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, command);
   }
+  dropdownOpen = false;
+}
 
-  interface Props {
-    path: string;
-    class?: string;
-  }
+// ── Open logic ──────────────────────────────────────────────────────────────
 
-  let { path, class: className = '' }: Props = $props();
-
-  const STORAGE_KEY = 'canopy.default_editor';
-
-  const EDITORS: EditorOption[] = [
-    {
-      command: 'code',
-      name: 'VS Code',
-      deepLink: (p) => `vscode://file/${encodeURIComponent(p)}`,
-    },
-    {
-      command: 'cursor',
-      name: 'Cursor',
-      deepLink: (p) => `cursor://file/${encodeURIComponent(p)}`,
-    },
-    {
-      command: 'webstorm',
-      name: 'WebStorm',
-      deepLink: (p) =>
-        `jetbrains://web-storm/navigate/reference?project=canopy&path=${encodeURIComponent(p)}`,
-    },
-    {
-      command: 'idea',
-      name: 'IDEA',
-      deepLink: (p) =>
-        `jetbrains://idea/navigate/reference?project=canopy&path=${encodeURIComponent(p)}`,
-    },
-    { command: 'subl', name: 'Sublime Text' },
-    { command: 'vim', name: 'Vim' },
-  ];
-
-  // ── State ───────────────────────────────────────────────────────────────────
-
-  let dropdownOpen = $state(false);
-  let copied = $state(false);
-
-  let defaultEditor = $state<string>(
-    typeof localStorage !== 'undefined'
-      ? (localStorage.getItem(STORAGE_KEY) ?? 'code')
-      : 'code'
-  );
-
-  const currentEditor = $derived(
-    EDITORS.find((e) => e.command === defaultEditor) ?? EDITORS[0]
-  );
-
-  function setDefaultEditor(command: string): void {
-    defaultEditor = command;
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, command);
-    }
-    dropdownOpen = false;
-  }
-
-  // ── Open logic ──────────────────────────────────────────────────────────────
-
-  async function openInEditor(editorCommand: string): Promise<void> {
-    const editor = EDITORS.find((e) => e.command === editorCommand) ?? EDITORS[0];
-    try {
-      const { Command } = await import('@tauri-apps/plugin-shell');
-      const cmd = Command.create(editorCommand, [path]);
-      await cmd.spawn();
-    } catch {
-      // Tauri unavailable — try deep-link URI first, then clipboard fallback
-      if (editor.deepLink) {
-        try {
-          window.open(editor.deepLink(path), '_self');
-          dropdownOpen = false;
-          return;
-        } catch {
-          // fall through to clipboard
-        }
-      }
-      const shellCmd = `${editorCommand} "${path}"`;
+async function openInEditor(editorCommand: string): Promise<void> {
+  const editor = EDITORS.find((e) => e.command === editorCommand) ?? EDITORS[0];
+  try {
+    const { Command } = await import('@tauri-apps/plugin-shell');
+    const cmd = Command.create(editorCommand, [path]);
+    await cmd.spawn();
+  } catch {
+    // Tauri unavailable — try deep-link URI first, then clipboard fallback
+    if (editor.deepLink) {
       try {
-        await navigator.clipboard.writeText(shellCmd);
-        copied = true;
-        setTimeout(() => {
-          copied = false;
-        }, 2000);
+        window.open(editor.deepLink(path), '_self');
+        dropdownOpen = false;
+        return;
       } catch {
-        // clipboard also unavailable — silently fail
+        // fall through to clipboard
       }
     }
-    dropdownOpen = false;
+    const shellCmd = `${editorCommand} "${path}"`;
+    try {
+      await navigator.clipboard.writeText(shellCmd);
+      copied = true;
+      setTimeout(() => {
+        copied = false;
+      }, 2000);
+    } catch {
+      // clipboard also unavailable — silently fail
+    }
   }
+  dropdownOpen = false;
+}
 
-  function handleKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') dropdownOpen = false;
-  }
+function handleKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') dropdownOpen = false;
+}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />

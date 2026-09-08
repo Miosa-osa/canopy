@@ -1,47 +1,48 @@
 <script lang="ts">
-  /**
-   * IssuesListView — table rendering + empty/loading/error states for the issues list view.
-   * CSS prefix: il- (shared with /issues page).
-   */
-  import { goto } from '$app/navigation';
-  import { CircleDot } from 'lucide-svelte';
-  import EmptyState from '$lib/design/patterns/EmptyState.svelte';
-  import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
-  import IssueStatusPill from '$lib/design/patterns/IssueStatusPill.svelte';
-  import IssuePriorityDot from '$lib/design/patterns/IssuePriorityDot.svelte';
-  import type { Issue } from '$lib/domain/issues/types.js';
+/**
+ * IssuesListView — table rendering + empty/loading/error states for the issues list view.
+ * CSS prefix: il- (shared with /issues page).
+ */
 
-  interface Props {
-    issues: Issue[];
-    isLoading: boolean;
-    isError: boolean;
-    errorMessage: string;
-    statusTab: string;
-    assigneeFilter: string;
-    onRetry: () => void;
-    onNewIssue: () => void;
-  }
+import { CircleDot } from 'lucide-svelte';
+import { goto } from '$app/navigation';
+import EmptyState from '$lib/design/patterns/EmptyState.svelte';
+import IssuePriorityDot from '$lib/design/patterns/IssuePriorityDot.svelte';
+import IssueStatusPill from '$lib/design/patterns/IssueStatusPill.svelte';
+import SkeletonList from '$lib/design/patterns/SkeletonList.svelte';
+import type { Issue } from '$lib/domain/issues/types.js';
 
-  let {
-    issues,
-    isLoading,
-    isError,
-    errorMessage,
-    statusTab,
-    assigneeFilter,
-    onRetry,
-    onNewIssue,
-  }: Props = $props();
+interface Props {
+  issues: Issue[];
+  isLoading: boolean;
+  isError: boolean;
+  errorMessage: string;
+  statusTab: string;
+  assigneeFilter: string;
+  onRetry: () => void;
+  onNewIssue: () => void;
+}
 
-  function relativeTime(iso: string): string {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  }
+let {
+  issues,
+  isLoading,
+  isError,
+  errorMessage,
+  statusTab,
+  assigneeFilter,
+  onRetry,
+  onNewIssue,
+}: Props = $props();
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 </script>
 
 {#if isLoading}

@@ -14,18 +14,18 @@
  * CSS prefix: mi-
  */
 
-import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
-import { toasts } from "$lib/stores/toasts.svelte.js";
-import { ApiError } from "$lib/api/client.js";
+import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { ApiError } from '$lib/api/client.js';
+import StatusDot from '$lib/design/patterns/StatusDot.svelte';
 import {
+  MIOSA_QUERY_KEYS,
   miosaHealthQuery,
   miosaSettingsQuery,
-  saveMiosaSettingsMutation,
   probeMiosaModule,
-  MIOSA_QUERY_KEYS,
-} from "$lib/queries/miosa.js";
-import StatusDot from "$lib/design/patterns/StatusDot.svelte";
-import type { MiosaTier, MiosaRegion } from "$lib/types/miosa.js";
+  saveMiosaSettingsMutation,
+} from '$lib/queries/miosa.js';
+import { toasts } from '$lib/stores/toasts.svelte.js';
+import type { MiosaRegion, MiosaTier } from '$lib/types/miosa.js';
 
 const qc = useQueryClient();
 
@@ -46,32 +46,32 @@ const settingsResult = createQuery(miosaSettingsQuery());
 
 // ── Health helpers ────────────────────────────────────────────────────────────
 
-type DotColor = "green" | "amber" | "red" | "grey";
+type DotColor = 'green' | 'amber' | 'red' | 'grey';
 
 function statusDotColor(s: string | undefined): DotColor {
-  if (!s) return "grey";
-  if (s === "ok") return "green";
-  if (s === "unconfigured") return "amber";
-  return "red";
+  if (!s) return 'grey';
+  if (s === 'ok') return 'green';
+  if (s === 'unconfigured') return 'amber';
+  return 'red';
 }
 
 function statusLabel(s: string | undefined): string {
-  if (!s) return "Unknown";
-  if (s === "ok") return "Connected";
-  if (s === "unconfigured") return "Not configured";
-  if (s === "unreachable") return "Unreachable";
+  if (!s) return 'Unknown';
+  if (s === 'ok') return 'Connected';
+  if (s === 'unconfigured') return 'Not configured';
+  if (s === 'unreachable') return 'Unreachable';
   return s;
 }
 
 function formatLastChecked(ts: string | null | undefined): string {
-  if (!ts) return "Never";
+  if (!ts) return 'Never';
   const diff = Date.now() - new Date(ts).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Just now";
-  if (mins === 1) return "1 minute ago";
+  if (mins < 1) return 'Just now';
+  if (mins === 1) return '1 minute ago';
   if (mins < 60) return `${mins} minutes ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs === 1) return "1 hour ago";
+  if (hrs === 1) return '1 hour ago';
   return `${hrs} hours ago`;
 }
 
@@ -85,15 +85,15 @@ async function handleTestConnection() {
   try {
     await qc.refetchQueries({ queryKey: MIOSA_QUERY_KEYS.health });
     const data = $healthResult.data;
-    if (data?.status === "ok") {
-      toasts.success("MIOSA connection verified.");
-    } else if (data?.status === "unreachable") {
-      toasts.error("MIOSA is unreachable. Check the API URL and key.");
+    if (data?.status === 'ok') {
+      toasts.success('MIOSA connection verified.');
+    } else if (data?.status === 'unreachable') {
+      toasts.error('MIOSA is unreachable. Check the API URL and key.');
     } else {
-      toasts.warning("MIOSA is not configured.");
+      toasts.warning('MIOSA is not configured.');
     }
   } catch {
-    toasts.error("Health check failed — backend may be unreachable.");
+    toasts.error('Health check failed — backend may be unreachable.');
   } finally {
     testingConnection = false;
   }
@@ -102,9 +102,9 @@ async function handleTestConnection() {
 // ── Form state ────────────────────────────────────────────────────────────────
 
 // Seeded from the settings query once it loads.
-let formApiUrl = $state("");
-let formApiKey = $state(""); // Write-only: never pre-populated from GET
-let formTier = $state<MiosaTier>("free");
+let formApiUrl = $state('');
+let formApiKey = $state(''); // Write-only: never pre-populated from GET
+let formTier = $state<MiosaTier>('free');
 let formAutoProvision = $state(false);
 let formRegion = $state<MiosaRegion>(null);
 
@@ -114,17 +114,17 @@ let formSeeded = $state(false);
 $effect(() => {
   const data = $settingsResult.data;
   if (!data || formSeeded) return;
-  formApiUrl = data.api_url ?? "";
+  formApiUrl = data.api_url ?? '';
   // formApiKey intentionally left blank — write-only per API contract
-  formTier = data.default_tier ?? "free";
+  formTier = data.default_tier ?? 'free';
   formAutoProvision = data.auto_provision ?? false;
   formRegion = data.region ?? null;
   formSeeded = true;
 });
 
 // Snapshot of what was last saved (used for dirty detection).
-let savedApiUrl = $derived($settingsResult.data?.api_url ?? "");
-let savedTier = $derived($settingsResult.data?.default_tier ?? "free");
+let savedApiUrl = $derived($settingsResult.data?.api_url ?? '');
+let savedTier = $derived($settingsResult.data?.default_tier ?? 'free');
 let savedAutoProvision = $derived($settingsResult.data?.auto_provision ?? false);
 let savedRegion = $derived($settingsResult.data?.region ?? null);
 
@@ -137,7 +137,7 @@ const isDirty = $derived(
     formApiUrl !== savedApiUrl ||
     formTier !== savedTier ||
     formAutoProvision !== savedAutoProvision ||
-    formRegion !== savedRegion,
+    formRegion !== savedRegion
 );
 
 // ── Mutation ──────────────────────────────────────────────────────────────────
@@ -149,16 +149,16 @@ const saveMut = createMutation({
   ...saveMiosaSettingsMutation(),
   onSuccess: async (res) => {
     // Update local snapshot from the returned settings
-    formApiUrl = res.settings.api_url ?? "";
-    formTier = res.settings.default_tier ?? "free";
+    formApiUrl = res.settings.api_url ?? '';
+    formTier = res.settings.default_tier ?? 'free';
     formAutoProvision = res.settings.auto_provision ?? false;
     formRegion = res.settings.region ?? null;
     // Clear the key field on success — it was accepted and stored server-side
-    formApiKey = "";
+    formApiKey = '';
     saveError = null;
     await qc.invalidateQueries({ queryKey: MIOSA_QUERY_KEYS.health });
     await qc.invalidateQueries({ queryKey: MIOSA_QUERY_KEYS.settings });
-    toasts.success("MIOSA settings saved.");
+    toasts.success('MIOSA settings saved.');
   },
   onError: (err: unknown) => {
     saveError =
@@ -166,7 +166,7 @@ const saveMut = createMutation({
         ? err.message
         : err instanceof Error
           ? err.message
-          : "Save failed — unknown error.";
+          : 'Save failed — unknown error.';
   },
 });
 
@@ -188,9 +188,9 @@ async function handleSave() {
 
 function handleDiscard() {
   const data = $settingsResult.data;
-  formApiUrl = data?.api_url ?? "";
-  formApiKey = "";
-  formTier = data?.default_tier ?? "free";
+  formApiUrl = data?.api_url ?? '';
+  formApiKey = '';
+  formTier = data?.default_tier ?? 'free';
   formAutoProvision = data?.auto_provision ?? false;
   formRegion = data?.region ?? null;
   saveError = null;

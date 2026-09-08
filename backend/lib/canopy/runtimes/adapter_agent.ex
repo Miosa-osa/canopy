@@ -45,7 +45,8 @@ defmodule Canopy.Runtimes.AdapterAgent do
   bad provider quote.
   """
   @spec list_models_with_info(runtime_id()) ::
-          {:ok, [%{id: binary(), model_id: String.t(), info: ModelInfo.t(), is_default: boolean()}]}
+          {:ok,
+           [%{id: binary(), model_id: String.t(), info: ModelInfo.t(), is_default: boolean()}]}
           | {:error, :not_found}
   def list_models_with_info(runtime_type) when is_binary(runtime_type) do
     with {:ok, %Runtime{id: runtime_id}} <- Runtimes.get_by_type(runtime_type) do
