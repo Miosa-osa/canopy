@@ -8,6 +8,7 @@ export interface WorkspaceEngineHealth {
   manifestExists: boolean;
   commandsCount: number;
   available: boolean;
+  compatibilityError?: string | null;
 }
 
 export interface WorkspaceEngineCommand {

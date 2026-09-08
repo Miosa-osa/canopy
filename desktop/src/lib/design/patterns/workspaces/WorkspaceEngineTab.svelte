@@ -194,6 +194,9 @@ async function runCommand(): Promise<void> {
           </div>
         </div>
       </div>
+      {#if health.compatibilityError}
+        <p class="wet-muted" role="alert">Engine compatibility: {health.compatibilityError}</p>
+      {/if}
     {:else}
       <p class="wet-muted">Engine health could not be loaded.</p>
     {/if}
@@ -209,7 +212,8 @@ async function runCommand(): Promise<void> {
 
     {#if $commandsQ.isError}
       <div class="wet-empty">
-        Create <span>.canopy/engine.yaml</span> and an <span>engine/mix.exs</span> project in this workspace.
+        Check the pinned OptimalEngine checkout in <span>engine/</span> and the <span>compatibility</span> map in <span>.canopy/engine.yaml</span>.
+        The Engine repository, commit, contract version, and command allowlist must match the workspace contract.
       </div>
     {:else if commands.length === 0}
       <div class="wet-empty">No engine commands found.</div>

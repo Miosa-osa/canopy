@@ -6,7 +6,7 @@
  */
 
 import { BarChart3, Bot, Check, PenTool, Search, Shield, Workflow, Wrench } from 'lucide-svelte';
-import { hireAgent } from '$lib/api/queries/agents.js';
+import { hireStarterAgents } from './setup-actions.js';
 
 interface Props {
   onNext: () => void;
@@ -71,6 +71,7 @@ const RECOMMENDED: AgentCard[] = [
 
 const hired = $state(new Set<string>());
 let isHiring = $state(false);
+let hireError = $state<string | null>(null);
 
 function toggle(slug: string): void {
   if (hired.has(slug)) {
@@ -86,8 +87,14 @@ async function handleNext(): Promise<void> {
     return;
   }
   isHiring = true;
+  hireError = null;
   try {
-    await Promise.allSettled([...hired].map((slug) => hireAgent(slug)));
+    const result = await hireStarterAgents([...hired]);
+    for (const slug of result.hired) hired.delete(slug);
+    if (result.failed.length > 0) {
+      hireError = `Could not hire: ${result.failed.join(', ')}. Retry or skip this step.`;
+      return;
+    }
   } finally {
     isHiring = false;
   }
@@ -135,6 +142,10 @@ async function handleNext(): Promise<void> {
       </li>
     {/each}
   </ul>
+
+  {#if hireError}
+    <p role="alert">{hireError}</p>
+  {/if}
 
   <div class="obw-nav">
     <button class="obw-btn-ghost" onclick={onBack} disabled={isHiring}>← Back</button>

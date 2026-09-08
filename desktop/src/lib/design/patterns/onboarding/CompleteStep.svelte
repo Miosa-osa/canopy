@@ -1,7 +1,7 @@
 <script lang="ts">
 /**
  * CompleteStep — step 5 of OnboardingWizard.
- * "You're all set!" summary + "Open Build" CTA.
+ * Setup guidance + "Open Build" CTA.
  * CSS prefix: obw-
  */
 import { goto } from '$app/navigation';
@@ -24,32 +24,18 @@ function openBuild(): void {
   <div class="obw-complete__badge" aria-hidden="true">
     <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
       <circle cx="26" cy="26" r="26" fill="var(--cnp-accent)" opacity="0.12"/>
-      <path d="M16 26 L23 33 L36 19" stroke="var(--cnp-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M16 26 H36 M28 18 L36 26 L28 34" stroke="var(--cnp-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </div>
 
   <h1 class="obw-complete__heading">
-    {profile.displayName ? `You're all set, ${profile.displayName}.` : "You're all set."}
+    {profile.displayName ? `Explore Canopy, ${profile.displayName}.` : 'Explore Canopy.'}
   </h1>
 
   <p class="obw-complete__sub">
-    Canopy is configured and ready. Your agents are standing by.
+    You can finish setup as you explore. Open Build to choose a workspace, then check your runtimes and agents.
   </p>
 
-  <div class="obw-complete__summary">
-    <div class="obw-complete__summary-item">
-      <span aria-hidden="true">✓</span> Workspace configured
-    </div>
-    <div class="obw-complete__summary-item">
-      <span aria-hidden="true">✓</span> Runtimes detected
-    </div>
-    <div class="obw-complete__summary-item">
-      <span aria-hidden="true">✓</span> Agents hired
-    </div>
-    <div class="obw-complete__summary-item">
-      <span aria-hidden="true">✓</span> Theme selected
-    </div>
-  </div>
 
   <button class="obw-btn-primary obw-complete__cta" onclick={openBuild}>
     Open Build →
@@ -86,29 +72,6 @@ function openBuild(): void {
     font-size: var(--text-sm, 0.875rem);
     color: var(--fg-muted);
     line-height: 1.6;
-  }
-
-  .obw-complete__summary {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2, 8px);
-    text-align: left;
-    width: 100%;
-    max-width: 280px;
-  }
-
-  .obw-complete__summary-item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2, 8px);
-    font-family: var(--font-sans, sans-serif);
-    font-size: var(--text-sm, 0.875rem);
-    color: var(--fg-muted);
-  }
-
-  .obw-complete__summary-item span {
-    color: var(--success, #78d97c);
-    font-weight: 700;
   }
 
   .obw-complete__cta {

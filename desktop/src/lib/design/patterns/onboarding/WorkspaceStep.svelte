@@ -6,7 +6,7 @@
  */
 import { createQuery } from '@tanstack/svelte-query';
 import { workspaceTemplatesQuery } from '$lib/api/queries/workspaces.js';
-import { getTauriDialog, isTauri } from '$lib/tauri/index.js';
+import { chooseOnboardingFolder } from './setup-actions.js';
 
 interface Props {
   onNext: () => void;
@@ -17,28 +17,21 @@ interface Props {
 let { onNext, onBack, onSkip }: Props = $props();
 
 let selectedPath = $state<string | null>(null);
+let folderError = $state<string | null>(null);
 let selectedTemplate = $state<string | null>(null);
 
 const templatesQuery = createQuery(workspaceTemplatesQuery());
 
 async function openFolder(): Promise<void> {
-  if (!isTauri()) {
-    selectedPath = '/my/project';
-    return;
-  }
+  folderError = null;
   try {
-    const { open } = await getTauriDialog();
-    const result = await open({
-      directory: true,
-      multiple: false,
-      title: 'Select workspace folder',
-    });
+    const result = await chooseOnboardingFolder();
     if (typeof result === 'string') {
       selectedPath = result;
       selectedTemplate = null;
     }
-  } catch {
-    // User cancelled — no-op
+  } catch (error) {
+    folderError = error instanceof Error ? error.message : 'Could not open the folder picker.';
   }
 }
 
@@ -61,6 +54,10 @@ const hasSelection = $derived(!!selectedPath || !!selectedTemplate);
       <span>Open existing folder</span>
     </button>
   </div>
+
+  {#if folderError}
+    <p role="alert">{folderError}</p>
+  {/if}
 
   {#if selectedPath}
     <div class="obw-workspace__path" aria-live="polite">

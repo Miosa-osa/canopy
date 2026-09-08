@@ -22,7 +22,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:14-alpine
+        image: pgvector/pgvector:0.8.6-pg14-trixie
         env:
           POSTGRES_USER: canopy
           POSTGRES_PASSWORD: canopy

@@ -12,15 +12,8 @@ import { GripVertical, Pin, X } from 'lucide-svelte';
 import { untrack } from 'svelte';
 import { writable } from 'svelte/store';
 import { type DndEvent, dndzone } from 'svelte-dnd-action';
-import { apiDelete, apiGet, apiPost, apiPut } from '$lib/api/client.js';
-
-interface PinnedItem {
-  id: string;
-  workspaceSlug: string;
-  itemType: string;
-  itemRef: string;
-  position: number;
-}
+import { apiDelete, apiPost, apiPut } from '$lib/api/client.js';
+import { type PinnedItem, workspacePinsQuery } from '$lib/api/queries/pins.js';
 
 interface Props {
   workspaceSlug: string;
@@ -36,20 +29,10 @@ function pinsQueryKey(slug: string) {
   return ['workspaces', slug, 'pins'] as const;
 }
 
-const queryOptsStore = writable(
-  untrack(() => ({
-    queryKey: pinsQueryKey(workspaceSlug),
-    queryFn: () =>
-      apiGet<{ data: PinnedItem[] }>(`/workspaces/${workspaceSlug}/pins`).then((r) => r.data),
-  }))
-);
+const queryOptsStore = writable(untrack(() => workspacePinsQuery(workspaceSlug)));
 
 $effect(() => {
-  queryOptsStore.set({
-    queryKey: pinsQueryKey(workspaceSlug),
-    queryFn: () =>
-      apiGet<{ data: PinnedItem[] }>(`/workspaces/${workspaceSlug}/pins`).then((r) => r.data),
-  });
+  queryOptsStore.set(workspacePinsQuery(workspaceSlug));
 });
 
 const pinsQ = createQuery<PinnedItem[]>(queryOptsStore);
