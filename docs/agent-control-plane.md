@@ -32,6 +32,18 @@ Repository administrators retain the platform's ability to change repository set
 
 ## Evidence limits
 
+### Backend coverage baseline
+
+The full backend coverage gate is explicitly 67.5%, with no coverage exclusions added for this rollout.
+The original `e41f4bd` checkout measured 67.03% coverage and nine failing tests on September 8.
+The repaired suite passed 3,236 tests locally at 67.70%; the preceding Linux run measured 67.64%.
+The previously implicit Mix default of 90% was not an achieved project baseline.
+Historical 80% targets are not evidence that the current product meets that target.
+Raise the configured floor as sustained coverage improves; reductions require explicit owner review of the measurement and rationale.
+Coverage measures executed lines and does not substitute for behavior assertions or the authority and permission regressions.
+
+### Report interpretation
+
 The September 8 report correctly identified unresolved Canopy boot references and stale integration guidance.
 Its broader epistemic and permission scenarios require runtime reproductions; documentation drift alone does not prove those exploits.
 The Engine already exposes build SHA, release version, API version, migration level, and retrieval component identity.

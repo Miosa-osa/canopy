@@ -8,6 +8,8 @@ defmodule Canopy.MixProject do
       elixir: "~> 1.19",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      # Measured baseline and ratchet policy: docs/agent-control-plane.md.
+      test_coverage: [summary: [threshold: 67.5]],
       aliases: aliases(),
       deps: deps(),
       listeners: [Phoenix.CodeReloader]
