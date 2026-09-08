@@ -219,15 +219,15 @@ defmodule Canopy.Sessions.PtyBridgeBatchingTest do
         # Put a sentinel chunk in the queue so stdin_bytes stays elevated
         # even if the drain timer runs.
         padded_queue = :queue.in(:binary.copy("X", 8 * 1024 * 1024), s.stdin_queue)
-        %{s | stdin_queue: padded_queue, stdin_bytes: 8 * 1024 * 1024}
+        # Keep this watermark assertion independent of OS pipe throughput.
+        # Drain behavior is exercised separately below.
+        %{s | stdin_queue: padded_queue, stdin_bytes: 8 * 1024 * 1024, drain_timer: make_ref()}
       end)
 
       # Now cast 1 more byte — this should cross the high-watermark and set stdin_paused.
       GenServer.cast(bridge_pid, {:input, "!"})
 
       # Allow the cast to be processed. Use sync call to ensure it's through the mailbox.
-      :sys.get_state(bridge_pid)
-
       state = :sys.get_state(bridge_pid)
 
       assert state.stdin_paused == true,

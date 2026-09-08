@@ -26,8 +26,7 @@ commands:
   health:
     task: optimal.health
     description: Check engine readiness
-    args:
-      - --json
+    args: []
   impact:
     task: optimal.impact
     description: Score strategy impact
@@ -95,8 +94,7 @@ compatibility:
 commands:
   health:
     task: optimal.health
-    args:
-      - --json
+    args: []
 ```
 
 Obtain the revision from the reviewed Engine release checkout with `git rev-parse HEAD`.
@@ -112,3 +110,6 @@ Task execution is privileged local code execution within the selected workspace,
 
 The superseded `wiring/optimal-engine-integration.md` describes an older proposal, including a possible in-process dependency.
 It does not override this runtime contract.
+
+The Engine health task returns human-readable diagnostics in stdout.
+Canopy wraps stdout, stderr, exit code, and duration in a JSON execution result; task stdout itself is not guaranteed to be JSON.

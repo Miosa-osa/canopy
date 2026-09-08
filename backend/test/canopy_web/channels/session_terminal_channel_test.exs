@@ -95,8 +95,10 @@ defmodule CanopyWeb.SessionTerminalChannelTest do
 
   @tag :capture_log
   test "process exit is pushed as exit frame with integer code" do
-    # /bin/true exits immediately with code 0
-    %{socket: _socket} = join_channel("/usr/bin/true")
+    # Trigger exit after subscribe_and_join has linked the channel process.
+    # An immediate /usr/bin/true exit races ChannelTest's own link setup.
+    %{socket: socket} = join_channel("/bin/sh")
+    push(socket, "input", %{"data" => "exit 0\n"})
 
     assert_push "exit", %{code: code}, 2000
     assert is_integer(code)

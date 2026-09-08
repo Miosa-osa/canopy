@@ -88,6 +88,9 @@ defmodule Canopy.Runtimes.Auth.Gemini do
       {:error, {:binary_path_not_allowed, path}} ->
         {:ok, %{ok: false, model: nil, latency_ms: 0, error: "binary path not allowed: #{path}"}}
     end
+  rescue
+    error in ErlangError ->
+      {:ok, %{ok: false, model: nil, latency_ms: 0, error: Exception.message(error)}}
   end
 
   # Checks for CLI-managed OAuth credentials written by `gemini` (interactive login).

@@ -40,7 +40,9 @@ Historical material remains evidence of its date, not proof of current implement
 make doctor
 ```
 
-Verifies tool versions match `.tool-versions`. If versions are wrong, stop and
+Verifies tool versions match `.tool-versions` and requires ripgrep (`rg`) for workspace search.
+Install ripgrep with `brew install ripgrep` on macOS or `apt-get install ripgrep` on Debian/Ubuntu.
+The command exits nonzero when a required tool is missing or mismatched. If versions are wrong, stop and
 fix before writing any code. Mismatched tooling is the #1 source of build drift.
 
 ## Ownership Boundaries

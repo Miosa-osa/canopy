@@ -44,6 +44,9 @@ jobs:
           elixir-version: "1.19.5"
           otp-version: "28.0"
 
+      - name: Install runtime search dependency
+        run: sudo apt-get update && sudo apt-get install --yes ripgrep
+
       - name: Cache mix deps
         uses: actions/cache@v4
         with:
