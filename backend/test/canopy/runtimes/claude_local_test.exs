@@ -13,7 +13,9 @@ defmodule Canopy.Runtimes.ClaudeLocalTest do
   Parser unit tests live in their own async module (parser_test.exs).
   """
 
-  use ExUnit.Case
+  # execute/1 builds its environment from Vault, which reads the Repo.
+  # Own a sandbox connection instead of borrowing another test's shared owner.
+  use Canopy.DataCase, async: false
 
   alias Canopy.Runtimes.ClaudeLocal
   alias Canopy.Runtimes.ClaudeLocal.Runner
