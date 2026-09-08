@@ -123,6 +123,10 @@ jobs:
         working-directory: desktop
         run: pnpm test --run
 
+      - name: Build desktop SPA
+        working-directory: desktop
+        run: pnpm build
+
   # ─── Rust sidecar ────────────────────────────────────────────────────────────
   rust-test:
     name: Rust (cargo test)

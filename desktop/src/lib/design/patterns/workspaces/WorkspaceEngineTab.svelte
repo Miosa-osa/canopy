@@ -189,7 +189,7 @@ async function runCommand(): Promise<void> {
             <Activity size={14} />
           </span>
           <div>
-            <strong>{health.available ? 'Ready' : 'Not ready'}</strong>
+            <strong>{health.available ? 'Compatibility verified' : 'Not configured'}</strong>
             <small>{health.commandsCount} command{health.commandsCount === 1 ? '' : 's'}</small>
           </div>
         </div>
