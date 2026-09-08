@@ -27,22 +27,27 @@ defmodule CanopyWeb.ScrollbackControllerTest do
     setup do
       session_id = "ctrl-test-#{System.unique_integer([:positive])}"
 
-      {:ok, pid} =
-        GenServer.start_link(ScrollbackStore, session_id,
-          name: {:via, Registry, {Canopy.Sessions.ScrollbackRegistry, session_id}}
-        )
+      # ExUnit stops the store before on_exit removes its log file.
+      pid = start_supervised!({ScrollbackStore, session_id})
 
       # Write some bytes into the store.
       send(pid, {:pty_output, "hello scrollback\n"})
       :sys.get_state(pid)
 
       on_exit(fn ->
-        if Process.alive?(pid), do: GenServer.stop(pid, :normal)
         log_path = Path.join([System.user_home!(), ".canopy", "scrollback", "#{session_id}.log"])
         File.rm(log_path)
       end)
 
       {:ok, session_id: session_id}
+    end
+
+    test "the test supervisor completes store shutdown before cleanup", %{session_id: session_id} do
+      [{pid, _}] = Registry.lookup(Canopy.Sessions.ScrollbackRegistry, session_id)
+      monitor = Process.monitor(pid)
+      assert :ok = stop_supervised({ScrollbackStore, session_id})
+      assert_receive {:DOWN, ^monitor, :process, ^pid, :shutdown}
+      on_exit(fn -> refute Process.alive?(pid) end)
     end
 
     test "returns base64-encoded pty bytes", %{conn: conn, session_id: session_id} do
