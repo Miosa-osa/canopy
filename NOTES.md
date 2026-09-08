@@ -17,3 +17,20 @@ The Gemini cancellation test now writes a fake credential before execution; remo
 The original e41f4bd backend measured 67.03% coverage with nine failing tests; the repaired suite passed all 3,236 tests locally at 67.70%, with the preceding Linux run measuring 67.64%.
 Configured an explicit 67.5% floor above the original measured baseline, retaining full coverage collection and adding owner review for backend/mix.exs.
 The previous implicit 90% default and historical 80% target were not achieved coverage claims.
+
+## Current guidance and evidence review, 2026-09-08
+
+The README, documentation index, contributor guide, desktop guide, and active contracts now distinguish current implementations from historical plans and unverified full native restoration.
+Current setup and validation guidance lives in docs/development.md; the historical operations document remains unchanged and no longer serves as the current runbook.
+The authority registry now includes the desktop guide and checks Markdown references in current guides and contracts.
+
+Findings 1-6 and adversarial fixtures A-G have an evidence and retest matrix in docs/agent-control-plane.md.
+The matrix explicitly leaves semantic historical-retrieval poisoning, independent runtime attestation, and cross-product unauthorized Fact promotion unproven by Canopy's structural checks.
+Live branch protection was checked for independent code-owner review, last-push approval, stale-review dismissal, administrator enforcement, and four required status contexts.
+
+The development command recheck reproduced duplicate Vite startup in make dev and incorrect Tauri CLI working-directory resolution.
+The command follow-up makes Tauri own the single Vite process, resolves Tauri from the repository root, and makes test-watch explicitly frontend-only.
+Tauri info now resolves the native application configuration; that inspection is not evidence of a completed native authenticated session or full quit/relaunch restoration.
+
+The initial documentation validation passed the authority check, all 26 then-current structural fixtures, and 104 local Markdown links/anchors; later fixture additions must be rerun on their final checkout.
+Historical and generated documents were preserved.

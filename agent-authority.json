@@ -8,7 +8,7 @@
       "status": "active",
       "owner": "platform",
       "scope": "canopy",
-      "version": 1,
+      "version": 2,
       "effective": "2026-09-08",
       "owns": [
         "agent-operation"
@@ -18,7 +18,8 @@
         "workspace-engine",
         "review-queue",
         "control-plane"
-      ]
+      ],
+      "check_references": true
     },
     {
       "id": "contributing",
@@ -27,9 +28,10 @@
       "status": "active",
       "owner": "platform",
       "scope": "canopy",
-      "version": 1,
+      "version": 2,
       "effective": "2026-09-08",
-      "owns": []
+      "owns": [],
+      "check_references": true
     },
     {
       "id": "notice",
@@ -49,9 +51,10 @@
       "status": "active",
       "owner": "platform",
       "scope": "canopy",
-      "version": 1,
+      "version": 2,
       "effective": "2026-09-08",
-      "owns": []
+      "owns": [],
+      "check_references": true
     },
     {
       "id": "docs-01-foundation",
@@ -258,11 +261,12 @@
       "status": "active",
       "owner": "platform",
       "scope": "canopy",
-      "version": 1,
+      "version": 2,
       "effective": "2026-09-08",
       "owns": [
         "workspace-engine-execution"
-      ]
+      ],
+      "check_references": true
     },
     {
       "id": "review-queue",
@@ -284,9 +288,10 @@
       "status": "active",
       "owner": "platform",
       "scope": "canopy",
-      "version": 1,
+      "version": 2,
       "effective": "2026-09-08",
-      "owns": []
+      "owns": [],
+      "check_references": true
     },
     {
       "id": "control-plane",
@@ -295,11 +300,12 @@
       "status": "active",
       "owner": "platform",
       "scope": "canopy",
-      "version": 1,
+      "version": 2,
       "effective": "2026-09-08",
       "owns": [
         "document-authority"
-      ]
+      ],
+      "check_references": true
     },
     {
       "id": "current-product",
@@ -308,11 +314,12 @@
       "status": "active",
       "owner": "platform",
       "scope": "canopy",
-      "version": 1,
+      "version": 2,
       "effective": "2026-09-08",
       "owns": [
         "product-scope"
-      ]
+      ],
+      "check_references": true
     },
     {
       "id": "wiring-active-workspace-wiring",
@@ -696,15 +703,40 @@
       "status": "active",
       "owner": "platform",
       "scope": "canopy",
-      "version": 1,
+      "version": 2,
       "effective": "2026-09-08",
       "owns": []
+    },
+    {
+      "id": "current-development",
+      "path": "docs/development.md",
+      "kind": "reference",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [],
+      "check_references": true
+    },
+    {
+      "id": "desktop-guide",
+      "path": "desktop/README.md",
+      "kind": "reference",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [],
+      "check_references": true
     }
   ],
   "inventory": [
     "*.md",
     "docs/**/*.md",
-    "wiring/**/*.md"
+    "wiring/**/*.md",
+    "desktop/README.md"
   ],
   "required_paths": [
     "Makefile",
