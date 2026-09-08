@@ -156,7 +156,12 @@ defmodule CanopyWeb.SessionsControllerTest do
     end
 
     test "creates session and returns 201 with session_id and sse_url", %{conn: conn} do
-      body = %{runtime_type: @mock_type, cwd: "/tmp/project", prompt: "Hello agent"}
+      body = %{
+        runtime_type: @mock_type,
+        cwd: "/tmp/project",
+        prompt: "Hello agent",
+        interactive: false
+      }
 
       conn = post(conn, "/api/v1/sessions", body)
       assert response = json_response(conn, 201)
@@ -176,7 +181,7 @@ defmodule CanopyWeb.SessionsControllerTest do
     test "returns 422 when runtime_type is unknown", %{conn: conn} do
       # unregister mock so this type doesn't exist
       unregister_mock()
-      body = %{runtime_type: "no-such-runtime", cwd: "/tmp"}
+      body = %{runtime_type: "no-such-runtime", cwd: "/tmp", interactive: false}
       conn = post(conn, "/api/v1/sessions", body)
       assert body = json_response(conn, 422)
       assert body["error"] == "unknown_runtime"
@@ -193,7 +198,7 @@ defmodule CanopyWeb.SessionsControllerTest do
 
     test "returns 422 when adapter.execute fails", %{conn: conn} do
       Mox.expect(MockAdapter, :execute, fn _ctx -> {:error, :binary_not_found} end)
-      body = %{runtime_type: @mock_type, cwd: "/tmp/project"}
+      body = %{runtime_type: @mock_type, cwd: "/tmp/project", interactive: false}
       conn = post(conn, "/api/v1/sessions", body)
       assert body = json_response(conn, 422)
       assert body["error"] == "execution_failed"

@@ -96,8 +96,7 @@ defmodule CanopyWeb.RuntimeAdapterController do
 
   operation :roles_create,
     summary: "Assign or update a model role",
-    request_body:
-      {"Role assignment", "application/json", RuntimeAdapterSchema.RoleAssignment},
+    request_body: {"Role assignment", "application/json", RuntimeAdapterSchema.RoleAssignment},
     responses: [
       created: {"Role", "application/json", RuntimeAdapterSchema.ModelRole}
     ]
@@ -255,8 +254,7 @@ defmodule CanopyWeb.RuntimeAdapterController do
 
   operation :swap,
     summary: "Mid-session hot-swap to a target runtime",
-    request_body:
-      {"Swap request", "application/json", RuntimeAdapterSchema.SwapRequest},
+    request_body: {"Swap request", "application/json", RuntimeAdapterSchema.SwapRequest},
     responses: [
       ok: {"Swap result", "application/json", RuntimeAdapterSchema.Checkpoint}
     ]

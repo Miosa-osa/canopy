@@ -28,7 +28,10 @@ defmodule Canopy.Repo.Migrations.CreateMissionsAndMilestones do
 
     create table(:milestones, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :mission_id, references(:missions, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :mission_id, references(:missions, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :title, :string, null: false
       add :description, :text
       add :status, :string, null: false, default: "pending"

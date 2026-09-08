@@ -84,7 +84,8 @@ defmodule Canopy.Tools.Kanban do
   )
 
   tool("kanban.add_note",
-    description: "Append a timestamped note to a task's description. The calling agent must have claimed the task.",
+    description:
+      "Append a timestamped note to a task's description. The calling agent must have claimed the task.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -154,7 +155,9 @@ defmodule Canopy.Tools.Kanban do
   end
 
   @doc false
-  def update_task(%{"task_id" => task_id, "agent_slug" => agent_slug, "status_note" => note} = args) do
+  def update_task(
+        %{"task_id" => task_id, "agent_slug" => agent_slug, "status_note" => note} = args
+      ) do
     progress_pct = args["progress_pct"]
 
     with {:ok, task} <- Tasks.get(task_id),

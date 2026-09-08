@@ -949,10 +949,8 @@ defmodule CanopyWeb.SessionsController do
   @spec ports(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def ports(conn, %{"id" => id}) do
     with {:ok, _session} <- Sessions.get(id) do
-      case PortsMonitor.scan(id) do
-        {:ok, ports} -> json(conn, %{data: ports})
-        {:error, _} -> json(conn, %{data: []})
-      end
+      {:ok, ports} = PortsMonitor.scan(id)
+      json(conn, %{data: ports})
     end
   end
 

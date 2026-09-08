@@ -565,7 +565,12 @@ defmodule Canopy.Tools.Sandboxes do
 
     case Client.exec(sandbox_id, command, []) do
       {:ok, %{exit_code: 0} = result} ->
-        {:ok, %{path: path, content: Map.get(result, :stdout, ""), size: byte_size(Map.get(result, :stdout, ""))}}
+        {:ok,
+         %{
+           path: path,
+           content: Map.get(result, :stdout, ""),
+           size: byte_size(Map.get(result, :stdout, ""))
+         }}
 
       {:ok, result} ->
         {:error,
@@ -606,7 +611,13 @@ defmodule Canopy.Tools.Sandboxes do
   @doc false
   def list_ports(%{"sandbox_id" => sandbox_id}) do
     forwards = SandboxesNg.list_port_forwards(sandbox_id: sandbox_id, open_only: true)
-    {:ok, %{sandbox_id: sandbox_id, count: length(forwards), ports: Enum.map(forwards, &serialize_forward/1)}}
+
+    {:ok,
+     %{
+       sandbox_id: sandbox_id,
+       count: length(forwards),
+       ports: Enum.map(forwards, &serialize_forward/1)
+     }}
   end
 
   @doc false
@@ -639,8 +650,7 @@ defmodule Canopy.Tools.Sandboxes do
             {:ok, serialize_forward(forward)}
 
           {:error, changeset} ->
-            {:error,
-             %{message: "expose_port failed", details: changeset_errors(changeset)}}
+            {:error, %{message: "expose_port failed", details: changeset_errors(changeset)}}
         end
     end
   end
@@ -678,8 +688,13 @@ defmodule Canopy.Tools.Sandboxes do
   end
 
   defp format_reason(:not_found), do: %{message: "sandbox not found"}
-  defp format_reason({:unexpected_response, body}), do: %{message: "unexpected miosa response", body: inspect(body)}
-  defp format_reason({status, _body}) when is_integer(status), do: %{message: "miosa error", status: status}
+
+  defp format_reason({:unexpected_response, body}),
+    do: %{message: "unexpected miosa response", body: inspect(body)}
+
+  defp format_reason({status, _body}) when is_integer(status),
+    do: %{message: "miosa error", status: status}
+
   defp format_reason(reason), do: %{message: "miosa error", reason: inspect(reason)}
 
   defp changeset_errors(changeset) do

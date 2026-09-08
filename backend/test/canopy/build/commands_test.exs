@@ -106,7 +106,11 @@ defmodule Canopy.Build.CommandsTest do
   describe "list/1 — Templates source" do
     test "includes workflow templates only — workspace/persona are skipped" do
       {:ok, _ws} =
-        Templates.create_template(%{slug: "spin-up-dev-shop-ws", name: "Dev Shop", kind: "workspace"})
+        Templates.create_template(%{
+          slug: "spin-up-dev-shop-ws",
+          name: "Dev Shop",
+          kind: "workspace"
+        })
 
       {:ok, _persona} =
         Templates.create_template(%{slug: "senior-eng", name: "Senior Eng", kind: "persona"})

@@ -63,8 +63,7 @@ defmodule CanopyWeb.SkillCuratorController do
 
   operation :lockfile_create,
     summary: "Lock a skill to a specific version",
-    request_body:
-      {"Lockfile create", "application/json", SkillCuratorSchema.LockfileCreate},
+    request_body: {"Lockfile create", "application/json", SkillCuratorSchema.LockfileCreate},
     responses: [
       created: {"Lockfile entry", "application/json", SkillCuratorSchema.LockfileEntry}
     ]
@@ -252,8 +251,7 @@ defmodule CanopyWeb.SkillCuratorController do
 
   operation :sources_create,
     summary: "Add a registry source",
-    request_body:
-      {"Source create", "application/json", SkillCuratorSchema.RegistrySourceCreate},
+    request_body: {"Source create", "application/json", SkillCuratorSchema.RegistrySourceCreate},
     responses: [
       created: {"Registry source", "application/json", SkillCuratorSchema.RegistrySource}
     ]
@@ -323,8 +321,7 @@ defmodule CanopyWeb.SkillCuratorController do
     if Regex.match?(@slug_regex, s) do
       :ok
     else
-      {:error,
-       "invalid slug: must be lowercase alphanumeric, dashes, underscores; max 128 chars"}
+      {:error, "invalid slug: must be lowercase alphanumeric, dashes, underscores; max 128 chars"}
     end
   end
 

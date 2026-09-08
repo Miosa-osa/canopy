@@ -186,9 +186,7 @@ defmodule Canopy.Routines do
   end
 
   def release_after_fire(routine, now, {:error, reason}) do
-    Logger.warning(
-      "[Routines] fire failed for #{routine.short_id}: #{inspect(reason)}"
-    )
+    Logger.warning("[Routines] fire failed for #{routine.short_id}: #{inspect(reason)}")
 
     next = safe_next_after(routine.cron, now)
 

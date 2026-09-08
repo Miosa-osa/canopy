@@ -6,6 +6,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule TelemetryEvent do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -30,6 +31,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule TelemetryList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -41,6 +43,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule CostBucket do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -54,6 +57,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule CostBuckets do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -66,6 +70,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule Breadcrumb do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -86,6 +91,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule BreadcrumbList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -99,6 +105,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule Insight do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -132,6 +139,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule InsightList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -143,6 +151,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule Alert do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -170,6 +179,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule AlertList do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -181,6 +191,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule InsightCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{
@@ -203,6 +214,7 @@ defmodule CanopyWeb.Schemas.AnalyticsSchema do
   defmodule AlertCreate do
     @moduledoc false
     require OpenApiSpex
+
     OpenApiSpex.schema(%{
       type: :object,
       properties: %{

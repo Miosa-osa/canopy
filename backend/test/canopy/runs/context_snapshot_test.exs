@@ -125,7 +125,8 @@ defmodule Canopy.Runs.ContextSnapshotTest do
   describe "env_hash format" do
     test "SHA-256 of env vars produces 64 lowercase hex chars" do
       # Replicate the algorithm in snapshot_context/3
-      whitelist = ~w(PATH HOME NODE_VERSION RUBY_VERSION PYTHON_VERSION ELIXIR_VERSION MIX_ENV ASDF_DIR)
+      whitelist =
+        ~w(PATH HOME NODE_VERSION RUBY_VERSION PYTHON_VERSION ELIXIR_VERSION MIX_ENV ASDF_DIR)
 
       env_hash =
         whitelist

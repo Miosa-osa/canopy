@@ -196,7 +196,14 @@ defmodule Canopy.Workspaces.StackDetector do
     has_requirements = File.exists?(Path.join(root_path, "requirements.txt"))
 
     if has_pyproject or has_requirements do
-      markers = for {flag, name} <- [{has_pyproject, "pyproject.toml"}, {has_requirements, "requirements.txt"}], flag, do: name
+      markers =
+        for {flag, name} <- [
+              {has_pyproject, "pyproject.toml"},
+              {has_requirements, "requirements.txt"}
+            ],
+            flag,
+            do: name
+
       framework = detect_python_framework(root_path)
 
       %{

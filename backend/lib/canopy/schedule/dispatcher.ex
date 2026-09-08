@@ -90,9 +90,7 @@ defmodule Canopy.Schedule.Dispatcher do
       evaluate_specs()
     rescue
       e ->
-        Logger.warning(
-          "[Schedule.Dispatcher] tick failed (non-fatal): #{Exception.message(e)}"
-        )
+        Logger.warning("[Schedule.Dispatcher] tick failed (non-fatal): #{Exception.message(e)}")
     end
   end
 
@@ -117,7 +115,7 @@ defmodule Canopy.Schedule.Dispatcher do
           run.status == "enqueued" and DateTime.compare(run.scheduled_at, cutoff) == :lt ->
             mark_missed(run)
 
-          run.status == "running" and run.fired_at &&
+          (run.status == "running" and run.fired_at) &&
               DateTime.compare(run.fired_at, late_cutoff) == :lt ->
             mark_late(run)
 

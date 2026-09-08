@@ -108,7 +108,8 @@ defmodule Canopy.Issues.CheckoutTest do
           checkout_expires_at: past
         )
 
-      fresh_expires = DateTime.add(DateTime.utc_now() |> DateTime.truncate(:second), 3600, :second)
+      fresh_expires =
+        DateTime.add(DateTime.utc_now() |> DateTime.truncate(:second), 3600, :second)
 
       active =
         insert(:issue,
@@ -128,7 +129,8 @@ defmodule Canopy.Issues.CheckoutTest do
     end
 
     test "returns 0 when no locks are stale" do
-      fresh_expires = DateTime.add(DateTime.utc_now() |> DateTime.truncate(:second), 3600, :second)
+      fresh_expires =
+        DateTime.add(DateTime.utc_now() |> DateTime.truncate(:second), 3600, :second)
 
       insert(:issue,
         checked_out_by_agent: "agent-ok",

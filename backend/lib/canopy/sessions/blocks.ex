@@ -86,7 +86,8 @@ defmodule Canopy.Sessions.Blocks do
   end
 
   defp do_create(attrs, attempt, user_seq?) do
-    attrs_with_seq = Map.put_new_lazy(attrs, :sequence, fn -> next_sequence(attrs[:session_id]) end)
+    attrs_with_seq =
+      Map.put_new_lazy(attrs, :sequence, fn -> next_sequence(attrs[:session_id]) end)
 
     case insert_block(attrs_with_seq) do
       {:ok, block} ->

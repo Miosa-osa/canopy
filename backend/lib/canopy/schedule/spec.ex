@@ -127,7 +127,10 @@ defmodule Canopy.Schedule.Spec do
     |> validate_inclusion(:status, @statuses)
     |> validate_number(:jitter_seconds, greater_than_or_equal_to: 0, less_than_or_equal_to: 3600)
     |> validate_number(:grace_seconds, greater_than_or_equal_to: 0, less_than_or_equal_to: 86_400)
-    |> validate_number(:failure_threshold, greater_than_or_equal_to: 1, less_than_or_equal_to: 100)
+    |> validate_number(:failure_threshold,
+      greater_than_or_equal_to: 1,
+      less_than_or_equal_to: 100
+    )
     |> validate_number(:consecutive_failures, greater_than_or_equal_to: 0)
     |> validate_number(:run_count, greater_than_or_equal_to: 0)
     |> validate_number(:error_count, greater_than_or_equal_to: 0)

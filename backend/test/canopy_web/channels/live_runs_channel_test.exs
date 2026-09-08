@@ -242,11 +242,17 @@ defmodule CanopyWeb.LiveRunsChannelTest do
 
     base = %{run_id: Ecto.UUID.generate(), short_id: "R-TOOL0001", workspace_slug: "default"}
 
-    Events.run_tool_call(Map.merge(base, %{tool_name: "canopy.create_task", params: %{}, at: "now"}))
+    Events.run_tool_call(
+      Map.merge(base, %{tool_name: "canopy.create_task", params: %{}, at: "now"})
+    )
+
     assert_push "run_tool_call", call_ev, 500
     assert call_ev.tool_name == "canopy.create_task"
 
-    Events.run_tool_result(Map.merge(base, %{tool_name: "canopy.create_task", result: %{ok: true}, at: "now"}))
+    Events.run_tool_result(
+      Map.merge(base, %{tool_name: "canopy.create_task", result: %{ok: true}, at: "now"})
+    )
+
     assert_push "run_tool_result", result_ev, 500
     assert result_ev.tool_name == "canopy.create_task"
   end

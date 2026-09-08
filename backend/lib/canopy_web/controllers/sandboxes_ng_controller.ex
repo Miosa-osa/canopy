@@ -46,7 +46,9 @@ defmodule CanopyWeb.SandboxesNgController do
     parameters: [
       workspace_slug: [in: :query, type: :string, required: false]
     ],
-    responses: [ok: {"Sandbox state list", "application/json", SandboxesNgSchema.SandboxStateList}]
+    responses: [
+      ok: {"Sandbox state list", "application/json", SandboxesNgSchema.SandboxStateList}
+    ]
 
   @spec index(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def index(conn, params) do
@@ -72,7 +74,9 @@ defmodule CanopyWeb.SandboxesNgController do
       to: [in: :query, type: :string, required: false],
       limit: [in: :query, type: :integer, required: false]
     ],
-    responses: [ok: {"Lifecycle event list", "application/json", SandboxesNgSchema.LifecycleEventList}]
+    responses: [
+      ok: {"Lifecycle event list", "application/json", SandboxesNgSchema.LifecycleEventList}
+    ]
 
   @spec events(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def events(conn, params) do
@@ -103,7 +107,9 @@ defmodule CanopyWeb.SandboxesNgController do
       sandbox_id: [in: :path, type: :string, required: true],
       limit: [in: :query, type: :integer, required: false]
     ],
-    responses: [ok: {"Lifecycle event list", "application/json", SandboxesNgSchema.LifecycleEventList}]
+    responses: [
+      ok: {"Lifecycle event list", "application/json", SandboxesNgSchema.LifecycleEventList}
+    ]
 
   @spec events_for_sandbox(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def events_for_sandbox(conn, %{"sandbox_id" => sandbox_id} = params) do
@@ -206,7 +212,8 @@ defmodule CanopyWeb.SandboxesNgController do
 
   operation :ports_create,
     summary: "Open a port forward",
-    request_body: {"Port forward create", "application/json", SandboxesNgSchema.PortForwardCreate},
+    request_body:
+      {"Port forward create", "application/json", SandboxesNgSchema.PortForwardCreate},
     responses: [created: {"Port forward", "application/json", SandboxesNgSchema.PortForward}]
 
   @spec ports_create(Plug.Conn.t(), map()) :: Plug.Conn.t()

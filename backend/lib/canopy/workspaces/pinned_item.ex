@@ -37,7 +37,7 @@ defmodule Canopy.Workspaces.PinnedItem do
     |> validate_inclusion(:item_type, ~w(task issue doc session project))
     |> validate_length(:item_ref, min: 1, max: 256)
     |> unique_constraint([:workspace_slug, :item_type, :item_ref],
-         name: :pinned_items_workspace_type_ref_idx
-       )
+      name: :pinned_items_workspace_type_ref_idx
+    )
   end
 end

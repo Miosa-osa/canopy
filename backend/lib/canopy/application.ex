@@ -86,6 +86,8 @@ defmodule Canopy.Application do
     opts = [strategy: :one_for_one, name: Canopy.Supervisor]
 
     with {:ok, pid} <- Supervisor.start_link(children, opts) do
+      maybe_restore_sessions()
+
       # Register heartbeats for all hired agents after Oban has fully started.
       # Skipped in :test env — the SQL Sandbox requires explicit ownership per
       # process, and this Task runs outside any test process boundary.
@@ -166,11 +168,37 @@ defmodule Canopy.Application do
     end
   end
 
+  # Snapshot live sessions while Repo is still up, before children stop.
+  @impl true
+  def prep_stop(state) do
+    unless Application.get_env(:canopy, :env, :prod) == :test do
+      _ = Canopy.Sessions.Persistence.save_state()
+    end
+
+    state
+  end
+
   # Callback invoked by Phoenix when the endpoint configuration changes
   # in hot-code reloads (e.g., `mix phx.server` in dev mode).
   @impl true
   def config_change(changed, _new, removed) do
     CanopyWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp maybe_restore_sessions do
+    unless Application.get_env(:canopy, :env, :prod) == :test do
+      case Canopy.Sessions.Persistence.restore_state() do
+        {:ok, result} ->
+          require Logger
+
+          Logger.info("[Canopy.Application] session restore #{inspect(result)}")
+
+        other ->
+          require Logger
+
+          Logger.warning("[Canopy.Application] session restore failed: #{inspect(other)}")
+      end
+    end
   end
 end

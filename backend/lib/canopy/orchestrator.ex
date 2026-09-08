@@ -47,9 +47,7 @@ defmodule Canopy.Orchestrator do
     _unblocked = resolve_all_active_missions()
     dispatched = dispatch()
 
-    Logger.info(
-      "[Orchestrator] sweep complete stalled=#{stalled} dispatched=#{dispatched}"
-    )
+    Logger.info("[Orchestrator] sweep complete stalled=#{stalled} dispatched=#{dispatched}")
 
     %{stalled: stalled, dispatched: dispatched}
   end

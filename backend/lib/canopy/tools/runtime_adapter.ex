@@ -43,7 +43,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   # ---------------------------------------------------------------------------
 
   tool("runtimes.list",
-    description: "List all registered runtimes with current status, model, and last preflight result.",
+    description:
+      "List all registered runtimes with current status, model, and last preflight result.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -59,14 +60,16 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("runtimes.detect_installed",
-    description: "Re-scan PATH and known install locations. Returns detected runtime types and versions.",
+    description:
+      "Re-scan PATH and known install locations. Returns detected runtime types and versions.",
     parameters: %{"type" => "object", "properties" => %{}},
     handler: {__MODULE__, :detect_installed, []},
     requires: [:runtimes]
   )
 
   tool("runtimes.test_environment",
-    description: "Run the adapter's preflight environment check. Returns a list of {level, message} entries.",
+    description:
+      "Run the adapter's preflight environment check. Returns a list of {level, message} entries.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -79,7 +82,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("runtimes.swap_adapter",
-    description: "Mid-session hot-swap from current runtime to target. Captures a swap checkpoint first.",
+    description:
+      "Mid-session hot-swap from current runtime to target. Captures a swap checkpoint first.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -108,7 +112,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("runtimes.fetch_quota",
-    description: "Fetch live quota windows from the provider for a runtime (capability :quota_windows).",
+    description:
+      "Fetch live quota windows from the provider for a runtime (capability :quota_windows).",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -121,7 +126,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("runtimes.suggest_for_task",
-    description: "Rank runtimes for a task based on capabilities, cost, and quota. Returns top N candidates.",
+    description:
+      "Rank runtimes for a task based on capabilities, cost, and quota. Returns top N candidates.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -145,7 +151,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("runtimes.set_default_for_role",
-    description: "Assign a model as the default for a role (chat / autocomplete / edit / apply / embed / rerank / summarize).",
+    description:
+      "Assign a model as the default for a role (chat / autocomplete / edit / apply / embed / rerank / summarize).",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -164,7 +171,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("runtimes.list_models",
-    description: "List the models exposed by a runtime, with full ModelInfo (context, capabilities, prices).",
+    description:
+      "List the models exposed by a runtime, with full ModelInfo (context, capabilities, prices).",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -177,7 +185,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("runtimes.add_alias",
-    description: "Define a shortcut alias for a (runtime, model) pair. Stored in workspace settings.",
+    description:
+      "Define a shortcut alias for a (runtime, model) pair. Stored in workspace settings.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -216,7 +225,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("runtimes.restore_checkpoint",
-    description: "Restore a session to a checkpoint. Auto-creates a pre-restore checkpoint for rollback-of-rollback.",
+    description:
+      "Restore a session to a checkpoint. Auto-creates a pre-restore checkpoint for rollback-of-rollback.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -234,7 +244,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   # ---------------------------------------------------------------------------
 
   tool("mcp.list_servers",
-    description: "List MCP servers attached to a runtime, or globally if no runtime_id is supplied.",
+    description:
+      "List MCP servers attached to a runtime, or globally if no runtime_id is supplied.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -264,7 +275,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   )
 
   tool("mcp.test_server",
-    description: "Run a list-tools health check against an MCP server. Returns surfaced tools or errors.",
+    description:
+      "Run a list-tools health check against an MCP server. Returns surfaced tools or errors.",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -281,7 +293,8 @@ defmodule Canopy.Tools.RuntimeAdapter do
   # ---------------------------------------------------------------------------
 
   tool("skills.list",
-    description: "List materialized skills for a runtime (per-runtime CLAUDE.md / AGENTS.md / etc).",
+    description:
+      "List materialized skills for a runtime (per-runtime CLAUDE.md / AGENTS.md / etc).",
     parameters: %{
       "type" => "object",
       "properties" => %{
@@ -400,11 +413,13 @@ defmodule Canopy.Tools.RuntimeAdapter do
   end
 
   @doc false
-  def set_default_for_role(%{
-        "runtime_id" => runtime,
-        "model" => model,
-        "role" => role
-      } = args) do
+  def set_default_for_role(
+        %{
+          "runtime_id" => runtime,
+          "model" => model,
+          "role" => role
+        } = args
+      ) do
     opts =
       []
       |> put_opt(:default_for_role, true)
@@ -491,11 +506,13 @@ defmodule Canopy.Tools.RuntimeAdapter do
   end
 
   @doc false
-  def mcp_add_server(%{
-        "runtime_id" => runtime_id,
-        "name" => name,
-        "transport" => transport
-      } = args) do
+  def mcp_add_server(
+        %{
+          "runtime_id" => runtime_id,
+          "name" => name,
+          "transport" => transport
+        } = args
+      ) do
     server = %{
       "id" => Ecto.UUID.generate(),
       "name" => name,

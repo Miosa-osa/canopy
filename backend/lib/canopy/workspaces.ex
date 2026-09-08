@@ -92,7 +92,8 @@ defmodule Canopy.Workspaces do
 
   Returns `{:ok, workspace}` or `{:error, :not_found | Ecto.Changeset.t()}`.
   """
-  @spec detect_and_update(String.t()) :: {:ok, Workspace.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  @spec detect_and_update(String.t()) ::
+          {:ok, Workspace.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def detect_and_update(slug) do
     with {:ok, workspace} <- get_by_slug(slug) do
       config = build_initial_config(workspace.root_path)

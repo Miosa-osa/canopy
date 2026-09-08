@@ -58,7 +58,8 @@ defmodule CanopyWeb.MissionsController do
       {"Mission params", "application/json", %OpenApiSpex.Schema{type: :object}, required: true},
     responses: [
       created: {"Mission created", "application/json", %OpenApiSpex.Schema{type: :object}},
-      unprocessable_entity: {"Validation error", "application/json", %OpenApiSpex.Schema{type: :object}}
+      unprocessable_entity:
+        {"Validation error", "application/json", %OpenApiSpex.Schema{type: :object}}
     ]
 
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
@@ -104,7 +105,8 @@ defmodule CanopyWeb.MissionsController do
     responses: [
       ok: {"Updated mission", "application/json", %OpenApiSpex.Schema{type: :object}},
       not_found: {"Not found", "application/json", %OpenApiSpex.Schema{type: :object}},
-      unprocessable_entity: {"Validation error", "application/json", %OpenApiSpex.Schema{type: :object}}
+      unprocessable_entity:
+        {"Validation error", "application/json", %OpenApiSpex.Schema{type: :object}}
     ]
 
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
@@ -129,12 +131,12 @@ defmodule CanopyWeb.MissionsController do
     summary: "Add a milestone to a mission",
     parameters: [id: [in: :path, type: :string, required: true]],
     request_body:
-      {"Milestone params", "application/json", %OpenApiSpex.Schema{type: :object},
-       required: true},
+      {"Milestone params", "application/json", %OpenApiSpex.Schema{type: :object}, required: true},
     responses: [
       created: {"Milestone created", "application/json", %OpenApiSpex.Schema{type: :object}},
       not_found: {"Mission not found", "application/json", %OpenApiSpex.Schema{type: :object}},
-      unprocessable_entity: {"Validation error", "application/json", %OpenApiSpex.Schema{type: :object}}
+      unprocessable_entity:
+        {"Validation error", "application/json", %OpenApiSpex.Schema{type: :object}}
     ]
 
   @spec add_milestone(Plug.Conn.t(), map()) :: Plug.Conn.t()
@@ -166,7 +168,9 @@ defmodule CanopyWeb.MissionsController do
     responses: [
       ok: {"Milestone advanced", "application/json", %OpenApiSpex.Schema{type: :object}},
       not_found: {"Not found", "application/json", %OpenApiSpex.Schema{type: :object}},
-      unprocessable_entity: {"Deps not met or validation failed", "application/json", %OpenApiSpex.Schema{type: :object}}
+      unprocessable_entity:
+        {"Deps not met or validation failed", "application/json",
+         %OpenApiSpex.Schema{type: :object}}
     ]
 
   @spec advance_milestone(Plug.Conn.t(), map()) :: Plug.Conn.t()

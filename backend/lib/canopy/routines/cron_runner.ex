@@ -91,9 +91,7 @@ defmodule Canopy.Routines.CronRunner do
       {:error, reason} = err ->
         Routines.release_after_fire(routine, now, err)
 
-        Logger.warning(
-          "[CronRunner] #{routine.short_id} fire error: #{inspect(reason)}"
-        )
+        Logger.warning("[CronRunner] #{routine.short_id} fire error: #{inspect(reason)}")
     end
   end
 
@@ -114,7 +112,9 @@ defmodule Canopy.Routines.CronRunner do
          }) do
       {:ok, session} ->
         case SpawnPipeline.spawn(session, wake_reason: "schedule") do
-          {:ok, _} -> :ok
+          {:ok, _} ->
+            :ok
+
           {:error, stage, reason} ->
             Logger.warning(
               "[CronRunner] spawn failed for #{routine.short_id} at :#{stage}: #{inspect(reason)}"

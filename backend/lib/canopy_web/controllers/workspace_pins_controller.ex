@@ -38,7 +38,8 @@ defmodule CanopyWeb.WorkspacePinsController do
     ],
     responses: [
       created: {"Pin created", "application/json", %OpenApiSpex.Schema{type: :object}},
-      unprocessable_entity: {"Validation error", "application/json", %OpenApiSpex.Schema{type: :object}}
+      unprocessable_entity:
+        {"Validation error", "application/json", %OpenApiSpex.Schema{type: :object}}
     ]
 
   @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()

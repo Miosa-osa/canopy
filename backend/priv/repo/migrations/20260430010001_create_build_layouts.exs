@@ -24,6 +24,9 @@ defmodule Canopy.Repo.Migrations.CreateBuildLayouts do
     create index(:build_layouts, [:scope, :owner_id])
     create index(:build_layouts, [:workspace_slug])
     create index(:build_layouts, [:last_used_at])
-    create unique_index(:build_layouts, [:slug, :scope, :owner_id], name: :build_layouts_slug_scope_owner_index)
+
+    create unique_index(:build_layouts, [:slug, :scope, :owner_id],
+             name: :build_layouts_slug_scope_owner_index
+           )
   end
 end

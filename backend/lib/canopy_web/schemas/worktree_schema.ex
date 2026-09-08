@@ -103,7 +103,11 @@ defmodule CanopyWeb.Schemas.WorktreeSchema do
       title: "PushRequest",
       type: :object,
       properties: %{
-        remote: %Schema{type: :string, description: "Remote name (default: origin)", nullable: true}
+        remote: %Schema{
+          type: :string,
+          description: "Remote name (default: origin)",
+          nullable: true
+        }
       }
     })
   end

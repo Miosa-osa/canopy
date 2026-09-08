@@ -496,7 +496,12 @@ defmodule Canopy.Sessions.PtyBridge do
           Process.cancel_timer(state.flush_timer)
         end
 
-        do_flush_output(%{state | pending_output: new_pending, pending_bytes: new_bytes, flush_timer: nil})
+        do_flush_output(%{
+          state
+          | pending_output: new_pending,
+            pending_bytes: new_bytes,
+            flush_timer: nil
+        })
 
       state.flush_timer == nil ->
         # Arm the interval timer (first chunk in this window)

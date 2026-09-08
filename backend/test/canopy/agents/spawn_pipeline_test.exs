@@ -242,5 +242,4 @@ defmodule Canopy.Agents.SpawnPipelineTest do
       assert is_nil(worktree) or is_binary(worktree)
     end
   end
-
 end

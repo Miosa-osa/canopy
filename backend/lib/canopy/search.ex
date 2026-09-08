@@ -88,6 +88,9 @@ defmodule Canopy.Search do
          backend: backend_id(backend),
          truncated: truncated_any?
        }}
+    else
+      {:error, :not_found} -> {:error, :workspace_not_found}
+      error -> error
     end
   end
 
@@ -120,6 +123,7 @@ defmodule Canopy.Search do
       :ripgrep -> Backend.Ripgrep
       :elixir -> Backend.Elixir
       :auto -> auto_pick()
+      nil -> auto_pick()
       mod when is_atom(mod) -> mod
     end
   end
@@ -167,8 +171,12 @@ defmodule Canopy.Search do
   defp safe_match?(%{file_path: rel_path}, root_path)
        when is_binary(rel_path) and is_binary(root_path) do
     cond do
-      String.starts_with?(rel_path, "/") -> false
-      String.contains?(rel_path, "..") -> false
+      String.starts_with?(rel_path, "/") ->
+        false
+
+      String.contains?(rel_path, "..") ->
+        false
+
       true ->
         abs_root = Path.expand(root_path)
         abs = Path.expand(Path.join(abs_root, rel_path))

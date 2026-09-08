@@ -39,6 +39,7 @@ defmodule Canopy.Tools.WorkspaceEngineTest do
         task: optimal.impact
     """)
 
+    Canopy.EngineFixture.pin!(root)
     workspace
   end
 

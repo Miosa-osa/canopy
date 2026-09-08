@@ -34,7 +34,8 @@ defmodule CanopyWeb.AnalyticsController do
 
   operation :telemetry,
     summary: "Query telemetry events",
-    description: "Returns telemetry events with optional filters, sorted by timestamp descending.",
+    description:
+      "Returns telemetry events with optional filters, sorted by timestamp descending.",
     parameters: [
       event: [in: :query, type: :string, required: false],
       agent_id: [in: :query, type: :string, required: false],

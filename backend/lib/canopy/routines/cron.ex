@@ -82,12 +82,12 @@ defmodule Canopy.Routines.Cron do
         n -> n
       end
 
+    # When both day-of-month and day-of-week are restricted, OR them (POSIX behaviour)
     dt.minute in minutes and
       dt.hour in hours and
       dt.month in months and
       (days == :any or dt.day in days) and
       (weekdays == :any or dow in weekdays) and
-      # When both day-of-month and day-of-week are restricted, OR them (POSIX behaviour)
       (days == :any or weekdays == :any or dt.day in days or dow in weekdays)
   end
 

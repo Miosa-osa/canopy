@@ -229,7 +229,9 @@ defmodule Canopy.Sessions.PtyBridgeBatchingTest do
       :sys.get_state(bridge_pid)
 
       state = :sys.get_state(bridge_pid)
-      assert state.stdin_paused == true, "stdin_paused should be true after exceeding high-watermark"
+
+      assert state.stdin_paused == true,
+             "stdin_paused should be true after exceeding high-watermark"
     end
 
     test "queuing under the high-watermark leaves stdin_paused false", %{
@@ -262,6 +264,7 @@ defmodule Canopy.Sessions.PtyBridgeBatchingTest do
       Process.sleep(20)
 
       state_after = :sys.get_state(bridge_pid)
+
       assert state_after.stdin_bytes == bytes_before,
              "Hard limit: bytes should not increase past limit"
     end

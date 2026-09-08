@@ -71,7 +71,14 @@ defmodule Canopy.TemplatesTest do
   describe "list_templates/1" do
     setup do
       Templates.create_template(%{slug: "ws-1", name: "Workspace 1", kind: "workspace"})
-      Templates.create_template(%{slug: "ws-2", name: "Workspace 2", kind: "workspace", verified: true})
+
+      Templates.create_template(%{
+        slug: "ws-2",
+        name: "Workspace 2",
+        kind: "workspace",
+        verified: true
+      })
+
       Templates.create_template(%{slug: "p-1", name: "Persona 1", kind: "persona"})
       :ok
     end
