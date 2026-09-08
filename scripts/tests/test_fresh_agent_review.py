@@ -11,6 +11,14 @@ SPEC.loader.exec_module(MODULE)
 
 
 class FreshAgentScoringTests(unittest.TestCase):
+    def test_real_completed_negative_command_event_is_evidence(self):
+        path = Path(__file__).resolve().parents[1] / 'fixtures/fresh-agent/completed-failure-event.json'
+        event = MODULE.strict_json(path.read_text())
+        self.assertTrue(MODULE.validator_observed([event], 1))
+        self.assertFalse(MODULE.validator_observed([event], 0))
+        event['item']['exit_code'] = 0
+        self.assertFalse(MODULE.validator_observed([event], 0))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

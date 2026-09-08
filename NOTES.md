@@ -54,3 +54,16 @@ The trusted comparison CLI now requires exact clean Git roots, checks enforcemen
 It runs the trusted validator before candidate execution and detects post-child enforcement or ledger mutation.
 A separate CI container wrapper supplies execution isolation; the Python harness alone is not an OS sandbox.
 The fresh-agent command is documented separately from deterministic scoring tests and does not claim that Canopy operational approval authenticates human identity.
+
+## Scrollback test lifecycle regression, 2026-09-08
+
+[Application CI run 34291237859](https://github.com/Miosa-osa/canopy/actions/runs/34291237859) at `43310c9` failed `Canopy.Sessions.ScrollbackStoreTest` case `write and read read/2 from: offset returns only tail bytes`, seed `109320`.
+The read assertion succeeded; teardown raised `GenServer.stop(...): shutdown` because the store was linked directly to the exiting test process and `Process.alive?` could not serialize that shutdown with the cleanup callback.
+The new lifecycle regression failed deterministically with `stop_supervised` returning `{:error, :not_found}` under the old setup, then passed with the store owned by ExUnit supervision and monitored shutdown confirmed before cleanup.
+Tests now use `start_supervised!`, letting ExUnit stop the child before `on_exit` removes its log file, and remove unused temporary-directory setup.
+This is a runtime-test lifecycle correction with direct ExUnit evidence; the structural authority ledger does not exercise this race.
+Verification after the fix: seven targeted tests passed, then the entire backend suite passed 3,239 tests with seed `109320`, 67.71% coverage, generated HTML coverage, and exit code zero using an isolated test database.
+Formatting, the authority validator, and whitespace checks passed.
+
+- 2026-09-08: Real fresh-agent missing-authority reviews correctly stopped with validator exit 1, but the initial evaluator rejected Codex's terminal `status=failed` event.
+The exact event and causal lesson are retained under scripts/fixtures/fresh-agent, and a regression now verifies expected nonzero tool execution without changing the required permission or authority decisions.

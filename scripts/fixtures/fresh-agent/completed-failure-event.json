@@ -1,0 +1,11 @@
+{
+  "type": "item.completed",
+  "item": {
+    "id": "item_3",
+    "type": "command_execution",
+    "command": "/bin/zsh -lc 'python3 scripts/agent_control_plane.py'",
+    "aggregated_output": "FAIL: missing document: SYSTEM.md\nFAIL: broken document reference in docs/guides/agent-control-plane.md: ../../SYSTEM.md\n",
+    "exit_code": 1,
+    "status": "failed"
+  }
+}

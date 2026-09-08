@@ -3,7 +3,7 @@ defmodule Canopy.Sessions.ScrollbackStoreTest do
   Unit tests for ScrollbackStore — write, read, and rotation.
 
   These tests drive the GenServer directly without a live PtyBridge. The store
-  is started under the test's ScrollbackSupervisor so the Registry resolves it.
+  is owned by ExUnit's test supervisor and registered for public read calls.
   """
 
   use ExUnit.Case, async: true
@@ -16,22 +16,9 @@ defmodule Canopy.Sessions.ScrollbackStoreTest do
   setup do
     session_id = "test-#{System.unique_integer([:positive])}"
 
-    # Capture the scrollback dir so we can assert on file contents.
-    tmp_dir = Path.join(System.tmp_dir!(), "canopy_scrollback_test_#{session_id}")
-    File.mkdir_p!(tmp_dir)
-
-    # Override the home directory lookup used by ScrollbackStore by starting the
-    # store with a patched path.  Since the GenServer calls System.user_home!/0
-    # internally we instead start it directly and interact via its pid.
-    {:ok, pid} =
-      GenServer.start_link(ScrollbackStore, session_id,
-        name: {:via, Registry, {Canopy.Sessions.ScrollbackRegistry, session_id}}
-      )
-
-    on_exit(fn ->
-      if Process.alive?(pid), do: GenServer.stop(pid, :normal)
-      File.rm_rf!(tmp_dir)
-    end)
+    # ExUnit stops supervised children before on_exit file cleanup.
+    # A direct start_link races test-process shutdown against GenServer.stop/1.
+    pid = start_supervised!({ScrollbackStore, session_id})
 
     # Resolve actual log path from state (using the default ~/.canopy/scrollback dir).
     log_path =
@@ -40,6 +27,16 @@ defmodule Canopy.Sessions.ScrollbackStoreTest do
     on_exit(fn -> File.rm(log_path) end)
 
     {:ok, session_id: session_id, pid: pid, log_path: log_path}
+  end
+
+  test "the test supervisor owns shutdown before file cleanup", %{
+    pid: pid,
+    session_id: session_id
+  } do
+    monitor = Process.monitor(pid)
+    assert :ok = stop_supervised({ScrollbackStore, session_id})
+    assert_receive {:DOWN, ^monitor, :process, ^pid, :shutdown}
+    on_exit(fn -> refute Process.alive?(pid) end)
   end
 
   describe "write and read" do

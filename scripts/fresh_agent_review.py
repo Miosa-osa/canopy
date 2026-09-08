@@ -167,8 +167,9 @@ def validator_observed(events, expected_code):
             if len(command) == 3 and command[0] in shells and command[1] in ('-lc', '-c'):
                 command = shlex.split(command[2])
             if command == ['python3', 'scripts/agent_control_plane.py']:
+                terminal_statuses = {'completed'} if expected_code == 0 else {'completed', 'failed'}
                 if (type(item.get('exit_code')) is not int or item['exit_code'] != expected_code
-                        or item.get('status') != 'completed'):
+                        or item.get('status') not in terminal_statuses):
                     return False
                 observed = True
         except (ValueError, TypeError):
