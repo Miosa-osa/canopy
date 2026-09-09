@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "id": "canopy-boot",
+      "path": "CLAUDE.md",
+      "kind": "normative",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [
+        "agent-operation"
+      ],
+      "requires": [
+        "current-product",
+        "workspace-engine"
+      ]
+    },
+    {
+      "id": "current-product",
+      "path": "docs/current-product-contract.md",
+      "kind": "contract",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [
+        "product-scope"
+      ]
+    },
+    {
+      "id": "workspace-engine",
+      "path": "docs/24-workspace-engine.md",
+      "kind": "contract",
+      "status": "active",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": [
+        "workspace-engine-execution"
+      ]
+    },
+    {
+      "id": "old-wiring",
+      "path": "wiring/optimal-engine-integration.md",
+      "kind": "historical",
+      "status": "superseded",
+      "superseded_by": "workspace-engine",
+      "owner": "platform",
+      "scope": "canopy",
+      "version": 1,
+      "effective": "2026-09-08",
+      "owns": []
+    }
+  ],
+  "inventory": [
+    "*.md",
+    "docs/*.md",
+    "wiring/*.md"
+  ],
+  "required_paths": [
+    "backend/workspace_engine.ex"
+  ],
+  "permissions": {
+    "fact_creation": "",
+    "tool_execution": "trusted workspace allowlist required"
+  }
+}

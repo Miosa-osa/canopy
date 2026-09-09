@@ -25,11 +25,8 @@ db-reset:
 # ─── Development ──────────────────────────────────────────────────────────────
 
 dev:
-	@trap 'kill %1 %2 %3 2>/dev/null; exit' INT; \
-	(cd backend && mix phx.server) & \
-	(cd desktop && pnpm dev) & \
-	(cd desktop && pnpm tauri dev) & \
-	wait
+	pnpm exec concurrently --kill-others --success first --names backend,desktop \
+		"cd backend && mix phx.server" "cd desktop && pnpm tauri dev"
 
 # ─── Testing ──────────────────────────────────────────────────────────────────
 
@@ -39,11 +36,7 @@ test:
 	cargo test --manifest-path src-tauri/Cargo.toml
 
 test-watch:
-	@trap 'kill %1 %2 %3 2>/dev/null; exit' INT; \
-	(cd backend && mix test.watch) & \
-	(cd desktop && pnpm test) & \
-	(cargo watch -x "test --manifest-path src-tauri/Cargo.toml") & \
-	wait
+	cd desktop && pnpm exec vitest --watch
 
 # ─── Lint & Format ────────────────────────────────────────────────────────────
 

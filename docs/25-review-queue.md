@@ -1,7 +1,14 @@
 # Review Queue
 
-The Review module is the human gate for work that should not silently proceed.
+The Review module records operational approval requests and decisions for work that should not silently proceed.
+Its current local API and MCP approval handlers accept a caller-supplied reviewer identifier within a trusted operator boundary.
+They do not establish an authenticated separation between human reviewers and agent callers.
+A pending-to-approved transition is operational state, not proof of independent human authorization.
 It is backed by the `reviews` database table and rendered at `/review`.
+
+Canopy owns application, terminal session, workspace, and operational review state.
+Optimal Engine owns governed knowledge and memory, including Claims and Facts.
+Approving a Canopy review does not itself authorize an Engine Fact or replace Engine review policy.
 
 ## What Creates Reviews
 

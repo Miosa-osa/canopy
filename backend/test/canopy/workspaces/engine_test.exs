@@ -201,6 +201,45 @@ defmodule Canopy.Workspaces.EngineTest do
                Engine.run(workspace.slug, "impact")
     end
 
+    test "rejects tracked files hidden by Git index flags" do
+      for flag <- ["--assume-unchanged", "--skip-worktree"] do
+        workspace = insert_workspace()
+        write_engine!(workspace)
+        dir = Path.join(workspace.root_path, "engine")
+        Canopy.EngineFixture.git!(dir, ["update-index", flag, "mix.exs"])
+        File.write!(Path.join(dir, "mix.exs"), "# changed compile input\n")
+
+        assert {:error, {:engine_incompatible, :hidden_index_entries}} =
+                 Engine.run(workspace.slug, "impact")
+      end
+    end
+
+    test "rejects ignored source and configuration inputs but permits build artifacts" do
+      for path <- ["lib/injected.ex", "config/runtime.exs", "src/injected.erl"] do
+        workspace = insert_workspace()
+        write_engine!(workspace)
+        dir = Path.join(workspace.root_path, "engine")
+        File.write!(Path.join(dir, ".git/info/exclude"), path <> "\n")
+        File.mkdir_p!(Path.dirname(Path.join(dir, path)))
+        File.write!(Path.join(dir, path), "# audit fixture, never executed\n")
+
+        assert {:error, {:engine_incompatible, :ignored_execution_inputs}} =
+                 Engine.run(workspace.slug, "impact")
+      end
+
+      workspace = insert_workspace()
+      write_engine!(workspace)
+      dir = Path.join(workspace.root_path, "engine")
+      File.write!(Path.join(dir, ".git/info/exclude"), "deps/\n_build/\n")
+
+      for path <- ["deps/example.ex", "_build/example.beam"] do
+        File.mkdir_p!(Path.dirname(Path.join(dir, path)))
+        File.write!(Path.join(dir, path), "fixture")
+      end
+
+      assert {:ok, %{available: true}} = Engine.health(workspace.slug)
+    end
+
     test "rejects dirty tracked code" do
       workspace = insert_workspace()
       write_engine!(workspace)

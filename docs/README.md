@@ -1,134 +1,51 @@
-# Canopy v2 — Documentation Index
+# Canopy documentation
 
-This index includes current contracts, historical reports, and reference material.
-Classification and precedence are declared in `../agent-authority.json`.
-Start with [the current product contract](./current-product-contract.md).
-Completion counts below describe dated runs and do not prove the current build passes.
+Start with the current contracts and development guide below.
+[The authority registry](../agent-authority.json) owns document classification and precedence.
+This index does not turn historical plans into active requirements.
 
-## Documents
+## Current contracts and guidance
 
-### [01-foundation.md](./01-foundation.md)
-**Platform Architecture, Tech Stack, Build Order**
+| Document | Use it for |
+|----------|------------|
+| [Agent operating protocol](../CLAUDE.md) | Boot procedure, ownership, engineering rules |
+| [Current product contract](current-product-contract.md) | Product scope, implementation evidence, readiness limits |
+| [Development and verification](development.md) | Setup, browser/native development, tests, builds, generated types |
+| [Desktop guide](../desktop/README.md) | Frontend commands, SPA behavior, browser limitations |
+| [Workspace Engine](24-workspace-engine.md) | Pinned local checkout, manifest, preflight, API/tool execution |
+| [Review queue](25-review-queue.md) | Canopy operational approval lifecycle; distinct from Engine Claim-to-Fact review |
+| [Agent control plane](agent-control-plane.md) | Findings 1-6, fixtures A-G, coverage evidence, review policy, retest commands |
+| [Contributing](../CONTRIBUTING.md) | Branches, validation, and independent review |
+| [Engineering notes](../NOTES.md) | Dated decisions and verification records |
 
-The master synthesis. One-sentence thesis, current baseline, target state,
-final tech stack with justifications, complete directory structure, build
-order, migration strategy, and open decisions.
+## Historical evidence
 
-Start here.
+All numbered documents below 24 and all `wiring/` reports are historical in the registry.
+Use them to understand prior plans and measurements, not to select current setup commands, permission rules, or product claims.
+In particular, [05-operations.md](05-operations.md) contains obsolete setup and generation instructions; use [development.md](development.md) instead.
+The old [Engine integration proposal](../wiring/optimal-engine-integration.md) is explicitly superseded by the current workspace Engine contract.
 
-### [02-frontend-design.md](./02-frontend-design.md)
-**Design System, Screens, Component Patterns, UX Flows**
+| Historical document | Original subject |
+|---------------------|------------------|
+| [01-foundation](01-foundation.md) | Architecture, planned build order, historical coverage targets |
+| [02-frontend-design](02-frontend-design.md) | Original screen and design-system plan |
+| [05-operations](05-operations.md) | Earlier local operations runbook |
+| [06-audit](06-audit.md) | April hardening checklist |
+| [07-day1-report](07-day1-report.md) | Day-one completion record |
+| [08-week1-plan](08-week1-plan.md) | Original execution plan |
+| [09-foundation-migration](09-foundation-migration.md) | UI foundation migration plan |
+| [10-naming-ontology-audit](10-naming-ontology-audit.md) | Earlier terminology audit |
+| [11-weeks-2-20-roadmap](11-weeks-2-20-roadmap.md) | Broader module roadmap, now parked |
+| [12-week2-report](12-week2-report.md) | Dated completion and test counts |
+| [13-week3-report](13-week3-report.md) | Dated workspace and file-operation report |
+| [14-architecture-audit](14-architecture-audit.md) | Earlier architecture assessment |
+| [15-phase2-report](15-phase2-report.md) | Earlier hardening report |
+| [16-phase3-report](16-phase3-report.md) | Module backend report |
+| [17-phase4-report](17-phase4-report.md) | Module frontend report |
+| [18-wiring-audit](18-wiring-audit.md) | Earlier integration assessment |
+| [19-runtime-e2e-trace](19-runtime-e2e-trace.md) | Dated runtime trace |
+| [23-runtime-e2e-matrix](23-runtime-e2e-matrix.md) | Dated runtime verification matrix |
 
-Design system specification: OKLCh token system, typography, motion, shadow
-model, component primitives, pattern components, and screen-by-screen UX
-breakdown. Read before writing any Svelte component.
-
-### [05-operations.md](./05-operations.md)
-**Runbook — First Setup, Daily Dev, Troubleshooting**
-
-How to clone, install, run, reset, and debug Canopy. Port map, log locations,
-how to regenerate OpenAPI types, how to recover from common errors. Read this
-if anything goes sideways.
-
-### [06-audit.md](./06-audit.md)
-**Day 1 Hardening + Audit Checklist**
-
-Quality gate procedure run on 2026-04-17 between scaffold completion and Week 1
-kickoff. Automated checks, architecture audit rules, hardening requirements,
-cross-doc consistency procedure. Reference for future audit gates.
-
-### [07-day1-report.md](./07-day1-report.md)
-**Day 1 Completion Record**
-
-Formal sign-off on Week 0 scaffold + Day-1 hardening. What shipped, exit
-criteria results, issues found + resolutions, deferrals with targets,
-assumptions.
-
-### [08-week1-plan.md](./08-week1-plan.md)
-**Historical Week 1 Execution Plan**
-
-Historical plan for Week 1: parallelization map, adapter-seeding logic, SessionsController
-+ SSE endpoint shape, CodexLocal/GeminiLocal follow-on strategy, agent frontmatter
-mapping table, day-by-day track ownership.
-
-### [09-foundation-migration.md](./09-foundation-migration.md)
-**MIOSA Foundation Migration Plan**
-
-Plan + decisions for adopting the Miosa-osa/foundation component library.
-Pill-first, glassmorphism, OKLCh ↔ hex token alias layer.
-
-### [10-naming-ontology-audit.md](./10-naming-ontology-audit.md)
-**Naming, Topology, Ontology, Foundation Audit**
-
-Self-audit of how names/categories/layers/boundaries were chosen across backend,
-frontend, Rust, protocols, and docs. Flags 8 inconsistencies with a remediation
-queue ordered by impact÷effort. Read this before large renames or layer changes.
-
-### [11-weeks-2-20-roadmap.md](./11-weeks-2-20-roadmap.md)
-**Weeks 2–20 Roadmap**
-
-Phase plan for the remaining 19 weeks: agent autonomy (Week 2), productivity
-modules (Weeks 3–12), system modules (Weeks 13–17), v1.0 ship (Weeks 18–20).
-Daily track breakdowns, exit criteria per week, dependency graph.
-
-### [12-week2-report.md](./12-week2-report.md)
-**Week 2 Completion Record**
-
-Sign-off on Week 2 + Week 3 early scaffold. 13 parallel tracks, triple-stack
-verify (1001 backend / 49 vitest / 11 cargo, all green), shell polish wiring,
-Oban test-mode fix, deferrals with targets.
-
-### [13-week3-report.md](./13-week3-report.md)
-**Week 3 Completion Record**
-
-Sign-off on Week 3 (workspace protocol + file ops + persona editor + seeder
-polish). 7 parallel tracks, triple-stack verify, agent corpus 169 → 336,
-deferrals with targets.
-
-### [14-architecture-audit.md](./14-architecture-audit.md)
-**Full Architecture Audit — 9 Parallel Streams**
-
-Granular topology: 71 entry points mapped, 8 critical data flows traced, storage
-hot/warm/cold tiers, dependency DAG, 15 failure modes, scaling cliffs at 10x/100x/
-1000x, top 10 entropy hotspots, control point map, security attack surface,
-tiered priority matrix.
-
-### [15-phase2-report.md](./15-phase2-report.md)
-**Phase 2 Completion Record — Audit Closure + Week 4 Polish**
-
-Closed 7 audit findings (governance+budget gates, rate limiter, markdown RCE
-chain, ghost sessions, type contract, sessions index, vault HKDF). Triple-stack
-verify (1108 backend / 277 vitest / 11 cargo, all green). Shell polish landed.
-
-### [16-phase3-report.md](./16-phase3-report.md)
-**Phase 3 Completion Record — Module Backends + Self-Audit Rollback**
-
-6 module backends (Tasks/Chat/Docs/Channels/Files/Dashboard) + Notifications
-+ MCP resources/prompts + Governance RuleCache + Oban concurrency bump. 12
-parallel agents dispatched, 4 tracks fully rolled back mid-phase. Triple-stack
-verify: 1473 backend / 277 vitest / 11 cargo.
-
-### [17-phase4-report.md](./17-phase4-report.md)
-**Phase 4 Completion Record — Module Frontends**
-
-6 module frontends (Tasks/Chat/Docs/Channels/Files/Dashboard) + NotificationBell
-+ sidebar route flips. 6 modules moved from /coming-soon to real routes.
-Triple-stack: 1473 backend / 469 vitest / 11 cargo.
-
-### [24-workspace-engine.md](./24-workspace-engine.md)
-**Workspace OptimalEngine Contract**
-
-Workspace-local `engine/` integration, `.canopy/engine.yaml` manifest shape,
-API routes, and agent/MCP tool names.
-
-### [25-review-queue.md](./25-review-queue.md)
-**Review Queue Contract**
-
-Human review activation paths, persistence model, lifecycle, API, and `/review`
-UI behavior.
-
----
-
-## Contributing
-
-See [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
+The previously cited attribution and feature-inventory documents, numbered 03 and 04, are absent.
+They are not mandatory boot dependencies and must not be treated as current authority.
+Use [../NOTICE.md](../NOTICE.md) for attribution and the current product contract for scope.

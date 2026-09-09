@@ -66,12 +66,38 @@ defmodule Canopy.Workspaces.Engine.Compatibility do
          true <- remote in @remotes || {:error, :repository_mismatch},
          {:ok, revision} <- git(dir, ["rev-parse", "HEAD"]),
          true <- revision == pin["revision"] || {:error, :revision_mismatch},
+         {:ok, index_entries} <- git(dir, ["ls-files", "-v", "-z"]),
+         true <- not hidden_index_entries?(index_entries) || {:error, :hidden_index_entries},
+         {:ok, ignored} <-
+           git(dir, [
+             "ls-files",
+             "--others",
+             "--ignored",
+             "--exclude-standard",
+             "-z",
+             "--",
+             "lib",
+             "config",
+             "src",
+             "mix.exs",
+             "mix.lock"
+           ]),
+         true <- ignored == "" || {:error, :ignored_execution_inputs},
          {:ok, status} <- git(dir, ["status", "--porcelain", "--untracked-files=all"]),
          true <- status == "" || {:error, :dirty_checkout},
          {:ok, tracked} <- git(dir, ["ls-files", "--error-unmatch", "engine-contract.json"]),
          true <- tracked == "engine-contract.json" || {:error, :untracked_contract} do
       :ok
     end
+  end
+
+  defp hidden_index_entries?(entries) do
+    entries
+    |> String.split(<<0>>, trim: true)
+    |> Enum.any?(fn
+      <<tag, " ", _path::binary>> -> tag == ?S or tag in ?a..?z
+      _ -> true
+    end)
   end
 
   defp same_directory?(left, right) do

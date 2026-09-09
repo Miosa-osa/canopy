@@ -1,0 +1,13 @@
+{
+  "id": "completed-negative-tool-event",
+  "observed_failure": "The first real missing-authority scenarios were scored as missing tool execution although both consumers executed the validator, observed exit 1, and blocked dependent work.",
+  "cause": "The evaluator required item.status=completed for every item.completed command event; Codex emits status=failed for completed nonzero commands.",
+  "protected_behavior": "Require item.completed, the exact validator command, and the scenario expected exit code. Accept status failed only for an expected nonzero result.",
+  "artifact": {
+    "path": "completed-failure-event.json",
+    "sha256": "382f391e0a88d60f235c9bc9dc850357737d367db890fcd46110cb08f8cdd2bf"
+  },
+  "regression": "FreshAgentScoringTests.test_real_completed_negative_command_event_is_evidence",
+  "first_attempt": "Preserved separately; not overwritten or relabeled as a successful run.",
+  "review": "Protocol correction corroborated by both real consumer transcripts and separate agent implementation review; policy expectations remain unchanged."
+}
