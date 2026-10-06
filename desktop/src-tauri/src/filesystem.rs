@@ -64,12 +64,9 @@ pub struct CanopySkillDef {
     pub file_path: String,
 }
 
-// ── IPC Result Wrapper ──────────────────────────────────────────────────────
-
 // ── OptimalOS Workspace Types ───────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct NodeMeta {
     pub id: String,
     pub name: String,
@@ -82,14 +79,12 @@ pub struct NodeMeta {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct MarkdownFile {
     pub frontmatter: std::collections::HashMap<String, serde_json::Value>,
     pub content: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RhythmFiles {
     pub today: Option<String>,
     pub week_plan: Option<String>,
@@ -97,7 +92,6 @@ pub struct RhythmFiles {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SignalMeta {
     pub node_id: String,
     pub path: String,
@@ -106,7 +100,6 @@ pub struct SignalMeta {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CommandResult {
     pub stdout: String,
     pub stderr: String,
@@ -304,253 +297,6 @@ pub async fn scaffold_canopy_dir(
 
     // Scan and return the workspace
     scan_canopy_dir(canopy_dir.to_string_lossy().to_string()).await
-}
-
-// ── OptimalOS Workspace Commands ────────────────────────────────────────────
-
-/// Scan a nodes/ directory and return metadata for each node subdirectory
-#[tauri::command]
-pub async fn scan_nodes_dir(path: String) -> Result<Vec<NodeMeta>, String> {
-    let nodes_path = PathBuf::from(&path);
-    if !nodes_path.exists() {
-        return Err(format!("Nodes directory not found: {}", path));
-    }
-
-    let mut entries: Vec<_> = std::fs::read_dir(&nodes_path)
-        .map_err(|e| format!("Failed to read nodes directory: {}", e))?
-        .filter_map(|e| e.ok())
-        .collect();
-    entries.sort_by_key(|e| e.file_name());
-
-    let mut nodes = Vec::new();
-    for entry in entries {
-        let dir_path = entry.path();
-        if !dir_path.is_dir() {
-            continue;
-        }
-
-        let folder_name = dir_path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default();
-
-        // Match pattern: NN-slug (e.g., 02-miosa, 12-os-accelerator)
-        if folder_name.len() < 3
-            || !folder_name[..2].chars().all(|c| c.is_ascii_digit())
-            || folder_name.as_bytes()[2] != b'-'
-        {
-            continue;
-        }
-
-        // Parse context.md frontmatter for identity fields
-        let context_path = dir_path.join("context.md");
-        let (name, node_type, health, owner) = if context_path.exists() {
-            std::fs::read_to_string(&context_path)
-                .ok()
-                .map(|c| extract_node_identity(&c, &folder_name))
-                .unwrap_or_else(|| default_node_identity(&folder_name))
-        } else {
-            default_node_identity(&folder_name)
-        };
-
-        // Parse signal.md frontmatter for valid_from
-        let signal_path = dir_path.join("signal.md");
-        let last_updated = if signal_path.exists() {
-            std::fs::read_to_string(&signal_path)
-                .ok()
-                .and_then(|c| extract_frontmatter_field(&c, "valid_from"))
-                .unwrap_or_default()
-        } else {
-            String::new()
-        };
-
-        // Count .md files in signals/ subdirectory
-        let signals_dir = dir_path.join("signals");
-        let signal_count = if signals_dir.exists() {
-            std::fs::read_dir(&signals_dir)
-                .map(|rd| {
-                    rd.filter_map(|e| e.ok())
-                        .filter(|e| {
-                            e.path()
-                                .extension()
-                                .map_or(false, |ext| ext == "md")
-                        })
-                        .count() as u32
-                })
-                .unwrap_or(0)
-        } else {
-            0
-        };
-
-        nodes.push(NodeMeta {
-            id: folder_name,
-            name,
-            node_type,
-            health,
-            owner,
-            path: dir_path.to_string_lossy().to_string(),
-            signal_count,
-            last_updated,
-        });
-    }
-
-    Ok(nodes)
-}
-
-/// Read a markdown file, splitting frontmatter (as JSON) from content
-#[tauri::command]
-pub async fn read_markdown_file(path: String) -> Result<MarkdownFile, String> {
-    let raw = std::fs::read_to_string(&path)
-        .map_err(|e| format!("Failed to read {}: {}", path, e))?;
-
-    let (frontmatter, content) = parse_frontmatter_to_json(&raw)
-        .unwrap_or_else(|| (std::collections::HashMap::new(), raw));
-
-    Ok(MarkdownFile {
-        frontmatter,
-        content,
-    })
-}
-
-/// Scan the rhythm/ directory for daily operating files
-#[tauri::command]
-pub async fn scan_rhythm_dir(workspace_path: String) -> Result<RhythmFiles, String> {
-    let rhythm_path = PathBuf::from(&workspace_path).join("rhythm");
-
-    let today = read_file_optional(&rhythm_path.join("today.md"));
-    let week_plan = read_file_optional(&rhythm_path.join("week-plan.md"));
-    let energy = read_file_tail(&rhythm_path.join("energy.md"), 20);
-
-    Ok(RhythmFiles {
-        today,
-        week_plan,
-        energy,
-    })
-}
-
-/// List all signal files across all nodes, sorted descending by filename
-#[tauri::command]
-pub async fn list_signal_files(nodes_path: String) -> Result<Vec<SignalMeta>, String> {
-    let base = PathBuf::from(&nodes_path);
-    if !base.exists() {
-        return Err(format!("Nodes directory not found: {}", nodes_path));
-    }
-
-    let mut signals = Vec::new();
-
-    for entry in WalkDir::new(&base).into_iter().flatten() {
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        if path.extension().map_or(true, |ext| ext != "md") {
-            continue;
-        }
-
-        // Check if this file is inside a signals/ directory
-        let components: Vec<_> = path.components().collect();
-        let signals_idx = components.iter().enumerate().find_map(|(i, comp)| {
-            if let std::path::Component::Normal(name) = comp {
-                if name.to_string_lossy() == "signals" {
-                    return Some(i);
-                }
-            }
-            None
-        });
-
-        let signals_idx = match signals_idx {
-            Some(i) if i > 0 => i,
-            _ => continue,
-        };
-
-        // Parent of signals/ must be a node dir matching NN- pattern
-        let node_name =
-            if let std::path::Component::Normal(name) = &components[signals_idx - 1] {
-                let n = name.to_string_lossy().to_string();
-                if n.len() >= 3
-                    && n[..2].chars().all(|c| c.is_ascii_digit())
-                    && n.as_bytes()[2] == b'-'
-                {
-                    n
-                } else {
-                    continue;
-                }
-            } else {
-                continue;
-            };
-
-        let filename = path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default();
-
-        // Extract date from filename prefix YYYY-MM-DD
-        let date = extract_date_from_filename(&filename);
-
-        signals.push(SignalMeta {
-            node_id: node_name,
-            path: path.to_string_lossy().to_string(),
-            filename,
-            date,
-        });
-    }
-
-    signals.sort_by(|a, b| b.filename.cmp(&a.filename));
-    Ok(signals)
-}
-
-/// Read topology.yaml as a raw string (frontend parses it)
-#[tauri::command]
-pub async fn read_topology_yaml(workspace_path: String) -> Result<String, String> {
-    let topology_path = PathBuf::from(&workspace_path).join("topology.yaml");
-    std::fs::read_to_string(&topology_path)
-        .map_err(|e| format!("Failed to read topology.yaml: {}", e))
-}
-
-/// Run an Optimal engine command (mix optimal.{cmd}) with a 60s timeout
-#[tauri::command]
-pub async fn run_engine_command(
-    cmd: String,
-    args: Vec<String>,
-    workspace_path: Option<String>,
-) -> Result<CommandResult, String> {
-    let engine_dir = if let Ok(dir) = std::env::var("CANOPY_ENGINE_DIR") {
-        dir
-    } else if let Some(ref ws) = workspace_path {
-        let p = PathBuf::from(ws).join("engine");
-        if p.exists() {
-            p.to_string_lossy().to_string()
-        } else {
-            return Err(format!(
-                "Engine directory not found at {}/engine. Set CANOPY_ENGINE_DIR.",
-                ws
-            ));
-        }
-    } else {
-        return Err(
-            "CANOPY_ENGINE_DIR not set and no workspace_path provided".to_string(),
-        );
-    };
-
-    let mix_task = format!("optimal.{}", cmd);
-
-    let output = tokio::time::timeout(
-        tokio::time::Duration::from_secs(60),
-        tokio::process::Command::new("mix")
-            .arg(&mix_task)
-            .args(&args)
-            .current_dir(&engine_dir)
-            .output(),
-    )
-    .await
-    .map_err(|_| "Engine command timed out (60s)".to_string())?
-    .map_err(|e| format!("Failed to run engine command: {}", e))?;
-
-    Ok(CommandResult {
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        exit_code: output.status.code().unwrap_or(-1),
-    })
 }
 
 // ── Internal Helpers ─────────────────────────────────────────────────────────
@@ -786,140 +532,6 @@ fn get_str_list(map: &serde_yaml::Mapping, key: &str) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-// ── OptimalOS Workspace Helpers ──────────────────────────────────────────────
-
-fn default_node_identity(folder_name: &str) -> (String, String, String, String) {
-    (
-        folder_name.to_string(),
-        String::new(),
-        "unknown".to_string(),
-        String::new(),
-    )
-}
-
-fn extract_node_identity(content: &str, fallback_name: &str) -> (String, String, String, String) {
-    let trimmed = content.trim();
-    if !trimmed.starts_with("---") {
-        return default_node_identity(fallback_name);
-    }
-    let after_first = &trimmed[3..];
-    if let Some(end) = after_first.find("---") {
-        let yaml_str = &after_first[..end];
-        if let Ok(yaml) = serde_yaml::from_str::<serde_yaml::Value>(yaml_str) {
-            if let Some(map) = yaml.as_mapping() {
-                let name =
-                    get_str(map, "name").unwrap_or_else(|| fallback_name.to_string());
-                // "type" is a Rust keyword but fine as a YAML key
-                let node_type = get_str(map, "type").unwrap_or_default();
-                let health =
-                    get_str(map, "health").unwrap_or_else(|| "unknown".to_string());
-                let owner = get_str(map, "owner").unwrap_or_default();
-                return (name, node_type, health, owner);
-            }
-        }
-    }
-    default_node_identity(fallback_name)
-}
-
-fn extract_frontmatter_field(content: &str, field: &str) -> Option<String> {
-    let trimmed = content.trim();
-    if !trimmed.starts_with("---") {
-        return None;
-    }
-    let after_first = &trimmed[3..];
-    let end = after_first.find("---")?;
-    let yaml_str = &after_first[..end];
-    let yaml: serde_yaml::Value = serde_yaml::from_str(yaml_str).ok()?;
-    let map = yaml.as_mapping()?;
-    get_str(map, field)
-}
-
-fn parse_frontmatter_to_json(
-    content: &str,
-) -> Option<(std::collections::HashMap<String, serde_json::Value>, String)> {
-    let trimmed = content.trim();
-    if !trimmed.starts_with("---") {
-        return None;
-    }
-    let after_first = &trimmed[3..];
-    let end = after_first.find("---")?;
-    let yaml_str = &after_first[..end];
-    let body = after_first[end + 3..].trim_start().to_string();
-
-    let yaml: serde_yaml::Value = serde_yaml::from_str(yaml_str).ok()?;
-    let map = yaml.as_mapping()?;
-
-    let mut result = std::collections::HashMap::new();
-    for (k, v) in map {
-        if let Some(key) = k.as_str() {
-            result.insert(key.to_string(), yaml_value_to_json(v));
-        }
-    }
-    Some((result, body))
-}
-
-fn yaml_value_to_json(v: &serde_yaml::Value) -> serde_json::Value {
-    match v {
-        serde_yaml::Value::Null => serde_json::Value::Null,
-        serde_yaml::Value::Bool(b) => serde_json::Value::Bool(*b),
-        serde_yaml::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                serde_json::Value::Number(i.into())
-            } else if let Some(f) = n.as_f64() {
-                serde_json::Number::from_f64(f)
-                    .map(serde_json::Value::Number)
-                    .unwrap_or(serde_json::Value::Null)
-            } else {
-                serde_json::Value::Null
-            }
-        }
-        serde_yaml::Value::String(s) => serde_json::Value::String(s.clone()),
-        serde_yaml::Value::Sequence(seq) => {
-            serde_json::Value::Array(seq.iter().map(yaml_value_to_json).collect())
-        }
-        serde_yaml::Value::Mapping(m) => {
-            let mut obj = serde_json::Map::new();
-            for (k, v) in m {
-                if let Some(key) = k.as_str() {
-                    obj.insert(key.to_string(), yaml_value_to_json(v));
-                }
-            }
-            serde_json::Value::Object(obj)
-        }
-        _ => serde_json::Value::Null,
-    }
-}
-
-fn read_file_optional(path: &Path) -> Option<String> {
-    std::fs::read_to_string(path).ok()
-}
-
-fn read_file_tail(path: &Path, lines: usize) -> Option<String> {
-    let content = std::fs::read_to_string(path).ok()?;
-    let all_lines: Vec<&str> = content.lines().collect();
-    let start = all_lines.len().saturating_sub(lines);
-    Some(all_lines[start..].join("\n"))
-}
-
-fn extract_date_from_filename(filename: &str) -> Option<String> {
-    if filename.len() < 10 {
-        return None;
-    }
-    let prefix = &filename[..10];
-    let bytes = prefix.as_bytes();
-    // Check YYYY-MM-DD pattern
-    if bytes[4] == b'-'
-        && bytes[7] == b'-'
-        && prefix[..4].chars().all(|c| c.is_ascii_digit())
-        && prefix[5..7].chars().all(|c| c.is_ascii_digit())
-        && prefix[8..10].chars().all(|c| c.is_ascii_digit())
-    {
-        Some(prefix.to_string())
-    } else {
-        None
-    }
 }
 
 fn chrono_now() -> String {

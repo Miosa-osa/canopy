@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760" role="img" aria-label="The 7 departments of Growth">
+  <title>The 7 departments</title>
+
+  <defs>
+    <style>
+      .d-label { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; }
+      .d-title { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 500; letter-spacing: -0.02em; }
+      .d-cell-name { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 500; letter-spacing: -0.01em; }
+      .d-cell-role { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 400; }
+      .d-cell-meta { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 400; letter-spacing: 0.04em; }
+      .d-sub { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 400; }
+      .d-num { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 400; letter-spacing: -0.04em; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="#000000"/>
+
+  <g transform="translate(40 180)">
+    <rect x="0" y="0" width="265" height="240" fill="#0a0a0a" stroke="#27272a" stroke-width="1" rx="12"/>
+    <text class="d-num" x="24" y="48" font-size="28" fill="#3f3f46">01</text>
+    <text class="d-cell-name" x="24" y="90" font-size="22" fill="#fafafa">Foundations</text>
+    <text class="d-sub" x="24" y="116" font-size="13" fill="#a1a1aa">Foundations Block</text>
+    <text class="d-sub" x="24" y="140" font-size="13" fill="#a1a1aa">ICP · offer · positioning · voice</text>
+    <line x1="24" y1="170" x2="72" y2="170" stroke="#d97706" stroke-width="2" stroke-linecap="square"/>
+    <text class="d-cell-role" x="24" y="198" font-size="11" fill="#71717a">foundations-head</text>
+  </g>
+
+  <g transform="translate(325 180)">
+    <rect x="0" y="0" width="265" height="240" fill="#0a0a0a" stroke="#27272a" stroke-width="1" rx="12"/>
+    <text class="d-num" x="24" y="48" font-size="28" fill="#3f3f46">02</text>
+    <text class="d-cell-name" x="24" y="90" font-size="22" fill="#fafafa">Marketing</text>
+    <text class="d-sub" x="24" y="116" font-size="13" fill="#a1a1aa">Marketing Block</text>
+    <text class="d-sub" x="24" y="140" font-size="13" fill="#a1a1aa">Content · paid ads · organic distribution</text>
+    <line x1="24" y1="170" x2="72" y2="170" stroke="#d97706" stroke-width="2" stroke-linecap="square"/>
+    <text class="d-cell-role" x="24" y="198" font-size="11" fill="#71717a">marketing-head</text>
+  </g>
+
+  <g transform="translate(610 180)">
+    <rect x="0" y="0" width="265" height="240" fill="#0a0a0a" stroke="#27272a" stroke-width="1" rx="12"/>
+    <text class="d-num" x="24" y="48" font-size="28" fill="#3f3f46">03</text>
+    <text class="d-cell-name" x="24" y="90" font-size="22" fill="#fafafa">Nurture</text>
+    <text class="d-sub" x="24" y="116" font-size="13" fill="#a1a1aa">Nurture Block</text>
+    <text class="d-sub" x="24" y="140" font-size="13" fill="#a1a1aa">Email · community · webinar · lead magnet</text>
+    <line x1="24" y1="170" x2="72" y2="170" stroke="#d97706" stroke-width="2" stroke-linecap="square"/>
+    <text class="d-cell-role" x="24" y="198" font-size="11" fill="#71717a">nurture-head</text>
+  </g>
+
+  <g transform="translate(895 180)">
+    <rect x="0" y="0" width="265" height="240" fill="#0a0a0a" stroke="#27272a" stroke-width="1" rx="12"/>
+    <text class="d-num" x="24" y="48" font-size="28" fill="#3f3f46">04</text>
+    <text class="d-cell-name" x="24" y="90" font-size="22" fill="#fafafa">Sales</text>
+    <text class="d-sub" x="24" y="116" font-size="13" fill="#a1a1aa">Sales Block</text>
+    <text class="d-sub" x="24" y="140" font-size="13" fill="#a1a1aa">VSL · funnel · scripts · DM · operations</text>
+    <line x1="24" y1="170" x2="72" y2="170" stroke="#d97706" stroke-width="2" stroke-linecap="square"/>
+    <text class="d-cell-role" x="24" y="198" font-size="11" fill="#71717a">sales-head</text>
+  </g>
+
+  <g transform="translate(182 440)">
+    <rect x="0" y="0" width="265" height="240" fill="#0a0a0a" stroke="#27272a" stroke-width="1" rx="12"/>
+    <text class="d-num" x="24" y="48" font-size="28" fill="#3f3f46">05</text>
+    <text class="d-cell-name" x="24" y="90" font-size="22" fill="#fafafa">Launch</text>
+    <text class="d-sub" x="24" y="116" font-size="13" fill="#a1a1aa">Go-live</text>
+    <text class="d-sub" x="24" y="140" font-size="13" fill="#a1a1aa">Planning · execution · analysis</text>
+    <line x1="24" y1="170" x2="72" y2="170" stroke="#d97706" stroke-width="2" stroke-linecap="square"/>
+    <text class="d-cell-role" x="24" y="198" font-size="11" fill="#71717a">launch-head</text>
+  </g>
+
+  <g transform="translate(467 440)">
+    <rect x="0" y="0" width="265" height="240" fill="#0a0a0a" stroke="#27272a" stroke-width="1" rx="12"/>
+    <text class="d-num" x="24" y="48" font-size="28" fill="#3f3f46">06</text>
+    <text class="d-cell-name" x="24" y="90" font-size="22" fill="#fafafa">Scale</text>
+    <text class="d-sub" x="24" y="116" font-size="13" fill="#a1a1aa">Growth engine</text>
+    <text class="d-sub" x="24" y="140" font-size="13" fill="#a1a1aa">SOPs · hiring · finance · retention</text>
+    <line x1="24" y1="170" x2="72" y2="170" stroke="#d97706" stroke-width="2" stroke-linecap="square"/>
+    <text class="d-cell-role" x="24" y="198" font-size="11" fill="#71717a">scale-head</text>
+  </g>
+
+  <g transform="translate(752 440)">
+    <rect x="0" y="0" width="265" height="240" fill="#fafafa" stroke="#fafafa" stroke-width="1" rx="12"/>
+    <text class="d-num" x="24" y="48" font-size="28" fill="#d4d4d8">07</text>
+    <text class="d-cell-name" x="24" y="90" font-size="22" fill="#09090b">Partnerships</text>
+    <text class="d-sub" x="24" y="116" font-size="13" fill="#52525b">Alliances</text>
+    <text class="d-sub" x="24" y="140" font-size="13" fill="#52525b">JV · affiliate · influencer · referral</text>
+    <line x1="24" y1="170" x2="72" y2="170" stroke="#b45309" stroke-width="2" stroke-linecap="square"/>
+    <text class="d-cell-role" x="24" y="198" font-size="11" fill="#71717a">partnerships-head</text>
+  </g>
+
+  <g transform="translate(600 730)">
+    <text class="d-cell-meta" x="0" y="0" font-size="12" fill="#52525b" text-anchor="middle">growth-ceo  ·  orchestrates the seven department heads</text>
+  </g>
+</svg>

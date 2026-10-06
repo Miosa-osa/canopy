@@ -46,7 +46,7 @@ export interface OnboardingData {
 }
 
 const STORAGE_KEY = "canopy-onboarding";
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 4;
 
 const DEFAULT_DATA: OnboardingData = {
   displayName: "",

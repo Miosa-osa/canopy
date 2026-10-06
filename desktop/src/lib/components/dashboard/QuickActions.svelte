@@ -17,10 +17,10 @@
 
   const actions: Action[] = [
     {
-      label: 'New Issue',
-      ariaLabel: 'Create new issue',
+      label: 'New Signal',
+      ariaLabel: 'Go to signals',
       iconPath: 'M12 5v14M5 12h14',
-      onclick: () => goto('/app/issues?new=1'),
+      onclick: () => goto('/app/signals'),
     },
     {
       label: 'Wake All',
@@ -29,10 +29,10 @@
       onclick: () => onWakeAll?.(),
     },
     {
-      label: 'Spawn Agent',
-      ariaLabel: 'Spawn a new agent',
+      label: 'Deploy Agent',
+      ariaLabel: 'Deploy a new agent',
       iconPath: 'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09zm12-12a3 3 0 0 0-4.24 0L3 13.72V21h7.28l9.22-9.26a3 3 0 0 0 0-4.24l-3-3z',
-      onclick: () => goto('/app/spawn'),
+      onclick: () => goto('/app/agents?hire=1'),
     },
     {
       label: 'View Org',

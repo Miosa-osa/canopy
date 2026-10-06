@@ -22,6 +22,7 @@ function normalizeAdapter(raw: string): AdapterType {
     "hermes",
     "bash",
     "http",
+    "human",
     "custom",
   ];
   return valid.includes(normalized) ? normalized : "custom";

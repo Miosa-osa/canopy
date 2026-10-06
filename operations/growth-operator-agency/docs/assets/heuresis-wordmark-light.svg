@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 200" width="1080" height="400">
+  <!-- HEURESIS — THE LOGO (Light) -->
+
+  <defs>
+    <radialGradient id="lg-core-l" cx="38%" cy="35%" r="68%" fx="33%" fy="30%">
+      <stop offset="0%" stop-color="#4A4A4A"/>
+      <stop offset="55%" stop-color="#1A1A1A"/>
+      <stop offset="100%" stop-color="#080808"/>
+    </radialGradient>
+    <radialGradient id="lg-particle-l" cx="36%" cy="33%" r="70%">
+      <stop offset="0%" stop-color="#3A3A3A"/>
+      <stop offset="60%" stop-color="#181818"/>
+      <stop offset="100%" stop-color="#080808"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="540" height="200" fill="#FAFAF9"/>
+
+  <!-- THE MARK -->
+  <g transform="translate(88, 100) scale(0.6)">
+    <circle cx="0" cy="0" r="102"
+      fill="none" stroke="#000000" stroke-width="1.2" opacity="0.13"/>
+    <path d="M 60,-19 A 63,63 0 1,1 19,-60"
+      fill="none" stroke="#000000" stroke-width="2.8"
+      stroke-linecap="round" opacity="0.80"/>
+    <circle cx="0" cy="0" r="24" fill="url(#lg-core-l)"/>
+  </g>
+
+  <circle cx="130" cy="63" r="4.2" fill="url(#lg-particle-l)"/>
+
+  <!-- THE WORDMARK -->
+  <g fill="none" stroke="#0A0A0A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- H -->
+    <path d="M 196,119 L 196,81"/>
+    <path d="M 196,100 L 220,100"/>
+    <path d="M 220,119 L 220,81"/>
+
+    <!-- E -->
+    <path d="M 240,119 L 240,81"/>
+    <path d="M 240,81 L 260,81"/>
+    <path d="M 240,100 L 257,100"/>
+    <path d="M 240,119 L 260,119"/>
+
+    <!-- U -->
+    <path d="M 280,81 L 280,106 Q 280,119 293,119 Q 306,119 306,106 L 306,81"/>
+
+    <!-- R -->
+    <path d="M 326,119 L 326,81"/>
+    <path d="M 326,81 L 339,81 Q 350,81 350,91 Q 350,100 339,100 L 326,100"/>
+    <path d="M 338,100 L 350,119"/>
+
+    <!-- E -->
+    <path d="M 370,119 L 370,81"/>
+    <path d="M 370,81 L 390,81"/>
+    <path d="M 370,100 L 387,100"/>
+    <path d="M 370,119 L 390,119"/>
+
+    <!-- S -->
+    <path d="M 423,86
+      C 423,80 407,79 407,89
+      C 407,100 425,101 425,112
+      C 425,122 407,121 407,115"
+    />
+
+    <!-- I -->
+    <path d="M 445,119 L 445,81"/>
+
+    <!-- S -->
+    <path d="M 478,86
+      C 478,80 462,79 462,89
+      C 462,100 480,101 480,112
+      C 480,122 462,121 462,115"
+    />
+
+  </g>
+
+</svg>

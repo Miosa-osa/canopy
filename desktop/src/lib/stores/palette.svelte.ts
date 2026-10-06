@@ -65,14 +65,30 @@ class PaletteStore {
         action: () => void goto("/app/office"),
       },
       {
+        id: "goto-workbench",
+        name: "Go to Workbench",
+        shortcut: "⌘4",
+        action: () => void goto("/app/workbench"),
+      },
+      {
+        id: "goto-chat",
+        name: "Go to Chat",
+        action: () => void goto("/app/chat"),
+      },
+      {
+        id: "goto-sessions",
+        name: "Go to Sessions",
+        action: () => void goto("/app/sessions"),
+      },
+      {
+        id: "goto-activity",
+        name: "Go to Activity",
+        action: () => void goto("/app/activity"),
+      },
+      {
         id: "goto-agents",
         name: "Go to Agents",
         action: () => void goto("/app/agents"),
-      },
-      {
-        id: "goto-issues",
-        name: "Go to Issues",
-        action: () => void goto("/app/issues"),
       },
       {
         id: "goto-schedules",
@@ -80,9 +96,19 @@ class PaletteStore {
         action: () => void goto("/app/schedules"),
       },
       {
-        id: "goto-costs",
-        name: "Go to Costs",
-        action: () => void goto("/app/costs"),
+        id: "goto-skills",
+        name: "Go to Skills",
+        action: () => void goto("/app/skills"),
+      },
+      {
+        id: "goto-templates",
+        name: "Go to Templates",
+        action: () => void goto("/app/templates"),
+      },
+      {
+        id: "goto-integrations",
+        name: "Go to Integrations",
+        action: () => void goto("/app/integrations"),
       },
       {
         id: "goto-settings",
@@ -95,11 +121,6 @@ class PaletteStore {
         name: "Go to Terminal",
         shortcut: "⌘T",
         action: () => void goto("/app/terminal"),
-      },
-      {
-        id: "new-issue",
-        name: "New Issue",
-        action: actions["newIssue"] ?? (() => {}),
       },
       {
         id: "restart-backend",

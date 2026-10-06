@@ -1,0 +1,78 @@
+skill_id: build-funnel
+skill_path: skills/build-funnel/SKILL.md
+skill_name: "Funnel Architecture a longevity-protocol Builder"
+
+tier: reasoning_ai
+category: sales
+temperature_gate: warm
+
+role_affinity:
+  - sales-head
+  - funnel-assets
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - funnels                            # funnel registry with archetype + stage KPIs
+  - campaigns                          # funnel tied to active campaign
+  - assets                             # dependency chain (VSL, landing page, etc.)
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_search
+  - web_fetch
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - archetype_selected_with_reasoning
+  - all_5_funnel_stages_mapped
+  - conversion_metrics_targeted_per_stage
+  - tracking_plan_specified
+  - dependency_chain_complete
+  - economics_validate_against_offer_doc
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - funnel_systems
+  write:
+    - funnel_systems
+    - traffic_acquisition
+
+output:
+  location: "output/build-funnel/{date}-funnel-blueprint-archetype-{1-7}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: funnel-blueprint
+    type: inform
+    format: markdown
+    structure: w-funnel-blueprint-8-section
+  receiver: creator
+
+next_skill_routing:
+  on_complete:
+    - condition: "archetype_vsl_or_webinar"
+      recommend: landing-page
+    - condition: "archetype_call_funnel"
+      recommend: post-booking-nurture
+    - condition: "paid_traffic_planned"
+      recommend: ad-creative
+    - condition: "launch_ready"
+      recommend: plan-launch
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

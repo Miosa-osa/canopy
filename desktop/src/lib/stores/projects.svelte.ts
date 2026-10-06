@@ -1,6 +1,7 @@
 // src/lib/stores/projects.svelte.ts
 import type { Project, ProjectStatus } from "$api/types";
-import { projects as projectsApi } from "$api/client";
+import { projects as projectsApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { toastStore } from "./toasts.svelte";
 
 class ProjectsStore {
@@ -36,6 +37,10 @@ class ProjectsStore {
   totalCount = $derived(this.projects.length);
 
   async fetchProjects(workspaceId?: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       this.projects = await projectsApi.list(workspaceId);
@@ -55,6 +60,10 @@ class ProjectsStore {
   }
 
   async fetchProject(id: string): Promise<Project | null> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return null;
+    }
     this.loading = true;
     try {
       const project = await projectsApi.get(id);

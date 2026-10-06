@@ -232,6 +232,15 @@ layer (boot, operate, build, break, shutdown). Skills include `/ingest`, `/searc
 example — it demonstrates how the Workspace Protocol can model an entire personal
 knowledge management system.
 
+### [Growth Operator Agency](./growth-operator-agency/)
+
+A full creator-business growth operating workspace imported from
+`https://github.com/Heuresis/Growth-Operator-Agency`. Forty-one agents and 39
+skills cover foundations, marketing, nurture, sales, launch, partnerships, and
+scale. It includes `company.yaml` for the 11-compartment creator context profile,
+reference frameworks, workflows, spec gates, Claude slash-command shims, and a
+Paperclip-compatible runtime manifest.
+
 ### [Agency Workflows](./agency-workflows/)
 
 A collection of multi-agent workflow examples showing how Operations compose agents

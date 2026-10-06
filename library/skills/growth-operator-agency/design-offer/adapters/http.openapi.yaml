@@ -1,0 +1,60 @@
+openapi: 3.1.0
+info:
+  title: design-offer
+  version: 1.0.0
+  x-skill-source: ../SKILL.md
+  x-signal-tuple: { mode: linguistic, genre: offer-doc, type: inform, format: markdown, structure: w-offer-doc-12-section }
+servers:
+  - url: https://{host}/api/v1
+    variables: { host: { default: growth-os.local } }
+security: [ { GrowthOSKey: [] } ]
+paths:
+  /skills/design-offer/execute:
+    post:
+      summary: Execute design-offer (12-section Offer Document, Value Equation >=150, LTV:CAC >=3:1)
+      x-evidence-gate: [all_12_sections_complete, economics_ltv_cac_gte_3, value_equation_score_gte_150, limiting_belief_aligned_transformation, minimum_5_bonuses_objection_countered, roi_positive_guarantee, signal_score_gte_0_8, blind_output_test_passed]
+      x-streaming: not-required
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Input' } } } }
+      responses:
+        '200': { description: Passed, content: { application/json: { schema: { $ref: '#/components/schemas/Output' } } } }
+        '400': { description: Bad inputs }
+        '401': { description: Unauthorized }
+        '403': { description: Scope violation (INV-8) }
+        '422': { description: Held (quality gate failed — fix-paths returned) }
+        '429': { description: Rate-limited }
+        '500': { description: Runtime error }
+components:
+  securitySchemes: { GrowthOSKey: { type: apiKey, in: header, name: X-Growth-OS-Key } }
+  schemas:
+    Input:
+      type: object
+      required: [skill, inputs, context_profile_id]
+      properties:
+        skill: { type: string, const: design-offer }
+        inputs:
+          type: object
+          required: [audience_intelligence_system_score, offer_architecture_score, creator_identity_matrix_score]
+          properties:
+            offer_name: { type: string, description: Working offer name or price anchor }
+            price_anchor: { type: number, description: "Target primary price e.g. 4997" }
+            audience_intelligence_system_score: { type: number, minimum: 70, description: Compartment 2 score, gate >=70 }
+            offer_architecture_score: { type: number, minimum: 20 }
+            creator_identity_matrix_score: { type: number, minimum: 40 }
+            icp_doc_ref: { type: string, description: Path to ICP Document (Completeness >=80 required) }
+            positioning_doc_ref: { type: string, description: Path to Positioning Document (optional) }
+        context_profile_id: { type: string }
+        options:
+          type: object
+          properties: { stream: { type: boolean, default: false }, dry_run: { type: boolean, default: false } }
+    Output:
+      type: object
+      required: [artifact_ref, status, quality_score, signal_theory_tuple]
+      properties:
+        artifact_ref: { type: string, description: "output/design-offer/{date}-offer-doc.md" }
+        status: { type: string, enum: [passed, held, failed] }
+        quality_score: { type: number, minimum: 0, maximum: 1 }
+        signal_theory_tuple:
+          type: object
+          properties: { mode: { type: string }, genre: { type: string }, type: { type: string }, format: { type: string }, structure: { type: string } }
+        cost_tokens: { type: integer }
+        evidence_ref: { type: string }

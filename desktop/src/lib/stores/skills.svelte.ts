@@ -38,10 +38,19 @@ class SkillsStore {
 
   async toggleSkill(id: string): Promise<void> {
     const previous = this.skills;
+    const skill = this.skills.find((s) => s.id === id);
+    const isBundledLocalSkill = id.includes("--");
+
     // Optimistic update
     this.skills = this.skills.map((s) =>
       s.id === id ? { ...s, enabled: !s.enabled } : s,
     );
+
+    if (isBundledLocalSkill && skill) {
+      this.error = null;
+      return;
+    }
+
     try {
       const updated = await skillsApi.toggle(id);
       this.skills = this.skills.map((s) => (s.id === id ? updated : s));

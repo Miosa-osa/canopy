@@ -1,0 +1,72 @@
+skill_id: write-linkedin-post
+skill_path: skills/write-linkedin-post/SKILL.md
+skill_name: "LinkedIn Post Producer (Operator-Own-Offer Scope)"
+
+tier: structured_ai
+category: marketing
+temperature_gate: warm
+
+role_affinity:
+  - marketing-head
+  - linkedin
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - campaigns
+  - content_calendar
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - post_type_selected
+  - hook_first_line_specificity_gte_8
+  - knowledge_graph_algorithm_optimized
+  - voice_matched
+  - format_priority_respected
+  - character_count_within_range
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - content_strategy
+  write:
+    - content_strategy.linkedin_posts_published
+
+output:
+  location: "output/write-linkedin-post/{date}-{post-type}-{topic-slug}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: linkedin-post
+    type: inform
+    format: markdown
+    structure: w-linkedin-post
+  receiver: LinkedIn audience + algorithm
+
+next_skill_routing:
+  on_complete:
+    - condition: "post_type == lead-magnet"
+      recommend: dm-sequence
+    - condition: "repurpose_requested"
+      recommend: write-x-thread
+    - condition: "default"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: marketing-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

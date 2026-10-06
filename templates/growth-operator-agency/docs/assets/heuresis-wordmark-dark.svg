@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 160" width="1080" height="320">
+  <!--
+    ═══════════════════════════════════════════════════════
+    HEURESIS — THE LOGO
+
+    No fonts. Every letter is a hand-drawn SVG path.
+    Bold. Filled-weight strokes. Geometric construction.
+
+    The icon is delicate and mathematical.
+    The wordmark is bold and grounded.
+    The filled core bridges the two — it matches
+    the visual weight of the letters.
+
+    Letter system:
+      Stroke: 7.5px, round caps
+      Cap height: 42px (baseline 101, capline 59)
+      Construction: geometric — straight lines + circular arcs
+      Every curve in R, U, S uses the same arc radius (12px)
+      matching the icon's Ring 1 curvature at scale.
+    ═══════════════════════════════════════════════════════
+  -->
+
+  <defs>
+    <radialGradient id="lg-core" cx="38%" cy="35%" r="68%" fx="33%" fy="30%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="55%" stop-color="#C2C2C2"/>
+      <stop offset="100%" stop-color="#787878"/>
+    </radialGradient>
+    <radialGradient id="lg-p" cx="36%" cy="33%" r="70%">
+      <stop offset="0%" stop-color="#E8E8E8"/>
+      <stop offset="60%" stop-color="#A0A0A0"/>
+      <stop offset="100%" stop-color="#606060"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="540" height="160" fill="#08080A"/>
+
+
+  <!-- ═══ THE MARK ═══ -->
+  <g transform="translate(68, 80) scale(0.5)">
+    <circle cx="0" cy="0" r="102"
+      fill="none" stroke="#ffffff" stroke-width="1.4" opacity="0.16"/>
+    <path d="M 60,-19 A 63,63 0 1,1 19,-60"
+      fill="none" stroke="#ffffff" stroke-width="3.2"
+      stroke-linecap="round" opacity="0.85"/>
+    <circle cx="0" cy="0" r="24" fill="url(#lg-core)"/>
+  </g>
+
+  <!-- Particle -->
+  <circle cx="101" cy="49" r="3.5" fill="url(#lg-p)"/>
+
+
+  <!-- ═══ THE WORDMARK ═══ -->
+  <!-- Drawn. Not typed. 7.5px bold geometric mono-line. -->
+  <g fill="none" stroke="#ffffff" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- ── H ── -->
+    <path d="M 158,101 L 158,59"/>
+    <path d="M 158,80 L 184,80"/>
+    <path d="M 184,101 L 184,59"/>
+
+    <!-- ── E ── -->
+    <path d="M 208,101 L 208,59"/>
+    <path d="M 208,59 L 230,59"/>
+    <path d="M 208,80 L 226,80"/>
+    <path d="M 208,101 L 230,101"/>
+
+    <!-- ── U ── -->
+    <path d="M 254,59 L 254,88 Q 254,101 268,101 Q 282,101 282,88 L 282,59"/>
+
+    <!-- ── R ── -->
+    <path d="M 306,101 L 306,59"/>
+    <path d="M 306,59 L 319,59 Q 332,59 332,72 Q 332,82 321,83 L 306,83"/>
+    <path d="M 319,83 L 335,101"/>
+
+    <!-- ── E ── -->
+    <path d="M 358,101 L 358,59"/>
+    <path d="M 358,59 L 380,59"/>
+    <path d="M 358,80 L 376,80"/>
+    <path d="M 358,101 L 380,101"/>
+
+    <!-- ── S ── -->
+    <path d="M 418,65
+      C 418,58 400,56 400,67
+      C 400,78 420,80 420,92
+      C 420,104 400,102 400,96"/>
+
+    <!-- ── I ── -->
+    <path d="M 442,101 L 442,59"/>
+
+    <!-- ── S ── -->
+    <path d="M 478,65
+      C 478,58 460,56 460,67
+      C 460,78 480,80 480,92
+      C 480,104 460,102 460,96"/>
+
+  </g>
+
+</svg>

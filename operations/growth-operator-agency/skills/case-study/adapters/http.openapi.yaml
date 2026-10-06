@@ -1,0 +1,61 @@
+openapi: 3.1.0
+info:
+  title: case-study
+  version: 1.0.0
+  x-skill-source: ../SKILL.md
+  x-signal-tuple: { mode: linguistic, genre: case-study, type: inform, format: markdown, structure: w-case-study }
+servers:
+  - url: https://{host}/api/v1
+    variables: { host: { default: growth-os.local } }
+security: [ { GrowthOSKey: [] } ]
+paths:
+  /skills/case-study/execute:
+    post:
+      summary: Execute case-study (6-Level Social Proof Hierarchy — Level 5/6 only — full written + 5 derivative formats + FTC disclosure + client approval)
+      x-evidence-gate: [isomorphic_fit_verified, raw_interview_captured, 6_level_hierarchy_classified, multiple_format_outputs, ftc_disclosure, client_approval, signal_score_gte_0_8]
+      x-streaming: not-required
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Input' } } } }
+      responses:
+        '200': { description: Passed, content: { application/json: { schema: { $ref: '#/components/schemas/Output' } } } }
+        '400': { description: "Bad inputs — e.g. raw interview missing" }
+        '401': { description: Unauthorized }
+        '403': { description: Scope violation (INV-8) }
+        '422': { description: "Held — non-isomorphic fit or Level <5 proof or missing client approval" }
+        '429': { description: Rate-limited }
+        '500': { description: Runtime error }
+components:
+  securitySchemes: { GrowthOSKey: { type: apiKey, in: header, name: X-Growth-OS-Key } }
+  schemas:
+    Input:
+      type: object
+      required: [skill, inputs, context_profile_id]
+      properties:
+        skill: { type: string, const: case-study }
+        inputs:
+          type: object
+          required: [client_slug, thriving_status_verified, raw_interview_ref, client_pre_consent]
+          properties:
+            client_slug: { type: string }
+            thriving_status_verified: { type: boolean, description: Output of /retention-check — must be Thriving, not Struggling/At-Risk }
+            raw_interview_ref: { type: string, description: Path/URL to 30-60 min unscripted Zoom/Riverside/Loom recording }
+            outcome_metric: { type: string, description: "Primary result e.g. $147K in 90 days" }
+            icp_match_score: { type: number, minimum: 0, maximum: 1, description: Isomorphic fit against ICP Document }
+            client_pre_consent: { type: boolean }
+            icp_doc_ref: { type: string }
+            offer_doc_ref: { type: string }
+        context_profile_id: { type: string }
+        options:
+          type: object
+          properties: { stream: { type: boolean, default: false }, dry_run: { type: boolean, default: false } }
+    Output:
+      type: object
+      required: [artifact_ref, status, quality_score, signal_theory_tuple]
+      properties:
+        artifact_ref: { type: string, description: "output/case-study/{date}-case-study-{client-slug}.md + 5 derivative assets" }
+        status: { type: string, enum: [passed, held, failed] }
+        quality_score: { type: number, minimum: 0, maximum: 1 }
+        signal_theory_tuple:
+          type: object
+          properties: { mode: { type: string }, genre: { type: string }, type: { type: string }, format: { type: string }, structure: { type: string } }
+        cost_tokens: { type: integer }
+        evidence_ref: { type: string }

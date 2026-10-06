@@ -7,17 +7,19 @@
 
   import GeneralSettings from './tabs/GeneralSettings.svelte';
   import AppearanceSettings from './tabs/AppearanceSettings.svelte';
+  import SidebarSettings from './tabs/SidebarSettings.svelte';
   import AgentsSettings from './tabs/AgentsSettings.svelte';
   import BudgetSettings from './tabs/BudgetSettings.svelte';
   import NotificationsSettings from './tabs/NotificationsSettings.svelte';
   import IntegrationsSettings from './tabs/IntegrationsSettings.svelte';
   import AdvancedSettings from './tabs/AdvancedSettings.svelte';
 
-  type TabId = 'general' | 'appearance' | 'agents' | 'budget' | 'notifications' | 'integrations' | 'advanced';
+  type TabId = 'general' | 'appearance' | 'sidebar' | 'agents' | 'budget' | 'notifications' | 'integrations' | 'advanced';
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'general',       label: 'General' },
     { id: 'appearance',    label: 'Appearance' },
+    { id: 'sidebar',       label: 'Sidebar' },
     { id: 'agents',        label: 'Agents' },
     { id: 'budget',        label: 'Budget' },
     { id: 'notifications', label: 'Notifications' },
@@ -64,6 +66,8 @@
         <GeneralSettings />
       {:else if activeTab === 'appearance'}
         <AppearanceSettings />
+      {:else if activeTab === 'sidebar'}
+        <SidebarSettings />
       {:else if activeTab === 'agents'}
         <AgentsSettings />
       {:else if activeTab === 'budget'}

@@ -1,0 +1,71 @@
+skill_id: write-x-thread
+skill_path: skills/write-x-thread/SKILL.md
+skill_name: "X/Twitter Thread Producer (7 Thread Types)"
+
+tier: structured_ai
+category: marketing
+temperature_gate: warm
+
+role_affinity:
+  - marketing-head
+  - twitter
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - campaigns
+  - content_calendar
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - thread_type_selected
+  - hook_tweet_specificity_gte_8
+  - tweet_count_calibrated
+  - final_cta_tweet_present
+  - char_limits_respected
+  - voice_matched
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+  write:
+    - content_strategy.x_threads_published
+
+output:
+  location: "output/write-x-thread/{date}-type{N}-{topic-slug}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: x-thread
+    type: inform
+    format: markdown
+    structure: w-x-thread-7-type
+  receiver: X audience + algorithm
+
+next_skill_routing:
+  on_complete:
+    - condition: "repurpose_requested"
+      recommend: write-linkedin-post
+    - condition: "short_form_requested"
+      recommend: write-reel
+    - condition: "default"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: marketing-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

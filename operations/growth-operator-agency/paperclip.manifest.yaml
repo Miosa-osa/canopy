@@ -1,0 +1,261 @@
+# Paperclip — Workspace Manifest
+# =========================================================================
+# Declares this workspace to a Paperclip-compatible agent runtime.
+# Paperclip auto-discovers skills via `skills_directory` + `skill_adapter_file`
+# and exposes them under `trigger_modes` (manual / cron / webhook / event).
+#
+# Conforms to Paperclip workspace-manifest pattern v1.
+# =========================================================================
+
+$schema: https://paperclip.dev/schema/workspace.v1.json
+spec_version: 1.0
+
+# -------------------------------------------------------------------------
+# Workspace identity
+# -------------------------------------------------------------------------
+workspace:
+  name: growth-operating-agency
+  version: 1.1.0
+  description: >
+    An autonomous agentic workspace for high-ticket creator businesses.
+    41 agents, 36 skills, 11-compartment creator context profile.
+    The agent is thin. The workspace is smart. The workspace IS the product.
+  publisher: heuresis
+  license: MIT
+  homepage: https://github.com/Heuresis/Growth-Operator-Agency
+  domain: info-products · coaching · consulting · creator-businesses
+
+# -------------------------------------------------------------------------
+# Boot files — loaded by the runtime on workspace attach
+# -------------------------------------------------------------------------
+boot_files:
+  - SYSTEM.md          # Identity, routing, boot sequence
+  - INVARIANTS.md      # 28 sacred rules (14 NEVERs + 14 ALWAYSes)
+  - ENCODING.md        # 11-compartment Creator Context Profile schema
+  - company.yaml       # Creator's business context (this creator's values)
+
+# -------------------------------------------------------------------------
+# Skill discovery
+# -------------------------------------------------------------------------
+skills_directory: skills/
+skill_adapter_file: adapters/paperclip.yaml
+skill_index: skills/_INDEX.md
+
+# Every skill ships three adapters; Paperclip uses paperclip.yaml which
+# inherits the core contract from manifest.yaml in the same directory.
+adapter_inheritance:
+  - adapters/paperclip.yaml
+  - adapters/manifest.yaml   # inherited for core contract
+  - adapters/http.openapi.yaml  # for REST exposure
+
+# -------------------------------------------------------------------------
+# Agent roster — Paperclip loads as persona overlays for skill execution
+# -------------------------------------------------------------------------
+agents_directory: agents/
+agents_index: agents/_INDEX.md
+orchestrator: agents/growth-ceo.md
+
+# -------------------------------------------------------------------------
+# Reference libraries loaded on-demand during skill execution
+# -------------------------------------------------------------------------
+reference_directories:
+  - reference/frameworks/        # 99+ methodology docs
+  - reference/operators/         # 18 archetyped operator playbooks
+  - reference/platforms/         # 6 platform playbooks
+  - reference/swipe-file/        # 170+ hooks · templates · threads
+  - reference/templates/         # 20 output document templates
+  - reference/verticals/         # 11 vertical-specific packs
+  - reference/legal-templates/   # 11 starter legal documents
+  - reference/canonical/         # Signal Theory spec, Blind Output Test, etc.
+
+prompts_directory: prompts/       # 11 AI prompt libraries
+workflows_directory: workflows/    # 7 pipeline FSMs + operations SOPs
+spec_directory: spec/              # Quality gates (banned-vocab, thresholds, runtimes)
+
+# -------------------------------------------------------------------------
+# Required secrets — configure in the Paperclip secret store before runtime
+# -------------------------------------------------------------------------
+required_secrets:
+  - name: ANTHROPIC_API_KEY
+    description: Claude API key for skill execution
+    scope: all_skills
+    required: true
+
+  - name: OPENAI_API_KEY
+    description: OpenAI API key (optional fallback for skill execution)
+    scope: all_skills
+    required: false
+
+  - name: CRM_API_KEY
+    description: CRM integration (GoHighLevel / HubSpot / Close)
+    scope: [retention-check, sales-script, call-prep, application-form, case-study]
+    required: false
+
+  - name: EMAIL_PROVIDER_API_KEY
+    description: Email provider (ActiveCampaign / Klaviyo / ConvertKit / Beehiiv)
+    scope: [email-sequence, post-booking-nurture, launch-report]
+    required: false
+
+  - name: META_AD_ACCESS_TOKEN
+    description: Meta Ads API for ad performance pull + creative uploads
+    scope: [ad-creative, launch-report, revenue-report]
+    required: false
+
+  - name: STRIPE_SECRET_KEY
+    description: Stripe for payment events + revenue reporting
+    scope: [revenue-report, retention-check, tripwire-design, landing-page]
+    required: false
+
+  - name: CALENDAR_API_KEY
+    description: Calendar integration (Calendly / SavvyCal / Cal.com)
+    scope: [application-form, call-prep, post-booking-nurture]
+    required: false
+
+# -------------------------------------------------------------------------
+# Sample autonomous automations — wire these in Paperclip to turn the
+# workspace into a 24/7 growth operation
+# -------------------------------------------------------------------------
+sample_automations:
+
+  - name: weekly-retention-sweep
+    skill: retention-check
+    trigger:
+      kind: cron
+      schedule: "0 9 * * 1"   # Every Monday 09:00 (timezone configured in Paperclip)
+    description: >
+      Every Monday morning, run retention health on all active clients.
+      Flags churn risk before it happens. Posts summary to Slack / email.
+
+  - name: lead-captured-to-icp-score
+    skill: build-icp
+    trigger:
+      kind: webhook
+      path: /growth-os/lead-captured
+      method: POST
+    description: >
+      When a new lead is captured (form submit, opt-in, application),
+      run ICP-match scoring and route to appropriate nurture sequence.
+
+  - name: launch-cart-close-debrief
+    skill: launch-report
+    trigger:
+      kind: event
+      topic: launch.cart.closed
+    description: >
+      Within 48 hours of a launch cart closing, generate the post-launch
+      report with revenue, CVR, retention indicators, and recommendations.
+
+  - name: monthly-revenue-report
+    skill: revenue-report
+    trigger:
+      kind: cron
+      schedule: "0 8 1 * *"   # 1st of each month at 08:00
+    description: >
+      First of every month, generate P&L + forecasting + unit economics.
+
+  - name: new-competitor-alert
+    skill: competitor-intel
+    trigger:
+      kind: event
+      topic: market.competitor.detected
+    description: >
+      When a new competitor is detected (via monitoring tool), run a
+      full teardown + positioning-gap analysis.
+
+  - name: case-study-capture
+    skill: case-study
+    trigger:
+      kind: event
+      topic: client.outcome.verified
+    description: >
+      When a client outcome is verified and consent is on file, run the
+      case-study conversion from testimonial to full case-study.
+
+# -------------------------------------------------------------------------
+# Quality gates — Paperclip enforces these on every skill output
+# -------------------------------------------------------------------------
+quality_gates:
+  banned_vocabulary: spec/BANNED-VOCABULARY.md
+  context_thresholds: spec/CONTEXT-THRESHOLDS.md
+  blind_output_test: reference/canonical/spec/BLIND-OUTPUT-TEST.md
+  signal_score_min: 0.8          # External sacred-format outputs
+  signal_score_min_internal: 0.5 # Internal diagnostic outputs
+
+# -------------------------------------------------------------------------
+# The 60/40 Principle — human-in-the-loop enforcement
+# -------------------------------------------------------------------------
+approval_gates:
+
+  always_require_human:
+    # Sacred-format outputs that ship to prospects / clients / ads
+    - build-vsl
+    - design-offer
+    - build-positioning
+    - webinar-script
+    - ad-creative
+    - email-sequence
+    - landing-page
+    - launch-report
+
+  auto_ship_allowed:
+    # Internal / diagnostic outputs — Paperclip can publish autonomously
+    - retention-check
+    - revenue-report
+    - competitor-intel
+    - launch-report    # when "internal-debrief" flag is set
+    - call-prep        # internal brief for sales team
+    - research         # internal research brief
+
+  require_flag_approval:
+    # Ships only after a human toggles the approval flag
+    - proposal         # goes to a real prospect
+    - sales-script     # read by a real closer to a real human
+    - case-study       # published — needs client consent confirmation
+
+# -------------------------------------------------------------------------
+# Observability — Paperclip surfaces these in the dashboard
+# -------------------------------------------------------------------------
+observability:
+  metrics:
+    - skill_execution_count_by_trigger_kind
+    - skill_execution_latency_p50_p95_p99
+    - signal_score_distribution
+    - blind_output_test_pass_rate
+    - human_approval_rate
+    - skill_cost_usd_per_execution
+    - compartment_completeness_trend
+
+  logs:
+    retention_days: 90
+    pii_redaction: strict   # never log company.yaml values in plaintext
+
+  alerts:
+    - name: signal-score-drop
+      condition: signal_score_avg_24h < 0.75
+      action: notify_operator
+    - name: approval-queue-stalled
+      condition: pending_approvals > 20 for 24h
+      action: notify_operator
+    - name: skill-failure-spike
+      condition: failure_rate_1h > 15%
+      action: pause_autonomous_triggers
+
+# -------------------------------------------------------------------------
+# Compatibility flags
+# -------------------------------------------------------------------------
+compatibility:
+  canopy_protocol: v1
+  claude_agent_sdk: compatible
+  claude_code: compatible
+  cursor: compatible
+  http_openapi: v3.1
+  mcp_servers: optional    # see reference/canonical/spec/INTEGRATIONS.md
+
+# -------------------------------------------------------------------------
+# Footer
+# -------------------------------------------------------------------------
+meta:
+  authored_by: heuresis
+  homepage: https://heuresis.ai
+  issues: https://github.com/Heuresis/Growth-Operator-Agency/issues
+  last_updated: 2026-04-23

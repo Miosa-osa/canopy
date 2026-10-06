@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 760" width="1600" height="760" role="img" aria-label="Growth Operating Agency — system diagram">
+  <style>
+    .bg { fill: #ffffff; }
+    .ink { fill: #09090b; }
+    .graphite { fill: #52525b; }
+    .hair { stroke: #d4d4d8; stroke-width: 0.5; fill: none; }
+    .rule-thick { stroke: #09090b; stroke-width: 1; fill: none; }
+    .sans { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .serif { font-family: "Geist", "Inter", system-ui, -apple-system, sans-serif; font-weight: 500; letter-spacing: -0.02em; }
+    .mono { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; }
+    .label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+    .h2 { font-size: 22px; font-weight: 500; }
+    .spec { font-size: 13px; }
+    .foot { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+  </style>
+
+  <rect class="bg" width="1600" height="760"/>
+
+  <!-- Thick rule -->
+  <line class="rule-thick" x1="120" y1="120" x2="1480" y2="120"/>
+
+  <!-- Column headers -->
+  <text class="mono label graphite" x="120" y="170">Input</text>
+  <text class="mono label graphite" x="640" y="170">Process</text>
+  <text class="mono label graphite" x="1120" y="170">Output</text>
+
+  <!-- Column 1 — Input -->
+  <text class="serif ink h2" x="120" y="210">company.yaml</text>
+  <text class="mono ink spec" x="120" y="260">01   Creator identity</text>
+  <text class="mono ink spec" x="120" y="281">02   Audience intelligence</text>
+  <text class="mono ink spec" x="120" y="302">03   Offer architecture</text>
+  <text class="mono ink spec" x="120" y="323">04   Funnel systems</text>
+  <text class="mono ink spec" x="120" y="344">05   Copy + messaging</text>
+  <text class="mono ink spec" x="120" y="365">06   Content strategy</text>
+  <text class="mono ink spec" x="120" y="386">07   Traffic + acquisition</text>
+  <text class="mono ink spec" x="120" y="407">08   Conversion + sales</text>
+  <text class="mono ink spec" x="120" y="428">09   Education + nurture</text>
+  <text class="mono ink spec" x="120" y="449">10   Lifecycle + retention</text>
+  <text class="mono ink spec" x="120" y="470">11   Operational intelligence</text>
+
+  <!-- Arrow 1 -->
+  <text class="serif ink" font-size="28" x="565" y="340">→</text>
+
+  <!-- Column 2 — Process -->
+  <text class="serif ink h2" x="640" y="210">36 skills</text>
+  <text class="mono ink spec" x="640" y="260">/research          /build-icp</text>
+  <text class="mono ink spec" x="640" y="281">/build-positioning /design-offer</text>
+  <text class="mono ink spec" x="640" y="302">/extract-voice     /build-vsl</text>
+  <text class="mono ink spec" x="640" y="323">/build-funnel      /ad-creative</text>
+  <text class="mono ink spec" x="640" y="344">/content-calendar  /lead-magnet</text>
+  <text class="mono ink spec" x="640" y="365">/email-sequence    /webinar-script</text>
+  <text class="mono ink spec" x="640" y="386">/sales-script      /objection-library</text>
+  <text class="mono ink spec" x="640" y="407">/call-prep         /proposal</text>
+  <text class="mono ink spec" x="640" y="428">/application-form  /tripwire-design</text>
+  <text class="mono ink spec" x="640" y="449">/landing-page      /plan-launch</text>
+  <text class="mono graphite spec" x="640" y="470">+ 14 more</text>
+
+  <!-- Arrow 2 -->
+  <text class="serif ink" font-size="28" x="1060" y="340">→</text>
+
+  <!-- Column 3 — Output -->
+  <text class="serif ink h2" x="1120" y="210">Business assets</text>
+  <text class="mono ink spec" x="1120" y="260">Market Research Brief</text>
+  <text class="mono ink spec" x="1120" y="281">ICP Document</text>
+  <text class="mono ink spec" x="1120" y="302">Positioning Document</text>
+  <text class="mono ink spec" x="1120" y="323">Offer Document</text>
+  <text class="mono ink spec" x="1120" y="344">Brand Voice Architecture</text>
+  <text class="mono ink spec" x="1120" y="365">VSL Script</text>
+  <text class="mono ink spec" x="1120" y="386">Funnel Architecture</text>
+  <text class="mono ink spec" x="1120" y="407">Email Sequence</text>
+  <text class="mono ink spec" x="1120" y="428">Launch Plan</text>
+  <text class="mono ink spec" x="1120" y="449">Team SOPs</text>
+  <text class="mono graphite spec" x="1120" y="470">+ 25 more</text>
+
+  <!-- Footer rule -->
+  <line class="hair" x1="120" y1="680" x2="1480" y2="680"/>
+
+  <!-- Footer -->
+  <text class="mono foot graphite" x="120" y="720">Growth Operating Agency · v1.1 · MIT</text>
+  <text class="mono foot graphite" x="1480" y="720" text-anchor="end">heuresis.ai</text>
+</svg>

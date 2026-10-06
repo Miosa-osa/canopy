@@ -1,6 +1,11 @@
 <!-- src/routes/app/settings/tabs/AppearanceSettings.svelte -->
 <script lang="ts">
   import { settingsStore } from '$lib/stores/settings.svelte';
+  import {
+    sidebarStore,
+    SIDEBAR_MODULE_OPTIONS,
+    type SidebarModuleOption,
+  } from '$lib/stores/sidebar.svelte';
   import { themeStore, type ThemeMode } from '$lib/stores/theme.svelte';
 
   const THEMES: { id: ThemeMode; label: string; bg: string; accent: string; surface: string }[] = [
@@ -15,6 +20,16 @@
     themeStore.setMode(mode);
     settingsStore.update('theme', mode);
   }
+
+  sidebarStore.load();
+
+  const sidebarGroups = $derived.by(() => {
+    const groups = new Map<SidebarModuleOption['group'], SidebarModuleOption[]>();
+    for (const option of SIDEBAR_MODULE_OPTIONS) {
+      groups.set(option.group, [...(groups.get(option.group) ?? []), option]);
+    }
+    return Array.from(groups.entries());
+  });
 </script>
 
 <section class="stg-section">
@@ -88,6 +103,46 @@
         </span>
       </label>
     </div>
+
+    <div class="stg-sep"></div>
+
+    <div class="stg-field">
+      <div class="stg-field-head">
+        <div>
+          <span class="stg-label">Sidebar Modules</span>
+          <p class="stg-desc">Choose which command-center modules appear in the left sidebar.</p>
+        </div>
+        <button
+          class="stg-mini-btn"
+          type="button"
+          onclick={() => sidebarStore.reset()}
+        >
+          Show All
+        </button>
+      </div>
+
+      <div class="stg-module-groups">
+        {#each sidebarGroups as [group, options] (group)}
+          <section class="stg-module-group" aria-label="{group} sidebar modules">
+            <h3 class="stg-module-group-title">{group}</h3>
+            <div class="stg-module-grid">
+              {#each options as option (option.id)}
+                <label class="stg-module-toggle">
+                  <input
+                    type="checkbox"
+                    checked={sidebarStore.isVisible(option.id)}
+                    onchange={(e) => {
+                      sidebarStore.setVisible(option.id, (e.target as HTMLInputElement).checked);
+                    }}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              {/each}
+            </div>
+          </section>
+        {/each}
+      </div>
+    </div>
   </div>
 </section>
 
@@ -135,6 +190,85 @@
     gap: 4px;
     flex: 1;
     min-width: 0;
+  }
+
+  .stg-field-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .stg-mini-btn {
+    flex-shrink: 0;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .stg-mini-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+  }
+
+  .stg-module-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 8px;
+  }
+
+  .stg-module-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stg-module-group-title {
+    margin: 0;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .stg-module-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .stg-module-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .stg-module-toggle:hover {
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+
+  .stg-module-toggle input {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent-primary);
   }
 
   .stg-label {

@@ -3,7 +3,8 @@
 // Refetches automatically when the active workspace changes.
 
 import type { Document, DocumentRevision, DocumentTreeNode } from "$api/types";
-import { documents as documentsApi } from "$api/client";
+import { documents as documentsApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { workspaceStore } from "./workspace.svelte";
 
 class DocumentsStore {
@@ -14,6 +15,10 @@ class DocumentsStore {
   error = $state<string | null>(null);
 
   async fetchDocuments(): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     this.error = null;
     try {

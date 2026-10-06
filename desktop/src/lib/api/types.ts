@@ -290,6 +290,7 @@ export type AdapterType =
   | "http"
   | "cursor"
   | "gemini"
+  | "human"
   | "custom";
 
 // ── Agent Hierarchy ───────────────────────────────────────────────────────────
@@ -684,14 +685,7 @@ export interface BudgetIncident {
 // ── Skills ────────────────────────────────────────────────────────────────────
 
 export type SkillSource = "builtin" | "user" | "marketplace" | "evolved";
-export type SkillCategory =
-  | "core"
-  | "automation"
-  | "reasoning"
-  | "workflow"
-  | "security"
-  | "agent"
-  | "utility";
+export type SkillCategory = string;
 
 export interface Skill {
   id: string;

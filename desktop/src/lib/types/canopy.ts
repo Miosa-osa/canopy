@@ -61,7 +61,8 @@ export type AdapterType =
   | "jidoclaw"
   | "hermes"
   | "bash"
-  | "http";
+  | "http"
+  | "human";
 
 export interface AgentBudgetConfig {
   /** Daily limit in cents */

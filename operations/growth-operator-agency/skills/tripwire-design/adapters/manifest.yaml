@@ -1,0 +1,86 @@
+skill_id: tripwire-design
+skill_path: skills/tripwire-design/SKILL.md
+skill_name: "Tripwire Entry-Offer Designer"
+
+tier: reasoning_ai
+category: marketing
+temperature_gate: warm
+
+role_affinity:
+  - marketing-head
+  - paid-ads
+  - sales-head
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # offer/funnel/icp/voice docs + final tripwire design
+  - offers                             # tripwire as offer-ladder entry
+  - campaigns                          # tripwire tied to campaign
+  - unit_economics                     # CPA / LTV / ascension model
+  - ascension_sequence                 # structured 5-phase sequence
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_search
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - archetype_selected_with_reasoning
+  - economics_model_complete
+  - payback_per_lead_calculated
+  - breakeven_cac_calculated
+  - ltv_cac_ratio_gte_3
+  - ladder_progression_mapped_to_core_offer
+  - ascension_sequence_specified
+  - voice_match_verified
+  - signal_score_gte_0_8
+  - blind_output_test_3_of_3_economics
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - funnel_systems
+    - conversion_sales_systems
+    - traffic_acquisition
+    - creator_identity_matrix.brand_voice_architecture
+  write:
+    - offer_architecture.offer_ladder.tripwire
+    - funnel_systems
+    - lifecycle_optimization.ascension_LTV
+
+output:
+  location: "output/tripwire-design/{date}-tripwire-archetype-{T1-T7}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: tripwire-design
+    type: inform
+    format: markdown
+    structure: w-tripwire-design-w-economics-w-ladder-progression
+  receiver: creator + marketing + sales
+
+next_skill_routing:
+  on_complete:
+    - condition: "economics_validated_3_of_3"
+      recommend: ad-creative
+    - condition: "ascension_sequence_ready"
+      recommend: email-sequence
+    - condition: "sales_page_needed"
+      recommend: landing-page
+    - condition: "funnel_integration_pending"
+      recommend: build-funnel
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  economics_model_logged: true
+  ltv_cac_validated: true
+  blind_output_test_required: true

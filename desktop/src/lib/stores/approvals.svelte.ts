@@ -4,7 +4,8 @@ import type {
   ApprovalStatus,
   ApprovalCreateRequest,
 } from "$api/types";
-import { approvals as approvalsApi } from "$api/client";
+import { approvals as approvalsApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { toastStore } from "./toasts.svelte";
 
 class ApprovalsStore {
@@ -34,6 +35,10 @@ class ApprovalsStore {
     workspaceId?: string,
     params?: Record<string, string>,
   ): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       const mergedParams = workspaceId

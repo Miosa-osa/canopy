@@ -4,7 +4,8 @@ import type {
   OrganizationMembership,
   OrganizationCreateRequest,
 } from "$api/types";
-import { organizations as orgsApi } from "$api/client";
+import { organizations as orgsApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { toastStore } from "./toasts.svelte";
 
 class OrganizationsStore {
@@ -17,6 +18,10 @@ class OrganizationsStore {
   totalCount = $derived(this.organizations.length);
 
   async fetchOrganizations(): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       this.organizations = await orgsApi.list();
@@ -36,6 +41,7 @@ class OrganizationsStore {
 
   /** Ensure at least one org exists; create a default if needed, then select it. */
   async ensureDefault(): Promise<void> {
+    if (isTauri() && !getToken()) return;
     await this.fetchOrganizations();
     if (this.organizations.length === 0) {
       const created = await this.createOrganization({

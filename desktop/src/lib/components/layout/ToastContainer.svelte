@@ -17,12 +17,13 @@
 <style>
   .tc-container {
     position: fixed;
-    bottom: 24px;
+    bottom: 20px;
     right: 20px;
     z-index: 600;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    align-items: flex-end;
+    gap: 6px;
     pointer-events: none;
   }
 </style>

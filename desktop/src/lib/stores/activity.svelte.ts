@@ -1,6 +1,7 @@
 // src/lib/stores/activity.svelte.ts
 import type { ActivityEvent, ActivityEventType } from "$api/types";
-import { activity as activityApi } from "$api/client";
+import { activity as activityApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { subscribeToActivityStream } from "$api/sse";
 import { toastStore } from "./toasts.svelte";
 
@@ -51,6 +52,10 @@ class ActivityStore {
   #sseAbortController: AbortController | null = null;
 
   async fetchRecent(limit = 100): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       const recent = await activityApi.list(limit);
@@ -69,6 +74,7 @@ class ActivityStore {
   }
 
   subscribe(): void {
+    if (isTauri() && !getToken()) return; // no auth in local mode — skip SSE
     if (this.#sseAbortController) return; // already connected
 
     const controller = new AbortController();

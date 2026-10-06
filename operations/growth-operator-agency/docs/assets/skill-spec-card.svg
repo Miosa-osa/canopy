@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1000" width="900" height="1000" role="img" aria-label="Skill spec card — /build-vsl">
+  <style>
+    .bg { fill: #ffffff; }
+    .ink { fill: #09090b; }
+    .graphite { fill: #52525b; }
+    .hair { stroke: #d4d4d8; stroke-width: 0.5; fill: none; }
+    .rule-thick { stroke: #09090b; stroke-width: 1; fill: none; }
+    .sans { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .serif { font-family: "Geist", "Inter", system-ui, -apple-system, sans-serif; font-weight: 500; letter-spacing: -0.02em; }
+    .mono { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; }
+    .label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+    .spec-val { font-size: 14px; }
+    .body { font-size: 13px; }
+    .h1 { font-size: 52px; font-weight: 400; letter-spacing: -0.01em; }
+    .foot { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; }
+  </style>
+
+  <rect class="bg" width="900" height="1000"/>
+
+  <!-- Title -->
+  <text class="mono ink h1" x="80" y="120">/build-vsl</text>
+
+  <!-- Thick rule -->
+  <line class="rule-thick" x1="80" y1="170" x2="820" y2="170"/>
+
+  <!-- Spec row 1 — Produces -->
+  <text class="mono label graphite" x="80" y="220">Produces</text>
+  <text class="sans ink spec-val" x="300" y="220">VSL script (4,500–6,500 words typical)</text>
+  <line class="hair" x1="80" y1="248" x2="820" y2="248"/>
+
+  <!-- Spec row 2 — Variants -->
+  <text class="mono label graphite" x="80" y="280">Variants</text>
+  <text class="sans ink spec-val" x="300" y="280">5 — 15-step, 11-step pull-push-persuade,</text>
+  <text class="sans ink spec-val" x="300" y="302">13-step, three-phase, hidden-pitch long-form</text>
+  <line class="hair" x1="80" y1="330" x2="820" y2="330"/>
+
+  <!-- Spec row 3 — Requires -->
+  <text class="mono label graphite" x="80" y="362">Requires</text>
+  <text class="mono ink spec-val" x="300" y="362">offer ≥ 70%  ·  audience ≥ 60%</text>
+  <line class="hair" x1="80" y1="390" x2="820" y2="390"/>
+
+  <!-- Spec row 4 — Gate -->
+  <text class="mono label graphite" x="80" y="422">Gate</text>
+  <text class="sans ink spec-val" x="300" y="422">Blind Output Test 3/3  ·  signal score ≥ 0.8</text>
+  <line class="hair" x1="80" y1="450" x2="820" y2="450"/>
+
+  <!-- Spec row 5 — Upstream -->
+  <text class="mono label graphite" x="80" y="482">Upstream</text>
+  <text class="mono ink spec-val" x="300" y="482">/design-offer  ·  /build-icp  ·  /extract-voice</text>
+  <line class="hair" x1="80" y1="510" x2="820" y2="510"/>
+
+  <!-- Spec row 6 — Downstream -->
+  <text class="mono label graphite" x="80" y="542">Downstream</text>
+  <text class="mono ink spec-val" x="300" y="542">/build-funnel  ·  /landing-page  ·  /ad-creative</text>
+  <line class="hair" x1="80" y1="570" x2="820" y2="570"/>
+
+  <!-- Spec row 7 — Runtimes -->
+  <text class="mono label graphite" x="80" y="602">Runtimes</text>
+  <text class="mono ink spec-val" x="300" y="602">paperclip  ·  claude-code  ·  http+openapi</text>
+  <line class="hair" x1="80" y1="630" x2="820" y2="630"/>
+
+  <!-- Spec row 8 — Agents -->
+  <text class="mono label graphite" x="80" y="662">Agents</text>
+  <text class="mono ink spec-val" x="300" y="662">sales-head  ·  vsl-builder  ·  vsl-writer</text>
+  <line class="hair" x1="80" y1="690" x2="820" y2="690"/>
+
+  <!-- Spec row 9 — Tier -->
+  <text class="mono label graphite" x="80" y="722">Tier</text>
+  <text class="sans ink spec-val" x="300" y="722">reasoning_ai  ·  warm temperature  ·  sacred format</text>
+  <line class="hair" x1="80" y1="750" x2="820" y2="750"/>
+
+  <!-- Lineage block -->
+  <text class="mono label graphite" x="80" y="810">Lineage</text>
+  <text class="sans ink body" x="80" y="845">The VSL director (15-step · 6-blockage diagnostic).</text>
+  <text class="sans ink body" x="80" y="868">The psychological copywriter (11-step pull-push-persuade).</text>
+  <text class="sans ink body" x="80" y="891">The VSL copywriter (three-phase formula).</text>
+  <text class="sans ink body" x="80" y="914">The growth engineer (hidden-pitch long-form video).</text>
+  <text class="sans ink body" x="80" y="937">The offer architect (VSL story architecture).</text>
+
+  <!-- Footer rule -->
+  <line class="hair" x1="80" y1="960" x2="820" y2="960"/>
+
+  <!-- Footer -->
+  <text class="mono foot graphite" x="80" y="985">Growth Operating Agency · v1.1 · MIT</text>
+  <text class="mono foot graphite" x="820" y="985" text-anchor="end">heuresis.ai</text>
+</svg>

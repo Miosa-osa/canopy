@@ -1,6 +1,7 @@
 // src/lib/stores/issues.svelte.ts
 import type { Issue, IssueStatus, IssuePriority } from "$api/types";
-import { issues as issuesApi } from "$api/client";
+import { issues as issuesApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { toastStore } from "./toasts.svelte";
 import { agentsStore } from "./agents.svelte";
 
@@ -95,6 +96,10 @@ class IssuesStore {
   openCount = $derived(this.issues.filter((i) => i.status !== "done").length);
 
   async fetchIssues(workspaceId?: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       this.issues = await issuesApi.list(workspaceId);

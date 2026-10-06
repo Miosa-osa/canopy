@@ -27,6 +27,17 @@ export const TEMPLATE_REGISTRY: TemplateManifest[] = [
     agentCount: 36,
     skillCount: 42,
   },
+  {
+    id: "growth-operator-agency",
+    name: "Growth Operator Agency",
+    emoji: "📈",
+    description:
+      "Full creator-business growth workspace with 41 agents, 39 skills, company context, workflows, reference packs, and runtime shims.",
+    category: "growth",
+    basePath: "templates/growth-operator-agency",
+    agentCount: 41,
+    skillCount: 39,
+  },
 ];
 
 /** Look up a template manifest by ID. Returns undefined if not found. */

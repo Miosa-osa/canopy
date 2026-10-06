@@ -9,6 +9,7 @@ defmodule Canopy.Schemas.Goal do
     field :title, :string
     field :description, :string
     field :status, :string, default: "active"
+    field :evidence_gate, :string
 
     belongs_to :workspace, Canopy.Schemas.Workspace
     belongs_to :project, Canopy.Schemas.Project
@@ -21,8 +22,9 @@ defmodule Canopy.Schemas.Goal do
 
   def changeset(goal, attrs) do
     goal
-    |> cast(attrs, [:title, :description, :status, :workspace_id, :project_id, :parent_id])
+    |> cast(attrs, [:title, :description, :status, :evidence_gate, :workspace_id, :project_id, :parent_id])
     |> validate_required([:title, :workspace_id])
+    |> validate_inclusion(:evidence_gate, ~w(tests_pass review_approved signal_score human_approval budget_check))
     |> validate_not_self_parent()
   end
 

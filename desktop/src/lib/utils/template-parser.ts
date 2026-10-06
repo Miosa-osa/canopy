@@ -90,6 +90,7 @@ function normaliseAdapter(raw: unknown): AdapterType {
     "hermes",
     "bash",
     "http",
+    "human",
     "custom",
   ];
   return valid.includes(normalised as AdapterType)

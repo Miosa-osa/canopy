@@ -179,19 +179,68 @@ class WorkspaceStore {
       }
     }
 
-    if (scan.agents.length === 0) return;
+    // Load agents from scan
+    if (scan.agents.length > 0) {
+      // Dynamic import to avoid circular deps
+      const { canopyDefToAgent } = await import("$lib/utils/agents");
+      const { agentsStore } = await import("./agents.svelte");
 
-    // Dynamic import to avoid circular deps
-    const { canopyDefToAgent } = await import("$lib/utils/agents");
-    const { agentsStore } = await import("./agents.svelte");
+      const agents = scan.agents.map(canopyDefToAgent);
+      // Merge scanned agents with existing, deduplicating by ID (API record wins)
+      agentsStore.agents = [
+        ...new Map(
+          [...agents, ...agentsStore.agents].map((a) => [a.id, a]),
+        ).values(),
+      ];
+    }
 
-    const agents = scan.agents.map(canopyDefToAgent);
-    // Merge scanned agents with existing, deduplicating by ID (API record wins)
-    agentsStore.agents = [
+    // Load projects from scan
+    if (scan.projects.length > 0) {
+      await this.#loadProjectsFromScan(scan.projects, scan.path);
+    }
+  }
+
+  /** Map CanopyProjectDef[] into the projects store (filesystem-mode only) */
+  async #loadProjectsFromScan(
+    canopyProjects: import("$lib/types/canopy").CanopyProjectDef[],
+    workspacePath: string,
+  ): Promise<void> {
+    const { projectsStore } = await import("./projects.svelte");
+    const ws = this.workspaces.find(
+      (w) => w.path === workspacePath || workspacePath.startsWith(w.path),
+    );
+    const workspaceId = ws?.id;
+    const now = new Date().toISOString();
+
+    const scannedProjects: import("$api/types").Project[] = canopyProjects.map(
+      (p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description ?? null,
+        status: "active" as const,
+        workspace_id: workspaceId,
+        workspace_path: p.path,
+        goal_count: 0,
+        issue_count: 0,
+        agent_count: p.agents.length,
+        created_at: now,
+        updated_at: now,
+      }),
+    );
+
+    // Merge: API records win on id collision (same dedup pattern as agents)
+    projectsStore.projects = [
       ...new Map(
-        [...agents, ...agentsStore.agents].map((a) => [a.id, a]),
+        [...scannedProjects, ...projectsStore.projects].map((p) => [p.id, p]),
       ).values(),
     ];
+
+    // Auto-select first active project if nothing is selected yet
+    if (!projectsStore.selected && projectsStore.projects.length > 0) {
+      projectsStore.selected =
+        projectsStore.projects.find((p) => p.status === "active") ??
+        projectsStore.projects[0];
+    }
   }
 
   /** Watch active workspace for file changes via Tauri IPC */

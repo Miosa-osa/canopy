@@ -88,6 +88,33 @@ const MOCK_TEMPLATES: AgentTemplate[] = [
     downloads: 0,
     created_at: "2026-03-01T00:00:00Z",
   },
+  {
+    id: "growth-operator-agency",
+    name: "Growth Operator Agency",
+    description:
+      "Full creator-business growth workspace with 41 agents, 39 skills, company context, workflows, reference packs, and runtime shims.",
+    adapter: "osa",
+    model: "claude-opus-4-20250514",
+    system_prompt: "",
+    skills: [
+      "research",
+      "build-icp",
+      "design-offer",
+      "build-vsl",
+      "build-funnel",
+      "plan-launch",
+      "revenue-report",
+    ],
+    config: {
+      source: "templates/growth-operator-agency",
+      agents: 41,
+      skills: 39,
+      workspace_pack: true,
+    },
+    category: "growth",
+    downloads: 0,
+    created_at: "2026-05-01T00:00:00Z",
+  },
 ];
 
 export function mockTemplates(): AgentTemplate[] {

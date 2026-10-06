@@ -10,7 +10,8 @@
   import { agentsStore } from '$lib/stores/agents.svelte';
   import { environmentStore } from '$lib/stores/environment.svelte';
   import { gatewaysStore } from '$lib/stores/gateways.svelte';
-  import { agents as agentsApi } from '$api/client';
+  import { agents as agentsApi, sessions } from '$api/client';
+  import { toastStore } from '$lib/stores/toasts.svelte';
   import type { CanopyAgent, AgentStatus, AgentLifecycleAction, Session, InboxItem, AdapterType } from '$api/types';
 
   const agentId = $derived($page.params.id ?? '');
@@ -53,14 +54,18 @@
 
   // Local editable copies for config & access tabs
   let localAdapter = $state<AdapterType>('osa');
+  let localDisplayName = $state('');
+  let localRole = $state('');
   let localModel = $state('');
   let localWorkingDir = $state('');
   let localSystemPrompt = $state('');
+  let localSkillsText = $state('');
   let localTemperature = $state(0.3);
   let localMaxConcurrent = $state(1);
   let localGatewayId = $state<string>('');
   let configSaving = $state(false);
   let configSaved = $state(false);
+  let configHydrated = $state(false);
   let enabledTools = $state<Record<string, boolean>>({
     computer_use: false,
     file_system: false,
@@ -93,21 +98,29 @@
         .map(([k]) => k);
       config.tools = toolsList;
 
-      await agentsApi.update(agent.id, {
+      const skills = localSkillsText
+        .split(/[\n,]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const saved = await agentsStore.updateAgent(agent.id, {
+        display_name: localDisplayName.trim() || agent.display_name,
+        role: localRole.trim() || agent.role,
         adapter: localAdapter,
         model: localModel || agent.model,
         system_prompt: localSystemPrompt || agent.system_prompt,
         temperature: localTemperature,
         max_concurrent_runs: localMaxConcurrent,
         config,
+        skills,
       });
 
-      // Refresh agent from store
-      agent = await agentsStore.fetchAgent(agent.id) ?? agent;
+      agent = saved ?? agent;
       configSaved = true;
       setTimeout(() => { configSaved = false; }, 2000);
-    } catch {
-      // Error handling via store
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toastStore.error('Save failed', msg);
     }
     configSaving = false;
   }
@@ -165,11 +178,14 @@
 
   $effect(() => {
     // Populate editable state from agent data once loaded
-    if (agent && !accessFetched) {
+    if (agent && !configHydrated) {
+      localDisplayName = agent.display_name;
+      localRole = agent.role;
       localAdapter = agent.adapter;
       localModel = agent.model;
       localWorkingDir = (agent.config?.working_dir as string) ?? (agent.config?.workspace_path as string) ?? '';
       localSystemPrompt = agent.system_prompt ?? '';
+      localSkillsText = agent.skills.join('\n');
       localTemperature = agent.temperature ?? 0.3;
       localMaxConcurrent = agent.max_concurrent_runs ?? 1;
       // Derive enabled tools from agent.config.tools array if present
@@ -179,6 +195,7 @@
           enabledTools[t.id] = configTools.includes(t.id);
         }
       }
+      configHydrated = true;
     }
   });
 
@@ -243,6 +260,21 @@
   async function handleAction(action: AgentLifecycleAction) {
     if (!agent) return;
     await agentsStore.performAction(agent.id, action);
+  }
+
+  async function runAgent() {
+    if (!agent) return;
+    try {
+      await agentsStore.performAction(agent.id, 'focus');
+      const session = await sessions.create({
+        agent_id: agent.id,
+        title: `${agent.display_name} run`,
+      });
+      void goto(`/app/sessions/${session.id}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toastStore.error('Run failed', msg);
+    }
   }
 
   function categoryEmoji(cat: string): string {
@@ -334,8 +366,8 @@
           </button>
         {/if}
         {#if agent.status === 'running' || agent.status === 'active' || agent.status === 'working' || agent.status === 'idle'}
-          <button class="ad-btn ad-btn--accent" onclick={() => handleAction('focus')} aria-label="Focus agent on current task">
-            Focus
+          <button class="ad-btn ad-btn--accent" onclick={runAgent} aria-label="Run agent">
+            Run
           </button>
         {/if}
         {#if agent.status === 'running' || agent.status === 'active' || agent.status === 'working' || agent.status === 'idle'}
@@ -495,6 +527,35 @@
           aria-label="Config tab"
           class="ad-panel"
         >
+          <!-- Identity -->
+          <section class="ad-card" aria-label="Agent identity">
+            <h2 class="ad-card-title">Identity</h2>
+            <p class="ad-card-subtitle">The visible name and operating role this agent uses across Canopy.</p>
+
+            <div class="ad-form-row-inline">
+              <div class="ad-form-group" style="flex:1">
+                <label class="ad-form-label" for="cfg-display-name">Display Name</label>
+                <input
+                  id="cfg-display-name"
+                  type="text"
+                  class="ad-form-input"
+                  bind:value={localDisplayName}
+                  aria-label="Agent display name"
+                />
+              </div>
+              <div class="ad-form-group" style="flex:1">
+                <label class="ad-form-label" for="cfg-role">Role</label>
+                <input
+                  id="cfg-role"
+                  type="text"
+                  class="ad-form-input"
+                  bind:value={localRole}
+                  aria-label="Agent role"
+                />
+              </div>
+            </div>
+          </section>
+
           <!-- Runtime / Adapter -->
           <section class="ad-card" aria-label="Runtime configuration">
             <h2 class="ad-card-title">Runtime</h2>
@@ -574,10 +635,23 @@
             <h2 class="ad-card-title">System Prompt</h2>
             <textarea
               class="ad-form-textarea"
-              rows="8"
+              rows="12"
               placeholder="Instructions for this agent..."
               bind:value={localSystemPrompt}
               aria-label="Agent system prompt"
+            ></textarea>
+          </section>
+
+          <!-- Skills -->
+          <section class="ad-card" aria-label="Agent skills">
+            <h2 class="ad-card-title">Skills</h2>
+            <p class="ad-card-subtitle">One skill per line, or comma-separated. These are persisted with the agent definition.</p>
+            <textarea
+              class="ad-form-textarea ad-form-textarea--compact"
+              rows="5"
+              placeholder="code-generation&#10;web-search&#10;pr-review"
+              bind:value={localSkillsText}
+              aria-label="Agent skills"
             ></textarea>
           </section>
 
@@ -728,8 +802,7 @@
                 <code class="ad-code-inline">{agent.budget_policy_id}</code>
               </div>
               <p class="ad-muted" style="margin-top: 12px;">
-                Full budget detail available in the
-                <a href="/app/costs" class="ad-link">Costs</a> section.
+                Full budget detail available in agent settings.
               </p>
             {:else}
               <p class="ad-muted">No budget policy assigned.</p>
@@ -840,7 +913,7 @@
             {#if gatewaysStore.loading}
               <p class="ad-muted">Loading gateways…</p>
             {:else if gatewaysStore.gateways.length === 0}
-              <p class="ad-muted">No gateways configured. Add one in <a href="/app/gateways" class="ad-link">Gateways</a>.</p>
+              <p class="ad-muted">No gateways configured. Add one in Settings.</p>
             {:else}
               <div class="ad-access-dl">
                 <div class="ad-access-row">

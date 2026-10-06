@@ -386,10 +386,14 @@ defmodule CanopyWeb.AgentController do
           %{
             id: a.id,
             name: a.name,
+            title: a.title,
             role: a.role,
             status: a.status,
             adapter: a.adapter,
             reports_to: a.reports_to,
+            team_id: a.team_id,
+            avatar_emoji: a.avatar_emoji,
+            color: a.color,
             workspace_id: a.workspace_id
           }
         end)
@@ -484,9 +488,15 @@ defmodule CanopyWeb.AgentController do
       display_name: a.name,
       avatar_emoji: a.avatar_emoji || "🤖",
       role: a.role,
+      title: a.title,
       adapter: a.adapter,
       model: a.model,
       status: map_status(a.status),
+      signal: a.signal,
+      context_tier: a.context_tier || "l1",
+      budget_monthly_cents: a.budget_monthly_cents,
+      tools: a.tools || [],
+      color: a.color,
       temperature: a.temperature,
       max_concurrent_runs: a.max_concurrent_runs,
       config: a.config,

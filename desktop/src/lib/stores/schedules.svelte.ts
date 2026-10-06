@@ -1,6 +1,7 @@
 // src/lib/stores/schedules.svelte.ts
 import type { Schedule, HeartbeatRun, CronPreset } from "$api/types";
-import { schedules as schedulesApi } from "$api/client";
+import { schedules as schedulesApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { toastStore } from "./toasts.svelte";
 
 export const CRON_PRESETS: CronPreset[] = [
@@ -95,6 +96,10 @@ class SchedulesStore {
   totalCount = $derived(this.schedules.length);
 
   async fetchSchedules(workspaceId?: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       this.schedules = await schedulesApi.list(workspaceId);
@@ -117,6 +122,7 @@ class SchedulesStore {
   }
 
   async fetchRunHistory(scheduleId: string): Promise<HeartbeatRun[]> {
+    if (isTauri() && !getToken()) return [];
     try {
       const data = await schedulesApi.runs(scheduleId);
       const runs = data.runs ?? [];

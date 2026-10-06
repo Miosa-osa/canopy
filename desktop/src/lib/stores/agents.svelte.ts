@@ -8,7 +8,8 @@ import type {
 } from "$api/types";
 
 export type AgentViewMode = "grid" | "org" | "table";
-import { agents as agentsApi } from "$api/client";
+import { agents as agentsApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { toastStore } from "./toasts.svelte";
 
 class AgentsStore {
@@ -48,6 +49,13 @@ class AgentsStore {
   });
 
   async fetchAgents(workspaceId?: string): Promise<void> {
+    // In local Tauri mode without auth, skip the backend API call.
+    // Agents are loaded from .canopy/ filesystem scan via scanAndLoadAgents() instead.
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      this.error = null;
+      return;
+    }
     this.loading = true;
     try {
       this.agents = await agentsApi.list(workspaceId);
@@ -154,6 +162,12 @@ class AgentsStore {
     if (this.selected?.id === id) {
       this.selected = { ...this.selected, status: optimisticStatus[action] };
     }
+
+    if (isTauri() && !getToken()) {
+      this.error = null;
+      return;
+    }
+
     try {
       const updated =
         action === "resume"
@@ -214,12 +228,118 @@ class AgentsStore {
   }
 
   async fetchAgent(id: string): Promise<CanopyAgent | null> {
+    const local = this.getById(id);
+    if (isTauri() && !getToken() && local) {
+      return local;
+    }
+
     try {
       return await agentsApi.get(id);
     } catch (e) {
       this.error = (e as Error).message;
       return null;
     }
+  }
+
+  async updateAgent(
+    id: string,
+    data: Partial<AgentCreateRequest>,
+  ): Promise<CanopyAgent | null> {
+    const existing = this.getById(id);
+    if (!existing) return null;
+
+    const updated: CanopyAgent = {
+      ...existing,
+      ...data,
+      display_name: data.display_name ?? existing.display_name,
+      role: data.role ?? existing.role,
+      adapter: data.adapter ?? existing.adapter,
+      model: data.model ?? existing.model,
+      system_prompt: data.system_prompt ?? existing.system_prompt,
+      temperature: data.temperature ?? existing.temperature,
+      max_concurrent_runs:
+        data.max_concurrent_runs ?? existing.max_concurrent_runs,
+      config: data.config ?? existing.config,
+      skills: data.skills ?? existing.skills,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (isTauri() && !getToken()) {
+      try {
+        await this.#writeLocalAgent(updated);
+        this.#replaceAgent(updated);
+        toastStore.success("Agent saved", `${updated.display_name} updated.`);
+        return updated;
+      } catch (e) {
+        const msg = (e as Error).message;
+        this.error = msg;
+        toastStore.error("Failed to save agent", msg);
+        return null;
+      }
+    }
+
+    try {
+      const saved = await agentsApi.update(id, data);
+      this.#replaceAgent(saved);
+      toastStore.success("Agent saved", `${saved.display_name} updated.`);
+      return saved;
+    } catch (e) {
+      const msg = (e as Error).message;
+      this.error = msg;
+      toastStore.error("Failed to save agent", msg);
+      return null;
+    }
+  }
+
+  #replaceAgent(agent: CanopyAgent): void {
+    this.agents = this.agents.map((a) => (a.id === agent.id ? agent : a));
+    if (this.selected?.id === agent.id) {
+      this.selected = agent;
+    }
+  }
+
+  async #writeLocalAgent(agent: CanopyAgent): Promise<void> {
+    const { workspaceStore } = await import("./workspace.svelte");
+    const workspacePath = workspaceStore.activeWorkspace?.path;
+    if (!workspacePath) {
+      throw new Error("No active workspace is selected.");
+    }
+
+    const { mkdir, writeTextFile } = await import("@tauri-apps/plugin-fs");
+    const agentsDir = `${workspacePath}/.canopy/agents`;
+    const filePath = `${agentsDir}/${agent.id}.md`;
+    const yamlString = (value: string) => JSON.stringify(value);
+    const skills =
+      agent.skills.map((s) => `  - ${yamlString(s)}`).join("\n") || "[]";
+    const body =
+      agent.system_prompt?.trim() ||
+      `You are ${agent.display_name}, an AI agent for ${agent.role} work.`;
+    const promptYaml = body.replace(/\r\n/g, "\n").replace(/\n/g, "\n  ");
+
+    const content = `---
+id: ${yamlString(agent.id)}
+name: ${yamlString(agent.display_name)}
+role: ${yamlString(agent.role)}
+adapter: ${yamlString(agent.adapter)}
+model: ${yamlString(agent.model)}
+system_prompt: |
+  ${promptYaml}
+skills:
+${skills}
+context_tier: ${yamlString((agent.config?.context_tier as string) ?? "l1")}
+---
+
+# ${agent.display_name}
+
+${body}
+`;
+
+    try {
+      await mkdir(agentsDir, { recursive: true });
+    } catch {
+      // Directory may already exist.
+    }
+    await writeTextFile(filePath, content);
   }
 }
 

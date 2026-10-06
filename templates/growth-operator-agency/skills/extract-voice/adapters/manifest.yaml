@@ -1,0 +1,68 @@
+skill_id: extract-voice
+skill_path: skills/extract-voice/SKILL.md
+skill_name: "Brand Voice Architecture Extractor"
+
+tier: structured_ai
+category: foundations
+temperature_gate: warm
+
+role_affinity:
+  - foundations-head
+  - brand-voice
+  - researcher
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # voice samples + final doc
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_fetch
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - all_10_sections_complete
+  - verbatim_phrase_count_phrases_to_use_gte_15
+  - phrases_to_avoid_count_gte_10
+  - language_patterns_identified_gte_5
+  - voice_samples_annotated_gte_5
+  - signal_score_gte_0_8
+  - blind_output_test_passed
+
+context_slices:
+  read:
+    - creator_identity_matrix
+  write:
+    - creator_identity_matrix.brand_voice_architecture
+
+output:
+  location: "output/extract-voice/{date}-brand-voice-doc.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: brand-voice-doc
+    type: inform
+    format: markdown
+    structure: w-brand-voice-doc-10-section
+  receiver: creator
+
+next_skill_routing:
+  on_complete:
+    - condition: "voice_extracted_and_confirmed"
+      recommend: build-vsl
+    - condition: "downstream_copy_skills_queued"
+      recommend: ad-creative
+  on_fail:
+    escalate_to: foundations-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

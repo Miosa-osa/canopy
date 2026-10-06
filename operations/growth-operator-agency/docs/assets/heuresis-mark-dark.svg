@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="130 130 252 252" width="512" height="512">
+  <!--
+    ═══════════════════════════════════════════════
+    HEURESIS — The Point of Discovery
+    v2 Dark — Dimensional core
+
+    Design principle:
+    Rings = abstract (flat, geometric, the system)
+    Core  = real (dimensional, lit, the discovery)
+    The contrast between flat and real IS the icon.
+
+    Light source: upper-left, consistent across core + particle.
+    Not chrome. Not glossy. Matte sphere — it has mass, not mirrors.
+
+    Math (φ-based):
+      Core:      r = 24
+      Ring 1:    r = 63  ← broken, 55° gap at 315°
+      Ring 2:    r = 102
+      Particle:  r = 7, distance 87 on 315° radial
+    ═══════════════════════════════════════════════
+  -->
+
+  <defs>
+    <!--
+      Core gradient — matte sphere, upper-left light.
+      NOT chrome: no hard transitions. Smooth falloff.
+      Bright face → mid tone → shadow. Still reads as "white" overall.
+    -->
+    <radialGradient id="d-core" cx="38%" cy="35%" r="68%" fx="33%" fy="30%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="55%" stop-color="#C2C2C2"/>
+      <stop offset="100%" stop-color="#787878"/>
+    </radialGradient>
+
+    <!--
+      Particle gradient — same light direction, simplified.
+      Same material as core. It broke off from there.
+    -->
+    <radialGradient id="d-particle" cx="36%" cy="33%" r="70%">
+      <stop offset="0%" stop-color="#E8E8E8"/>
+      <stop offset="60%" stop-color="#A0A0A0"/>
+      <stop offset="100%" stop-color="#606060"/>
+    </radialGradient>
+  </defs>
+
+
+  <!-- background removed for transparency -->
+
+
+  <!-- ═══ RING 2 — outer container (flat, abstract) ═══ -->
+  <circle cx="256" cy="256" r="102"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="1.2"
+    opacity="0.16"/>
+
+
+  <!-- ═══ RING 1 — THE BROKEN RING (flat, abstract) ═══ -->
+  <path
+    d="M 316,237 A 63,63 0 1,1 275,196"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="2.8"
+    stroke-linecap="round"
+    opacity="0.85"/>
+
+
+  <!-- ═══ THE CORE — dimensional, real, the discovery ═══ -->
+  <circle cx="256" cy="256" r="24"
+    fill="url(#d-core)"/>
+
+
+  <!-- ═══ THE PARTICLE — same material, same light ═══ -->
+  <circle cx="317" cy="194" r="7"
+    fill="url(#d-particle)"/>
+
+</svg>

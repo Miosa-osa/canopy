@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760" role="img" aria-label="Skill anatomy — every skill is a folder">
+  <title>Skill Anatomy</title>
+
+  <defs>
+    <style>
+      .s-label { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; }
+      .s-title { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 500; letter-spacing: -0.02em; }
+      .s-card-title { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 500; }
+      .s-sub { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 400; }
+      .s-code { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 400; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="#ffffff"/>
+
+  <g transform="translate(450 200)">
+    <rect x="0" y="0" width="300" height="100" fill="#09090b" stroke="#09090b" stroke-width="1.5" rx="12"/>
+    <text class="s-label" x="150" y="30" font-size="10" fill="#d97706" text-anchor="middle">RUNTIME-AGNOSTIC CANONICAL</text>
+    <text class="s-card-title" x="150" y="62" font-size="20" fill="#fafafa" text-anchor="middle">SKILL.md</text>
+    <text class="s-code" x="150" y="84" font-size="11" fill="#a1a1aa" text-anchor="middle">Decision Logic · Tacit Principles · Process · Output</text>
+  </g>
+
+  <g stroke="#d4d4d8" stroke-width="1.2" fill="none">
+    <path d="M 520 300 L 260 400" stroke-linecap="round"/>
+    <path d="M 600 300 L 480 400" stroke-linecap="round"/>
+    <path d="M 600 300 L 720 400" stroke-linecap="round"/>
+    <path d="M 680 300 L 940 400" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(80 400)">
+    <rect x="0" y="0" width="200" height="140" fill="#fafafa" stroke="#e4e4e7" stroke-width="1" rx="10"/>
+    <text class="s-card-title" x="100" y="32" font-size="14" fill="#09090b" text-anchor="middle">reference/</text>
+    <text class="s-code" x="100" y="54" font-size="10" fill="#52525b" text-anchor="middle">layer 2 knowledge</text>
+    <line x1="24" y1="72" x2="176" y2="72" stroke="#e4e4e7" stroke-width="1"/>
+    <text class="s-code" x="100" y="92" font-size="10" fill="#71717a" text-anchor="middle">framework docs</text>
+    <text class="s-code" x="100" y="110" font-size="10" fill="#71717a" text-anchor="middle">source material</text>
+    <text class="s-code" x="100" y="128" font-size="10" fill="#71717a" text-anchor="middle">cross-references</text>
+  </g>
+
+  <g transform="translate(300 400)">
+    <rect x="0" y="0" width="200" height="140" fill="#fafafa" stroke="#e4e4e7" stroke-width="1" rx="10"/>
+    <text class="s-card-title" x="100" y="32" font-size="14" fill="#09090b" text-anchor="middle">examples/</text>
+    <text class="s-code" x="100" y="54" font-size="10" fill="#52525b" text-anchor="middle">calibration outputs</text>
+    <line x1="24" y1="72" x2="176" y2="72" stroke="#e4e4e7" stroke-width="1"/>
+    <text class="s-code" x="100" y="92" font-size="10" fill="#71717a" text-anchor="middle">golden outputs</text>
+    <text class="s-code" x="100" y="110" font-size="10" fill="#71717a" text-anchor="middle">shape targets</text>
+    <text class="s-code" x="100" y="128" font-size="10" fill="#71717a" text-anchor="middle">anti-examples</text>
+  </g>
+
+  <g transform="translate(700 400)">
+    <rect x="0" y="0" width="200" height="140" fill="#fafafa" stroke="#e4e4e7" stroke-width="1" rx="10"/>
+    <text class="s-card-title" x="100" y="32" font-size="14" fill="#09090b" text-anchor="middle">evidence/</text>
+    <text class="s-code" x="100" y="54" font-size="10" fill="#52525b" text-anchor="middle">verification protocol</text>
+    <line x1="24" y1="72" x2="176" y2="72" stroke="#e4e4e7" stroke-width="1"/>
+    <text class="s-code" x="100" y="92" font-size="10" fill="#71717a" text-anchor="middle">blind-output-test.md</text>
+    <text class="s-code" x="100" y="110" font-size="10" fill="#71717a" text-anchor="middle">failure-modes.md</text>
+    <text class="s-code" x="100" y="128" font-size="10" fill="#71717a" text-anchor="middle">runs/</text>
+  </g>
+
+  <g transform="translate(920 400)">
+    <rect x="0" y="0" width="200" height="140" fill="#fafafa" stroke="#e4e4e7" stroke-width="1" rx="10"/>
+    <text class="s-card-title" x="100" y="32" font-size="14" fill="#09090b" text-anchor="middle">adapters/</text>
+    <text class="s-code" x="100" y="54" font-size="10" fill="#52525b" text-anchor="middle">runtime bindings</text>
+    <line x1="24" y1="72" x2="176" y2="72" stroke="#e4e4e7" stroke-width="1"/>
+    <text class="s-code" x="100" y="92" font-size="10" fill="#71717a" text-anchor="middle">claude-code.md</text>
+    <text class="s-code" x="100" y="110" font-size="10" fill="#71717a" text-anchor="middle">canopy.yaml</text>
+    <text class="s-code" x="100" y="128" font-size="10" fill="#71717a" text-anchor="middle">http.openapi.yaml</text>
+  </g>
+
+  <g transform="translate(100 610)">
+    <rect x="0" y="0" width="1000" height="96" fill="none" stroke="#e4e4e7" stroke-width="1" rx="10" stroke-dasharray="4 4"/>
+    </g>
+</svg>

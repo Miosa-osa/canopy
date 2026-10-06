@@ -1,0 +1,64 @@
+skill_id: affiliate-program
+skill_path: skills/affiliate-program/SKILL.md
+skill_name: "Affiliate Program Designer"
+
+tier: structured_ai
+category: partnerships
+temperature_gate: warm
+
+role_affinity:
+  - partnerships-head
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - commission_structure_specified
+  - payout_logic_clear
+  - portal_assets_defined
+  - recruitment_plan
+  - compliance_disclosed
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - offer_architecture
+    - lifecycle_optimization
+  write:
+    - offer_architecture
+
+output:
+  location: "output/affiliate-program/{date}-affiliate-program-spec.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: affiliate-program-spec
+    type: inform
+    format: markdown
+    structure: w-affiliate-program
+  receiver: affiliates + operations
+
+next_skill_routing:
+  on_complete:
+    - condition: "customer_referral_adjacent_needed"
+      recommend: referral-program
+    - condition: "affiliate_recruitment_planned"
+      recommend: email-sequence
+  on_fail:
+    escalate_to: partnerships-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

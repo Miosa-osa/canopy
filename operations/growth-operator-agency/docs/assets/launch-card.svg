@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Growth Operating Agency — launch card (light) -->
+
+  <rect width="1200" height="630" fill="#FAFAF9"/>
+
+  <!-- GROWTH OPERATING AGENCY wordmark, centered -->
+  <g transform="translate(257, 180)" fill="none" stroke="#0A0A0A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- GROWTH -->
+    <path d="M 32,10 L 10,10"/>
+    <path d="M 10,10 L 10,48"/>
+    <path d="M 10,48 L 32,48"/>
+    <path d="M 32,48 L 32,29"/>
+    <path d="M 22,29 L 32,29"/>
+    <path d="M 42,48 L 42,10"/>
+    <path d="M 42,10 L 55,10 Q 64,10 64,19 Q 64,29 55,29 L 42,29"/>
+    <path d="M 54,29 L 64,48"/>
+    <path d="M 85,10 A 11,19 0 1,0 85,48 A 11,19 0 1,0 85,10 Z"/>
+    <path d="M 106,10 L 111.5,48"/>
+    <path d="M 111.5,48 L 117,25"/>
+    <path d="M 117,25 L 122.5,48"/>
+    <path d="M 122.5,48 L 128,10"/>
+    <path d="M 138,10 L 160,10"/>
+    <path d="M 149,10 L 149,48"/>
+    <path d="M 170,48 L 170,10"/>
+    <path d="M 170,29 L 192,29"/>
+    <path d="M 192,48 L 192,10"/>
+
+    <!-- OPERATING -->
+    <path d="M 223,10 A 11,19 0 1,0 223,48 A 11,19 0 1,0 223,10 Z"/>
+    <path d="M 244,48 L 244,10"/>
+    <path d="M 244,10 L 257,10 Q 266,10 266,19 Q 266,29 257,29 L 244,29"/>
+    <path d="M 276,10 L 276,48"/>
+    <path d="M 276,10 L 298,10"/>
+    <path d="M 276,29 L 295,29"/>
+    <path d="M 276,48 L 298,48"/>
+    <path d="M 308,48 L 308,10"/>
+    <path d="M 308,10 L 321,10 Q 330,10 330,19 Q 330,29 321,29 L 308,29"/>
+    <path d="M 320,29 L 330,48"/>
+    <path d="M 340,48 L 351,10"/>
+    <path d="M 351,10 L 362,48"/>
+    <path d="M 345,29 L 357,29"/>
+    <path d="M 372,10 L 394,10"/>
+    <path d="M 383,10 L 383,48"/>
+    <path d="M 407,10 L 407,48"/>
+    <path d="M 420,48 L 420,10"/>
+    <path d="M 420,10 L 442,48"/>
+    <path d="M 442,48 L 442,10"/>
+    <path d="M 474,10 L 452,10"/>
+    <path d="M 452,10 L 452,48"/>
+    <path d="M 452,48 L 474,48"/>
+    <path d="M 474,48 L 474,29"/>
+    <path d="M 464,29 L 474,29"/>
+
+    <!-- AGENCY -->
+    <path d="M 494,48 L 505,10"/>
+    <path d="M 505,10 L 516,48"/>
+    <path d="M 499,29 L 511,29"/>
+    <path d="M 548,10 L 526,10"/>
+    <path d="M 526,10 L 526,48"/>
+    <path d="M 526,48 L 548,48"/>
+    <path d="M 548,48 L 548,29"/>
+    <path d="M 538,29 L 548,29"/>
+    <path d="M 558,10 L 558,48"/>
+    <path d="M 558,10 L 580,10"/>
+    <path d="M 558,29 L 577,29"/>
+    <path d="M 558,48 L 580,48"/>
+    <path d="M 590,48 L 590,10"/>
+    <path d="M 590,10 L 612,48"/>
+    <path d="M 612,48 L 612,10"/>
+    <path d="M 644,16 A 11,19 0 1,0 644,42"/>
+    <path d="M 654,10 L 665,29"/>
+    <path d="M 676,10 L 665,29"/>
+    <path d="M 665,29 L 665,48"/>
+
+  </g>
+
+  <!-- Tagline -->
+  <text x="600" y="320"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="28"
+        font-weight="400"
+        fill="#0A0A0A">
+    a creator business, run by agents. in one folder.
+  </text>
+
+  <!-- Stats -->
+  <text x="600" y="405"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="20"
+        font-weight="700"
+        letter-spacing="3"
+        fill="#0A0A0A">
+    41 AGENTS  ·  7 DEPARTMENTS  ·  MIT
+  </text>
+
+  <!-- URL -->
+  <text x="600" y="540"
+        text-anchor="middle"
+        font-family="'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace"
+        font-size="18"
+        font-weight="400"
+        fill="#6B6B6B">
+    github.com/Heuresis/Growth-Operator-Agency
+  </text>
+
+</svg>

@@ -17,6 +17,12 @@ defmodule Canopy.Schemas.Agent do
     field :config, :map, default: %{}
     field :system_prompt, :string
     field :avatar_emoji, :string, default: "🤖"
+    field :title, :string
+    field :signal, :string
+    field :context_tier, :string, default: "l1"
+    field :budget_monthly_cents, :integer
+    field :tools, {:array, :string}, default: []
+    field :color, :string
     field :last_session_summary, :string
     field :session_continuity, :map, default: %{}
 
@@ -50,11 +56,18 @@ defmodule Canopy.Schemas.Agent do
       :reports_to,
       :avatar_emoji,
       :team_id,
+      :title,
+      :signal,
+      :context_tier,
+      :budget_monthly_cents,
+      :tools,
+      :color,
       :last_session_summary,
       :session_continuity
     ])
     |> validate_required([:slug, :name, :role, :adapter, :model, :workspace_id])
     |> validate_inclusion(:status, ~w(active idle working running sleeping error paused))
+    |> validate_inclusion(:context_tier, ~w(l0 l1 full))
     |> validate_inclusion(
       :adapter,
       ~w(osa claude-code codex bash http openclaw cursor gemini aider jido-claw windsurf)

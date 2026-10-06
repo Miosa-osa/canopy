@@ -1,0 +1,69 @@
+skill_id: research
+skill_path: skills/research/SKILL.md
+skill_name: "Market Research Brief Producer"
+
+tier: structured_ai
+category: foundations
+temperature_gate: warm
+
+role_affinity:
+  - foundations-head
+  - researcher
+  - icp-builder
+
+required_tables:
+  - creators            # for context.creator_identity_matrix
+  - agents              # for agent invocation
+  - events              # for logging phase transitions
+  - documents           # for storing research sources
+
+tools:
+  - web_search
+  - web_fetch
+  - file_read
+  - file_write
+  - file_edit
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - all_9_sections_complete
+  - cross_validation_minimum_3_sources_per_claim
+  - signal_score_external_gte_0_8
+  - no_banned_vocabulary
+  - compartment_2_populated_to_30_percent_minimum
+  - economics_validation_done
+
+context_slices:
+  read:
+    - creator_identity_matrix
+  write:
+    - audience_intelligence_system
+    - offer_architecture.economics_validation
+
+output:
+  location: "output/research/{date}-market-research-brief.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: market-research-brief
+    type: inform
+    format: markdown
+    structure: w-market-research-brief
+  receiver: creator
+
+next_skill_routing:
+  on_complete:
+    - condition: "audience_compartment >= 30"
+      recommend: build-icp
+    - condition: "economics_validation_failed"
+      recommend: design-offer
+  on_fail:
+    escalate_to: foundations-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

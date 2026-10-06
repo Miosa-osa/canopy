@@ -1,0 +1,71 @@
+skill_id: build-icp
+skill_path: skills/build-icp/SKILL.md
+skill_name: "Ideal Customer Profile Document Builder"
+
+tier: structured_ai
+category: foundations
+temperature_gate: warm
+
+role_affinity:
+  - foundations-head
+  - icp-builder
+  - researcher
+
+required_tables:
+  - creators                           # creator context + identity matrix
+  - agents                             # agent invocation
+  - events                             # phase transition logs
+  - documents                          # ICP Document + upstream brief
+  - contacts                           # VOC source records (where available)
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_search
+  - web_fetch
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - all_13_sections_complete
+  - completeness_score_gte_80
+  - verbatim_voc_count_gte_20
+  - limiting_belief_diagnosed
+  - awareness_level_assigned
+  - signal_score_gte_0_8
+  - blind_output_test_passed
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - creator_identity_matrix
+  write:
+    - audience_intelligence_system
+
+output:
+  location: "output/build-icp/{date}-icp-doc.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: icp-doc
+    type: inform
+    format: markdown
+    structure: w-icp-doc-13-section
+  receiver: creator
+
+next_skill_routing:
+  on_complete:
+    - condition: "completeness_score_gte_80"
+      recommend: build-positioning
+    - condition: "brand_voice_architecture_sparse"
+      recommend: extract-voice
+  on_fail:
+    escalate_to: foundations-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

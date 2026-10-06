@@ -1,0 +1,64 @@
+skill_id: referral-program
+skill_path: skills/referral-program/SKILL.md
+skill_name: "Customer Referral Mechanics Designer"
+
+tier: structured_ai
+category: partnerships
+temperature_gate: warm
+
+role_affinity:
+  - partnerships-head
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - contacts
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - reward_structure_specified
+  - triggers_mapped
+  - tracking_wired
+  - viral_loop_designed
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - offer_architecture
+    - lifecycle_optimization
+  write:
+    - lifecycle_optimization
+
+output:
+  location: "output/referral-program/{date}-referral-program-spec.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: referral-program-spec
+    type: inform
+    format: markdown
+    structure: w-referral-program
+  receiver: existing customers + operations
+
+next_skill_routing:
+  on_complete:
+    - condition: "referral_ask_emails_needed"
+      recommend: email-sequence
+    - condition: "thriving_clients_paired"
+      recommend: case-study
+  on_fail:
+    escalate_to: partnerships-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

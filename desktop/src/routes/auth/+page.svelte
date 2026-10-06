@@ -2,7 +2,8 @@
   import { goto } from '$app/navigation';
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
-  import { auth, persistToken, resetInitPromise } from '$api/client';
+  import { auth, persistToken, resetInitPromise, ApiError } from '$api/client';
+  import { isTauri } from '$lib/utils/platform';
 
   // ── State ─────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,15 @@
 
   onMount(async () => {
     if (!browser) return;
+
+    // In local desktop mode (Tauri), auth is optional — only needed for
+    // MiosaCloud sync. If the user lands here directly, redirect them to
+    // the appropriate screen instead of showing the login form.
+    if (isTauri()) {
+      const dest = isOnboardingComplete() ? '/app' : '/onboarding';
+      goto(dest, { replaceState: true });
+      return;
+    }
 
     // initializeAuth() is a singleton — safe to call multiple times.
     // It probes /health, reads /auth/status to set _firstRun, and restores
@@ -67,11 +77,11 @@
 
   const isRegisterMode = $derived(mode === 'register');
   const submitLabel = $derived(isRegisterMode ? 'Create account' : 'Sign in');
-  const headingText = $derived(isRegisterMode ? 'Create your account' : 'Sign in to Canopy');
+  const headingText = $derived(isRegisterMode ? 'Connect to MiosaCloud' : 'Sign in to MiosaCloud');
   const subheadingText = $derived(
     isRegisterMode
-      ? 'Set up your workspace and start orchestrating agents'
-      : 'Welcome back — enter your credentials to continue'
+      ? 'Create an account to enable cloud sync, backups, and cross-device access'
+      : 'Sign in to enable MiosaCloud sync — not required for local use'
   );
 
   // ── Validation ────────────────────────────────────────────────────────────
@@ -103,6 +113,57 @@
     return Object.keys(errors).length === 0;
   }
 
+  // ── Error resolution ──────────────────────────────────────────────────────
+
+  /**
+   * Convert API errors (and network failures) into human-readable messages.
+   * The backend returns `{error: "validation_failed", details: {email: [...], password: [...]}}`.
+   * We decode `details` and pick the most actionable message.
+   */
+  function resolveErrorMessage(err: unknown, isRegister: boolean): string {
+    // Network-level failure (fetch rejected — no response at all)
+    if (!(err instanceof ApiError)) {
+      return "Can't connect to server. Is the backend running?";
+    }
+
+    const body = err.body as Record<string, unknown> | null | undefined;
+    const code = body && typeof body.error === 'string' ? body.error : err.message;
+    const details = body && typeof body.details === 'object' && body.details !== null
+      ? body.details as Record<string, unknown>
+      : null;
+
+    if (code === 'validation_failed') {
+      // Email already taken
+      if (details?.email) {
+        const emailMsgs = Array.isArray(details.email) ? details.email : [details.email];
+        if (emailMsgs.some((m: unknown) => String(m).includes('taken') || String(m).includes('already'))) {
+          return 'This email is already registered. Try signing in instead.';
+        }
+        return `Email: ${emailMsgs[0]}`;
+      }
+      // Password too short
+      if (details?.password) {
+        const pwMsgs = Array.isArray(details.password) ? details.password : [details.password];
+        if (pwMsgs.some((m: unknown) => String(m).includes('8') || String(m).includes('characters'))) {
+          return 'Password must be at least 8 characters.';
+        }
+        return `Password: ${pwMsgs[0]}`;
+      }
+      return isRegister ? 'Registration failed. Check your details and try again.' : 'Validation failed.';
+    }
+
+    if (code === 'invalid_credentials') {
+      return 'Wrong email or password.';
+    }
+
+    if (code === 'invalid_request') {
+      return typeof body?.details === 'string' ? body.details : 'Invalid request.';
+    }
+
+    // Fallback: surface whatever message the server gave
+    return err.message || (isRegister ? 'Registration failed.' : 'Sign in failed.');
+  }
+
   // ── Submit ────────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: Event) {
@@ -126,10 +187,9 @@
         resetInitPromise();
 
         // Store registration data for onboarding to pre-fill.
+        // Workspace is NOT available at registration — it is created during onboarding.
         localStorage.setItem('canopy-display-name', result.user.name);
         localStorage.setItem('canopy-registered-name', result.user.name);
-        localStorage.setItem('canopy-registered-workspace-id', result.workspace.id);
-        localStorage.setItem('canopy-registered-workspace-name', result.workspace.name);
 
         // New account → always needs onboarding; do NOT mark it complete.
         goto('/onboarding', { replaceState: true });
@@ -150,12 +210,7 @@
         goto(onboardingDone ? '/app' : '/onboarding', { replaceState: true });
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        // Surface backend error message directly when available
-        errorMessage = err.message || (isRegisterMode ? 'Registration failed' : 'Login failed');
-      } else {
-        errorMessage = isRegisterMode ? 'Registration failed' : 'Invalid email or password';
-      }
+      errorMessage = resolveErrorMessage(err, isRegisterMode);
     } finally {
       isSubmitting = false;
     }

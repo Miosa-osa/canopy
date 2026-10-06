@@ -1,0 +1,73 @@
+skill_id: email-sequence
+skill_path: skills/email-sequence/SKILL.md
+skill_name: "Email Sequence Producer (8 Sequence Types)"
+
+tier: structured_ai
+category: nurture
+temperature_gate: warm
+
+role_affinity:
+  - nurture-head
+  - email-sequence
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - contacts
+  - segments
+  - campaigns
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - sequence_type_selected
+  - per_email_subject_hook_specificity_gte_8
+  - conversion_stage_mapped
+  - voice_matched
+  - cadence_specified
+  - unsubscribe_compliance_present
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - copy_messaging
+    - education_nurture
+  write:
+    - education_nurture.email_sequences_published
+
+output:
+  location: "output/email-sequence/{date}-type{N}-{sequence-name}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: email-sequence
+    type: inform
+    format: markdown
+    structure: variant-dependent-w-email-sequence
+  receiver: subscriber
+
+next_skill_routing:
+  on_complete:
+    - condition: "sequence_type == 4_webinar"
+      recommend: webinar-script
+    - condition: "sequence_type == 1_welcome"
+      recommend: lead-magnet
+    - condition: "call_funnel_context"
+      recommend: post-booking-nurture
+  on_fail:
+    escalate_to: nurture-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

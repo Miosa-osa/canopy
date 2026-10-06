@@ -1,0 +1,67 @@
+# Growth OS — CODEOWNERS
+#
+# Any PR that touches these paths requests review from the Heuresis team.
+# Rules cascade top-to-bottom; the last matching rule wins.
+
+# Default — Heuresis team reviews everything
+*                                   @Heuresis/core
+
+# Load-bearing files — principal architect review required
+/SYSTEM.md                          @Heuresis/core @syed
+/INVARIANTS.md                      @Heuresis/core @syed
+/ENCODING.md                        @Heuresis/core @syed
+/PROVENANCE.md                      @Heuresis/core @syed
+/LICENSE                            @Heuresis/core @syed
+
+# Spec — any change cascades through every skill
+/spec/                              @Heuresis/core @syed
+
+# Repo hygiene
+/.github/                           @Heuresis/core
+/.gitignore                         @Heuresis/core
+/SECURITY.md                        @Heuresis/core
+/CONTRIBUTING.md                    @Heuresis/core
+/CHANGELOG.md                       @Heuresis/core
+
+# Skills — division leads review their division's skills
+/skills/research/                   @Heuresis/foundations
+/skills/build-icp/                  @Heuresis/foundations
+/skills/build-positioning/          @Heuresis/foundations
+/skills/design-offer/               @Heuresis/foundations
+/skills/extract-voice/              @Heuresis/foundations
+
+/skills/content-calendar/           @Heuresis/marketing
+/skills/ad-creative/                @Heuresis/marketing
+/skills/write-linkedin-post/        @Heuresis/marketing
+/skills/write-reel/                 @Heuresis/marketing
+/skills/write-youtube/              @Heuresis/marketing
+/skills/write-x-thread/             @Heuresis/marketing
+/skills/story-sequence/             @Heuresis/marketing
+
+/skills/lead-magnet/                @Heuresis/nurture
+/skills/email-sequence/             @Heuresis/nurture
+/skills/webinar-script/             @Heuresis/nurture
+/skills/post-booking-nurture/       @Heuresis/nurture
+
+/skills/build-vsl/                  @Heuresis/sales
+/skills/build-funnel/               @Heuresis/sales
+/skills/competitor-intel/           @Heuresis/sales
+
+/skills/plan-launch/                @Heuresis/launch
+/skills/launch-report/              @Heuresis/launch
+
+/skills/build-sop/                  @Heuresis/scale
+/skills/hiring-brief/               @Heuresis/scale
+/skills/retention-check/            @Heuresis/scale
+/skills/revenue-report/             @Heuresis/scale
+/skills/case-study/                 @Heuresis/scale
+
+/skills/jv-webinar-proposal/        @Heuresis/partnerships
+/skills/affiliate-program/          @Heuresis/partnerships
+/skills/referral-program/           @Heuresis/partnerships
+
+# Reference library
+/reference/                         @Heuresis/core
+
+# Visual assets
+/docs/assets/                       @Heuresis/design

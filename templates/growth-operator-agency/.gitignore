@@ -1,0 +1,62 @@
+# ============================================================
+# Growth OS — .gitignore
+# ============================================================
+# Per INV-11: creator data and credentials never commit.
+# Template ships as structure; encoded data stays local.
+# ============================================================
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- Credentials ----
+.env
+.env.local
+.env.*.local
+!.env.template
+
+# ---- Runtime outputs (generated per creator) ----
+output/*
+!output/.gitkeep
+!output/README.md
+
+# ---- Creator-encoded private data (INV-11) ----
+_private/*
+!_private/.gitkeep
+!_private/README.md
+
+# ---- Excluded content (opt-out register) ----
+_excluded/*
+!_excluded/.gitkeep
+!_excluded/README.md
+
+# ---- Language / tooling ----
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---- Temp + scratch ----
+tmp/
+temp/
+scratch/
+*.bak
+*.tmp
+
+# ---- Per-creator company.yaml override (when filled) ----
+# The template company.yaml ships with empty fields.
+# A filled company.yaml is creator IP — never push.
+# Template reference preserved at company.template.yaml.
+company.yaml
+
+# ---- Project-specific state + context files (gitignored per INV-11) ----
+PROJECT-STATE.md
+CLAUDE.md

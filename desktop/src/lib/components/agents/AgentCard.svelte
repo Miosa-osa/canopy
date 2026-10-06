@@ -1,9 +1,11 @@
 <!-- src/lib/components/agents/AgentCard.svelte -->
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { sessions } from '$api/client';
   import StatusDot from '$lib/components/shared/StatusDot.svelte';
   import TimeAgo from '$lib/components/shared/TimeAgo.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
+  import { toastStore } from '$lib/stores/toasts.svelte';
   import type { CanopyAgent, AgentStatus, AgentLifecycleAction } from '$api/types';
 
   interface Props {
@@ -57,6 +59,21 @@
   async function handleAction(e: MouseEvent, action: AgentLifecycleAction) {
     e.stopPropagation();
     await agentsStore.performAction(agent.id, action);
+  }
+
+  async function runAgent(e: MouseEvent) {
+    e.stopPropagation();
+    try {
+      await agentsStore.performAction(agent.id, 'focus');
+      const session = await sessions.create({
+        agent_id: agent.id,
+        title: `${agent.display_name} run`,
+      });
+      void goto(`/app/sessions/${session.id}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toastStore.error('Run failed', msg);
+    }
   }
 
   function navigateToDetail() {
@@ -137,10 +154,10 @@
     {:else if agent.status === 'idle'}
       <button
         class="ac-btn ac-btn--primary"
-        onclick={(e) => handleAction(e, 'focus')}
-        aria-label="Focus {agent.display_name}"
+        onclick={runAgent}
+        aria-label="Run {agent.display_name}"
       >
-        Focus
+        Run
       </button>
       <button
         class="ac-btn"
@@ -158,6 +175,13 @@
         Restart
       </button>
     {/if}
+    <button
+      class="ac-btn"
+      onclick={(e) => { e.stopPropagation(); navigateToDetail(); }}
+      aria-label="Configure {agent.display_name}"
+    >
+      Config
+    </button>
   </div>
 </div>
 

@@ -547,6 +547,12 @@ async function doFetch<T>(
   options: RequestInit,
   retried = false,
 ): Promise<T> {
+  // In local Tauri mode without auth, skip ALL backend API calls.
+  // Data comes from .canopy/ filesystem scan instead.
+  if (!_token && typeof window !== "undefined" && "__TAURI__" in window) {
+    return [] as unknown as T;
+  }
+
   const url = `${BASE_URL}${API_PREFIX}${path}`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -678,7 +684,7 @@ export interface AuthWorkspace {
 export interface RegisterResponse {
   token: string;
   user: AuthUser;
-  workspace: AuthWorkspace;
+  // workspace is NOT returned at registration — it is created during onboarding
 }
 
 export interface LoginResponse {
@@ -1237,7 +1243,21 @@ export const skills = {
   list: async (workspaceId?: string): Promise<Skill[]> => {
     const qs = workspaceId ? `?workspace_id=${workspaceId}` : "";
     const data = await request<{ skills: Skill[] }>(`/skills${qs}`);
-    return data.skills ?? [];
+    const remoteSkills = data.skills ?? [];
+
+    // Keep the bundled Canopy skill library visible in every workspace. Fresh
+    // workspaces can legitimately have no enabled server skills yet, but the
+    // library still needs to show importable/local skills.
+    const { LOCAL_SKILLS } = await import("./mock/library/local-skills");
+    return [
+      ...remoteSkills,
+      ...LOCAL_SKILLS.filter(
+        (local) =>
+          !remoteSkills.some(
+            (remote) => remote.id === local.id || remote.name === local.name,
+          ),
+      ),
+    ];
   },
   toggle: (id: string) =>
     request<Skill>(`/skills/${id}/toggle`, { method: "POST" }),
@@ -1887,7 +1907,22 @@ export const templates = {
     const data = await request<{ templates: AgentTemplate[] }>(
       `/templates${qs}`,
     );
-    return data.templates ?? [];
+    const remoteTemplates = data.templates ?? [];
+
+    // Keep bundled workspace templates visible even when the backend is online.
+    // The backend stores user/server templates, while these local records map to
+    // bundled modules used by template-deploy.ts.
+    const { mockTemplates } = await import("./mock/templates");
+    const bundledTemplates = mockTemplates();
+    return [
+      ...remoteTemplates,
+      ...bundledTemplates.filter(
+        (bundled) =>
+          !remoteTemplates.some(
+            (remote) => remote.id === bundled.id || remote.name === bundled.name,
+          ),
+      ),
+    ];
   },
   get: (id: string) => request<AgentTemplate>(`/templates/${id}`),
   create: (body: Partial<AgentTemplate>) =>

@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Quickstart
+    url: https://github.com/Heuresis/growth-operating/blob/main/docs/QUICKSTART.md
+    about: First time here? Start with the quickstart guide.
+  - name: FAQ
+    url: https://github.com/Heuresis/growth-operating/blob/main/docs/FAQ.md
+    about: Common questions on runtimes, privacy, instantiation, quality gates.
+  - name: Glossary
+    url: https://github.com/Heuresis/growth-operating/blob/main/docs/GLOSSARY.md
+    about: Compartment, signal, S/N, sacred-format, encoding flywheel — every term in one place.
+  - name: Security
+    url: https://github.com/Heuresis/growth-operating/blob/main/.github/SECURITY.md
+    about: Security issues go to security@heuresis.ai, not public issues.

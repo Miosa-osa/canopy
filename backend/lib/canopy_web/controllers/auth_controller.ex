@@ -2,7 +2,7 @@ defmodule CanopyWeb.AuthController do
   use CanopyWeb, :controller
 
   alias Canopy.Repo
-  alias Canopy.Schemas.User
+  alias Canopy.Schemas.{User, Workspace}
   import Ecto.Query
 
   def login(conn, %{"email" => email, "password" => password}) do
@@ -54,17 +54,41 @@ defmodule CanopyWeb.AuthController do
         {:ok, token, _claims} =
           Canopy.Guardian.encode_and_sign(user, %{"role" => user.role}, ttl: {1, :hour})
 
+        workspace_result =
+          Repo.insert(
+            Workspace.changeset(%Workspace{}, %{
+              "name" => "#{user.name}'s Workspace",
+              "path" => Path.join(System.user_home!(), "canopy/#{user.id}"),
+              "status" => "active",
+              "owner_id" => user.id
+            })
+          )
+
+        workspace_payload =
+          case workspace_result do
+            {:ok, ws} -> %{id: ws.id, name: ws.name}
+            {:error, _} -> nil
+          end
+
+        response =
+          %{
+            token: token,
+            user: %{
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role
+            }
+          }
+
+        response =
+          if workspace_payload,
+            do: Map.put(response, :workspace, workspace_payload),
+            else: response
+
         conn
         |> put_status(201)
-        |> json(%{
-          token: token,
-          user: %{
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role
-          }
-        })
+        |> json(response)
 
       {:error, changeset} ->
         conn

@@ -1,0 +1,74 @@
+skill_id: design-offer
+skill_path: skills/design-offer/SKILL.md
+skill_name: "High-Ticket Offer Architect"
+
+tier: reasoning_ai
+category: foundations
+temperature_gate: warm
+
+role_affinity:
+  - foundations-head
+  - offer-architect
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - offers                             # offer registry with economics
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+  - web_search
+  - web_fetch
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - all_12_sections_complete
+  - economics_ltv_cac_gte_3
+  - value_equation_score_gte_150
+  - limiting_belief_aligned_transformation
+  - minimum_5_bonuses_objection_countered
+  - roi_positive_guarantee
+  - signal_score_gte_0_8
+  - blind_output_test_passed
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - creator_identity_matrix
+    - offer_architecture
+  write:
+    - offer_architecture
+
+output:
+  location: "output/design-offer/{date}-offer-doc.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: offer-doc
+    type: inform
+    format: markdown
+    structure: w-offer-doc-12-section
+  receiver: creator
+
+next_skill_routing:
+  on_complete:
+    - condition: "offer_gate_passed"
+      recommend: build-vsl
+    - condition: "funnel_not_built"
+      recommend: build-funnel
+    - condition: "value_equation_50_to_150"
+      recommend: offer-repositioning # v1.1
+  on_fail:
+    escalate_to: foundations-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: true

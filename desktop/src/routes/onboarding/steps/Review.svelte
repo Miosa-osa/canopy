@@ -67,7 +67,7 @@
     workspacePath,
     teamTemplate,
     teamAgents,
-    miosaCloud,
+    miosaCloud = $bindable(),
     isLaunching,
     onLaunch,
     onSkip,
@@ -133,17 +133,23 @@
         </span>
       </span>
     </div>
-    <div class="ob-summary-row">
+    <div class="ob-summary-row ob-summary-row--toggle">
       <span class="ob-summary-key">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 1l7 4v6l-7 4-7-4V5l7-4z"/></svg>
         MIOSA Cloud
       </span>
-      <span class="ob-summary-val">
-        {#if miosaCloud}
-          <span class="ob-summary-on">Enabled</span>
-        {:else}
-          <span class="ob-summary-off">Disabled</span>
-        {/if}
+      <span class="ob-summary-val ob-summary-val--toggle">
+        <span class="ob-toggle-hint-text">Firecracker microVM sandboxing</span>
+        <button
+          class="ob-toggle"
+          class:ob-toggle--on={miosaCloud}
+          onclick={() => miosaCloud = !miosaCloud}
+          role="switch"
+          aria-checked={miosaCloud}
+          aria-label="Enable MIOSA Cloud sandboxing"
+        >
+          <span class="ob-toggle-thumb"></span>
+        </button>
       </span>
     </div>
   </div>
@@ -288,6 +294,57 @@
   .ob-summary-off {
     color: rgba(255, 255, 255, 0.3);
     font-size: 0.75rem;
+  }
+
+  .ob-summary-row--toggle {
+    align-items: center;
+  }
+
+  .ob-summary-val--toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.625rem;
+  }
+
+  .ob-toggle-hint-text {
+    font-size: 0.6875rem;
+    color: rgba(255, 255, 255, 0.28);
+  }
+
+  .ob-toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    transition: background 200ms ease, border-color 200ms ease;
+    flex-shrink: 0;
+  }
+
+  .ob-toggle--on {
+    background: #3b82f6;
+    border-color: rgba(59, 130, 246, 0.6);
+  }
+
+  .ob-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transition: transform 200ms ease, background 200ms ease;
+    pointer-events: none;
+  }
+
+  .ob-toggle--on .ob-toggle-thumb {
+    transform: translateX(18px);
+    background: #ffffff;
   }
 
   .ob-btn {

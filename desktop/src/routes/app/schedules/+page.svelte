@@ -6,8 +6,10 @@
   import ScheduleForm from '$lib/components/schedules/ScheduleForm.svelte';
   import RunHistory from '$lib/components/schedules/RunHistory.svelte';
   import WakeupQueue from '$lib/components/schedules/WakeupQueue.svelte';
+  import FsScheduleCard from '$lib/components/schedules/FsScheduleCard.svelte';
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
   import { schedulesStore } from '$lib/stores/schedules.svelte';
+  import { schedulesFsStore } from '$lib/stores/schedules-fs.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
   import { workspaceStore } from '$lib/stores/workspace.svelte';
   import type { Schedule } from '$api/types';
@@ -73,6 +75,21 @@
       }
     });
   });
+
+  // Load filesystem schedules from the active workspace scan
+  $effect(() => {
+    const ws = workspaceStore.activeWorkspace;
+    if (!ws) return;
+
+    // If we already have a scan result with schedules, use it immediately
+    const scan = workspaceStore.lastScan;
+    if (scan?.schedules && scan.schedules.length > 0) {
+      schedulesFsStore.loadFromScan(scan.schedules);
+    } else {
+      // Trigger a fresh scan to pick up the filesystem schedules
+      void schedulesFsStore.load(ws.path);
+    }
+  });
 </script>
 
 <PageShell
@@ -93,6 +110,34 @@
     </button>
   {/snippet}
 
+  <!-- ── Filesystem schedules (from .canopy/schedules/) ── -->
+  {#if schedulesFsStore.schedules.length > 0 || schedulesFsStore.loading}
+    <section class="sch-fs-section" aria-label="Canopy filesystem schedules">
+      <div class="sch-section-header">
+        <h2 class="sch-section-title">Canopy schedules</h2>
+        <span class="sch-section-subtitle">.canopy/schedules/</span>
+        {#if schedulesFsStore.schedules.length > 0}
+          <span class="sch-fs-count">{schedulesFsStore.schedules.length}</span>
+        {/if}
+      </div>
+
+      {#if schedulesFsStore.loading}
+        <div class="sch-fs-loading" aria-label="Loading filesystem schedules">
+          <LoadingSpinner label="Reading schedules…" />
+        </div>
+      {:else}
+        <div class="sch-fs-cards">
+          {#each schedulesFsStore.schedules as fsSched (fsSched.id)}
+            <FsScheduleCard schedule={fsSched} />
+          {/each}
+        </div>
+      {/if}
+    </section>
+
+    <div class="sch-divider" aria-hidden="true"></div>
+  {/if}
+
+  <!-- ── API-backed schedules ── -->
   {#if schedulesStore.loading && schedulesStore.schedules.length === 0}
     <div class="sch-loading" aria-label="Loading schedules">
       <LoadingSpinner label="Loading schedules…" />
@@ -209,6 +254,70 @@
     outline-offset: 3px;
   }
 
+  /* ── Filesystem schedules section ── */
+  .sch-fs-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .sch-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sch-section-title {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+  }
+
+  .sch-section-subtitle {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .sch-fs-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: rgba(52, 211, 153, 0.15);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: #34d399;
+  }
+
+  .sch-fs-loading {
+    display: flex;
+    align-items: center;
+    height: 80px;
+  }
+
+  .sch-fs-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+
+  /* ── Divider between sections ── */
+  .sch-divider {
+    height: 1px;
+    background: var(--border-default);
+    margin: 4px 0;
+  }
+
   /* ── Loading ── */
   .sch-loading {
     display: flex;
@@ -296,16 +405,6 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-  }
-
-  .sch-section-title {
-    font-family: var(--font-sans);
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 0;
   }
 
   /* ── Modal ── */

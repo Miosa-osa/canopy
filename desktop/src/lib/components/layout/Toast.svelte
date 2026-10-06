@@ -66,12 +66,10 @@
     gap: 10px;
     width: 320px;
     padding: 12px 14px;
-    border-radius: 10px;
+    border-radius: 0;
     border: 1px solid;
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    background: rgba(20, 20, 20, 0.85);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    background: var(--dbg);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.03) inset;
     pointer-events: all;
   }
 
@@ -89,14 +87,14 @@
     margin: 0;
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--dt);
     line-height: 1.4;
   }
 
   .tn-message {
     margin: 3px 0 0;
     font-size: 12px;
-    color: var(--text-secondary);
+    color: var(--dt2);
     line-height: 1.5;
   }
 
@@ -110,14 +108,14 @@
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--text-tertiary);
+    color: var(--dt3);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 0;
     transition: color 120ms ease, background 120ms ease;
   }
 
   .tn-dismiss:hover {
-    color: var(--text-primary);
-    background: var(--bg-elevated);
+    color: var(--dt);
+    background: var(--dbg2);
   }
 </style>

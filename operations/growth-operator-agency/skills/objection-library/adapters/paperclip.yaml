@@ -1,0 +1,89 @@
+# Paperclip Adapter · /objection-library
+# =========================================================================
+# Paperclip-native binding for /objection-library.
+# Inherits core skill contract from ./manifest.yaml in the same directory.
+# Conforms to Paperclip workspace-skill pattern v1.
+# =========================================================================
+
+$schema: https://paperclip.dev/schema/workspace-skill.v1.json
+spec_version: 1.0
+
+inherits: ./manifest.yaml
+
+skill: objection-library
+version: 1.1.0
+category: sales
+tier: reasoning_ai
+
+# -------------------------------------------------------------------------
+# Which trigger modes Paperclip can invoke this skill through
+# -------------------------------------------------------------------------
+trigger_modes:
+  manual: true
+  webhook: true
+  cron: false
+  event: true
+
+# -------------------------------------------------------------------------
+# Sample trigger bindings — customize in Paperclip dashboard
+# -------------------------------------------------------------------------
+sample_triggers:
+
+  webhook:
+    path: /growth-os/objection-library
+    method: POST
+    auth: paperclip_signed_secret
+    inputs:
+      body_schema: ./http.openapi.yaml#/components/schemas/objection-libraryRequest
+
+  event:
+    topic: workspace.objection-library.requested
+    filter:
+      workspace: growth-operating-agency
+
+
+# -------------------------------------------------------------------------
+# Cost hints — Paperclip uses for budget forecasting + backpressure
+# -------------------------------------------------------------------------
+cost_hint:
+  tier: reasoning_ai
+  wall_clock_sec: [60, 600]
+  tokens_estimate:
+    input: [2000, 8000]
+    output: [1500, 8000]
+  estimated_cost_usd: [0.02, 0.50]
+
+# -------------------------------------------------------------------------
+# Idempotency
+# -------------------------------------------------------------------------
+idempotency:
+  safe_to_rerun: true
+  cache_ttl_sec: 3600
+  key_from_inputs:
+    - company_hash
+    - skill_version
+
+# -------------------------------------------------------------------------
+# Required secrets (workspace-level in paperclip.manifest.yaml)
+# -------------------------------------------------------------------------
+required_secrets:
+  - ANTHROPIC_API_KEY
+
+# -------------------------------------------------------------------------
+# Approval policy — inherits workspace 60/40 principle
+# -------------------------------------------------------------------------
+approval_policy:
+  inherits_workspace_policy: true
+
+# -------------------------------------------------------------------------
+# Output routing
+# -------------------------------------------------------------------------
+output_routing:
+  default:
+    - kind: file
+      path: "output/objection-library/{{timestamp}}.md"
+  optional:
+    - kind: slack
+      channel: "#sales"
+    - kind: email
+      to: operator

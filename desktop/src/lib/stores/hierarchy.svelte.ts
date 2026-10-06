@@ -4,8 +4,10 @@ import {
   departments as departmentsApi,
   teams as teamsApi,
   hierarchy as hierarchyApi,
+  getToken,
 } from "$api/client";
 import type { Division, Department, Team, HierarchyTree } from "$api/types";
+import { isTauri } from "$lib/utils/platform";
 import { toastStore } from "./toasts.svelte";
 
 class HierarchyStore {
@@ -30,6 +32,10 @@ class HierarchyStore {
   // ── Fetch ────────────────────────────────────────────────────────────────────
 
   async fetchDivisions(organizationId?: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       this.divisions = await divisionsApi.list(organizationId);
@@ -44,6 +50,10 @@ class HierarchyStore {
   }
 
   async fetchDepartments(divisionId?: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       this.departments = await departmentsApi.list(divisionId);
@@ -58,6 +68,10 @@ class HierarchyStore {
   }
 
   async fetchTeams(departmentId?: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       this.teams = await teamsApi.list(departmentId);
@@ -72,6 +86,10 @@ class HierarchyStore {
   }
 
   async fetchTree(organizationId: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     try {
       this.tree = await hierarchyApi.get(organizationId);

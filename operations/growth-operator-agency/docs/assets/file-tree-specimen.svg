@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1560" width="1000" height="1560" role="img" aria-label="File tree specimen">
+  <style>
+    .bg { fill: #ffffff; }
+    .ink { fill: #09090b; }
+    .graphite { fill: #52525b; }
+    .hair { stroke: #d4d4d8; stroke-width: 0.5; fill: none; }
+    .rule-thick { stroke: #09090b; stroke-width: 1; fill: none; }
+    .sans { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .mono { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; }
+    .label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+    .eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+    .spec { font-size: 13px; }
+    .foot { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+  </style>
+
+  <rect class="bg" width="1000" height="1560"/>
+
+  <!-- Thick rule -->
+  <line class="rule-thick" x1="80" y1="100" x2="920" y2="100"/>
+
+  <!-- Root section -->
+  <text class="mono label graphite" x="80" y="140">Root</text>
+  <text class="mono ink spec" x="80" y="170">README.md            the pitch</text>
+  <text class="mono ink spec" x="80" y="190">SYSTEM.md            boot file · any AI becomes a growth operator</text>
+  <text class="mono ink spec" x="80" y="210">INVARIANTS.md        28 sacred rules</text>
+  <text class="mono ink spec" x="80" y="230">ENCODING.md          11-compartment schema</text>
+  <text class="mono ink spec" x="80" y="250">company.yaml         YOUR business · fill once</text>
+  <line class="hair" x1="80" y1="285" x2="920" y2="285"/>
+
+  <!-- agents/ section -->
+  <text class="mono label graphite" x="80" y="320">agents/</text>
+  <text class="mono graphite spec" x="260" y="320">41 AI specialists · an org chart of a real company</text>
+  <text class="mono ink spec" x="80" y="350">growth-ceo           top orchestrator</text>
+  <text class="mono ink spec" x="80" y="370">7 department heads · 33 specialists</text>
+  <line class="hair" x1="80" y1="405" x2="920" y2="405"/>
+
+  <!-- skills/ section -->
+  <text class="mono label graphite" x="80" y="440">skills/</text>
+  <text class="mono graphite spec" x="260" y="440">36 capabilities · each produces one asset</text>
+
+  <text class="mono eyebrow graphite" x="80" y="475">Foundations</text>
+  <text class="mono ink spec" x="80" y="500">/research               Market Research Brief</text>
+  <text class="mono ink spec" x="80" y="520">/build-icp              Ideal Customer Profile</text>
+  <text class="mono ink spec" x="80" y="540">/build-positioning      Positioning Document</text>
+  <text class="mono ink spec" x="80" y="560">/design-offer           Offer Document</text>
+  <text class="mono ink spec" x="80" y="580">/extract-voice          Brand Voice Architecture</text>
+
+  <text class="mono eyebrow graphite" x="80" y="615">Marketing</text>
+  <text class="mono ink spec" x="80" y="640">/content-calendar       30-day content plan</text>
+  <text class="mono ink spec" x="80" y="660">/ad-creative            Paid ad brief (8 ad types)</text>
+  <text class="mono ink spec" x="80" y="680">/write-linkedin-post    LinkedIn post</text>
+  <text class="mono ink spec" x="80" y="700">/write-reel             Short-form script (10 frameworks)</text>
+  <text class="mono ink spec" x="80" y="720">/write-youtube          Long-form video (7 types)</text>
+  <text class="mono ink spec" x="80" y="740">/write-x-thread         X thread (7 types)</text>
+  <text class="mono ink spec" x="80" y="760">/story-sequence         IG story sequence</text>
+
+  <text class="mono eyebrow graphite" x="80" y="795">Nurture</text>
+  <text class="mono ink spec" x="80" y="820">/lead-magnet            Lead magnet (9 types)</text>
+  <text class="mono ink spec" x="80" y="840">/email-sequence         Email sequence (8 types)</text>
+  <text class="mono ink spec" x="80" y="860">/webinar-script         Webinar / challenge (6 formats)</text>
+  <text class="mono ink spec" x="80" y="880">/post-booking-nurture   Show-rate stack</text>
+
+  <text class="mono eyebrow graphite" x="80" y="915">Sales</text>
+  <text class="mono ink spec" x="80" y="940">/build-vsl              Video Sales Letter (5 variants)</text>
+  <text class="mono ink spec" x="80" y="960">/build-funnel           Funnel Architecture (15 archetypes)</text>
+  <text class="mono ink spec" x="80" y="980">/sales-script           Discovery → pitch → close</text>
+  <text class="mono ink spec" x="80" y="1000">/objection-library      20+ objections × reframes</text>
+  <text class="mono ink spec" x="80" y="1020">/call-prep              Pre-call brief</text>
+  <text class="mono ink spec" x="80" y="1040">/proposal               Post-call proposal</text>
+  <text class="mono ink spec" x="80" y="1060">/application-form       Qualifying application</text>
+  <text class="mono ink spec" x="80" y="1080">/tripwire-design        $7–$97 entry offer</text>
+  <text class="mono ink spec" x="80" y="1100">/landing-page           4-page stack</text>
+  <text class="mono ink spec" x="80" y="1120">/competitor-intel       Competitor teardown</text>
+
+  <text class="mono eyebrow graphite" x="80" y="1155">Launch · Scale · Partnerships</text>
+  <text class="mono ink spec" x="80" y="1180">/plan-launch · /launch-report · /build-sop · /hiring-brief</text>
+  <text class="mono ink spec" x="80" y="1200">/retention-check · /case-study · /revenue-report</text>
+  <text class="mono ink spec" x="80" y="1220">/jv-webinar-proposal · /affiliate-program · /referral-program</text>
+  <line class="hair" x1="80" y1="1255" x2="920" y2="1255"/>
+
+  <!-- reference/ section -->
+  <text class="mono label graphite" x="80" y="1290">reference/</text>
+  <text class="mono graphite spec" x="260" y="1290">the brain that makes skills smart</text>
+  <text class="mono ink spec" x="80" y="1320">frameworks/       99 methodology docs</text>
+  <text class="mono ink spec" x="80" y="1340">operators/        18 archetyped playbooks</text>
+  <text class="mono ink spec" x="80" y="1360">platforms/        6 platform playbooks</text>
+  <text class="mono ink spec" x="80" y="1380">swipe-file/       170+ hooks · templates · threads · testimonials</text>
+  <text class="mono ink spec" x="80" y="1400">templates/        20 output templates</text>
+  <text class="mono ink spec" x="80" y="1420">verticals/        11 vertical packs</text>
+  <text class="mono ink spec" x="80" y="1440">legal-templates/  11 starter legal docs</text>
+  <line class="hair" x1="80" y1="1475" x2="920" y2="1475"/>
+
+  <!-- Footer -->
+  <text class="mono foot graphite" x="80" y="1510">Growth Operating Agency · v1.1 · MIT</text>
+  <text class="mono foot graphite" x="920" y="1510" text-anchor="end">heuresis.ai</text>
+</svg>

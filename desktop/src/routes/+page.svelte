@@ -3,12 +3,18 @@
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
   import { initializeAuth, getToken, isMockEnabled, isFirstRun } from '$api/client';
+  import { isTauri } from '$lib/utils/platform';
 
   /**
    * Determine where to send the user after auth initializes.
    *
    * Decision tree:
    *
+   *  LOCAL DESKTOP (Tauri) — no auth required:
+   *    1a. Onboarding not complete → /onboarding
+   *    1b. Onboarding complete     → /app
+   *
+   *  WEB / CLOUD MODE — auth required:
    *  1. initializeAuth() — probes /health, reads /auth/status (_firstRun),
    *     restores saved token, attempts dev auto-login if VITE_DEV_EMAIL set.
    *
@@ -28,6 +34,14 @@
    *       → /app
    */
   async function resolveDestination(): Promise<'/app' | '/onboarding' | '/auth'> {
+    // ── Local desktop mode: no auth required ─────────────────────────────
+    // Tauri apps run fully locally. Auth is only needed for MiosaCloud sync,
+    // which users can opt into from Settings — not at launch.
+    if (isTauri()) {
+      return isOnboardingComplete() ? '/app' : '/onboarding';
+    }
+
+    // ── Web / cloud mode: auth required ──────────────────────────────────
     await initializeAuth();
 
     // Case 2 — offline / backend down

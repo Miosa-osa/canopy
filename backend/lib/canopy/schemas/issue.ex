@@ -15,6 +15,8 @@ defmodule Canopy.Schemas.Issue do
     belongs_to :project, Canopy.Schemas.Project
     belongs_to :goal, Canopy.Schemas.Goal
     belongs_to :assignee, Canopy.Schemas.Agent
+    belongs_to :parent_issue, Canopy.Schemas.Issue, foreign_key: :parent_issue_id
+    has_many :sub_issues, Canopy.Schemas.Issue, foreign_key: :parent_issue_id
     belongs_to :checked_out_by_agent, Canopy.Schemas.Agent, foreign_key: :checked_out_by
     field :checked_out_at, :utc_datetime
     field :adapter_override, :string
@@ -37,6 +39,7 @@ defmodule Canopy.Schemas.Issue do
       :goal_id,
       :assignee_id,
       :checked_out_by,
+      :parent_issue_id,
       :adapter_override,
       :delegation_chain
     ])

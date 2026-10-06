@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 640" width="1600" height="640" role="img" aria-label="Growth Operating Agency — a Heuresis workspace template">
+  <title>Growth Operating Agency — a Heuresis workspace template</title>
+
+  <defs>
+    <radialGradient id="hb-core-l" cx="38%" cy="35%" r="68%" fx="33%" fy="30%">
+      <stop offset="0%" stop-color="#4A4A4A"/>
+      <stop offset="55%" stop-color="#1A1A1A"/>
+      <stop offset="100%" stop-color="#080808"/>
+    </radialGradient>
+    <radialGradient id="hb-particle-l" cx="36%" cy="33%" r="70%">
+      <stop offset="0%" stop-color="#3A3A3A"/>
+      <stop offset="60%" stop-color="#181818"/>
+      <stop offset="100%" stop-color="#080808"/>
+    </radialGradient>
+    <style>
+      .hb-title { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 500; letter-spacing: -0.04em; fill: #09090b; }
+      .hb-subtitle { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 400; letter-spacing: -0.01em; fill: #3f3f46; }
+      .hb-tagline { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 400; letter-spacing: 0; fill: #52525b; }
+      .hb-label { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; fill: #71717a; }
+      .hb-meta { font-family: "Geist Mono", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-weight: 400; letter-spacing: 0.04em; fill: #71717a; }
+      .hb-sig { font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 400; letter-spacing: 0.02em; fill: #a1a1aa; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="640" fill="#ffffff"/>
+
+  <g transform="translate(100 130)" opacity="0.04">
+    <path d="M 0 0 L 1400 0" stroke="#09090b" stroke-width="1"/>
+    <path d="M 0 380 L 1400 380" stroke="#09090b" stroke-width="1"/>
+  </g>
+
+  <g transform="translate(17 77) scale(0.952)">
+    <circle cx="256" cy="256" r="102" fill="none" stroke="#09090b" stroke-width="1.3" opacity="0.12"/>
+    <path d="M 316,237 A 63,63 0 1,1 275,196" fill="none" stroke="#09090b" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+    <circle cx="256" cy="256" r="24" fill="url(#hb-core-l)"/>
+    <circle cx="317" cy="194" r="7" fill="url(#hb-particle-l)"/>
+  </g>
+
+  <g transform="translate(560 0)">
+    <text class="hb-title" x="0" y="324" font-size="90">Growth Operating Agency</text>
+
+    <line x1="0" y1="420" x2="72" y2="420" stroke="#b45309" stroke-width="2" stroke-linecap="square"/>
+
+    <text class="hb-tagline" x="0" y="470" font-size="17">offer · funnel · vsl · ads · email · launch · sop · retention</text>  </g>
+</svg>

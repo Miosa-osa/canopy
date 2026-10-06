@@ -1,0 +1,70 @@
+skill_id: build-sop
+skill_path: skills/build-sop/SKILL.md
+skill_name: "Standard Operating Procedure Builder"
+
+tier: structured_ai
+category: scale
+temperature_gate: warm
+
+role_affinity:
+  - scale-head
+  - sop-builder
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.3
+
+evidence_gate:
+  - variant_selected
+  - full_process_mapped_phase_by_phase
+  - kpis_specified
+  - quality_gates_declared
+  - escalation_rules
+  - training_plan
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - conversion_sales
+    - operational_intelligence
+  write:
+    - operational_intelligence
+
+output:
+  location: "output/build-sop/{date}-sop-{variant}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: sop
+    type: inform
+    format: markdown
+    structure: w-sop-standard
+  receiver: team member executing the role/process
+
+next_skill_routing:
+  on_complete:
+    - condition: "role_unfilled"
+      recommend: hiring-brief
+    - condition: "variant == cs_sop"
+      recommend: retention-check
+    - condition: "variant == reporting_sop"
+      recommend: revenue-report
+  on_fail:
+    escalate_to: scale-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: false

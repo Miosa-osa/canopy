@@ -1,0 +1,77 @@
+skill_id: sales-script
+skill_path: skills/sales-script/SKILL.md
+skill_name: "High-Ticket Sales Script Builder"
+
+tier: reasoning_ai
+category: sales
+temperature_gate: warm
+
+role_affinity:
+  - sales-head
+  - sales-scripter
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents                          # offer/positioning/icp/voice docs + final script
+  - campaigns                          # script tied to campaign + funnel archetype
+  - objections                         # ICP Section 10 objection sourcing
+  - case_studies                       # isomorphic-fit for Stage 4/5 testimonials
+
+tools:
+  - file_read
+  - file_write
+  - file_edit
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - role_archetype_selected_with_reasoning
+  - 8_stage_structure_complete
+  - 12_objection_reframes_inlined
+  - 3_closing_archetypes_present
+  - unique_mechanism_threaded
+  - voice_match_verified
+  - no_fabricated_proof
+  - signal_score_gte_0_8
+  - role_play_3_of_3_scheduled
+
+context_slices:
+  read:
+    - audience_intelligence_system
+    - offer_architecture
+    - conversion_sales_systems
+    - creator_identity_matrix.brand_voice_architecture
+    - copy_messaging.objection_handling_library
+  write:
+    - conversion_sales_systems.sales_scripts
+
+output:
+  location: "output/sales-script/{date}-sales-script-role-{R1|R2|R3}.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: sales-script
+    type: direct
+    format: markdown
+    structure: 8-stage-w-objection-inline-w-3-closes
+  receiver: closer + setter + founder
+
+next_skill_routing:
+  on_complete:
+    - condition: "role_play_3_of_3_passed"
+      recommend: objection-library
+    - condition: "call_volume_high"
+      recommend: call-prep
+    - condition: "post_call_summary_needed"
+      recommend: proposal
+  on_fail:
+    escalate_to: sales-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  role_play_required: true

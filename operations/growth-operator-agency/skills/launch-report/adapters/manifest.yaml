@@ -1,0 +1,71 @@
+skill_id: launch-report
+skill_path: skills/launch-report/SKILL.md
+skill_name: "Post-Launch Analysis + Optimization Report Producer"
+
+tier: reasoning_ai
+category: launch
+temperature_gate: warm
+
+role_affinity:
+  - launch-head
+  - post-launch
+
+required_tables:
+  - creators
+  - agents
+  - events
+  - documents
+  - launches
+  - launch_metrics
+  - campaigns
+
+tools:
+  - file_read
+  - file_write
+
+execution_mode: interactive
+temperature: 0.5
+
+evidence_gate:
+  - plan_actual_variance_computed
+  - phase_by_phase_leak_diagnosis
+  - fix_paths_with_owner
+  - next_launch_recommendations
+  - signal_score_gte_0_8
+
+context_slices:
+  read:
+    - funnel_systems
+    - lifecycle_optimization
+    - launch_strategy
+  write:
+    - lifecycle_optimization.launch_learnings
+    - launch_strategy.historical_actuals
+
+output:
+  location: "output/launch-report/{date}-{offer-slug}-launch-report.md"
+  format: markdown
+  signal_tuple:
+    mode: linguistic
+    genre: launch-report
+    type: inform
+    format: markdown
+    structure: w-launch-report
+  receiver: creator + team
+
+next_skill_routing:
+  on_complete:
+    - condition: "funnel_leak_identified"
+      recommend: build-funnel
+    - condition: "creative_underperformed"
+      recommend: ad-creative
+    - condition: "next_launch_planning"
+      recommend: plan-launch
+  on_fail:
+    escalate_to: launch-head
+
+logging:
+  phase_transitions: true
+  source_count: true
+  confidence_per_section: true
+  blind_output_test_required: false

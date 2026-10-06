@@ -4,11 +4,8 @@
   import type { AdapterType, TeamTemplate, AgentTemplateData } from '$lib/stores/onboarding.svelte';
   import { isTauri } from '$lib/utils/platform';
   import Welcome from './steps/Welcome.svelte';
-  import Provider from './steps/Provider.svelte';
-  import Adapter from './steps/Adapter.svelte';
-  import Workspace from './steps/Workspace.svelte';
-  import Team from './steps/Team.svelte';
-  import MiosaCloud from './steps/MiosaCloud.svelte';
+  import WorkspaceSetup from './steps/WorkspaceSetup.svelte';
+  import AIConfig from './steps/AIConfig.svelte';
   import Review from './steps/Review.svelte';
 
   // ─── Registration data (pre-filled from /auth if the user just registered) ──
@@ -93,25 +90,10 @@
 
   const teamAgents = $derived(TEMPLATE_AGENTS[teamTemplate]);
 
-  // $derived evaluates to a boolean directly so Svelte tracks every reactive
-  // read (step, selectedProviderSlug, providerKeys, workspacePath) and
-  // recomputes whenever any of them change.
+  // canContinue: step 0 always OK (name is optional), step 1 requires workspace
+  // path, step 2 is always OK (AI config is skippable), step 3 is the Review.
   const canContinue = $derived((() => {
-    if (step === 1) {
-      if (!selectedProviderSlug) return false;
-      const allProviders = [
-        { slug: 'anthropic' }, { slug: 'ollama-cloud' }, { slug: 'ollama-local', noKey: true },
-        { slug: 'google' }, { slug: 'groq' }, { slug: 'deepseek' }, { slug: 'mistral' },
-        { slug: 'cohere' }, { slug: 'together' }, { slug: 'fireworks' }, { slug: 'perplexity' },
-        { slug: 'cerebras' }, { slug: 'sambanova' }, { slug: 'openrouter' }, { slug: 'openai' },
-        { slug: 'replicate' }, { slug: 'xai' }, { slug: 'lambda' }, { slug: 'lepton' },
-      ];
-      const prov = allProviders.find(p => p.slug === selectedProviderSlug);
-      if (!prov) return false;
-      if ((prov as { noKey?: boolean }).noKey) return true;
-      return (providerKeys[selectedProviderSlug] ?? '').trim().length > 0;
-    }
-    if (step === 3) return workspacePath.trim().length > 0;
+    if (step === 1) return workspacePath.trim().length > 0;
     return true;
   })());
 
@@ -143,6 +125,14 @@
     });
   }
 
+  // ─── AI Config skip (step 2 → step 3 without requiring provider) ──────────
+
+  function skipAIConfig() {
+    syncToStore();
+    step = 3;
+    onboardingStore.goToStep(3);
+  }
+
   // ─── Import callback from Welcome step ────────────────────────────────────
 
   function handleImport(result: {
@@ -166,8 +156,10 @@
       adapter: selectedAdapter,
       teamTemplate,
     });
-    step = result.jumpToStep;
-    onboardingStore.goToStep(result.jumpToStep);
+    // Import skips straight to Review (step 3 in the new 4-step flow)
+    const target = result.jumpToStep >= 6 ? 3 : result.jumpToStep;
+    step = target;
+    onboardingStore.goToStep(target);
   }
 
   // ─── Launch ───────────────────────────────────────────────────────────────
@@ -205,7 +197,7 @@
         const { workspaceStore } = await import('$lib/stores/workspace.svelte');
 
         // If registration already created a backend workspace, reuse its ID so
-        // the frontend store entry matches what the backend knows about.  Fall
+        // the frontend store entry matches what the backend knows about. Fall
         // back to a new UUID only for offline / mock installs.
         const wsId = registeredWorkspaceId || crypto.randomUUID();
         const wsEntry = {
@@ -344,9 +336,9 @@
 </script>
 
 <div class="ob-root">
-  <!-- Progress dots -->
+  <!-- Progress dots (4 steps: 0–3) -->
   <div class="ob-dots">
-    {#each { length: 7 } as _, i}
+    {#each { length: 4 } as _, i}
       <button
         class="ob-dot"
         class:ob-dot--active={i === step}
@@ -362,16 +354,19 @@
     {#if step === 0}
       <Welcome bind:displayName onImport={handleImport} />
     {:else if step === 1}
-      <Provider bind:selectedProviderSlug bind:providerKeys />
+      <WorkspaceSetup
+        bind:workspacePath
+        bind:workspaceName
+        bind:teamTemplate
+      />
     {:else if step === 2}
-      <Adapter bind:selectedAdapter />
+      <AIConfig
+        bind:selectedProviderSlug
+        bind:providerKeys
+        bind:selectedAdapter
+        onSkip={skipAIConfig}
+      />
     {:else if step === 3}
-      <Workspace bind:workspacePath bind:workspaceName bind:workspaceDesc />
-    {:else if step === 4}
-      <Team bind:teamTemplate />
-    {:else if step === 5}
-      <MiosaCloud bind:miosaCloud />
-    {:else if step === 6}
       <Review
         {displayName}
         {selectedProviderSlug}
@@ -379,7 +374,7 @@
         {workspacePath}
         {teamTemplate}
         {teamAgents}
-        {miosaCloud}
+        bind:miosaCloud
         {isLaunching}
         onLaunch={launch}
         onSkip={skip}
@@ -387,8 +382,8 @@
     {/if}
   </div>
 
-  <!-- Navigation -->
-  {#if step < 6}
+  <!-- Navigation (hidden on Review — it has its own Launch button) -->
+  {#if step < 3}
     <div class="ob-nav" class:ob-nav--center={step === 0}>
       {#if step > 0}
         <button
@@ -411,7 +406,8 @@
       </button>
     </div>
   {:else}
-    <div class="ob-nav ob-nav--center">
+    <!-- On Review, only show Back -->
+    <div class="ob-nav">
       <button
         class="ob-btn ob-btn--secondary"
         onclick={prev}

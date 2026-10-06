@@ -6,7 +6,9 @@ import {
   sessions as sessionsApi,
   messages as messagesApi,
   sessionChain as sessionChainApi,
+  getToken,
 } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { connectSSE, type StreamController } from "$api/sse";
 import { toastStore } from "./toasts.svelte";
 
@@ -142,6 +144,10 @@ class SessionsStore {
   // ── List operations ────────────────────────────────────────────────────────
 
   async fetch(workspaceId?: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     this.error = null;
     try {
@@ -164,6 +170,7 @@ class SessionsStore {
   }
 
   async fetchById(id: string): Promise<Session | null> {
+    if (isTauri() && !getToken()) return null;
     try {
       const session = await sessionsApi.get(id);
       this.selectedSession = session;
@@ -182,6 +189,10 @@ class SessionsStore {
   }
 
   async fetchTranscript(id: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.transcriptLoading = false;
+      return;
+    }
     this.transcriptLoading = true;
     this.stopLiveStream();
     try {
@@ -199,6 +210,7 @@ class SessionsStore {
   // ── SSE live transcript ────────────────────────────────────────────────────
 
   startLiveStream(sessionId: string): void {
+    if (isTauri() && !getToken()) return;
     this.stopLiveStream();
     this.isLive = true;
     this.#transcriptStream = connectSSE(`/sessions/${sessionId}/stream`, {
@@ -245,6 +257,10 @@ class SessionsStore {
   // ── Session chain operations ────────────────────────────────────────────────
 
   async fetchChain(sessionId: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.chainLoading = false;
+      return;
+    }
     this.chainLoading = true;
     try {
       this.chain = await sessionChainApi.get(sessionId);

@@ -1,0 +1,60 @@
+openapi: 3.1.0
+info:
+  title: extract-voice
+  version: 1.0.0
+  x-skill-source: ../SKILL.md
+  x-signal-tuple: { mode: linguistic, genre: brand-voice-doc, type: inform, format: markdown, structure: w-brand-voice-doc-10-section }
+servers:
+  - url: https://{host}/api/v1
+    variables: { host: { default: growth-os.local } }
+security: [ { GrowthOSKey: [] } ]
+paths:
+  /skills/extract-voice/execute:
+    post:
+      summary: Execute extract-voice (10-section Brand Voice Architecture Document — 15+ phrases_to_use, 10+ phrases_to_avoid)
+      x-evidence-gate: [all_10_sections_complete, verbatim_phrase_count_phrases_to_use_gte_15, phrases_to_avoid_count_gte_10, language_patterns_identified_gte_5, voice_samples_annotated_gte_5, signal_score_gte_0_8, blind_output_test_passed]
+      x-streaming: not-required
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Input' } } } }
+      responses:
+        '200': { description: Passed, content: { application/json: { schema: { $ref: '#/components/schemas/Output' } } } }
+        '400': { description: Bad inputs }
+        '401': { description: Unauthorized }
+        '403': { description: Scope violation (INV-8) }
+        '422': { description: Held (quality gate failed) }
+        '429': { description: Rate-limited }
+        '500': { description: Runtime error }
+components:
+  securitySchemes: { GrowthOSKey: { type: apiKey, in: header, name: X-Growth-OS-Key } }
+  schemas:
+    Input:
+      type: object
+      required: [skill, inputs, context_profile_id]
+      properties:
+        skill: { type: string, const: extract-voice }
+        inputs:
+          type: object
+          required: [creator_identity_matrix_score, content_corpus]
+          properties:
+            creator_identity_matrix_score: { type: number, minimum: 30 }
+            content_corpus:
+              type: array
+              minItems: 3
+              items: { type: string, description: "URL or path to creator content — podcast transcript / long-form post / video transcript / newsletter" }
+              description: 3+ hours of creator content required
+            interview_transcript_ref: { type: string, description: Optional founder interview transcript }
+        context_profile_id: { type: string }
+        options:
+          type: object
+          properties: { stream: { type: boolean, default: false }, dry_run: { type: boolean, default: false } }
+    Output:
+      type: object
+      required: [artifact_ref, status, quality_score, signal_theory_tuple]
+      properties:
+        artifact_ref: { type: string, description: "output/extract-voice/{date}-brand-voice-doc.md" }
+        status: { type: string, enum: [passed, held, failed] }
+        quality_score: { type: number, minimum: 0, maximum: 1 }
+        signal_theory_tuple:
+          type: object
+          properties: { mode: { type: string }, genre: { type: string }, type: { type: string }, format: { type: string }, structure: { type: string } }
+        cost_tokens: { type: integer }
+        evidence_ref: { type: string }

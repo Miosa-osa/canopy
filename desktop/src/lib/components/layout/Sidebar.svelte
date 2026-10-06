@@ -230,23 +230,13 @@
               </SidebarSection>
             {/if}
 
-          <!-- Fallback: group by config.division when no tree data -->
+          <!-- Fallback: group by adapter type — human → TEAM, AI adapters → AI AGENTS -->
           {:else}
-            {@const grouped = (() => {
-              const groups = new Map<string, import('$api/types').CanopyAgent[]>();
-              for (const agent of agentsStore.agents) {
-                const div = (agent.config?.division as string) || 'general';
-                const list = groups.get(div) ?? [];
-                list.push(agent);
-                groups.set(div, list);
-              }
-              return [...groups.entries()]
-                .sort(([a], [b]) => (DIVISION_META[a]?.order ?? 99) - (DIVISION_META[b]?.order ?? 99));
-            })()}
-            {#each grouped as [divKey, divAgents] (divKey)}
-              {@const meta = DIVISION_META[divKey]}
-              <SidebarSection label="{meta?.emoji ?? '📁'} {meta?.label ?? divKey}" badge={divAgents.length} defaultOpen={true}>
-                {#each divAgents as agent (agent.id)}
+            {@const humanAgents = agentsStore.agents.filter(a => a.adapter === 'human')}
+            {@const aiAgents = agentsStore.agents.filter(a => a.adapter !== 'human')}
+            {#if humanAgents.length > 0}
+              <SidebarSection label="TEAM" badge={humanAgents.length} defaultOpen={true}>
+                {#each humanAgents as agent (agent.id)}
                   <SidebarNavItem
                     href="/app/agents/{agent.id}"
                     label={agent.display_name || agent.name}
@@ -255,7 +245,19 @@
                   />
                 {/each}
               </SidebarSection>
-            {/each}
+            {/if}
+            {#if aiAgents.length > 0}
+              <SidebarSection label="AI AGENTS" badge={aiAgents.length} defaultOpen={true}>
+                {#each aiAgents as agent (agent.id)}
+                  <SidebarNavItem
+                    href="/app/agents/{agent.id}"
+                    label={agent.display_name || agent.name}
+                    icon={ICONS.agent}
+                    active={isActive(`/app/agents/${agent.id}`)}
+                  />
+                {/each}
+              </SidebarSection>
+            {/if}
           {/if}
 
           <SidebarNavItem href="/app/agents" label="View all ({agentsStore.agents.length})" icon={ICONS.agent} active={currentPath === '/app/agents'} />

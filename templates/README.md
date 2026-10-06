@@ -13,6 +13,7 @@
 | **small** | ~15 | Small team or product (2-3 agents, focused domain) | 1 hour |
 | **full** | ~30 | Multi-team operation (4+ agents, workflows, governance) | 2-3 hours |
 | **enterprise** | ~40+ | Large organization (teams, budgets, governance, compliance) | Half day |
+| **growth-operator-agency** | 300+ | Creator-business growth operating workspace with agents, skills, workflows, reference, and runtime shims | 30-60 minutes |
 
 ---
 
@@ -26,6 +27,9 @@ cp -r templates/micro/ my-operation/
 
 # Or for a full setup
 cp -r templates/full/ my-operation/
+
+# Or for the imported Growth Operator Agency workspace
+cp -r templates/growth-operator-agency/ my-growth-operation/
 ```
 
 ### 2. Customize SYSTEM.md
@@ -192,6 +196,25 @@ enterprise/
 Best for: Organizations with compliance requirements, multiple teams, budget
 tracking, and formal governance. Includes approval gates, audit trails, and
 escalation procedures.
+
+### growth-operator-agency (full imported workspace)
+
+```
+growth-operator-agency/
+├── SYSTEM.md
+├── company.yaml
+├── agents/              # 41 growth agency personas
+├── skills/              # 39 artifact-producing skills
+├── reference/           # frameworks, swipe files, templates, vertical packs
+├── workflows/           # launches, delivery, handoffs, automations
+├── spec/                # banned vocabulary, context thresholds, runtime rules
+├── prompts/             # prompt libraries by domain
+└── .claude/commands/    # Claude Code slash-command shims
+```
+
+Best for: Creator-led info, coaching, consulting, course, community, and digital
+product businesses that need a complete growth operating workspace. Start by
+copying the template and filling in `company.yaml`.
 
 ---
 

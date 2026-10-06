@@ -1,0 +1,63 @@
+openapi: 3.1.0
+info:
+  title: plan-launch
+  version: 1.0.0
+  x-skill-source: ../SKILL.md
+  x-signal-tuple: { mode: linguistic, genre: launch-plan, type: plan, format: markdown, structure: w-launch-plan-5-phase }
+servers:
+  - url: https://{host}/api/v1
+    variables: { host: { default: growth-os.local } }
+security: [ { GrowthOSKey: [] } ]
+paths:
+  /skills/plan-launch/execute:
+    post:
+      summary: Execute plan-launch (5 variants Live/Evergreen/Rolling/Flash/Beta — 5-phase runbook layered over the operations director 7-Step with the growth strategist Whisper/Tease/Shout)
+      x-evidence-gate: [variant_selected_with_reasoning, all_5_phases_mapped, asset_dependencies_all_green, team_assignments_complete, tech_checklist_100_percent, kpi_targets_set_against_plan, cart_close_deadline_immutable, debrief_template_embedded, signal_score_gte_0_8]
+      x-streaming: supported
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Input' } } } }
+      responses:
+        '200': { description: Passed, content: { application/json: { schema: { $ref: '#/components/schemas/Output' } } } }
+        '400': { description: Bad inputs }
+        '401': { description: Unauthorized }
+        '403': { description: Scope violation (INV-8) }
+        '422': { description: "Held — asset-dependency red or tech checklist gaps or KPI floors unmet" }
+        '429': { description: Rate-limited }
+        '500': { description: Runtime error }
+components:
+  securitySchemes: { GrowthOSKey: { type: apiKey, in: header, name: X-Growth-OS-Key } }
+  schemas:
+    Input:
+      type: object
+      required: [skill, inputs, context_profile_id]
+      properties:
+        skill: { type: string, const: plan-launch }
+        inputs:
+          type: object
+          required: [audience_intelligence_system_score, offer_architecture_score, funnel_systems_score, cart_close_date]
+          properties:
+            audience_intelligence_system_score: { type: number, minimum: 60 }
+            offer_architecture_score: { type: number, minimum: 70 }
+            funnel_systems_score: { type: number, minimum: 60 }
+            content_strategy_score: { type: number, minimum: 40 }
+            variant_hint: { type: integer, enum: [1, 2, 3, 4, 5], description: 1=Live, 2=Evergreen, 3=Rolling, 4=Flash, 5=Beta }
+            cart_open_date: { type: string, format: date }
+            cart_close_date: { type: string, format: date, description: Immutable per launch-pipeline FSM }
+            revenue_target: { type: number }
+            offer_doc_ref: { type: string }
+            funnel_doc_ref: { type: string }
+        context_profile_id: { type: string }
+        options:
+          type: object
+          properties: { stream: { type: boolean, default: false }, variant: { type: integer, enum: [1, 2, 3, 4, 5] }, dry_run: { type: boolean, default: false } }
+    Output:
+      type: object
+      required: [artifact_ref, status, quality_score, signal_theory_tuple]
+      properties:
+        artifact_ref: { type: string, description: "output/plan-launch/{date}-variant{N}-{offer-slug}-launch-plan.md" }
+        status: { type: string, enum: [passed, held, failed] }
+        quality_score: { type: number, minimum: 0, maximum: 1 }
+        signal_theory_tuple:
+          type: object
+          properties: { mode: { type: string }, genre: { type: string }, type: { type: string }, format: { type: string }, structure: { type: string } }
+        cost_tokens: { type: integer }
+        evidence_ref: { type: string }

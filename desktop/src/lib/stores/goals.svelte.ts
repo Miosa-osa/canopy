@@ -1,6 +1,7 @@
 // src/lib/stores/goals.svelte.ts
 import type { Goal, GoalTreeNode, GoalStatus, GoalPriority } from "$api/types";
-import { goals as goalsApi } from "$api/client";
+import { goals as goalsApi, getToken } from "$api/client";
+import { isTauri } from "$lib/utils/platform";
 import { toastStore } from "./toasts.svelte";
 
 class GoalsStore {
@@ -58,6 +59,10 @@ class GoalsStore {
   totalCount = $derived(this.flatGoals.length);
 
   async fetchGoals(projectId: string): Promise<void> {
+    if (isTauri() && !getToken()) {
+      this.loading = false;
+      return;
+    }
     this.loading = true;
     this.activeProjectId = projectId;
     try {

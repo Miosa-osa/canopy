@@ -8,19 +8,10 @@
   import LoadingSpinner from '$lib/components/shared/LoadingSpinner.svelte';
   import { agentsStore } from '$lib/stores/agents.svelte';
   import { workspaceStore } from '$lib/stores/workspace.svelte';
-  import { goto } from '$app/navigation';
-
   // Re-fetch whenever the active workspace changes (including after backend sync)
   $effect(() => {
     const wsId = workspaceStore.activeWorkspaceId ?? undefined;
     void agentsStore.fetchAgents(wsId);
-  });
-
-  // Redirect org view to the real hierarchy page
-  $effect(() => {
-    if (agentsStore.viewMode === 'org') {
-      void goto('/app/hierarchy');
-    }
   });
 
   let showHireDialog = $state(false);
@@ -98,8 +89,7 @@
     align-content: flex-start;
   }
 
-  .ar-empty,
-  .ar-org-placeholder {
+  .ar-empty {
     display: flex;
     flex-direction: column;
     align-items: center;

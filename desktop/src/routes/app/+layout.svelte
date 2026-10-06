@@ -27,6 +27,11 @@
   import { topologyStore } from '$lib/stores/topology.svelte';
   import WorkspacePickerModal from '$lib/components/ui/WorkspacePickerModal.svelte';
 
+  // ── Local desktop mode flag ───────────────────────────────────────────────
+  // When running as a Tauri desktop app, auth is optional (MiosaCloud only).
+  // This flag short-circuits auth-dependent checks throughout the layout.
+  const localMode = isTauri();
+
   let { children } = $props();
 
   let showWorkspacePicker = $state(false);
@@ -63,8 +68,8 @@
     if (browser) localStorage.setItem('canopy-sidebar-collapsed', String(sidebarCollapsed));
   }
 
-  // Nav routes for ⌘1–⌘3 (Core section)
-  const NAV_ROUTES = ['/app', '/app/inbox', '/app/office'];
+  // Nav routes for ⌘1–⌘4 (Core section)
+  const NAV_ROUTES = ['/app', '/app/inbox', '/app/office', '/app/workbench'];
 
   onMount(() => {
     // Capture stopPolling in outer scope so the cleanup return can call it.
@@ -80,12 +85,19 @@
     //    Authorization header and receives 401 "unauthorized".
     initializeAuth().then(async () => {
       // ── Onboarding guard (runs after auth resolves) ───────────────────────
-      // If the backend is reachable and the user has a valid token, they
-      // already have a running setup — skip onboarding entirely.
+      // In local desktop mode (Tauri), auth tokens are not required. Onboarding
+      // state lives in localStorage only — skip all token/API checks.
       let onboardingDone = false;
 
-      if (!isMockEnabled() && getToken()) {
-        // Valid authenticated session → treat as fully onboarded.
+      if (localMode) {
+        // Local desktop: honour localStorage flags directly, no auth needed.
+        const raw = localStorage.getItem('canopy-onboarding');
+        const completed = raw
+          ? (JSON.parse(raw) as { completed?: boolean }).completed
+          : false;
+        onboardingDone = completed || localStorage.getItem('canopy-onboarding-complete') === 'true';
+      } else if (!isMockEnabled() && getToken()) {
+        // Cloud mode: valid authenticated session → treat as fully onboarded.
         localStorage.setItem('canopy-onboarding-complete', 'true');
         localStorage.setItem(
           'canopy-onboarding',
@@ -93,7 +105,7 @@
         );
         onboardingDone = true;
       } else if (!isMockEnabled()) {
-        // Backend reachable but no token yet — check for existing data.
+        // Cloud mode: backend reachable but no token yet — check for existing data.
         try {
           const wsList = await workspaces.list();
           if (wsList.length > 0) {
@@ -113,7 +125,7 @@
       }
 
       if (!onboardingDone) {
-        // Offline / mock mode — honour localStorage flags.
+        // Offline / mock mode (web) — honour localStorage flags.
         const raw = localStorage.getItem('canopy-onboarding');
         const completed = raw
           ? (JSON.parse(raw) as { completed?: boolean }).completed
@@ -172,8 +184,6 @@
 
       void approvalsStore.fetchApprovals(wsId);
 
-      // 9. Pre-fetch projects so goals and other project-dependent pages work
-      void projectsStore.fetchProjects(wsId);
       if (ws) {
         workspaceStore.scanAndLoadAgents(ws.path).then(() => {
           workspaceStore.watchActive();
@@ -181,9 +191,15 @@
           if (agentsStore.agents.length === 0) {
             void agentsStore.fetchAgents(wsId);
           }
+          // If scan didn't load any projects, fall back to API
+          if (projectsStore.projects.length === 0) {
+            void projectsStore.fetchProjects(wsId);
+          }
         });
       } else {
+        // No Tauri workspace — fetch both from API
         void agentsStore.fetchAgents(wsId);
+        void projectsStore.fetchProjects(wsId);
       }
     });
 
