@@ -17,7 +17,8 @@ config :canopy, CanopyWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "iNL7tyd7LXRU922XhmurVZVy9IjT7zYk6KK0RyrVx5lQifs9owL1VWkM7JNgL/uM",
+  secret_key_base:
+    System.get_env("SECRET_KEY_BASE") || Base.encode64(:crypto.strong_rand_bytes(48)),
   watchers: []
 
 # ## SSL Support

@@ -13,7 +13,7 @@ config :canopy, Canopy.Repo,
 # Test endpoint — server: false because we use ConnCase for HTTP tests
 config :canopy, CanopyWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "+38WqF2FXshXAdB6HCZGmrxBJNS2XBQ1V0XWXFWdPawiseW2z5s9XjkKZ9eOygz+",
+  secret_key_base: Base.encode64(:crypto.strong_rand_bytes(48)),
   server: false
 
 # Oban — use manual testing mode. Jobs are inserted into the test sandbox but
